@@ -5,6 +5,8 @@ Uses the Squarespace Content API v1.0.
 Docs: https://developers.squarespace.com/commerce-apis/overview
 """
 
+from __future__ import annotations
+
 import json
 import time
 

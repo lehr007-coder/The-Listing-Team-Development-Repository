@@ -5,6 +5,8 @@ Uses the Go High Level API v2.
 Docs: https://highlevel.stoplight.io/docs/integrations
 """
 
+from __future__ import annotations
+
 import json
 
 import requests

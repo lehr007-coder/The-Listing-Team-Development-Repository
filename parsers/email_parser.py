@@ -5,6 +5,8 @@ Supports extracting images that are attached to emails alongside
 Word documents, so all assets are available for the blog post.
 """
 
+from __future__ import annotations
+
 import email
 import os
 from email import policy

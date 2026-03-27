@@ -5,6 +5,8 @@ Produces: meta title, description, Open Graph tags, schema markup,
 image alt text, canonical URL suggestions, and keyword analysis.
 """
 
+from __future__ import annotations
+
 import json
 
 import anthropic

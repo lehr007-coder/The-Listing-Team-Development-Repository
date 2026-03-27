@@ -2,6 +2,8 @@
 Parse Word (.docx) documents — extracts text content and all embedded images.
 """
 
+from __future__ import annotations
+
 import io
 import os
 from dataclasses import dataclass, field

@@ -2,6 +2,8 @@
 Content spinner — rewrites blog content using Claude API for uniqueness and SEO.
 """
 
+from __future__ import annotations
+
 import anthropic
 from config import Config
 
