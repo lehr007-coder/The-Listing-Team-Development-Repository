@@ -1,0 +1,18 @@
+{
+  "name": "tlt-image-server",
+  "version": "1.0.0",
+  "description": "Image hosting server with admin portal for The Listing Team",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.2",
+    "uuid": "^11.0.5"
+  }
+}
