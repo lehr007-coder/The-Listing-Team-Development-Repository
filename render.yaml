@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: blog-automation
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SQUARESPACE_API_KEY
+        sync: false
+      - key: SQUARESPACE_SITE_ID
+        sync: false
+      - key: SQUARESPACE_BLOG_COLLECTION_ID
+        sync: false
+      - key: GHL_API_KEY
+        sync: false
+      - key: GHL_LOCATION_ID
+        sync: false
+      - key: GHL_BLOG_ID
+        sync: false
