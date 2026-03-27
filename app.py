@@ -8,6 +8,7 @@ Run with: streamlit run app.py
 
 import io
 import json
+import os
 import streamlit as st
 
 from parsers.docx_parser import parse_docx, ParsedBlog
@@ -24,6 +25,100 @@ st.set_page_config(
     page_icon="📝",
     layout="wide",
 )
+
+# ══════════════════════════════════════════════════════════════
+# FIRST-RUN SETUP SCREEN
+# ══════════════════════════════════════════════════════════════
+ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+
+
+def _env_has_keys() -> bool:
+    """Check if .env exists and has at least the Anthropic key set."""
+    if not os.path.exists(ENV_PATH):
+        return False
+    with open(ENV_PATH) as f:
+        contents = f.read()
+    return "ANTHROPIC_API_KEY=" in contents and "your-" not in contents
+
+
+def _save_env(values: dict):
+    """Write keys to .env file (local only, never committed to git)."""
+    lines = []
+    for key, val in values.items():
+        if val:
+            lines.append(f"{key}={val}")
+    with open(ENV_PATH, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    # Reload into current process
+    from dotenv import load_dotenv
+    load_dotenv(ENV_PATH, override=True)
+    # Update Config
+    from config import Config
+    Config.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+    Config.SQUARESPACE_API_KEY = os.getenv("SQUARESPACE_API_KEY", "")
+    Config.SQUARESPACE_SITE_ID = os.getenv("SQUARESPACE_SITE_ID", "")
+    Config.SQUARESPACE_BLOG_COLLECTION_ID = os.getenv("SQUARESPACE_BLOG_COLLECTION_ID", "")
+    Config.GHL_API_KEY = os.getenv("GHL_API_KEY", "")
+    Config.GHL_LOCATION_ID = os.getenv("GHL_LOCATION_ID", "")
+    Config.GHL_BLOG_ID = os.getenv("GHL_BLOG_ID", "")
+
+
+if not _env_has_keys():
+    st.title("Blog Automation Tool — Setup")
+    st.info(
+        "Welcome! Paste your API keys below to get started. "
+        "These are saved locally in a `.env` file on your machine only — "
+        "they are never uploaded or committed to git."
+    )
+
+    with st.form("setup_form"):
+        st.subheader("Anthropic (Claude) — Required")
+        anthropic_key = st.text_input(
+            "Anthropic API Key",
+            type="password",
+            help="Get yours at console.anthropic.com/settings/keys",
+        )
+
+        st.subheader("Squarespace")
+        sq_key = st.text_input("Squarespace API Key", type="password")
+        sq_site_id = st.text_input(
+            "Squarespace Site ID",
+            help="Found in Settings → General → Site ID",
+        )
+        sq_blog_id = st.text_input(
+            "Squarespace Blog Collection ID",
+            help="Go to your blog page — the collection ID is in the URL",
+        )
+
+        st.subheader("Go High Level")
+        ghl_key = st.text_input("GHL API Key", type="password")
+        ghl_location = st.text_input(
+            "GHL Location ID",
+            help="Found in the URL when viewing your location",
+        )
+        ghl_blog = st.text_input("GHL Blog ID (optional)")
+
+        submitted = st.form_submit_button("Save & Start", type="primary")
+
+    if submitted:
+        if not anthropic_key:
+            st.error("Anthropic API Key is required to spin content.")
+        else:
+            _save_env({
+                "ANTHROPIC_API_KEY": anthropic_key,
+                "SQUARESPACE_API_KEY": sq_key,
+                "SQUARESPACE_SITE_ID": sq_site_id,
+                "SQUARESPACE_BLOG_COLLECTION_ID": sq_blog_id,
+                "GHL_API_KEY": ghl_key,
+                "GHL_LOCATION_ID": ghl_location,
+                "GHL_BLOG_ID": ghl_blog,
+            })
+            st.success("Keys saved! Restarting...")
+            st.rerun()
+
+    st.stop()  # Don't show the rest of the app until setup is done
+
+# ══════════════════════════════════════════════════════════════
 
 st.title("Blog Automation Tool")
 st.caption("Upload → Spin → SEO Optimize → Publish")
@@ -397,12 +492,10 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown("**Quick Setup:**")
-    st.markdown(
-        "1. Copy `.env.example` to `.env`\n"
-        "2. Fill in your API keys\n"
-        "3. Restart the app"
-    )
+    if st.button("Reconfigure API Keys"):
+        if os.path.exists(ENV_PATH):
+            os.remove(ENV_PATH)
+        st.rerun()
 
     st.markdown("---")
     st.markdown("**Pipeline:**")
