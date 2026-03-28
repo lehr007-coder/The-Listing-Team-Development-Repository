@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GHL Embed Guide - Image Server Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .guide-container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+    .guide-container h1 { margin-bottom: 0.5rem; }
+    .guide-container .subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+    .guide-section { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+    .guide-section h2 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+    .guide-section h3 { font-size: 0.95rem; margin: 1rem 0 0.5rem; color: var(--text-muted); }
+    .guide-section p, .guide-section li { font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); }
+    .guide-section ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+    .code-block { position: relative; background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.8rem; overflow-x: auto; margin: 0.75rem 0; line-height: 1.5; white-space: pre; }
+    .copy-code { position: absolute; top: 8px; right: 8px; background: #45475a; color: #cdd6f4; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+    .copy-code:hover { background: #585b70; }
+    .step-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: var(--primary); color: white; border-radius: 50%; font-size: 0.8rem; font-weight: 600; margin-right: 0.5rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+    .back-link:hover { text-decoration: underline; }
+    .highlight { background: #fff3cd; padding: 0.75rem 1rem; border-radius: 6px; border-left: 4px solid #ffc107; margin: 0.75rem 0; font-size: 0.85rem; }
+    .server-url { font-weight: 600; color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="guide-container">
+    <a href="/admin" class="back-link">&larr; Back to Admin</a>
+    <h1>GoHighLevel Embed Guide</h1>
+    <p class="subtitle">How to use your images in GHL funnels, websites, and widgets</p>
+
+    <!-- Method 1 -->
+    <div class="guide-section">
+      <h2>Method 1: Direct Image URL (Simplest)</h2>
+      <p>Use your image URLs directly in any GHL image element, background image, or HTML block.</p>
+
+      <h3><span class="step-number">1</span> Copy the image URL from Admin</h3>
+      <p>Go to the <a href="/admin">Admin Portal</a>, find your image, and click "Copy URL".</p>
+
+      <h3><span class="step-number">2</span> Paste in GHL</h3>
+      <p>In the GHL funnel builder:</p>
+      <ul>
+        <li><strong>Image Element:</strong> Paste the URL in the "Image URL" field</li>
+        <li><strong>Background Image:</strong> Paste in section/row background image URL</li>
+        <li><strong>Custom HTML:</strong> Use an img tag:</li>
+      </ul>
+
+      <div class="code-block" id="code-direct"><button class="copy-code" onclick="copyCode('code-direct')">Copy</button>&lt;img
+  src="https://YOUR-SERVER/images/your-image-slug"
+  alt="Your alt text"
+  style="width: 100%; max-width: 600px; height: auto;"
+&gt;</div>
+    </div>
+
+    <!-- Method 2 -->
+    <div class="guide-section">
+      <h2>Method 2: Single Image Widget</h2>
+      <p>Embed a single image that automatically pulls its alt text and description from the server.</p>
+
+      <h3><span class="step-number">1</span> Add a Custom HTML/JS element in your GHL funnel</h3>
+      <h3><span class="step-number">2</span> Paste this code:</h3>
+
+      <div class="code-block" id="code-single"><button class="copy-code" onclick="copyCode('code-single')">Copy</button>&lt;!-- TLT Single Image Widget --&gt;
+&lt;div class="tlt-image"
+  data-slug="YOUR-IMAGE-SLUG"
+  data-max-width="600px"
+  data-rounded="true"&gt;
+&lt;/div&gt;
+
+&lt;script
+  src="https://YOUR-SERVER/embed/widget.js"
+  data-server="https://YOUR-SERVER"&gt;
+&lt;/script&gt;</div>
+
+      <h3>Options:</h3>
+      <ul>
+        <li><code>data-slug</code> - The image slug (required)</li>
+        <li><code>data-max-width</code> - Max width (default: 100%)</li>
+        <li><code>data-rounded</code> - Rounded corners: true/false</li>
+      </ul>
+    </div>
+
+    <!-- Method 3 -->
+    <div class="guide-section">
+      <h2>Method 3: Image Gallery Widget</h2>
+      <p>Display a responsive grid of images from your server.</p>
+
+      <h3><span class="step-number">1</span> Add a Custom HTML/JS element in your GHL funnel</h3>
+      <h3><span class="step-number">2</span> Paste this code:</h3>
+
+      <div class="code-block" id="code-gallery"><button class="copy-code" onclick="copyCode('code-gallery')">Copy</button>&lt;!-- TLT Image Gallery Widget --&gt;
+&lt;div class="tlt-gallery"
+  data-columns="3"
+  data-limit="6"
+  data-captions="true"
+  data-rounded="true"
+  data-gap="16px"&gt;
+&lt;/div&gt;
+
+&lt;script
+  src="https://YOUR-SERVER/embed/widget.js"
+  data-server="https://YOUR-SERVER"&gt;
+&lt;/script&gt;</div>
+
+      <h3>Options:</h3>
+      <ul>
+        <li><code>data-columns</code> - Grid columns (default: 3)</li>
+        <li><code>data-limit</code> - Max images to show (default: 12)</li>
+        <li><code>data-search</code> - Filter images by keyword</li>
+        <li><code>data-captions</code> - Show title/description: true/false</li>
+        <li><code>data-rounded</code> - Rounded corners: true/false</li>
+        <li><code>data-gap</code> - Spacing between images (default: 16px)</li>
+      </ul>
+    </div>
+
+    <!-- GHL Steps -->
+    <div class="guide-section">
+      <h2>Step-by-Step in GoHighLevel</h2>
+
+      <h3>For Funnels:</h3>
+      <ul>
+        <li><span class="step-number">1</span> Open your funnel in the GHL builder</li>
+        <li><span class="step-number">2</span> Add a new element &rarr; select "Custom JS/HTML"</li>
+        <li><span class="step-number">3</span> Paste the widget code from above</li>
+        <li><span class="step-number">4</span> Replace <code>YOUR-SERVER</code> with your image server domain</li>
+        <li><span class="step-number">5</span> Replace <code>YOUR-IMAGE-SLUG</code> with the actual slug</li>
+        <li><span class="step-number">6</span> Save and preview</li>
+      </ul>
+
+      <h3>For Websites:</h3>
+      <ul>
+        <li><span class="step-number">1</span> Open your website in the GHL builder</li>
+        <li><span class="step-number">2</span> Add a "Code" element to any section</li>
+        <li><span class="step-number">3</span> Switch to "Custom Code" and paste the widget code</li>
+        <li><span class="step-number">4</span> Update the server URL and image slug</li>
+        <li><span class="step-number">5</span> Save and publish</li>
+      </ul>
+
+      <div class="highlight">
+        <strong>Tip:</strong> You can add multiple <code>&lt;div class="tlt-image"&gt;</code> elements in the same HTML block, but only include the <code>&lt;script&gt;</code> tag once at the bottom.
+      </div>
+    </div>
+
+    <!-- CSS Override -->
+    <div class="guide-section">
+      <h2>Custom Styling in GHL</h2>
+      <p>Add custom CSS in the same HTML element to override default styles:</p>
+
+      <div class="code-block" id="code-css"><button class="copy-code" onclick="copyCode('code-css')">Copy</button>&lt;style&gt;
+  .tlt-image img {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: transform 0.3s;
+  }
+  .tlt-image img:hover {
+    transform: scale(1.02);
+  }
+  .tlt-gallery img {
+    border-radius: 8px;
+  }
+&lt;/style&gt;</div>
+    </div>
+
+  </div>
+
+  <script>
+    function copyCode(id) {
+      var el = document.getElementById(id);
+      var text = el.textContent.replace('Copy', '').trim();
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = el.querySelector('.copy-code');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

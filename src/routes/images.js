@@ -37,4 +37,23 @@ router.get('/images/:slug/info', (req, res) => {
   });
 });
 
+// Public gallery API (no auth) - for embeddable widgets
+router.get('/api/gallery', (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
+  const search = req.query.search || '';
+
+  const result = db.getAll({ page, limit, search });
+  result.images = result.images.map((img) => ({
+    slug: img.slug,
+    url: `${config.baseUrl}/images/${img.slug}`,
+    alt_title: img.alt_title,
+    description: img.description,
+    width: img.width,
+    height: img.height,
+  }));
+
+  res.json(result);
+});
+
 module.exports = router;

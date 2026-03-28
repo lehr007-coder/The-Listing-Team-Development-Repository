@@ -12,8 +12,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS for public image serving
-app.use('/images', (req, res, next) => {
+// CORS for public endpoints (images, gallery API, embed widget)
+app.use(['/images', '/api', '/embed'], (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
   next();
@@ -29,8 +29,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Public routes - serve images without auth
+// Public routes - serve images and embed widget without auth
 app.use('/', imagesRouter);
+app.use('/embed', express.static(path.join(__dirname, '..', 'public', 'embed')));
 
 // Admin portal - protected by basic auth
 app.use('/admin', authMiddleware, express.static(path.join(__dirname, '..', 'public', 'admin')));
