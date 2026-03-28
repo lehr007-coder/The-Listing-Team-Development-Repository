@@ -1,156 +1,186 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const sharp = require('sharp');
-const config = require('../config');
-const db = require('../database');
-const upload = require('../middleware/upload');
-const { generateSlug, validateSlug } = require('../utils/slug');
+import { Hono } from 'hono';
 
-const router = express.Router();
+const adminRoutes = new Hono();
 
-// Upload a new image
-router.post('/images', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
+// Upload image
+adminRoutes.post('/images', async (c) => {
+  const maxSize = parseInt(c.env.MAX_FILE_SIZE_MB || '10') * 1024 * 1024;
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
 
-    const { alt_title = '', description = '' } = req.body;
-    let slug = req.body.slug;
+  const formData = await c.req.formData();
+  const file = formData.get('image');
+  const altTitle = formData.get('alt_title') || '';
+  const description = formData.get('description') || '';
+  let slug = formData.get('slug') || '';
 
-    if (slug) {
-      slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      if (!validateSlug(slug)) {
-        fs.unlinkSync(req.file.path);
-        return res.status(400).json({ error: 'Invalid slug format' });
-      }
-      // Check uniqueness
-      if (db.getBySlug(slug)) {
-        fs.unlinkSync(req.file.path);
-        return res.status(409).json({ error: 'Slug already exists' });
-      }
-    } else {
-      slug = generateSlug(req.file.originalname);
-      // Ensure uniqueness
-      while (db.getBySlug(slug)) {
-        slug = generateSlug(req.file.originalname);
-      }
-    }
-
-    // Get image dimensions
-    let width = null;
-    let height = null;
-    try {
-      if (req.file.mimetype !== 'image/svg+xml') {
-        const metadata = await sharp(req.file.path).metadata();
-        width = metadata.width;
-        height = metadata.height;
-      }
-    } catch (e) {
-      // Non-fatal: dimensions are optional
-    }
-
-    const image = db.insert({
-      filename: req.file.filename,
-      original_name: req.file.originalname,
-      slug,
-      alt_title,
-      description,
-      mime_type: req.file.mimetype,
-      file_size: req.file.size,
-      width,
-      height,
-    });
-
-    res.status(201).json({
-      ...image,
-      url: `${config.baseUrl}/images/${image.slug}`,
-    });
-  } catch (err) {
-    if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
-    }
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return res.status(409).json({ error: 'Slug already exists' });
-    }
-    throw err;
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: 'No image file provided' }, 400);
   }
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+  if (!allowedTypes.includes(file.type)) {
+    return c.json({ error: `File type ${file.type} not allowed. Accepted: JPEG, PNG, GIF, WebP, SVG` }, 400);
+  }
+
+  // Validate file size
+  if (file.size > maxSize) {
+    return c.json({ error: `File too large. Maximum is ${c.env.MAX_FILE_SIZE_MB || 10}MB` }, 413);
+  }
+
+  // Generate filename
+  const ext = file.name.split('.').pop().toLowerCase();
+  const filename = `${crypto.randomUUID()}.${ext}`;
+
+  // Generate or validate slug
+  if (slug) {
+    slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {
+      return c.json({ error: 'Invalid slug format' }, 400);
+    }
+    const existing = await c.env.DB.prepare('SELECT id FROM images WHERE slug = ?').bind(slug).first();
+    if (existing) {
+      return c.json({ error: 'Slug already exists' }, 409);
+    }
+  } else {
+    slug = generateSlug(file.name);
+    // Ensure uniqueness
+    let existing = await c.env.DB.prepare('SELECT id FROM images WHERE slug = ?').bind(slug).first();
+    while (existing) {
+      slug = generateSlug(file.name);
+      existing = await c.env.DB.prepare('SELECT id FROM images WHERE slug = ?').bind(slug).first();
+    }
+  }
+
+  // Upload to R2
+  const arrayBuffer = await file.arrayBuffer();
+  await c.env.IMAGES_BUCKET.put(filename, arrayBuffer, {
+    httpMetadata: { contentType: file.type },
+  });
+
+  // Insert into D1
+  const result = await c.env.DB.prepare(`
+    INSERT INTO images (filename, original_name, slug, alt_title, description, mime_type, file_size)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(filename, file.name, slug, altTitle, description, file.type, file.size).run();
+
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE id = ?').bind(result.meta.last_row_id).first();
+
+  return c.json({ ...image, url: `${baseUrl}/images/${image.slug}` }, 201);
 });
 
 // List images (paginated)
-router.get('/images', (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-  const search = req.query.search || '';
+adminRoutes.get('/images', async (c) => {
+  const page = Math.max(1, parseInt(c.req.query('page')) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit')) || 20));
+  const search = c.req.query('search') || '';
+  const offset = (page - 1) * limit;
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
 
-  const result = db.getAll({ page, limit, search });
-  result.images = result.images.map((img) => ({
-    ...img,
-    url: `${config.baseUrl}/images/${img.slug}`,
-  }));
+  let images, totalResult;
 
-  res.json(result);
+  if (search) {
+    const searchParam = `%${search}%`;
+    totalResult = await c.env.DB.prepare(
+      'SELECT COUNT(*) as total FROM images WHERE alt_title LIKE ? OR description LIKE ? OR slug LIKE ? OR original_name LIKE ?'
+    ).bind(searchParam, searchParam, searchParam, searchParam).first();
+    images = await c.env.DB.prepare(
+      'SELECT * FROM images WHERE alt_title LIKE ? OR description LIKE ? OR slug LIKE ? OR original_name LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).bind(searchParam, searchParam, searchParam, searchParam, limit, offset).all();
+  } else {
+    totalResult = await c.env.DB.prepare('SELECT COUNT(*) as total FROM images').first();
+    images = await c.env.DB.prepare(
+      'SELECT * FROM images ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).bind(limit, offset).all();
+  }
+
+  const total = totalResult.total;
+
+  return c.json({
+    images: images.results.map((img) => ({ ...img, url: `${baseUrl}/images/${img.slug}` })),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
 });
 
 // Get single image
-router.get('/images/:id', (req, res) => {
-  const image = db.getById(parseInt(req.params.id, 10));
-  if (!image) {
-    return res.status(404).json({ error: 'Image not found' });
-  }
-  res.json({ ...image, url: `${config.baseUrl}/images/${image.slug}` });
+adminRoutes.get('/images/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
+
+  if (!image) return c.json({ error: 'Image not found' }, 404);
+
+  return c.json({ ...image, url: `${baseUrl}/images/${image.slug}` });
 });
 
 // Update image metadata
-router.put('/images/:id', express.json(), (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const image = db.getById(id);
-  if (!image) {
-    return res.status(404).json({ error: 'Image not found' });
-  }
+adminRoutes.put('/images/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
 
-  const alt_title = req.body.alt_title !== undefined ? req.body.alt_title : image.alt_title;
-  const description = req.body.description !== undefined ? req.body.description : image.description;
-  let slug = req.body.slug !== undefined ? req.body.slug : image.slug;
+  if (!image) return c.json({ error: 'Image not found' }, 404);
+
+  const body = await c.req.json();
+  const altTitle = body.alt_title !== undefined ? body.alt_title : image.alt_title;
+  const description = body.description !== undefined ? body.description : image.description;
+  let slug = body.slug !== undefined ? body.slug : image.slug;
 
   slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
-  if (!validateSlug(slug)) {
-    return res.status(400).json({ error: 'Invalid slug format' });
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {
+    return c.json({ error: 'Invalid slug format' }, 400);
   }
 
-  // Check slug uniqueness (if changed)
   if (slug !== image.slug) {
-    const existing = db.getBySlug(slug);
-    if (existing) {
-      return res.status(409).json({ error: 'Slug already in use' });
-    }
+    const existing = await c.env.DB.prepare('SELECT id FROM images WHERE slug = ?').bind(slug).first();
+    if (existing) return c.json({ error: 'Slug already in use' }, 409);
   }
 
-  const updated = db.update(id, { alt_title, description, slug });
-  res.json({ ...updated, url: `${config.baseUrl}/images/${updated.slug}` });
+  await c.env.DB.prepare(
+    "UPDATE images SET alt_title = ?, description = ?, slug = ?, updated_at = datetime('now') WHERE id = ?"
+  ).bind(altTitle, description, slug, id).run();
+
+  const updated = await c.env.DB.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
+
+  return c.json({ ...updated, url: `${baseUrl}/images/${updated.slug}` });
 });
 
 // Delete image
-router.delete('/images/:id', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const image = db.remove(id);
-  if (!image) {
-    return res.status(404).json({ error: 'Image not found' });
-  }
+adminRoutes.delete('/images/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
 
-  // Remove file from disk
-  const filePath = path.join(config.uploadDir, image.filename);
-  try { fs.unlinkSync(filePath); } catch (e) { /* ignore if already gone */ }
+  if (!image) return c.json({ error: 'Image not found' }, 404);
 
-  res.json({ message: 'Image deleted', id });
+  // Delete from R2
+  await c.env.IMAGES_BUCKET.delete(image.filename);
+
+  // Delete from D1
+  await c.env.DB.prepare('DELETE FROM images WHERE id = ?').bind(id).run();
+
+  return c.json({ message: 'Image deleted', id });
 });
 
 // Stats
-router.get('/stats', (req, res) => {
-  const stats = db.getStats();
-  res.json(stats);
+adminRoutes.get('/stats', async (c) => {
+  const totalImages = await c.env.DB.prepare('SELECT COUNT(*) as count FROM images').first();
+  const totalSize = await c.env.DB.prepare('SELECT COALESCE(SUM(file_size), 0) as size FROM images').first();
+
+  return c.json({
+    totalImages: totalImages.count,
+    totalSize: totalSize.size,
+  });
 });
 
-module.exports = router;
+// Slug helper
+function generateSlug(originalName) {
+  const name = originalName.replace(/\.[^/.]+$/, '');
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const suffix = Math.random().toString(36).slice(2, 6);
+  return base ? `${base}-${suffix}` : suffix;
+}
+
+export { adminRoutes };

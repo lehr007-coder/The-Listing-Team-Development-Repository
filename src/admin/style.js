@@ -1,3 +1,4 @@
+export const adminCSS = `
 :root {
   --bg: #f5f5f5;
   --surface: #ffffff;
@@ -13,11 +14,7 @@
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -37,10 +34,7 @@ header {
   gap: 0.5rem;
 }
 
-header h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
+header h1 { font-size: 1.25rem; font-weight: 600; }
 
 .stats {
   display: flex;
@@ -49,10 +43,7 @@ header h1 {
   color: var(--text-muted);
 }
 
-.stats span {
-  font-weight: 600;
-  color: var(--text);
-}
+.stats span { font-weight: 600; color: var(--text); }
 
 main {
   max-width: 1200px;
@@ -63,16 +54,14 @@ main {
   gap: 2rem;
 }
 
-/* Upload Section */
-.upload-section {
+.upload-section, .gallery-section {
   background: var(--surface);
   border-radius: var(--radius);
   padding: 1.5rem;
   box-shadow: var(--shadow);
 }
 
-.upload-section h2,
-.gallery-section h2 {
+.upload-section h2, .gallery-section h2 {
   font-size: 1.1rem;
   margin-bottom: 1rem;
 }
@@ -87,8 +76,7 @@ main {
   color: var(--text-muted);
 }
 
-.drop-zone:hover,
-.drop-zone.dragover {
+.drop-zone:hover, .drop-zone.dragover {
   border-color: var(--primary);
   background: #eff6ff;
 }
@@ -110,10 +98,6 @@ main {
   border-radius: 4px;
 }
 
-.file-preview .file-info {
-  font-size: 0.875rem;
-}
-
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -128,9 +112,7 @@ main {
   margin-top: 0.75rem;
 }
 
-.form-row .form-group {
-  margin-top: 0;
-}
+.form-row .form-group { margin-top: 0; }
 
 label {
   font-size: 0.875rem;
@@ -138,8 +120,7 @@ label {
   color: var(--text-muted);
 }
 
-input[type="text"],
-textarea {
+input[type="text"], textarea {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -149,8 +130,7 @@ textarea {
   transition: border-color 0.2s;
 }
 
-input[type="text"]:focus,
-textarea:focus {
+input[type="text"]:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -167,9 +147,7 @@ textarea:focus {
   transition: all 0.2s;
 }
 
-.btn:hover {
-  background: #f3f4f6;
-}
+.btn:hover { background: #f3f4f6; }
 
 .btn-primary {
   background: var(--primary);
@@ -178,29 +156,13 @@ textarea:focus {
   margin-top: 1rem;
 }
 
-.btn-primary:hover {
-  background: var(--primary-hover);
-}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: white; }
 
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn-danger:hover {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-small {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-}
+.btn-small { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
 
 .progress-bar {
   height: 6px;
@@ -217,14 +179,6 @@ textarea:focus {
   transition: width 0.3s;
 }
 
-/* Gallery */
-.gallery-section {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
-}
-
 .gallery-header {
   display: flex;
   justify-content: space-between;
@@ -234,9 +188,7 @@ textarea:focus {
   gap: 0.5rem;
 }
 
-.search-box input {
-  width: 250px;
-}
+.search-box input { width: 250px; }
 
 .image-grid {
   display: grid;
@@ -251,9 +203,7 @@ textarea:focus {
   transition: box-shadow 0.2s;
 }
 
-.image-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
+.image-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
 
 .image-card .thumb {
   width: 100%;
@@ -263,9 +213,7 @@ textarea:focus {
   background: #f3f4f6;
 }
 
-.image-card .card-body {
-  padding: 0.75rem;
-}
+.image-card .card-body { padding: 0.75rem; }
 
 .image-card .card-title {
   font-weight: 600;
@@ -314,7 +262,6 @@ textarea:focus {
   font-size: 0.8rem;
 }
 
-/* Pagination */
 .pagination {
   display: flex;
   justify-content: center;
@@ -322,17 +269,9 @@ textarea:focus {
   margin-top: 1.5rem;
 }
 
-.pagination button {
-  min-width: 36px;
-}
+.pagination button { min-width: 36px; }
+.pagination button.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-.pagination button.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
-/* Modal */
 .modal {
   position: fixed;
   inset: 0;
@@ -359,9 +298,7 @@ textarea:focus {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
-.modal-content h3 {
-  margin-bottom: 1rem;
-}
+.modal-content h3 { margin-bottom: 1rem; }
 
 .edit-preview img {
   max-width: 100%;
@@ -370,15 +307,8 @@ textarea:focus {
   margin-bottom: 1rem;
 }
 
-.url-copy {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.url-copy input {
-  flex: 1;
-  background: #f3f4f6;
-}
+.url-copy { display: flex; gap: 0.5rem; }
+.url-copy input { flex: 1; background: #f3f4f6; }
 
 .modal-actions {
   display: flex;
@@ -387,9 +317,7 @@ textarea:focus {
   margin-top: 1rem;
 }
 
-.hidden {
-  display: none !important;
-}
+.hidden { display: none !important; }
 
 .toast {
   position: fixed;
@@ -406,21 +334,10 @@ textarea:focus {
 .toast.success { background: var(--success); }
 .toast.error { background: var(--danger); }
 
-@keyframes slideIn {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+@keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-@keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-muted);
-}
+.empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 @media (max-width: 768px) {
   header { padding: 1rem; }
@@ -429,3 +346,4 @@ textarea:focus {
   .search-box input { width: 100%; }
   .image-grid { grid-template-columns: 1fr; }
 }
+`;

@@ -1,32 +1,42 @@
-const express = require('express');
-const path = require('path');
-const config = require('../config');
-const db = require('../database');
+import { Hono } from 'hono';
 
-const router = express.Router();
+const imageRoutes = new Hono();
 
 // Serve image by slug
-router.get('/images/:slug', (req, res) => {
-  const image = db.getBySlug(req.params.slug);
+imageRoutes.get('/images/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE slug = ?').bind(slug).first();
+
   if (!image) {
-    return res.status(404).json({ error: 'Image not found' });
+    return c.json({ error: 'Image not found' }, 404);
   }
 
-  const filePath = path.join(config.uploadDir, image.filename);
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  res.setHeader('Content-Type', image.mime_type);
-  res.sendFile(filePath);
+  const object = await c.env.IMAGES_BUCKET.get(image.filename);
+  if (!object) {
+    return c.json({ error: 'Image file not found' }, 404);
+  }
+
+  const headers = new Headers();
+  headers.set('Content-Type', image.mime_type);
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('ETag', `"${image.filename}"`);
+
+  return new Response(object.body, { headers });
 });
 
-// Get image metadata by slug
-router.get('/images/:slug/info', (req, res) => {
-  const image = db.getBySlug(req.params.slug);
+// Image metadata by slug
+imageRoutes.get('/images/:slug/info', async (c) => {
+  const slug = c.req.param('slug');
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE slug = ?').bind(slug).first();
+
   if (!image) {
-    return res.status(404).json({ error: 'Image not found' });
+    return c.json({ error: 'Image not found' }, 404);
   }
 
-  res.json({
-    url: `${config.baseUrl}/images/${image.slug}`,
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
+
+  return c.json({
+    url: `${baseUrl}/images/${image.slug}`,
     alt_title: image.alt_title,
     description: image.description,
     mime_type: image.mime_type,
@@ -37,23 +47,42 @@ router.get('/images/:slug/info', (req, res) => {
   });
 });
 
-// Public gallery API (no auth) - for embeddable widgets
-router.get('/api/gallery', (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
-  const search = req.query.search || '';
+// Public gallery API (for embeddable widgets)
+imageRoutes.get('/api/gallery', async (c) => {
+  const page = Math.max(1, parseInt(c.req.query('page')) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(c.req.query('limit')) || 12));
+  const search = c.req.query('search') || '';
+  const offset = (page - 1) * limit;
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
 
-  const result = db.getAll({ page, limit, search });
-  result.images = result.images.map((img) => ({
-    slug: img.slug,
-    url: `${config.baseUrl}/images/${img.slug}`,
-    alt_title: img.alt_title,
-    description: img.description,
-    width: img.width,
-    height: img.height,
-  }));
+  let images, totalResult;
 
-  res.json(result);
+  if (search) {
+    const searchParam = `%${search}%`;
+    totalResult = await c.env.DB.prepare(
+      'SELECT COUNT(*) as total FROM images WHERE alt_title LIKE ? OR description LIKE ? OR slug LIKE ?'
+    ).bind(searchParam, searchParam, searchParam).first();
+    images = await c.env.DB.prepare(
+      'SELECT slug, alt_title, description, width, height FROM images WHERE alt_title LIKE ? OR description LIKE ? OR slug LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).bind(searchParam, searchParam, searchParam, limit, offset).all();
+  } else {
+    totalResult = await c.env.DB.prepare('SELECT COUNT(*) as total FROM images').first();
+    images = await c.env.DB.prepare(
+      'SELECT slug, alt_title, description, width, height FROM images ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).bind(limit, offset).all();
+  }
+
+  const total = totalResult.total;
+
+  return c.json({
+    images: images.results.map((img) => ({
+      ...img,
+      url: `${baseUrl}/images/${img.slug}`,
+    })),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
 });
 
-module.exports = router;
+export { imageRoutes };

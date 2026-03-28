@@ -1,70 +1,71 @@
-const express = require('express');
-const path = require('path');
-const config = require('./config');
-const { db } = require('./database');
-const authMiddleware = require('./middleware/auth');
-const imagesRouter = require('./routes/images');
-const adminRouter = require('./routes/admin');
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { adminRoutes } from './routes/admin.js';
+import { imageRoutes } from './routes/images.js';
+import { adminHTML } from './admin/index.js';
+import { adminCSS } from './admin/style.js';
+import { adminJS } from './admin/app.js';
+import { embedGuideHTML } from './admin/embed-guide.js';
+import { widgetJS } from './embed/widget.js';
 
-const app = express();
+const app = new Hono();
 
-// Parse JSON and URL-encoded bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// CORS for public endpoints
+app.use('/images/*', cors());
+app.use('/api/*', cors());
+app.use('/embed/*', cors());
 
-// CORS for public endpoints (images, gallery API, embed widget)
-app.use(['/images', '/api', '/embed'], (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-  next();
+// Public routes - no auth
+app.route('/', imageRoutes);
+
+// Embed widget - no auth
+app.get('/embed/widget.js', (c) => {
+  return c.body(widgetJS, 200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' });
 });
 
-// Request logging
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
-  });
-  next();
-});
-
-// Public routes - serve images and embed widget without auth
-app.use('/', imagesRouter);
-app.use('/embed', express.static(path.join(__dirname, '..', 'public', 'embed')));
-
-// Admin portal - protected by basic auth
-app.use('/admin', authMiddleware, express.static(path.join(__dirname, '..', 'public', 'admin')));
-app.use('/admin/api', authMiddleware, adminRouter);
-
-// Error handling
-app.use((err, req, res, next) => {
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: `File too large. Maximum size is ${config.maxFileSizeMB}MB` });
+// Admin static files - auth required
+app.use('/admin/*', async (c, next) => {
+  const auth = basicAuth(c);
+  if (!auth) {
+    return c.body('Unauthorized', 401, { 'WWW-Authenticate': 'Basic realm="Image Server Admin"' });
   }
-  if (err.message && err.message.includes('File type')) {
-    return res.status(400).json({ error: err.message });
+  await next();
+});
+
+app.get('/admin', (c) => c.html(adminHTML));
+app.get('/admin/', (c) => c.html(adminHTML));
+app.get('/admin/style.css', (c) => {
+  return c.body(adminCSS, 200, { 'Content-Type': 'text/css' });
+});
+app.get('/admin/app.js', (c) => {
+  return c.body(adminJS, 200, { 'Content-Type': 'application/javascript' });
+});
+app.get('/admin/embed-guide.html', (c) => c.html(embedGuideHTML));
+
+// Admin API routes - auth required
+app.use('/admin/api/*', async (c, next) => {
+  const auth = basicAuth(c);
+  if (!auth) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  await next();
 });
 
-// Start server
-app.listen(config.port, config.host, () => {
-  console.log(`Image server running at http://${config.host}:${config.port}`);
-  console.log(`Admin portal: http://${config.host}:${config.port}/admin`);
-  console.log(`Base URL for images: ${config.baseUrl}/images/<slug>`);
-});
+app.route('/admin/api', adminRoutes);
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
-  db.close();
-  process.exit(0);
-});
+// Basic auth helper
+function basicAuth(c) {
+  const header = c.req.header('Authorization');
+  if (!header || !header.startsWith('Basic ')) return false;
 
-process.on('SIGINT', () => {
-  console.log('Shutting down...');
-  db.close();
-  process.exit(0);
-});
+  const decoded = atob(header.slice(6));
+  const sep = decoded.indexOf(':');
+  if (sep === -1) return false;
+
+  const username = decoded.slice(0, sep);
+  const password = decoded.slice(sep + 1);
+
+  return username === c.env.ADMIN_USERNAME && password === c.env.ADMIN_PASSWORD;
+}
+
+export default app;

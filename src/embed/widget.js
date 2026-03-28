@@ -1,37 +1,5 @@
-/**
- * TLT Image Server - Embeddable Widget for GHL Funnels & Websites
- *
- * SETUP: Add this to a GHL Custom HTML/JS element or any website.
- *
- * ============================================================
- * SINGLE IMAGE:
- * ============================================================
- * <div class="tlt-image" data-slug="your-image-slug"></div>
- * <script src="https://images.yourdomain.com/embed/widget.js" data-server="https://images.yourdomain.com"></script>
- *
- * Optional attributes:
- *   data-max-width="600px"   - max width of the image
- *   data-rounded="true"      - rounded corners
- *
- * ============================================================
- * IMAGE GALLERY:
- * ============================================================
- * <div class="tlt-gallery" data-columns="3" data-limit="6"></div>
- * <script src="https://images.yourdomain.com/embed/widget.js" data-server="https://images.yourdomain.com"></script>
- *
- * Optional attributes:
- *   data-columns="3"         - number of columns (default 3)
- *   data-limit="12"          - max images to show (default 12)
- *   data-search="keyword"    - filter by search term
- *   data-gap="16px"          - spacing between images
- *   data-captions="true"     - show alt title and description
- *   data-rounded="true"      - rounded corners
- *
- * ============================================================
- */
-
+export const widgetJS = `
 (function () {
-  // Determine server URL
   var scriptTag = document.currentScript;
   var SERVER = (scriptTag && scriptTag.getAttribute('data-server'))
     || (document.querySelector('[data-tlt-server]') && document.querySelector('[data-tlt-server]').getAttribute('data-tlt-server'))
@@ -39,13 +7,12 @@
     || '';
 
   if (!SERVER) {
-    console.warn('TLT Widget: Set your image server URL. Add data-server="https://images.yourdomain.com" to the script tag.');
+    console.warn('TLT Widget: Set your image server URL. Add data-server="https://your-worker.workers.dev" to the script tag.');
     return;
   }
 
-  var base = SERVER.replace(/\/$/, '');
+  var base = SERVER.replace(/\\/$/, '');
 
-  // --- Render Single Images ---
   var singleImages = document.querySelectorAll('.tlt-image');
   for (var i = 0; i < singleImages.length; i++) {
     (function (el) {
@@ -63,7 +30,6 @@
       img.style.display = 'block';
       if (rounded) img.style.borderRadius = '8px';
 
-      // Fetch metadata for alt text
       fetch(base + '/images/' + encodeURIComponent(slug) + '/info')
         .then(function (r) { return r.json(); })
         .then(function (info) {
@@ -77,7 +43,6 @@
     })(singleImages[i]);
   }
 
-  // --- Render Galleries ---
   var galleries = document.querySelectorAll('.tlt-gallery');
   for (var g = 0; g < galleries.length; g++) {
     (function (el) {
@@ -145,3 +110,4 @@
     })(galleries[g]);
   }
 })();
+`;

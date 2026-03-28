@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+export const adminHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Image Server Admin</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/admin/style.css">
 </head>
 <body>
   <header>
@@ -16,7 +16,6 @@
   </header>
 
   <main>
-    <!-- Upload Section -->
     <section class="upload-section">
       <h2>Upload Image</h2>
       <form id="upload-form">
@@ -46,7 +45,6 @@
       </form>
     </section>
 
-    <!-- Image Gallery -->
     <section class="gallery-section">
       <div class="gallery-header">
         <h2>Images</h2>
@@ -59,7 +57,6 @@
     </section>
   </main>
 
-  <!-- Edit Modal -->
   <div id="edit-modal" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
@@ -94,6 +91,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="/admin/app.js"></script>
 </body>
-</html>
+</html>`;

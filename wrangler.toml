@@ -1,0 +1,22 @@
+name = "tlt-image-server"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# ── Admin credentials (set via: wrangler secret put ADMIN_USERNAME / ADMIN_PASSWORD) ──
+# These are set as encrypted secrets, not in this file.
+
+# ── R2 Bucket for image storage ──
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "tlt-images"
+
+# ── D1 Database for image metadata ──
+[[d1_databases]]
+binding = "DB"
+database_name = "tlt-images-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# ── Environment variables ──
+[vars]
+BASE_URL = "https://tlt-image-server.YOUR-SUBDOMAIN.workers.dev"
+MAX_FILE_SIZE_MB = "10"
