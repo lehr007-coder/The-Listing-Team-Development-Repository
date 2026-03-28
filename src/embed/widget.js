@@ -7,7 +7,7 @@ export const widgetJS = `
     || '';
 
   if (!SERVER) {
-    console.warn('TLT Widget: Set your image server URL. Add data-server="https://your-worker.workers.dev" to the script tag.');
+    console.warn('TLT Widget: Set your image server URL. Add data-server="https://images.reallistingteam.com" to the script tag.');
     return;
   }
 

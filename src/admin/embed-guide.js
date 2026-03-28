@@ -41,7 +41,7 @@ export const embedGuideHTML = `<!DOCTYPE html>
         <li><strong>Custom HTML:</strong> Use an img tag:</li>
       </ul>
       <div class="code-block" id="code-direct"><button class="copy-code" onclick="copyCode('code-direct')">Copy</button>&lt;img
-  src="https://YOUR-WORKER.workers.dev/images/your-image-slug"
+  src="https://images.reallistingteam.com/images/your-image-slug"
   alt="Your alt text"
   style="width: 100%; max-width: 600px; height: auto;"
 &gt;</div>
@@ -60,8 +60,8 @@ export const embedGuideHTML = `<!DOCTYPE html>
 &lt;/div&gt;
 
 &lt;script
-  src="https://YOUR-WORKER.workers.dev/embed/widget.js"
-  data-server="https://YOUR-WORKER.workers.dev"&gt;
+  src="https://images.reallistingteam.com/embed/widget.js"
+  data-server="https://images.reallistingteam.com"&gt;
 &lt;/script&gt;</div>
       <h3>Options:</h3>
       <ul>
@@ -86,8 +86,8 @@ export const embedGuideHTML = `<!DOCTYPE html>
 &lt;/div&gt;
 
 &lt;script
-  src="https://YOUR-WORKER.workers.dev/embed/widget.js"
-  data-server="https://YOUR-WORKER.workers.dev"&gt;
+  src="https://images.reallistingteam.com/embed/widget.js"
+  data-server="https://images.reallistingteam.com"&gt;
 &lt;/script&gt;</div>
       <h3>Options:</h3>
       <ul>
@@ -107,8 +107,7 @@ export const embedGuideHTML = `<!DOCTYPE html>
         <li><span class="step-number">1</span> Open your funnel in the GHL builder</li>
         <li><span class="step-number">2</span> Add a new element &rarr; select "Custom JS/HTML"</li>
         <li><span class="step-number">3</span> Paste the widget code from above</li>
-        <li><span class="step-number">4</span> Replace <code>YOUR-WORKER.workers.dev</code> with your Worker URL</li>
-        <li><span class="step-number">5</span> Replace <code>YOUR-IMAGE-SLUG</code> with the actual slug</li>
+        <li><span class="step-number">4</span> Replace <code>YOUR-IMAGE-SLUG</code> with the actual slug from your admin portal</li>
         <li><span class="step-number">6</span> Save and preview</li>
       </ul>
       <h3>For Websites:</h3>
@@ -116,7 +115,7 @@ export const embedGuideHTML = `<!DOCTYPE html>
         <li><span class="step-number">1</span> Open your website in the GHL builder</li>
         <li><span class="step-number">2</span> Add a "Code" element to any section</li>
         <li><span class="step-number">3</span> Switch to "Custom Code" and paste the widget code</li>
-        <li><span class="step-number">4</span> Update the server URL and image slug</li>
+        <li><span class="step-number">4</span> Replace <code>YOUR-IMAGE-SLUG</code> with the actual slug</li>
         <li><span class="step-number">5</span> Save and publish</li>
       </ul>
       <div class="highlight">
@@ -140,15 +139,9 @@ export const embedGuideHTML = `<!DOCTYPE html>
     </div>
 
     <div class="guide-section">
-      <h2>Using a Custom Domain</h2>
-      <p>Instead of using <code>your-worker.workers.dev</code>, you can set up a custom domain in Cloudflare:</p>
-      <ul>
-        <li><span class="step-number">1</span> Go to Cloudflare Dashboard &rarr; Workers & Pages</li>
-        <li><span class="step-number">2</span> Click your worker &rarr; Settings &rarr; Triggers</li>
-        <li><span class="step-number">3</span> Add a Custom Domain (e.g., <code>images.yourdomain.com</code>)</li>
-        <li><span class="step-number">4</span> Update <code>BASE_URL</code> in wrangler.toml and redeploy</li>
-      </ul>
-      <p>Then your image URLs become: <code>https://images.yourdomain.com/images/your-slug</code></p>
+      <h2>Your Image URLs</h2>
+      <p>All images are served from <code>https://images.reallistingteam.com</code></p>
+      <p>Example: <code>https://images.reallistingteam.com/images/your-slug</code></p>
     </div>
   </div>
 

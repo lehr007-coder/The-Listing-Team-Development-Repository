@@ -1,175 +1,153 @@
 # TLT Image Server
 
-A self-hosted image server on **Cloudflare Workers + R2 + D1** with an admin portal for uploading, managing, and serving images via clean URLs. Built for use in GoHighLevel funnels, websites, and widgets.
+Image hosting server on **Cloudflare Workers + R2 + D1** for The Real Listing Team. Serves images at `https://images.reallistingteam.com` with an admin portal for uploading and managing images with alt titles and descriptions.
 
 ## Features
 
-- **Image Hosting** - Serve images at clean URLs (`/images/sunset-beach-a3f2`)
-- **Admin Portal** - Upload images with alt title and description via a web UI
+- **Image Hosting** - Serve images at `https://images.reallistingteam.com/images/your-slug`
+- **Admin Portal** - Upload images with alt title and description at `/admin`
 - **Drag & Drop Upload** - Drag images into the browser to upload
 - **GHL Ready** - Embeddable widget for GoHighLevel funnels and websites
 - **Search & Manage** - Search, edit metadata, and delete images
-- **Copy URLs** - One-click copy of image URLs for embedding
+- **Copy URLs** - One-click copy for embedding
 - **Cloudflare Edge** - Images served globally from Cloudflare's CDN
-- **Zero Server Management** - No VPS, no Docker, no maintenance
+- **Zero Server Costs** - Runs on Cloudflare free tier
 
 ## Architecture
 
 | Service | Purpose |
 |---------|---------|
 | **Cloudflare Workers** | Serverless backend (API + admin UI) |
-| **Cloudflare R2** | Image file storage (S3-compatible, no egress fees) |
+| **Cloudflare R2** | Image file storage (no egress fees) |
 | **Cloudflare D1** | SQLite database for image metadata |
 
 ## Setup & Deployment
 
 ### Prerequisites
 
-- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier works)
-- [Node.js](https://nodejs.org/) 18+ installed locally
+- [Cloudflare account](https://dash.cloudflare.com/sign-up) with `reallistingteam.com` domain
+- [Node.js](https://nodejs.org/) 18+
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) (`npm install -g wrangler`)
 
-### Step 1: Install dependencies
+### Step 1: Install & Login
 
 ```bash
 npm install
-```
-
-### Step 2: Login to Cloudflare
-
-```bash
 wrangler login
 ```
 
-### Step 3: Create R2 bucket
+### Step 2: Create R2 bucket
 
 ```bash
 wrangler r2 bucket create tlt-images
 ```
 
-### Step 4: Create D1 database
+### Step 3: Create D1 database
 
 ```bash
 wrangler d1 create tlt-images-db
 ```
 
-This outputs a `database_id`. Copy it and update `wrangler.toml`:
+Copy the `database_id` from the output and paste it into `wrangler.toml`:
 
 ```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "tlt-images-db"
-database_id = "YOUR-DATABASE-ID-HERE"
+database_id = "paste-your-id-here"
 ```
 
-### Step 5: Run database migration
+### Step 4: Run database migration
 
 ```bash
 npm run db:migrate
 ```
 
-### Step 6: Set admin credentials
+### Step 5: Set admin credentials
 
 ```bash
 wrangler secret put ADMIN_USERNAME
-# Enter your username when prompted
-
 wrangler secret put ADMIN_PASSWORD
-# Enter a strong password when prompted
 ```
 
-### Step 7: Update BASE_URL
-
-Edit `wrangler.toml` and set your Worker URL:
-
-```toml
-[vars]
-BASE_URL = "https://tlt-image-server.YOUR-SUBDOMAIN.workers.dev"
-```
-
-### Step 8: Deploy
+### Step 6: Deploy
 
 ```bash
 npm run deploy
 ```
 
-Your image server is now live at `https://tlt-image-server.YOUR-SUBDOMAIN.workers.dev`
+### Step 7: Add custom domain
+
+1. Go to Cloudflare Dashboard > Workers & Pages
+2. Click `tlt-image-server` > Settings > Triggers
+3. Click "Add Custom Domain"
+4. Enter `images.reallistingteam.com`
 
 ## Usage
 
 ### Admin Portal
 
-Visit `https://your-worker.workers.dev/admin` and log in with your credentials.
+`https://images.reallistingteam.com/admin`
 
-### Using Images in GHL
+Log in with your credentials, upload images with alt titles and descriptions, manage your library.
+
+### Using Images in GHL Funnels
 
 **Direct URL** - Paste into any GHL image element:
 ```
-https://your-worker.workers.dev/images/your-image-slug
+https://images.reallistingteam.com/images/your-image-slug
 ```
 
 **Embed Widget** - Add to a GHL Custom HTML/JS element:
 ```html
 <div class="tlt-image" data-slug="your-image-slug"></div>
-<script src="https://your-worker.workers.dev/embed/widget.js"
-        data-server="https://your-worker.workers.dev"></script>
+<script src="https://images.reallistingteam.com/embed/widget.js"
+        data-server="https://images.reallistingteam.com"></script>
 ```
 
-See the full GHL Embed Guide at `/admin/embed-guide.html` in your admin portal.
+**Image Gallery** - Show a grid of images:
+```html
+<div class="tlt-gallery" data-columns="3" data-limit="6" data-captions="true"></div>
+<script src="https://images.reallistingteam.com/embed/widget.js"
+        data-server="https://images.reallistingteam.com"></script>
+```
+
+Full GHL embed guide with copy-paste snippets available at `/admin/embed-guide.html`.
 
 ### Using Images on Any Website
 
 ```html
-<img src="https://your-worker.workers.dev/images/my-photo-a3f2" alt="My Photo">
+<img src="https://images.reallistingteam.com/images/my-photo-a3f2" alt="My Photo">
 ```
 
 ## Local Development
 
 ```bash
-# Set local secrets
-cp .env.example .dev.vars  # edit with your test credentials
-
-# Run local migration
+cp .env.example .dev.vars   # edit with test credentials
 npm run db:migrate:local
-
-# Start dev server
 npm run dev
 ```
 
 ## API Reference
 
-### Public Endpoints (no auth)
+### Public (no auth)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/images/:slug` | Serve an image |
-| GET | `/images/:slug/info` | Image metadata as JSON |
-| GET | `/api/gallery` | Public image listing for widgets |
+| GET | `/images/:slug` | Serve image |
+| GET | `/images/:slug/info` | Image metadata (JSON) |
+| GET | `/api/gallery` | Image listing for widgets |
 
-### Admin Endpoints (Basic Auth)
+### Admin (Basic Auth)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/admin` | Admin portal UI |
-| POST | `/admin/api/images` | Upload image (multipart form) |
-| GET | `/admin/api/images` | List images (paginated) |
-| GET | `/admin/api/images/:id` | Get image details |
+| GET | `/admin` | Admin portal |
+| POST | `/admin/api/images` | Upload image |
+| GET | `/admin/api/images` | List images |
 | PUT | `/admin/api/images/:id` | Update metadata |
 | DELETE | `/admin/api/images/:id` | Delete image |
-| GET | `/admin/api/stats` | Dashboard stats |
+| GET | `/admin/api/stats` | Stats |
 
-## Custom Domain (Optional)
+## Cloudflare Free Tier Limits
 
-1. Go to Cloudflare Dashboard > Workers & Pages
-2. Click your worker > Settings > Triggers
-3. Add a Custom Domain (e.g., `images.yourdomain.com`)
-4. Update `BASE_URL` in `wrangler.toml` and redeploy
-
-## Costs
-
-Cloudflare's free tier includes:
 - **Workers**: 100,000 requests/day
 - **R2**: 10 GB storage, 10 million reads/month
 - **D1**: 5 million rows read/day, 100,000 rows written/day
-
-For most image hosting needs, this stays well within the free tier.

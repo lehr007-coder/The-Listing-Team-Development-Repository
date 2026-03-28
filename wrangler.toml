@@ -16,7 +16,12 @@ binding = "DB"
 database_name = "tlt-images-db"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 
+# ── Custom domain route ──
+# After deploying, add this custom domain in Cloudflare Dashboard:
+# Workers & Pages > tlt-image-server > Settings > Triggers > Custom Domains
+# Add: images.reallistingteam.com
+
 # ── Environment variables ──
 [vars]
-BASE_URL = "https://tlt-image-server.YOUR-SUBDOMAIN.workers.dev"
+BASE_URL = "https://images.reallistingteam.com"
 MAX_FILE_SIZE_MB = "10"
