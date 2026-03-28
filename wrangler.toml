@@ -14,7 +14,7 @@ bucket_name = "tlt-images"
 [[d1_databases]]
 binding = "DB"
 database_name = "tlt-images-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "56deee52-4539-4e38-b73f-003e034ccd0c"
 
 # ── Custom domain route ──
 # After deploying, add this custom domain in Cloudflare Dashboard:
