@@ -15,6 +15,13 @@ app.use('/images/*', cors());
 app.use('/api/*', cors());
 app.use('/embed/*', cors());
 
+// Allow iframes from any origin
+app.use('/embed/*', async (c, next) => {
+  await next();
+  c.header('X-Frame-Options', 'ALLOWALL');
+  c.header('Content-Security-Policy', "frame-ancestors *");
+});
+
 // Public routes - no auth
 app.route('/', imageRoutes);
 

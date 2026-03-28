@@ -3,6 +3,16 @@ var API = '/admin/api';
 var currentPage = 1;
 var searchTimeout = null;
 
+// Tab navigation
+document.querySelectorAll('.sidebar-nav li[data-tab]').forEach(function(li) {
+  li.addEventListener('click', function() {
+    document.querySelectorAll('.sidebar-nav li').forEach(function(l) { l.classList.remove('active'); });
+    li.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('tab-' + li.getAttribute('data-tab')).classList.add('active');
+  });
+});
+
 var dropZone = document.getElementById('drop-zone');
 var fileInput = document.getElementById('file-input');
 var filePreview = document.getElementById('file-preview');
@@ -46,7 +56,7 @@ function showPreview(file) {
   var url = URL.createObjectURL(file);
   var size = (file.size / 1024).toFixed(1);
   filePreview.innerHTML = '<img src="' + url + '" alt="Preview">' +
-    '<div class="file-info"><strong>' + escapeHtml(file.name) + '</strong><br>' + size + ' KB - ' + file.type + '</div>';
+    '<div class="file-info"><strong>' + escapeHtml(file.name) + '</strong>' + size + ' KB &middot; ' + file.type + '</div>';
   filePreview.classList.remove('hidden');
   uploadBtn.disabled = false;
   var altInput = document.getElementById('alt-title');
@@ -87,6 +97,8 @@ uploadForm.addEventListener('submit', function(e) {
       uploadBtn.disabled = true;
       loadImages();
       loadStats();
+      // Switch to library tab
+      document.querySelector('[data-tab="library"]').click();
     } else {
       var err = JSON.parse(xhr.responseText);
       toast(err.error || 'Upload failed', 'error');
@@ -116,17 +128,18 @@ function loadImages(page) {
       renderPagination(data.page, data.totalPages);
     })
     .catch(function() {
-      imageGrid.innerHTML = '<div class="empty-state">Failed to load images</div>';
+      imageGrid.innerHTML = '<div class="empty-state"><p>Failed to load images</p></div>';
     });
 }
 
 function renderImages(images) {
   if (!images.length) {
-    imageGrid.innerHTML = '<div class="empty-state">No images found. Upload your first image above!</div>';
+    imageGrid.innerHTML = '<div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><p>No images yet. Upload your first image!</p></div>';
     return;
   }
 
   imageGrid.innerHTML = images.map(function(img) {
+    var iframeCode = '<iframe src=&quot;' + escapeHtml(img.url).replace('/images/', '/embed/') + '&quot; width=&quot;600&quot; height=&quot;400&quot; frameborder=&quot;0&quot; style=&quot;border:none;&quot;></iframe>';
     return '<div class="image-card">' +
       '<img class="thumb" src="/images/' + escapeHtml(img.slug) + '" alt="' + escapeHtml(img.alt_title) + '" loading="lazy">' +
       '<div class="card-body">' +
@@ -135,14 +148,15 @@ function renderImages(images) {
         (img.description ? '<div class="card-desc">' + escapeHtml(img.description) + '</div>' : '') +
         '<div class="card-meta">' +
           '<span>' + formatSize(img.file_size) + '</span>' +
-          (img.width ? '<span>' + img.width + 'x' + img.height + '</span>' : '') +
+          (img.width ? '<span>' + img.width + ' x ' + img.height + '</span>' : '') +
           '<span>' + formatDate(img.created_at) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="card-actions">' +
-        '<button class="btn btn-small" onclick="copyToClipboard(\\'' + escapeHtml(img.url) + '\\')">Copy URL</button>' +
-        '<button class="btn btn-small" onclick="editImage(' + img.id + ')">Edit</button>' +
-        '<button class="btn btn-small btn-danger" onclick="deleteImage(' + img.id + ', \\'' + escapeHtml(img.alt_title || img.original_name).replace(/'/g, "\\\\'") + '\\')">Delete</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="copyToClipboard(\\'' + escapeHtml(img.url) + '\\')">URL</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="copyToClipboard(\\'<iframe src=&quot;' + escapeHtml(img.url).replace('/images/', '/embed/') + '&quot; width=&quot;600&quot; height=&quot;400&quot; frameborder=&quot;0&quot; style=&quot;border:none;&quot;></iframe>\\')">Iframe</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="editImage(' + img.id + ')">Edit</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="deleteImage(' + img.id + ', \\'' + escapeHtml(img.alt_title || img.original_name).replace(/'/g, "\\\\'") + '\\')">Delete</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -151,15 +165,15 @@ function renderImages(images) {
 function renderPagination(page, totalPages) {
   if (totalPages <= 1) { pagination.innerHTML = ''; return; }
   var html = '';
-  if (page > 1) html += '<button class="btn btn-small" onclick="loadImages(' + (page - 1) + ')">Prev</button>';
+  if (page > 1) html += '<button class="btn btn-sm" onclick="loadImages(' + (page - 1) + ')">Prev</button>';
   for (var i = 1; i <= totalPages; i++) {
     if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) {
-      html += '<button class="btn btn-small ' + (i === page ? 'active' : '') + '" onclick="loadImages(' + i + ')">' + i + '</button>';
+      html += '<button class="btn btn-sm ' + (i === page ? 'active' : '') + '" onclick="loadImages(' + i + ')">' + i + '</button>';
     } else if (i === page - 3 || i === page + 3) {
-      html += '<span style="padding:0.25rem">...</span>';
+      html += '<span style="padding:0.25rem;color:var(--text-dim)">...</span>';
     }
   }
-  if (page < totalPages) html += '<button class="btn btn-small" onclick="loadImages(' + (page + 1) + ')">Next</button>';
+  if (page < totalPages) html += '<button class="btn btn-sm" onclick="loadImages(' + (page + 1) + ')">Next</button>';
   pagination.innerHTML = html;
 }
 
@@ -177,6 +191,7 @@ function editImage(id) {
       document.getElementById('edit-slug').value = img.slug;
       document.getElementById('edit-description').value = img.description;
       document.getElementById('edit-url').value = img.url;
+      document.getElementById('edit-iframe').value = '<iframe src="' + img.url.replace('/images/', '/embed/') + '" width="600" height="400" frameborder="0" style="border:none;"></iframe>';
       document.getElementById('edit-preview').innerHTML = '<img src="/images/' + escapeHtml(img.slug) + '" alt="' + escapeHtml(img.alt_title) + '">';
       document.getElementById('edit-modal').classList.remove('hidden');
     })
@@ -188,6 +203,10 @@ function closeModal() {
 }
 
 document.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
 
 document.getElementById('edit-form').addEventListener('submit', function(e) {
   e.preventDefault();
@@ -228,15 +247,15 @@ function loadStats() {
   fetch(API + '/stats')
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      statsEl.innerHTML = '<div><span>' + data.totalImages + '</span> images</div>' +
-        '<div><span>' + formatSize(data.totalSize) + '</span> storage</div>';
+      statsEl.innerHTML = '<div class="stat-row"><span>Images</span><span class="stat-value">' + data.totalImages + '</span></div>' +
+        '<div class="stat-row"><span>Storage</span><span class="stat-value">' + formatSize(data.totalSize) + '</span></div>';
     })
     .catch(function() {});
 }
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(function() {
-    toast('URL copied!', 'success');
+    toast('Copied to clipboard!', 'success');
   }).catch(function() {
     var input = document.createElement('input');
     input.value = text;
@@ -244,12 +263,16 @@ function copyToClipboard(text) {
     input.select();
     document.execCommand('copy');
     document.body.removeChild(input);
-    toast('URL copied!', 'success');
+    toast('Copied to clipboard!', 'success');
   });
 }
 
 function copyUrl() {
   copyToClipboard(document.getElementById('edit-url').value);
+}
+
+function copyIframe() {
+  copyToClipboard(document.getElementById('edit-iframe').value);
 }
 
 function formatSize(bytes) {

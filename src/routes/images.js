@@ -24,6 +24,35 @@ imageRoutes.get('/images/:slug', async (c) => {
   return new Response(object.body, { headers });
 });
 
+// Embeddable iframe page for a single image
+imageRoutes.get('/embed/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const image = await c.env.DB.prepare('SELECT * FROM images WHERE slug = ?').bind(slug).first();
+
+  if (!image) {
+    return c.html('<html><body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;color:#999;">Image not found</body></html>', 404);
+  }
+
+  const baseUrl = c.env.BASE_URL || `https://${c.req.header('host')}`;
+
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${image.alt_title || image.original_name}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:transparent;overflow:hidden}
+img{max-width:100%;max-height:100vh;height:auto;display:block}
+</style>
+</head>
+<body>
+<img src="${baseUrl}/images/${image.slug}" alt="${(image.alt_title || '').replace(/"/g, '&quot;')}" title="${(image.description || '').replace(/"/g, '&quot;')}">
+</body>
+</html>`);
+});
+
 // Image metadata by slug
 imageRoutes.get('/images/:slug/info', async (c) => {
   const slug = c.req.param('slug');
