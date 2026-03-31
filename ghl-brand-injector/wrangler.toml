@@ -11,8 +11,8 @@ compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "BRANDS"
-id = ""  # Fill in your KV namespace ID
+id = "aa451a19dd3b43638ded22a7f232cc96"
 
 [[r2_buckets]]
 binding = "LOGOS"
-bucket_name = "brand-logos"
+bucket_name = "ghl-brand-logos"
