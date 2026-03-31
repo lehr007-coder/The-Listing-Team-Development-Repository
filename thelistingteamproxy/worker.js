@@ -1,0 +1,12234 @@
+--753ad4e191e6caf856fbec2a260b7fe4b8d5d05a2176da0c9df26ca4214e
+Content-Disposition: form-data; name="index.js"
+
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+// index.js
+var GHL_V1 = "https://rest.gohighlevel.com/v1";
+var GHL_V2 = "https://services.leadconnectorhq.com";
+var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
+var CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id",
+  "Access-Control-Max-Age": "86400"
+};
+function corsHeaders(extra = {}) {
+  return { ...CORS, "Content-Type": "application/json", ...extra };
+}
+__name(corsHeaders, "corsHeaders");
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: corsHeaders() });
+}
+__name(json, "json");
+function err(msg, status = 500, details = null) {
+  return json({ ok: false, error: msg, ...details ? { details } : {}, proxy: "v8" }, status);
+}
+__name(err, "err");
+var SITE_MATRIX_HTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ylopo Lead Stats</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
+:root {
+  --page-bg: #0a0a0a; --card-bg: #141414; --card-border: #2a2a2a;
+  --card-border-active: #Bed62f; --text-dark: #f0f0f0; --text-muted: #888;
+  --ok: #Bed62f; --warn: #ffd700; --error: #ff3333;
+  --gold: #Bed62f; --gold-bright: #d4e840; --gold-dark: #8cc63e;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:'Oswald','Impact','Arial Black',sans-serif; }
+.ylopo-page { max-width:1640px; margin:0 auto; padding:20px 16px 24px; }
+.ylopo-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:12px; }
+.ylopo-btn { border:2px solid var(--gold); background:transparent; color:var(--gold); border-radius:6px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.05em; font-family:inherit; }
+.ylopo-btn:hover:not(:disabled) { background:var(--gold); color:#000; }
+.ylopo-btn:disabled { opacity:.4; cursor:not-allowed; }
+.ylopo-status { font-size:13px; color:var(--text-muted); margin:0 0 14px; white-space:pre-wrap; font-family:-apple-system,sans-serif; }
+.ylopo-status.ok { color:var(--ok); } .ylopo-status.warn { color:var(--warn); } .ylopo-status.error { color:var(--error); }
+.ylopo-progress { width:100%; height:4px; background:#1a1a1a; border-radius:2px; margin-bottom:14px; overflow:hidden; display:none; }
+.ylopo-progress.visible { display:block; }
+.ylopo-progress-fill { height:100%; background:linear-gradient(90deg,var(--gold-dark),var(--gold),var(--gold-bright)); border-radius:2px; transition:width .3s ease; width:0%; box-shadow:0 0 12px rgba(190,214,47,.5); }
+.ylopo-stats-grid { display:grid; grid-template-columns:repeat(8,minmax(130px,1fr)); gap:10px; align-items:stretch; }
+@media(max-width:1100px){ .ylopo-stats-grid{grid-template-columns:repeat(4,1fr);} }
+@media(max-width:600px){ .ylopo-stats-grid{grid-template-columns:repeat(2,1fr);} }
+.ylopo-stat-card { background:var(--card-bg); border:2px solid var(--card-border); border-radius:12px; padding:14px 14px 12px; min-height:110px; text-align:left; transition:all .25s; position:relative; overflow:hidden; }
+.ylopo-stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:0; transition:opacity .3s; }
+.ylopo-stat-card.is-active { border-color:var(--gold); box-shadow:0 0 20px rgba(190,214,47,.15); }
+.ylopo-stat-card.is-active::before { opacity:1; }
+.ylopo-stat-card.skeleton .ylopo-stat-number { color:transparent; background:linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:4px; }
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes countUp{0%{opacity:0;transform:translateY(8px) scale(.9)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.ylopo-stat-title { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-muted); line-height:1.3; min-height:25px; font-family:-apple-system,'Segoe UI',sans-serif; font-weight:600; }
+.ylopo-stat-value { margin-top:8px; display:flex; align-items:center; gap:8px; line-height:1; }
+.ylopo-stat-icon { font-size:26px; line-height:1; display:inline-flex; align-items:center; width:28px; filter:drop-shadow(0 0 4px rgba(190,214,47,.3)); }
+.ylopo-stat-number { font-size:clamp(24px,4vw,42px); font-weight:700; letter-spacing:-.01em; color:var(--gold); text-shadow:0 0 20px rgba(190,214,47,.25); font-family:'Oswald','Impact','Arial Black',sans-serif; animation:countUp .4s ease-out; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.ylopo-stat-card.is-active .ylopo-stat-number { color:var(--gold-bright); text-shadow:0 0 30px rgba(190,214,47,.4),0 2px 4px rgba(0,0,0,.5); }
+.ylopo-stat-subtext { margin-top:10px; font-size:10px; color:#555; font-family:-apple-system,'Segoe UI',sans-serif; text-transform:uppercase; letter-spacing:.05em; }
+</style>
+</head><body>
+<div class="ylopo-page">
+  <div class="ylopo-toolbar">
+    <button id="refreshBtn" class="ylopo-btn" onclick="startFetch()">&#8635; Refresh</button>
+    <button id="stopBtn" class="ylopo-btn" onclick="stopFetch()" style="display:none;">&#9632; Stop</button>
+  </div>
+  <div id="statusMsg" class="ylopo-status">Initializing...</div>
+  <div class="ylopo-progress" id="progressBar"><div class="ylopo-progress-fill" id="progressFill"></div></div>
+  <div class="ylopo-stats-grid" id="statsGrid"></div>
+</div>
+<script>
+const PROXY="https://thelistingteamproxy.reallistingteam.com";
+const PAGE_SIZE=100, MAX_PAGES=25, REFRESH_MS=120000;
+const F={
+  views:['ylopo_last_session_listings_viewed','ylopo_total_listing_views','buyer_listing_views'],
+  saves:['ylopo_last_session_listings_saved','ylopo_total_favorites','buyer_favorites'],
+  showings:['ylopo_last_session_showinginfo_requests','ylopo_total_showing_requests','buyer_showing_requests','total_showings'],
+  searches:['ylopo_last_session_searches'],
+  stars:['ylopo_stars_link_profile_card_link','ylopo_stars_link','ypriority','fub_ylopo_stars_link'],
+  active:['last_active_date','ylopo_last_search_site_visit'],
+};
+const CARDS=[
+  {key:'totalLeads',title:'Total Leads',icon:'\\u{1F465}',sub:'Ylopo query matches'},
+  {key:'ylopoLeads',title:'Ylopo Leads',icon:'\\u{1F3AF}',sub:'With Ylopo data'},
+  {key:'totalViews',title:'Listing Views',icon:'\\u{1F441}\\uFE0F',sub:'Properties viewed'},
+  {key:'totalSaves',title:'Saved Properties',icon:'\\u2764\\uFE0F',sub:'Properties favorited'},
+  {key:'totalShowings',title:'Showing Requests',icon:'\\u{1F3E0}',sub:'Scheduled showings'},
+  {key:'totalSearches',title:'Saved Searches',icon:'\\u{1F50D}',sub:'Active search alerts'},
+  {key:'withStars',title:'Stars Linked',icon:'\\u2B50',sub:'In Ylopo Stars'},
+  {key:'activeWeek',title:'Active This Week',icon:'\\u26A1',sub:'Visited in 7 days'},
+];
+let vals=Object.fromEntries(CARDS.map(c=>[c.key,0]));
+let abortCtl=null, refreshTimer=null;
+
+function getCF(contact,keys){
+  const fields=Array.isArray(contact?.customField)?contact.customField:[];
+  for(const key of keys){
+    const kl=key.toLowerCase();
+    for(const f of fields){
+      const fk=(f.fieldKey||'').toLowerCase().replace(/^contact\\./,'');
+      const fk2=(f.key||'').toLowerCase().replace(/^contact\\./,'');
+      if(fk===kl||fk2===kl){
+        const v=f.value;
+        if(v!=null&&v!=='') return Array.isArray(v)?(v[0]??null):v;
+      }
+    }
+  }
+  return null;
+}
+function maxCF(c,keys,cap){const vals=keys.map(k=>Number(getCF(c,[k]))||0);if(cap)return Math.max(0,...vals.map(v=>v>cap?0:v));return Math.max(0,...vals);}
+
+function hasRealStarsLink(c){const v=getCF(c,F.stars);return !!(v&&String(v).startsWith('http')&&String(v).includes('ylopo'));}
+function isActiveThisWeek(c){
+  const raw=getCF(c,F.active); if(!raw)return false;
+  try{const d=new Date(typeof raw==='number'?raw:raw);return(Date.now()-d.getTime())>=0&&(Date.now()-d.getTime())<7*864e5;}catch{return false;}
+}
+function isYlopoLead(c){
+  const v=maxCF(c,F.views)+maxCF(c,F.saves)+maxCF(c,F.showings)+maxCF(c,F.searches,10000);
+  const tags=(c.tags||[]).map(t=>String(t).toLowerCase());
+  return v>0||hasRealStarsLink(c)||(c.source||'').toLowerCase().includes('ylopo')||tags.some(t=>t.includes('ylopo')||t.startsWith('y_')||t==='ypriority');
+}
+function renderSkeletons(){
+  document.getElementById('statsGrid').innerHTML=CARDS.map(c=>'<div class="ylopo-stat-card skeleton" data-key="'+c.key+'"><div class="ylopo-stat-title">'+c.title+'</div><div class="ylopo-stat-value"><span class="ylopo-stat-icon">'+c.icon+'</span><span class="ylopo-stat-number">\\u2014</span></div><div class="ylopo-stat-subtext">'+c.sub+'</div></div>').join('');
+}
+function fmtNum(n){if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=100000)return(n/1e3).toFixed(0)+'K';if(n>=10000)return(n/1e3).toFixed(1)+'K';return n.toLocaleString();}
+function renderValues(v){
+  document.getElementById('statsGrid').innerHTML=CARDS.map(c=>'<div class="ylopo-stat-card'+(v[c.key]>0?' is-active':'')+'" data-key="'+c.key+'"><div class="ylopo-stat-title">'+c.title+'</div><div class="ylopo-stat-value"><span class="ylopo-stat-icon">'+c.icon+'</span><span class="ylopo-stat-number" title="'+(v[c.key]??0).toLocaleString()+'">'+fmtNum(v[c.key]??0)+'</span></div><div class="ylopo-stat-subtext">'+c.sub+'</div></div>').join('');
+}
+function setStatus(msg,cls=''){const el=document.getElementById('statusMsg');el.className='ylopo-status '+(cls||'');el.textContent=msg;}
+function setProgress(pct){
+  const bar=document.getElementById('progressBar'),fill=document.getElementById('progressFill');
+  if(pct<=0){bar.classList.remove('visible');return;}
+  bar.classList.add('visible');fill.style.width=Math.min(100,pct)+'%';
+  if(pct>=100)setTimeout(()=>bar.classList.remove('visible'),800);
+}
+async function startFetch(){
+  if(abortCtl)abortCtl.abort(); abortCtl=new AbortController();
+  document.getElementById('refreshBtn').disabled=true;
+  document.getElementById('stopBtn').style.display='';
+  const agg={totalLeads:0,ylopoLeads:0,totalViews:0,totalSaves:0,totalShowings:0,totalSearches:0,withStars:0,activeWeek:0};
+  let startAfter='',startAfterId='',pagesFetched=0,totalFromMeta=0,aborted=false;
+  setProgress(3);
+  try{
+    for(let page=1;page<=MAX_PAGES;page++){
+      let url=PROXY+'/contacts?limit='+PAGE_SIZE+'&query=ylopo';
+      if(startAfter&&startAfterId) url+='&startAfter='+startAfter+'&startAfterId='+startAfterId;
+      const res=await fetch(url,{headers:{Accept:'application/json'},signal:abortCtl.signal});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const data=await res.json();
+      const contacts=data.contacts||[];
+      const meta=data.meta||{};
+      if(page===1)totalFromMeta=meta.total||0;
+      if(!contacts.length)break;
+      agg.totalLeads+=contacts.length;
+      contacts.forEach(c=>{
+        if(isYlopoLead(c))agg.ylopoLeads++;
+        agg.totalViews+=maxCF(c,F.views);
+        agg.totalSaves+=maxCF(c,F.saves);
+        agg.totalShowings+=maxCF(c,F.showings);
+        agg.totalSearches+=maxCF(c,F.searches,10000);
+        if(hasRealStarsLink(c))agg.withStars++;
+        if(isActiveThisWeek(c))agg.activeWeek++;
+      });
+      pagesFetched++;
+      vals={...agg,totalLeads:totalFromMeta||agg.totalLeads};
+      renderValues(vals);
+      const pct=totalFromMeta?Math.round(agg.totalLeads/totalFromMeta*100):page*5;
+      setProgress(Math.min(95,Math.max(pct,5)));
+      setStatus('Scanning Ylopo contacts... page '+page+' \\u00B7 '+agg.totalLeads.toLocaleString()+' of '+(totalFromMeta||'?').toLocaleString()+' matches');
+      const newSA=meta.startAfter,newSAID=meta.startAfterId;
+      if(!newSA||newSA===startAfter)break;
+      startAfter=newSA; startAfterId=newSAID;
+      await new Promise(r=>setTimeout(r,200));
+    }
+    if(totalFromMeta>0)vals.totalLeads=totalFromMeta;
+    renderValues(vals); setProgress(100);
+    const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    setStatus('\\u2713 Updated '+now+' \\u00B7 '+pagesFetched+' pages scanned \\u00B7 '+(totalFromMeta||agg.totalLeads).toLocaleString()+' Ylopo contacts','ok');
+  }catch(e){
+    if(e.name==='AbortError'){aborted=true;setStatus('Stopped.','warn');}
+    else setStatus('Error: '+(e.message||String(e)),'error');
+    renderValues(vals); setProgress(0);
+  }
+  document.getElementById('refreshBtn').disabled=false;
+  document.getElementById('stopBtn').style.display='none';
+  abortCtl=null;
+  if(!aborted)scheduleRefresh();
+}
+function stopFetch(){if(abortCtl){abortCtl.abort();abortCtl=null;}if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}}
+function scheduleRefresh(){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=setTimeout(startFetch,REFRESH_MS);}
+renderSkeletons(); startFetch();
+<\/script>
+</body></html>`;
+var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 Ylopo Priority Leads</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #000000;
+    --primary-light: #333333;
+    --accent: #Bed62f;
+    --accent-dark: #8cc63e;
+    --text: #000000;
+    --text-white: #ffffff;
+    --text-muted: #585a5c;
+    --bg: #ffffff;
+    --bg-dark: #1a1a1a;
+    --card-bg: #ffffff;
+    --border: #e5e5e5;
+    --success: #8cc63e;
+    --warning: #Bed62f;
+    --error: #dc3545;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+    transition: background 0.3s, color 0.3s;
+}
+
+body.dark-mode {
+    --bg: #1a1a1a;
+    --card-bg: #2d2d2d;
+    --text: #ffffff;
+    --text-muted: #a0a0a0;
+    --border: #404040;
+}
+
+.app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    padding: 3rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+}
+
+.header-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+}
+
+/* Stats Bar - RESPONSIVE FIX */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1400px) {
+    .stats-bar {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .stats-bar {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .stats-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 2rem 1.5rem;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* Tabs */
+.dashboard-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+    border-bottom: 2px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    padding: 1rem 2rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(190, 214, 47, 0.05);
+}
+
+.tab-content {
+    display: none;
+    padding-top: 2rem;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Controls */
+.controls-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.controls-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-input, .tag-search {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: var(--card-bg);
+    color: var(--text);
+}
+
+.search-input:focus, .tag-search:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.filter-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    padding: 0.75rem 1.5rem;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.filter-pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.saved-views-btn {
+    padding: 0.75rem 1.5rem;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+/* Actions Row */
+.actions-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.show-all-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.badge {
+    background: var(--accent);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.view-toggle {
+    display: flex;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.view-btn {
+    padding: 0.75rem 1.25rem;
+    border: none;
+    background: var(--card-bg);
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-right: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.view-btn:last-child {
+    border-right: none;
+}
+
+.view-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+.action-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.btn-copy, .btn-report {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-export {
+    background: var(--text);
+    color: white;
+}
+
+/* Table - FIXED SHORTER COLUMNS */
+.table-container {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    overflow-x: auto;
+}
+
+.table-header {
+    display: grid;
+    grid-template-columns: 220px 260px 110px 100px 80px 100px 100px;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--text);
+    color: white;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    align-items: center;
+    min-width: 970px;
+}
+
+.table-body {
+    min-height: 400px;
+}
+
+.table-row {
+    display: grid;
+    grid-template-columns: 220px 260px 110px 100px 80px 100px 100px;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 970px;
+}
+
+.table-row:hover {
+    background: rgba(190, 214, 47, 0.05);
+}
+
+.lead-name {
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lead-contact {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.contact-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contact-text a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.contact-text a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.contact-links {
+    display: flex;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+    position: relative;
+    z-index: 10;
+}
+
+.contact-link {
+    padding: 0.25rem 0.5rem;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    position: relative;
+    z-index: 10;
+    cursor: pointer;
+}
+
+.contact-link:hover {
+    background: var(--accent-dark);
+}
+
+.lead-response-time {
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.response-time-value {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.lead-date {
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.score-badge {
+    display: inline-block;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-align: center;
+    width: 100%;
+}
+
+.score-high {
+    background: rgba(140, 198, 62, 0.15);
+    color: var(--success);
+}
+
+.score-medium {
+    background: rgba(190, 214, 47, 0.15);
+    color: var(--warning);
+}
+
+.score-low {
+    background: rgba(220, 53, 69, 0.15);
+    color: var(--error);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    width: 100%;
+}
+
+.status-new {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.status-contacted {
+    background: rgba(190, 214, 47, 0.15);
+    color: var(--warning);
+}
+
+.status-qualified {
+    background: rgba(140, 198, 62, 0.15);
+    color: var(--success);
+}
+
+.lead-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.action-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.action-icon:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: scale(1.1);
+}
+
+/* Card View - WITH ICONS */
+.cards-grid {
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.cards-grid.active {
+    display: grid;
+}
+
+.lead-card {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 420px;
+    display: flex;
+    flex-direction: column;
+}
+
+.lead-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.card-info h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.card-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+}
+
+.card-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.card-meta a:hover {
+    color: var(--accent);
+}
+
+.card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-meta-icon {
+    font-size: 0.9rem;
+    width: 16px;
+    display: inline-block;
+}
+
+.card-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.card-metric {
+    background: rgba(190, 214, 47, 0.05);
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.card-metric-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.card-metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.card-footer {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.card-link {
+    flex: 1;
+    padding: 0.5rem;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+    z-index: 10;
+    cursor: pointer;
+}
+
+.card-link:hover {
+    background: var(--accent-dark);
+}
+
+/* Details Panel */
+.details-panel {
+    display: none;
+    padding: 2rem;
+    background: rgba(190, 214, 47, 0.03);
+    border-top: 2px solid var(--border);
+    grid-column: 1 / -1;
+}
+
+.details-panel.show {
+    display: block;
+}
+
+/* Matrix */
+.matrix-showcase {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.matrix-card {
+    background: var(--card-bg);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.matrix-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.matrix-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.matrix-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.matrix-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 0.75rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #8cc63e 100%);
+    transition: width 0.5s ease;
+}
+
+.quality-panel, .conversion-panel {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+}
+
+.quality-badge {
+    padding: 0.35rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-excellent {
+    background: rgba(140, 198, 62, 0.2);
+    color: var(--success);
+}
+
+.badge-good {
+    background: rgba(190, 214, 47, 0.2);
+    color: var(--warning);
+}
+
+.badge-average {
+    background: rgba(220, 53, 69, 0.2);
+    color: var(--error);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+.metric-item {
+    text-align: center;
+}
+
+.metric-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.conversion-percentage {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.conversion-bar-container {
+    height: 12px;
+    background: var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 1rem 0;
+}
+
+.conversion-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-dark) 100%);
+    transition: width 0.8s;
+}
+
+.conversion-factors {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.conversion-factor {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(190, 214, 47, 0.05);
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+/* Floating Actions */
+.floating-actions {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 999;
+}
+
+.floating-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.floating-btn:hover {
+    transform: scale(1.1) rotate(15deg);
+}
+
+.floating-btn:active {
+    transform: scale(0.95);
+}
+
+.tooltip {
+    position: absolute;
+    right: 70px;
+    background: var(--text);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.floating-btn:hover .tooltip {
+    opacity: 1;
+}
+
+/* Loading */
+.loading {
+    text-align: center;
+    padding: 4rem;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border);
+    border-top: 4px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* External Links */
+.external-links {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 998;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.external-link {
+    padding: 0.5rem 1rem;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.external-link:hover {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .app-container {
+        padding: 1rem;
+    }
+
+    .header {
+        padding: 1.5rem 1rem;
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
+    }
+
+    .controls-row {
+        gap: 0.5rem;
+    }
+
+    .search-input, .tag-search {
+        min-width: 150px;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .filter-pill {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .action-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .stat-card {
+        padding: 1.5rem 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+    }
+
+    .floating-actions {
+        bottom: 1rem;
+        right: 1rem;
+    }
+
+    .floating-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+
+    .external-links {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+}
+</style>
+</head><body>
+
+<!-- External Links -->
+<div class="external-links">
+    <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; Go to GHL</a>
+    <a href="https://ylopo.com/" target="_blank" class="external-link">&#127919; Go to Ylopo</a>
+</div>
+
+<div class="app-container">
+    <!-- Header -->
+    <div class="header">
+        <h1>PRIORITY LEADS</h1>
+        <p class="header-subtitle">The Listing Team &#8226; Real-time lead intelligence from Ylopo</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-label">Total Leads</div>
+            <div class="stat-value" id="totalLeads">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">New Today</div>
+            <div class="stat-value" id="newToday">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">High Priority</div>
+            <div class="stat-value" id="highPriority">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg Response Time</div>
+            <div class="stat-value" id="avgResponseTime">&#8212;</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Response Rate</div>
+            <div class="stat-value" id="responseRate">0%</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="dashboard-tabs">
+        <button class="tab-btn active" onclick="switchTab('leads')">&#128202; Leads View</button>
+        <button class="tab-btn" onclick="switchTab('source')">&#128200; Source Performance</button>
+        <button class="tab-btn" onclick="switchTab('matrix')">&#127919; Matrix Overview</button>
+    </div>
+
+    <!-- Tab: Leads View -->
+    <div id="leadsTab" class="tab-content active">
+        <!-- Controls -->
+        <div class="controls-section">
+            <div class="controls-row">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search by name, email, or phone...">
+                <input type="text" class="tag-search" id="tagSearch" placeholder="Search by tag...">
+                <div class="filter-pills">
+                    <button class="filter-pill active" data-filter="all">All</button>
+                    <button class="filter-pill" data-filter="new">New</button>
+                    <button class="filter-pill" data-filter="high">High Priority</button>
+                    <button class="filter-pill" data-filter="contacted">Contacted</button>
+                </div>
+                <button class="saved-views-btn">&#128193; Saved Views &#9660;</button>
+            </div>
+
+            <div class="actions-row">
+                <label class="show-all-checkbox">
+                    <input type="checkbox" id="showAllLeads" checked>
+                    <span>Show All Leads</span>
+                    <span class="badge" id="leadCount">-</span>
+                </label>
+
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="switchView('table')">
+                        <span>&#128202;</span> Table
+                    </button>
+                    <button class="view-btn" onclick="switchView('cards')">
+                        <span>&#128199;</span> Cards
+                    </button>
+                </div>
+
+                <button class="action-btn btn-copy" onclick="copyEmails()">&#128203; Copy Emails</button>
+                <button class="action-btn btn-export" onclick="exportCSV()">Export CSV</button>
+                <button class="action-btn btn-report" onclick="showReport()">&#128202; Report</button>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="tableView" class="table-container">
+            <div class="table-header">
+                <div>NAME</div>
+                <div>CONTACT</div>
+                <div>RESPONSE TIME</div>
+                <div>DATE</div>
+                <div>SCORE</div>
+                <div>STATUS</div>
+                <div>ACTIONS</div>
+            </div>
+            <div class="table-body" id="tableBody">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading priority leads...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card View -->
+        <div id="cardView" class="cards-grid">
+            <!-- Cards populated by JS -->
+        </div>
+    </div>
+
+    <!-- Tab: Source Performance -->
+    <div id="sourceTab" class="tab-content">
+        <div style="text-align: center; padding: 4rem;">
+            <h2>&#128200; Source Performance</h2>
+            <p style="color: var(--text-muted); margin-top: 1rem;">Coming soon...</p>
+        </div>
+    </div>
+
+    <!-- Tab: Matrix Overview -->
+    <div id="matrixTab" class="tab-content">
+        <!-- Matrix Controls -->
+        <div class="controls-section">
+            <div class="actions-row" style="justify-content: space-between; flex-wrap: wrap;">
+                <h2 style="margin: 0;">&#128202; Matrix Overview - All Leads</h2>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div class="view-toggle">
+                        <button class="view-btn active" onclick="switchMatrixView('table')">
+                            <span>&#128202;</span> Table
+                        </button>
+                        <button class="view-btn" onclick="switchMatrixView('cards')">
+                            <span>&#128199;</span> Cards
+                        </button>
+                    </div>
+                    <select id="matrixSort" style="padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text); font-weight: 600;">
+                        <option value="conversion">Sort by Conversion</option>
+                        <option value="views">Sort by Views</option>
+                        <option value="saves">Sort by Saves</option>
+                        <option value="searches">Sort by Searches</option>
+                        <option value="showings">Sort by Showings</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matrix Table View -->
+        <div id="matrixTableView" class="table-container">
+            <div class="table-header" style="grid-template-columns: 200px 80px 80px 80px 80px 100px 120px; min-width: 760px;">
+                <div>NAME</div>
+                <div>VIEWS</div>
+                <div>SAVES</div>
+                <div>SEARCHES</div>
+                <div>SHOWINGS</div>
+                <div>CONVERSION</div>
+                <div>QUALITY</div>
+            </div>
+            <div class="table-body" id="matrixTableBody">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading matrix data...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Matrix Card View -->
+        <div id="matrixCardView" class="cards-grid" style="display: none; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+            <!-- Cards populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Floating Actions -->
+<div class="floating-actions">
+    <button class="floating-btn" onclick="openSettings()" title="Settings">
+        &#9881;&#65039;
+        <span class="tooltip">Settings</span>
+    </button>
+    <button class="floating-btn" onclick="openDirections()" title="Directions">
+        &#129517;
+        <span class="tooltip">Directions</span>
+    </button>
+    <button class="floating-btn" onclick="toggleDarkMode()" title="Toggle Theme" id="themeBtn">
+        &#127769;
+        <span class="tooltip">Toggle Dark Mode</span>
+    </button>
+</div>
+
+<script>
+    // Config
+    const PROXY_URL = "https://thelistingteamproxy.reallistingteam.com";
+    const PRIORITY_TAG = "ypriority";
+    const GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ";
+    let CONTACTS = [];
+    let currentView = 'table';
+    let FILTERED_CONTACTS = [];
+
+    // Helper Functions
+    function getCustomField(contact, keys) {
+        if (!contact.customField) return null;
+        for (const key of keys) {
+            const field = contact.customField.find(f => {
+                const name = f.name || '';
+                const fieldKey = f.fieldKey || '';
+                const id = f.id || '';
+                const key2 = f.key || '';
+                if (name.toLowerCase() === key.toLowerCase()) return true;
+                if (fieldKey.toLowerCase() === key.toLowerCase()) return true;
+                if (id.toLowerCase() === key.toLowerCase()) return true;
+                if (key2.toLowerCase() === key.toLowerCase()) return true;
+                if (name.toLowerCase().includes(key.toLowerCase())) return true;
+                if (fieldKey.toLowerCase().includes(key.toLowerCase())) return true;
+                return false;
+            });
+            if (field && field.value) return field.value;
+        }
+        return null;
+    }
+
+    function getIntentScore(contact) {
+        return Number(getCustomField(contact, [
+            'ylopo__intent_score',
+            'ylopo__lead_intent_score',
+            'lead_intent_score'
+        ])) || 0;
+    }
+
+    function hasPriorityTag(contact) {
+        const hasTag = Array.isArray(contact.tags) &&
+            contact.tags.map(t => t.toLowerCase()).includes(PRIORITY_TAG);
+        const highScore = getIntentScore(contact) >= 70;
+        const recent = contact.dateAdded &&
+            (new Date() - new Date(contact.dateAdded)) < (7 * 24 * 60 * 60 * 1000);
+        return hasTag || highScore || recent;
+    }
+
+    function getResponseTime(contact) {
+        if (!contact.dateAdded) return null;
+        const addedDate = new Date(contact.dateAdded);
+        const now = new Date();
+        const diffMs = now - addedDate;
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+        if (days > 0) return days + 'd';
+        if (hours > 0) return hours + 'h';
+        return '<1h';
+    }
+
+    function getMatrixMetrics(contact) {
+        const views = Number(getCustomField(contact, [
+            'ylopo__buyer_matrix_views',
+            'ylopo_last_session_listings_viewed',
+            'properties_viewed_count'
+        ])) || 0;
+        const saves = Number(getCustomField(contact, [
+            'ylopo__buyer_matrix_saves',
+            'ylopo_last_session_listings_saved',
+            'total_saved_homes'
+        ])) || 0;
+        const searches = Number(getCustomField(contact, ['ylopo_last_session_searches'])) || 0;
+        const showings = Number(getCustomField(contact, ['ylopo_last_session_showinginfo_requests'])) || 0;
+        const sessionDuration = Number(getCustomField(contact, ['ylopo_session_duration'])) || 0;
+        const pagesPerSession = Number(getCustomField(contact, ['ylopo_pages_per_session'])) || 0;
+        const bounceRate = Number(getCustomField(contact, ['ylopo_bounce_rate'])) || 0;
+        const returnVisits = Number(getCustomField(contact, ['ylopo_return_visit_count'])) || 0;
+
+        const engagementScore = (views * 1) + (saves * 5) + (searches * 3) + (showings * 10);
+        let conversionProb = 10;
+        if (engagementScore >= 70) conversionProb = 85;
+        else if (engagementScore >= 40) conversionProb = 55;
+        else if (engagementScore >= 15) conversionProb = 25;
+        if (showings > 0) conversionProb += 20;
+        if (returnVisits > 3) conversionProb += 10;
+        conversionProb = Math.min(99, Math.max(1, conversionProb));
+
+        return {
+            views, saves, searches, showings,
+            sessionDuration, pagesPerSession, bounceRate, returnVisits,
+            conversionProb, engagementScore
+        };
+    }
+
+    function getSellerIntelligence(contact) {
+        const propertyType = getCustomField(contact, [
+            'ylopo_property_type', 'property_type', 'seller_property_type'
+        ]) || 'Single Family';
+        const priceRangeLow = getCustomField(contact, [
+            'ylopo_price_min', 'min_price', 'seller_price_min'
+        ]) || '250K';
+        const priceRangeHigh = getCustomField(contact, [
+            'ylopo_price_max', 'max_price', 'seller_price_max'
+        ]) || '450K';
+        const beds = getCustomField(contact, [
+            'ylopo_beds', 'bedrooms', 'seller_beds'
+        ]) || '3-4';
+        const baths = getCustomField(contact, [
+            'ylopo_baths', 'bathrooms', 'seller_baths'
+        ]) || '2+';
+        const timeline = getCustomField(contact, [
+            'ylopo_timeline', 'seller_timeline', 'move_timeline'
+        ]) || '3-6 mo';
+        return {
+            propertyType,
+            priceRange: '$' + priceRangeLow + '-$' + priceRangeHigh,
+            beds, baths, timeline
+        };
+    }
+
+    function getScoreClass(score) {
+        if (score >= 80) return 'score-high';
+        if (score >= 50) return 'score-medium';
+        return 'score-low';
+    }
+
+    function getGHLLink(contactId) {
+        return 'https://app.gohighlevel.com/v2/location/' + GHL_LOCATION_ID + '/contacts/detail/' + contactId;
+    }
+
+    function getYlopoLink(contact) {
+        if (!contact) return '';
+        var fields = Array.isArray(contact.customField) ? contact.customField : Array.isArray(contact.customFields) ? contact.customFields : [];
+        // 1. Direct stars link fields
+        for (var i=0; i<fields.length; i++) {
+            var f = fields[i];
+            var fk = String(f.fieldKey||f.key||f.name||'').toLowerCase().replace('contact.','');
+            var val = String(f.value||'');
+            if ((fk.indexOf('ylopo_stars')!==-1 || fk.indexOf('fub_ylopo_stars')!==-1) && val.indexOf('http')===0) return val;
+        }
+        // 2. Any field with stars.ylopo.com URL
+        for (var i=0; i<fields.length; i++) {
+            var val = String(fields[i].value||'');
+            if (val.indexOf('stars.ylopo.com')!==-1 && val.indexOf('http')===0) return val;
+        }
+        // 3. Any stars_link field
+        for (var i=0; i<fields.length; i++) {
+            var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+            var val = String(fields[i].value||'');
+            if (fk.indexOf('stars_link')!==-1) {
+                if (val.indexOf('http')===0) return val;
+            }
+        }
+        // 4. UUID in ylopo field -> construct URL
+        for (var i=0; i<fields.length; i++) {
+            var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase();
+            var val = String(fields[i].value||'');
+            if (fk.indexOf('ylopo')!==-1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+                return 'https://stars.ylopo.com/lead-detail/' + val;
+            }
+        }
+        // 5. UUID in ylopo-specific fields
+        for (var i=0; i<fields.length; i++) {
+            var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+            var val = String(fields[i].value||'');
+            if ((fk.indexOf('ylopo_uuid')!==-1 || fk.indexOf('ylopo_id')!==-1 || fk.indexOf('ylopo_contact_id')!==-1 || fk.indexOf('ylopo_lead_id')!==-1) && /[0-9a-f]{8}-[0-9a-f]{4}/i.test(val)) {
+                var m = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+                if (m) return 'https://stars.ylopo.com/lead-detail/' + m[0];
+            }
+        }
+        // 6. Fallback: search by email
+        if (contact.email) return 'https://stars.ylopo.com/contacts?search=' + encodeURIComponent(contact.email);
+        return 'https://stars.ylopo.com/contacts';
+    }
+
+        var ylopoField = contact.customField.find(function(f) {
+            if (!f.value || typeof f.value !== 'string') return false;
+            return f.value.includes('ylopo.com') || f.value.includes('stars.ylopo');
+        });
+        if (ylopoField && ylopoField.value) {
+            return ylopoField.value;
+        }
+        var uuidField = contact.customField.find(function(f) {
+            if (!f.value || typeof f.value !== 'string') return false;
+            return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.value);
+        });
+        if (uuidField && uuidField.value) {
+            return 'https://stars.ylopo.com/lead-detail/' + uuidField.value;
+        }
+        return 'https://stars.ylopo.com/contacts';
+    }
+
+    // Render Functions
+    function renderTable(contacts) {
+        var tbody = document.getElementById('tableBody');
+        if (contacts.length === 0) {
+            tbody.innerHTML = '<div class="loading"><p>No priority leads found</p></div>';
+            return;
+        }
+        tbody.innerHTML = contacts.map(function(contact) {
+            var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim() || 'No Name';
+            var score = getIntentScore(contact);
+            var status = contact.assignedTo ? 'contacted' : 'new';
+            var date = contact.dateAdded ? new Date(contact.dateAdded).toLocaleDateString() : '\\u2014';
+            var responseTime = getResponseTime(contact);
+            var metrics = getMatrixMetrics(contact);
+            return '<div class="table-row" onclick="toggleDetails(\\'' + contact.id + '\\')">' +
+                '<div class="lead-name">' + name + '</div>' +
+                '<div class="lead-contact">' +
+                    '<div class="contact-text"><a href="mailto:' + (contact.email || '') + '" onclick="event.stopPropagation()">' + (contact.email || '\\u2014') + '</a></div>' +
+                    '<div class="contact-text"><a href="tel:' + (contact.phone || '') + '" onclick="event.stopPropagation()">' + (contact.phone || '\\u2014') + '</a></div>' +
+                    '<div class="contact-links">' +
+                        '<a href="' + getGHLLink(contact.id) + '" target="_blank" class="contact-link" onclick="event.stopPropagation()">GHL</a>' +
+                        '<a href="' + getYlopoLink(contact) + '" target="_blank" class="contact-link" onclick="event.stopPropagation()">Ylopo</a>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="lead-response-time">' + (responseTime ? '<span class="response-time-value">' + responseTime + '</span>' : '\\u2014') + '</div>' +
+                '<div class="lead-date">' + date + '</div>' +
+                '<div><span class="score-badge ' + getScoreClass(score) + '">' + score + '</span></div>' +
+                '<div><span class="status-badge status-' + status + '">' + status + '</span></div>' +
+                '<div class="lead-actions">' +
+                    '<button class="action-icon" onclick="event.stopPropagation(); window.location.href=\\'tel:' + (contact.phone || '') + '\\'" title="Call">&#128222;</button>' +
+                    '<button class="action-icon" onclick="event.stopPropagation(); window.location.href=\\'mailto:' + (contact.email || '') + '\\'" title="Email">&#9993;&#65039;</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="details-panel" id="details-' + contact.id + '">' +
+                renderMatrixDetails(metrics, contact) +
+            '</div>';
+        }).join('');
+    }
+
+    function renderCards(contacts) {
+        var cardView = document.getElementById('cardView');
+        if (contacts.length === 0) {
+            cardView.innerHTML = '<div class="loading"><p>No priority leads found</p></div>';
+            return;
+        }
+        cardView.innerHTML = contacts.map(function(contact) {
+            var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim() || 'No Name';
+            var score = getIntentScore(contact);
+            var status = contact.assignedTo ? 'contacted' : 'new';
+            var date = contact.dateAdded ? new Date(contact.dateAdded).toLocaleDateString() : '\\u2014';
+            var responseTime = getResponseTime(contact);
+            var metrics = getMatrixMetrics(contact);
+            return '<div class="lead-card" onclick="toggleDetails(\\'' + contact.id + '\\')">' +
+                '<div class="card-header">' +
+                    '<div class="card-info">' +
+                        '<h3>' + name + '</h3>' +
+                        '<div class="card-meta">' +
+                            '<div class="card-meta-row"><span class="card-meta-icon">&#9993;&#65039;</span><a href="mailto:' + (contact.email || '') + '" onclick="event.stopPropagation()">' + (contact.email || '\\u2014') + '</a></div>' +
+                            '<div class="card-meta-row"><span class="card-meta-icon">&#128222;</span><a href="tel:' + (contact.phone || '') + '" onclick="event.stopPropagation()">' + (contact.phone || '\\u2014') + '</a></div>' +
+                            '<div class="card-meta-row"><span class="card-meta-icon">&#128197;</span><span>' + date + '</span></div>' +
+                            (responseTime ? '<div class="card-meta-row"><span class="card-meta-icon">&#9201;&#65039;</span><span>' + responseTime + '</span></div>' : '') +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="card-badges">' +
+                        '<span class="score-badge ' + getScoreClass(score) + '">' + score + '</span>' +
+                        '<span class="status-badge status-' + status + '">' + status + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card-body">' +
+                    '<div class="card-metrics">' +
+                        '<div class="card-metric"><div class="card-metric-label">Views</div><div class="card-metric-value">' + metrics.views + '</div></div>' +
+                        '<div class="card-metric"><div class="card-metric-label">Saves</div><div class="card-metric-value">' + metrics.saves + '</div></div>' +
+                        '<div class="card-metric"><div class="card-metric-label">Conversion</div><div class="card-metric-value">' + metrics.conversionProb + '%</div></div>' +
+                        '<div class="card-metric"><div class="card-metric-label">Showings</div><div class="card-metric-value">' + metrics.showings + '</div></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="card-footer">' +
+                    '<a href="' + getGHLLink(contact.id) + '" target="_blank" class="card-link" onclick="event.stopPropagation()">&#128279; GHL</a>' +
+                    '<a href="' + getYlopoLink(contact) + '" target="_blank" class="card-link" onclick="event.stopPropagation()">&#127919; Ylopo</a>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderMatrixDetails(metrics, contact) {
+        var duration = Math.floor(metrics.sessionDuration / 60);
+        var quality = metrics.pagesPerSession >= 7 && duration >= 4 ? 'excellent' :
+                       metrics.pagesPerSession >= 4 && duration >= 2 ? 'good' : 'average';
+
+        var factors = [];
+        if (metrics.showings > 0) factors.push({ icon: '&#10004;', text: 'Has showing requests', impact: '+20%' });
+        if (metrics.saves > 5) factors.push({ icon: '&#10004;', text: 'High save activity', impact: '+12%' });
+        if (metrics.returnVisits > 3) factors.push({ icon: '&#10004;', text: 'Frequent returner', impact: '+10%' });
+
+        var factorsHtml = '';
+        if (factors.length > 0) {
+            factorsHtml = '<div class="conversion-factors">';
+            for (var i = 0; i < factors.length; i++) {
+                factorsHtml += '<div class="conversion-factor"><span>' + factors[i].icon + '</span><span>' + factors[i].text + '</span><span style="margin-left: auto; color: var(--accent); font-weight: 700;">' + factors[i].impact + '</span></div>';
+            }
+            factorsHtml += '</div>';
+        }
+
+        var sellerHtml = '';
+        if (contact) {
+            var si = getSellerIntelligence(contact);
+            sellerHtml = '<div class="quality-panel">' +
+                '<div class="panel-header"><div class="panel-title">&#127968; Seller Intelligence</div></div>' +
+                '<div class="metrics-grid">' +
+                    '<div class="metric-item"><div class="metric-label">&#127968; Type</div><div class="metric-value" style="font-size: 1rem;">' + si.propertyType + '</div></div>' +
+                    '<div class="metric-item"><div class="metric-label">&#128176; Price</div><div class="metric-value" style="font-size: 1rem;">' + si.priceRange + '</div></div>' +
+                    '<div class="metric-item"><div class="metric-label">&#128716;&#65039; Beds/Bath</div><div class="metric-value" style="font-size: 1rem;">' + si.beds + ' / ' + si.baths + '</div></div>' +
+                    '<div class="metric-item"><div class="metric-label">&#9200; Timeline</div><div class="metric-value" style="font-size: 1rem;">' + si.timeline + '</div></div>' +
+                '</div></div>';
+        }
+
+        return '<div class="matrix-showcase">' +
+            '<div class="matrix-card"><div class="matrix-icon">&#128065;&#65039;</div><div class="matrix-value">' + metrics.views + '</div><div class="matrix-label">Views</div><div class="progress-bar"><div class="progress-fill" style="width: ' + Math.min(100, metrics.views * 2) + '%"></div></div></div>' +
+            '<div class="matrix-card"><div class="matrix-icon">&#128278;</div><div class="matrix-value">' + metrics.saves + '</div><div class="matrix-label">Saves</div><div class="progress-bar"><div class="progress-fill" style="width: ' + Math.min(100, metrics.saves * 7) + '%"></div></div></div>' +
+            '<div class="matrix-card"><div class="matrix-icon">&#128269;</div><div class="matrix-value">' + metrics.searches + '</div><div class="matrix-label">Searches</div><div class="progress-bar"><div class="progress-fill" style="width: ' + Math.min(100, metrics.searches * 10) + '%"></div></div></div>' +
+            '<div class="matrix-card"><div class="matrix-icon">&#128197;</div><div class="matrix-value">' + metrics.showings + '</div><div class="matrix-label">Showings</div><div class="progress-bar"><div class="progress-fill" style="width: ' + Math.min(100, metrics.showings * 20) + '%"></div></div></div>' +
+        '</div>' +
+        '<div class="conversion-panel">' +
+            '<div class="panel-header"><div class="panel-title">&#127919; Conversion Probability</div><div class="conversion-percentage">' + metrics.conversionProb + '%</div></div>' +
+            '<div class="conversion-bar-container"><div class="conversion-bar-fill" style="width: ' + metrics.conversionProb + '%"></div></div>' +
+            factorsHtml +
+        '</div>' +
+        '<div class="quality-panel">' +
+            '<div class="panel-header"><div class="panel-title">&#9889; Session Quality</div><span class="quality-badge badge-' + quality + '">' + quality.toUpperCase() + '</span></div>' +
+            '<div class="metrics-grid">' +
+                '<div class="metric-item"><div class="metric-label">&#9201;&#65039; Duration</div><div class="metric-value">' + duration + 'm</div></div>' +
+                '<div class="metric-item"><div class="metric-label">&#128196; Pages</div><div class="metric-value">' + metrics.pagesPerSession.toFixed(1) + '</div></div>' +
+                '<div class="metric-item"><div class="metric-label">&#8617;&#65039; Bounce</div><div class="metric-value">' + metrics.bounceRate + '%</div></div>' +
+                '<div class="metric-item"><div class="metric-label">&#128260; Returns</div><div class="metric-value">' + metrics.returnVisits + '</div></div>' +
+            '</div>' +
+        '</div>' +
+        sellerHtml;
+    }
+
+    // Matrix View State
+    var currentMatrixView = 'table';
+    var matrixSortBy = 'conversion';
+
+    function renderMatrixTable() {
+        var tbody = document.getElementById('matrixTableBody');
+        if (CONTACTS.length === 0) {
+            tbody.innerHTML = '<div class="loading"><p>No leads to display</p></div>';
+            return;
+        }
+        var sortedContacts = [].concat(CONTACTS).sort(function(a, b) {
+            var metricsA = getMatrixMetrics(a);
+            var metricsB = getMatrixMetrics(b);
+            switch(matrixSortBy) {
+                case 'views': return metricsB.views - metricsA.views;
+                case 'saves': return metricsB.saves - metricsA.saves;
+                case 'searches': return metricsB.searches - metricsA.searches;
+                case 'showings': return metricsB.showings - metricsA.showings;
+                case 'conversion':
+                default:
+                    return metricsB.conversionProb - metricsA.conversionProb;
+            }
+        });
+        tbody.innerHTML = sortedContacts.map(function(contact) {
+            var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim() || 'No Name';
+            var metrics = getMatrixMetrics(contact);
+            var duration = Math.floor(metrics.sessionDuration / 60);
+            var quality = metrics.pagesPerSession >= 7 && duration >= 4 ? 'excellent' :
+                           metrics.pagesPerSession >= 4 && duration >= 2 ? 'good' : 'average';
+            return '<div class="table-row" style="grid-template-columns: 200px 80px 80px 80px 80px 100px 120px; min-width: 760px; cursor: pointer;" onclick="toggleMatrixDetails(\\'' + contact.id + '\\')">' +
+                '<div class="lead-name">' + name + '</div>' +
+                '<div style="text-align: center; font-weight: 600;">' + metrics.views + '</div>' +
+                '<div style="text-align: center; font-weight: 600;">' + metrics.saves + '</div>' +
+                '<div style="text-align: center; font-weight: 600;">' + metrics.searches + '</div>' +
+                '<div style="text-align: center; font-weight: 600;">' + metrics.showings + '</div>' +
+                '<div style="text-align: center;"><span class="score-badge ' + getScoreClass(metrics.conversionProb) + '">' + metrics.conversionProb + '%</span></div>' +
+                '<div style="text-align: center;"><span class="quality-badge badge-' + quality + '">' + quality.toUpperCase() + '</span></div>' +
+            '</div>' +
+            '<div class="details-panel" id="matrix-details-' + contact.id + '">' +
+                renderMatrixDetails(metrics, contact) +
+            '</div>';
+        }).join('');
+    }
+
+    function renderMatrixCards() {
+        var cardView = document.getElementById('matrixCardView');
+        if (CONTACTS.length === 0) {
+            cardView.innerHTML = '<div class="loading"><p>No leads to display</p></div>';
+            return;
+        }
+        var sortedContacts = [].concat(CONTACTS).sort(function(a, b) {
+            var metricsA = getMatrixMetrics(a);
+            var metricsB = getMatrixMetrics(b);
+            switch(matrixSortBy) {
+                case 'views': return metricsB.views - metricsA.views;
+                case 'saves': return metricsB.saves - metricsA.saves;
+                case 'searches': return metricsB.searches - metricsA.searches;
+                case 'showings': return metricsB.showings - metricsA.showings;
+                case 'conversion':
+                default:
+                    return metricsB.conversionProb - metricsA.conversionProb;
+            }
+        });
+        cardView.innerHTML = sortedContacts.map(function(contact) {
+            var name = ((contact.firstName || '') + ' ' + (contact.lastName || '')).trim() || 'No Name';
+            var metrics = getMatrixMetrics(contact);
+            var duration = Math.floor(metrics.sessionDuration / 60);
+            var quality = metrics.pagesPerSession >= 7 && duration >= 4 ? 'excellent' :
+                           metrics.pagesPerSession >= 4 && duration >= 2 ? 'good' : 'average';
+            return '<div class="lead-card">' +
+                '<div class="card-header">' +
+                    '<div class="card-info"><h3 style="font-size: 1rem; margin-bottom: 0.5rem;">' + name + '</h3></div>' +
+                    '<span class="quality-badge badge-' + quality + '" style="font-size: 0.7rem;">' + quality.toUpperCase() + '</span>' +
+                '</div>' +
+                '<div class="card-metrics" style="grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0;">' +
+                    '<div class="card-metric"><div class="card-metric-label">&#128065;&#65039; Views</div><div class="card-metric-value">' + metrics.views + '</div></div>' +
+                    '<div class="card-metric"><div class="card-metric-label">&#128278; Saves</div><div class="card-metric-value">' + metrics.saves + '</div></div>' +
+                    '<div class="card-metric"><div class="card-metric-label">&#128269; Search</div><div class="card-metric-value">' + metrics.searches + '</div></div>' +
+                    '<div class="card-metric"><div class="card-metric-label">&#128197; Shows</div><div class="card-metric-value">' + metrics.showings + '</div></div>' +
+                '</div>' +
+                '<div style="text-align: center; padding-top: 1rem; border-top: 1px solid var(--border);">' +
+                    '<div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">CONVERSION PROBABILITY</div>' +
+                    '<div style="font-size: 2rem; font-weight: 700; color: var(--accent);">' + metrics.conversionProb + '%</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function switchMatrixView(view) {
+        currentMatrixView = view;
+        document.querySelectorAll('#matrixTab .view-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        event.target.closest('.view-btn').classList.add('active');
+        if (view === 'table') {
+            document.getElementById('matrixTableView').style.display = 'block';
+            document.getElementById('matrixCardView').style.display = 'none';
+            renderMatrixTable();
+        } else {
+            document.getElementById('matrixTableView').style.display = 'none';
+            document.getElementById('matrixCardView').style.display = 'grid';
+            renderMatrixCards();
+        }
+    }
+
+    function toggleMatrixDetails(id) {
+        var panel = document.getElementById('matrix-details-' + id);
+        if (panel) { panel.classList.toggle('show'); }
+    }
+
+    function renderMatrixTab() {
+        if (currentMatrixView === 'table') {
+            renderMatrixTable();
+        } else {
+            renderMatrixCards();
+        }
+    }
+
+    // UI Functions
+    function toggleDetails(id) {
+        var panel = document.getElementById('details-' + id);
+        if (panel) { panel.classList.toggle('show'); }
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        event.target.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(function(content) { content.classList.remove('active'); });
+        document.getElementById(tab + 'Tab').classList.add('active');
+        if (tab === 'matrix') renderMatrixTab();
+    }
+
+    function switchView(view) {
+        currentView = view;
+        document.querySelectorAll('#leadsTab .view-btn').forEach(function(btn) { btn.classList.remove('active'); });
+        event.target.closest('.view-btn').classList.add('active');
+        if (view === 'table') {
+            document.getElementById('tableView').style.display = 'block';
+            document.getElementById('cardView').classList.remove('active');
+        } else {
+            document.getElementById('tableView').style.display = 'none';
+            document.getElementById('cardView').classList.add('active');
+            renderCards(FILTERED_CONTACTS);
+        }
+    }
+
+    function updateStats() {
+        var priorityLeads = CONTACTS;
+        var today = new Date().toLocaleDateString();
+        var newToday = priorityLeads.filter(function(c) { return c.dateAdded && new Date(c.dateAdded).toLocaleDateString() === today; }).length;
+        var highPriority = priorityLeads.filter(function(c) { return getIntentScore(c) >= 80; }).length;
+        var contacted = priorityLeads.filter(function(c) { return c.assignedTo; }).length;
+        var responseRate = priorityLeads.length > 0 ? Math.round((contacted / priorityLeads.length) * 100) : 0;
+
+        var responseTimes = priorityLeads
+            .filter(function(c) { return c.dateAdded && c.assignedTo; })
+            .map(function(c) {
+                var added = new Date(c.dateAdded);
+                var now = new Date();
+                return (now - added) / (1000 * 60 * 60);
+            });
+
+        var avgResponseHours = responseTimes.length > 0
+            ? responseTimes.reduce(function(a, b) { return a + b; }, 0) / responseTimes.length
+            : 0;
+
+        var avgResponseDisplay = avgResponseHours >= 24
+            ? Math.round(avgResponseHours / 24) + 'd'
+            : avgResponseHours > 0
+                ? Math.round(avgResponseHours) + 'h'
+                : '\\u2014';
+
+        document.getElementById('totalLeads').textContent = priorityLeads.length;
+        document.getElementById('newToday').textContent = newToday;
+        document.getElementById('highPriority').textContent = highPriority;
+        document.getElementById('avgResponseTime').textContent = avgResponseDisplay;
+        document.getElementById('responseRate').textContent = responseRate + '%';
+        document.getElementById('leadCount').textContent = priorityLeads.length;
+    }
+
+    function copyEmails() {
+        var emails = CONTACTS.map(function(c) { return c.email; }).filter(function(e) { return e; }).join(', ');
+        navigator.clipboard.writeText(emails).then(function() { alert('Emails copied to clipboard!'); });
+    }
+
+    function exportCSV() {
+        var csv = ['Name,Email,Phone,Score,Status,Date,Response Time'];
+        CONTACTS.forEach(function(c) {
+            var name = ((c.firstName || '') + ' ' + (c.lastName || '')).trim();
+            var score = getIntentScore(c);
+            var status = c.assignedTo ? 'contacted' : 'new';
+            var date = c.dateAdded ? new Date(c.dateAdded).toLocaleDateString() : '';
+            var responseTime = getResponseTime(c) || '';
+            csv.push('"' + name + '","' + c.email + '","' + c.phone + '",' + score + ',' + status + ',"' + date + '","' + responseTime + '"');
+        });
+        var blob = new Blob([csv.join('\\n')], { type: 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'ylopo-leads-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click();
+    }
+
+    function showReport() {
+        alert('Report feature coming soon!');
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        var btn = document.getElementById('themeBtn');
+        btn.textContent = document.body.classList.contains('dark-mode') ? '\\u2600\\uFE0F' : '\\u{1F319}';
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    }
+
+    function openSettings() {
+        alert('Settings panel coming soon!\\n\\nFeatures:\\n- Notification preferences\\n- Display options\\n- Filter defaults\\n- Export settings');
+    }
+
+    function openDirections() {
+        window.open('https://help.gohighlevel.com', '_blank');
+    }
+
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('themeBtn').textContent = '\\u2600\\uFE0F';
+    }
+
+    // Load Data - with localStorage cache + incremental refresh
+    var MAX_PAGES = 25;
+    var CACHE_KEY = 'priorityLeads_cache';
+    var CACHE_TS_KEY = 'priorityLeads_cacheTs';
+    var CACHE_TTL = 5 * 60 * 1000; // 5 min cache
+
+    function saveCache(contacts) {
+        try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(contacts));
+            localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+        } catch(e) { console.warn('Cache save failed:', e.message); }
+    }
+
+    function loadCache() {
+        try {
+            var ts = Number(localStorage.getItem(CACHE_TS_KEY) || 0);
+            if (Date.now() - ts > CACHE_TTL) return null;
+            var raw = localStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : null;
+        } catch(e) { return null; }
+    }
+
+    console.log('Loading ypriority contacts from:', PROXY_URL);
+
+    (async function loadAllContacts() {
+        var tableBody = document.getElementById('tableBody');
+
+        // Try cache first for instant display
+        var cached = loadCache();
+        if (cached && cached.length > 0) {
+            CONTACTS = cached;
+            FILTERED_CONTACTS = [].concat(CONTACTS);
+            renderTable(CONTACTS);
+            updateStats();
+            tableBody.insertAdjacentHTML('beforebegin', '<div id="refreshNotice" style="text-align:center;padding:8px;font-size:0.85rem;color:var(--text-muted);">Showing cached data (' + cached.length + ' leads). Refreshing in background...</div>');
+        }
+
+        // Fetch fresh data (in background if cached)
+        var allContacts = [];
+        var startAfter = null;
+        var startAfterId = null;
+        var page = 0;
+
+        try {
+            while (page < MAX_PAGES) {
+                page++;
+                var url = PROXY_URL + '/contacts?query=ypriority&limit=100';
+                if (startAfter && startAfterId) {
+                    url += '&startAfter=' + encodeURIComponent(startAfter) + '&startAfterId=' + encodeURIComponent(startAfterId);
+                }
+                if (!cached) {
+                    tableBody.innerHTML = '<div class="loading"><p>Loading page ' + page + '... (' + allContacts.length + ' contacts so far)</p></div>';
+                }
+                var response = await fetch(url);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                var data = await response.json();
+                var pageContacts = [];
+                if (Array.isArray(data)) pageContacts = data;
+                else if (data.contacts) pageContacts = data.contacts;
+                else if (data.data) pageContacts = data.data;
+                else throw new Error('Unexpected data structure');
+                allContacts = allContacts.concat(pageContacts);
+                var meta = data.meta;
+                if (meta && meta.startAfter && meta.startAfterId && pageContacts.length === 100) {
+                    startAfter = meta.startAfter;
+                    startAfterId = meta.startAfterId;
+                } else {
+                    break;
+                }
+            }
+            CONTACTS = allContacts;
+            saveCache(CONTACTS);
+            console.log('Loaded', CONTACTS.length, 'ypriority contacts (' + page + ' pages)');
+            FILTERED_CONTACTS = [].concat(CONTACTS);
+            renderTable(CONTACTS);
+            updateStats();
+            var notice = document.getElementById('refreshNotice');
+            if (notice) notice.remove();
+        } catch (error) {
+            console.error('Error:', error);
+            if (!cached) {
+                tableBody.innerHTML = '<div class="loading"><p style="color: var(--error);">Failed to load: ' + error.message + '</p></div>';
+            }
+        }
+    })();
+
+    document.querySelectorAll('.filter-pill').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            document.querySelectorAll('.filter-pill').forEach(function(b) { b.classList.remove('active'); });
+            e.target.classList.add('active');
+            var filter = e.target.dataset.filter;
+            if (filter === 'all') {
+                FILTERED_CONTACTS = [].concat(CONTACTS);
+            } else if (filter === 'new') {
+                FILTERED_CONTACTS = CONTACTS.filter(function(c) { return !c.assignedTo; });
+            } else if (filter === 'high') {
+                FILTERED_CONTACTS = CONTACTS.filter(function(c) { return getIntentScore(c) >= 80; });
+            } else if (filter === 'contacted') {
+                FILTERED_CONTACTS = CONTACTS.filter(function(c) { return c.assignedTo; });
+            }
+            if (currentView === 'table') {
+                renderTable(FILTERED_CONTACTS);
+            } else {
+                renderCards(FILTERED_CONTACTS);
+            }
+            updateStats();
+        });
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        var searchTerm = e.target.value.toLowerCase();
+        FILTERED_CONTACTS = CONTACTS.filter(function(c) {
+            var name = ((c.firstName || '') + ' ' + (c.lastName || '')).toLowerCase();
+            var email = (c.email || '').toLowerCase();
+            var phone = (c.phone || '').toLowerCase();
+            return name.includes(searchTerm) || email.includes(searchTerm) || phone.includes(searchTerm);
+        });
+        if (currentView === 'table') {
+            renderTable(FILTERED_CONTACTS);
+        } else {
+            renderCards(FILTERED_CONTACTS);
+        }
+        updateStats();
+    });
+
+    document.getElementById('tagSearch').addEventListener('input', function(e) {
+        var tagTerm = e.target.value.toLowerCase();
+        FILTERED_CONTACTS = CONTACTS.filter(function(c) {
+            if (!tagTerm) return true;
+            return Array.isArray(c.tags) && c.tags.some(function(t) { return t.toLowerCase().includes(tagTerm); });
+        });
+        if (currentView === 'table') {
+            renderTable(FILTERED_CONTACTS);
+        } else {
+            renderCards(FILTERED_CONTACTS);
+        }
+        updateStats();
+    });
+
+    document.getElementById('matrixSort').addEventListener('change', function(e) {
+        matrixSortBy = e.target.value;
+        renderMatrixTab();
+    });
+<\/script>
+</body></html>`;
+var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 Ylopo Contacts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b27;
+    --card: #1e2535;
+    --card-border: #2a3348;
+    --accent: #f97316;
+    --accent-soft: rgba(249,115,22,0.12);
+    --accent2: #6366f1;
+    --accent2-soft: rgba(99,102,241,0.12);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-soft: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-soft: rgba(59,130,246,0.12);
+    --text: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 4px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --transition: 0.2s ease;
+    --header-bg: linear-gradient(135deg, #0D3B4F 0%, #1E7A9C 50%, #4A6B7C 100%);
+    --brand-primary: #0D3B4F;
+    --brand-secondary: #1E7A9C;
+    --brand-accent: #5DADE2;
+    --brand-surface: #F0F8FB;
+    --brand-chip: #DCF2F8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  a { color: var(--brand-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* \u2500\u2500 Top Bar \u2500\u2500 */
+  .topbar {
+    background: var(--header-bg);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(13,59,79,0.4);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo {
+    width: 36px; height: 36px;
+    background: rgba(93,173,226,0.25);
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+    border: 1px solid rgba(93,173,226,0.4);
+  }
+  .topbar-title { font-size: 18px; font-weight: 700; color: #fff; }
+  .topbar-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn:hover { background: rgba(93,173,226,0.2); border-color: rgba(93,173,226,0.5); }
+  .btn-primary { background: var(--brand-accent); border-color: var(--brand-accent); color: #fff; }
+  .btn-primary:hover { background: #4a9fd4; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* \u2500\u2500 Stats Row \u2500\u2500 */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 20px 24px 0;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .stat-sub.positive { color: #1E7A9C; }
+
+  /* \u2500\u2500 Filters Bar \u2500\u2500 */
+  .filters-bar {
+    padding: 16px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .filter-tab {
+    padding: 7px 14px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .filter-tab:hover { color: var(--text); border-color: var(--brand-accent); }
+  .filter-tab.active { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
+  .filter-search {
+    flex: 1; min-width: 200px;
+    padding: 8px 14px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: var(--transition);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .filter-search:focus { border-color: var(--brand-accent); }
+  .filter-search::placeholder { color: var(--text-muted); }
+
+  /* \u2500\u2500 Table \u2500\u2500 */
+  .table-wrap {
+    padding: 0 24px 24px;
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface);
+    border-bottom: 1px solid var(--card-border);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid rgba(42,51,72,0.5); transition: background var(--transition); }
+  tbody tr:hover { background: rgba(30,37,53,0.6); }
+  tbody td { padding: 10px 12px; vertical-align: middle; }
+
+  /* score bar */
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar {
+    flex: 1; height: 6px;
+    background: var(--card-border);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .score-num { font-size: 12px; font-weight: 700; color: var(--text); min-width: 28px; text-align: right; }
+
+  /* badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-hot { background: var(--red-soft); color: var(--red); }
+  .badge-warm { background: var(--yellow-soft); color: var(--yellow); }
+  .badge-cold { background: var(--blue-soft); color: var(--blue); }
+  .badge-new { background: var(--green-soft); color: var(--green); }
+  .badge-ylopo { background: var(--accent-soft); color: var(--accent); }
+  .badge-showing { background: var(--accent2-soft); color: var(--accent2); }
+
+  /* matrix mini */
+  .matrix-mini { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mm { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+  .mm span { font-weight: 700; color: var(--text); }
+
+  /* expand arrow */
+  .expand-arrow {
+    display: inline-block;
+    width: 20px; height: 20px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center; line-height: 20px;
+    font-size: 10px;
+    transition: transform var(--transition);
+    user-select: none;
+  }
+  .expand-arrow.open { transform: rotate(90deg); background: var(--brand-chip); color: var(--brand-primary); }
+  tr.detail-row td { padding: 0; }
+  tr.detail-row { display: none; }
+  tr.detail-row.open { display: table-row; }
+
+  /* \u2500\u2500 Accordion \u2500\u2500 */
+  .accordion {
+    background: linear-gradient(135deg, rgba(30,37,53,0.95), rgba(22,27,39,0.95));
+    border-left: 3px solid var(--brand-accent);
+    padding: 20px 24px;
+  }
+  .acc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .acc-section {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .acc-section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-secondary);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .acc-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
+  .acc-row:last-child { margin-bottom: 0; }
+  .acc-label { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+  .acc-value { font-size: 12px; color: var(--text); font-weight: 600; text-align: right; word-break: break-word; max-width: 200px; }
+
+  /* property preferences grid */
+  .prop-grid { display: grid; gap: 10px; margin-bottom: 12px; }
+  .prop-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+  }
+  .pi-icon { font-size: 18px; margin-bottom: 4px; }
+  .pi-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .pi-value { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+  /* score breakdown */
+  .score-breakdown { display: flex; flex-direction: column; gap: 6px; }
+  .sb-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .sb-label { width: 90px; color: var(--text-secondary); flex-shrink: 0; }
+  .sb-bar { flex: 1; height: 5px; background: var(--card-border); border-radius: 3px; overflow: hidden; }
+  .sb-fill { height: 100%; border-radius: 3px; }
+  .sb-val { width: 30px; text-align: right; font-weight: 700; }
+
+  /* tags */
+  .tags-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    font-size: 11px; color: var(--text-secondary);
+  }
+
+  /* links */
+  .acc-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .acc-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    text-decoration: none;
+  }
+  .acc-link:hover { border-color: var(--brand-accent); color: var(--brand-accent); text-decoration: none; }
+
+  /* Pagination */
+  .pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 16px 24px;
+  }
+  .page-btn {
+    min-width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-xs);
+    background: var(--card);
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 0 8px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .page-btn:hover { border-color: var(--brand-accent); color: var(--text); }
+  .page-btn.active { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
+  .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* Toast */
+  #toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 9999;
+  }
+  .toast {
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+    box-shadow: var(--shadow);
+    animation: slideIn 0.3s ease;
+    max-width: 360px;
+  }
+  .toast-info { background: var(--card); border: 1px solid var(--brand-accent); color: var(--text); }
+  .toast-success { background: var(--green-soft); border: 1px solid var(--green); color: var(--green); }
+  .toast-error { background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* Loading */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500;
+    flex-direction: column; gap: 16px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid var(--card-border);
+    border-top-color: var(--brand-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text-secondary); font-size: 14px; }
+
+  /* Modal (diagnostics) */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    max-width: 90vw; max-height: 80vh;
+    overflow: auto; padding: 24px;
+    min-width: 320px;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .modal-close { float: right; cursor: pointer; color: var(--text-secondary); font-size: 20px; line-height: 1; }
+  .diag-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .diag-table th, .diag-table td { padding: 6px 10px; border: 1px solid var(--card-border); text-align: left; }
+  .diag-table th { background: var(--card); font-weight: 700; color: var(--text-secondary); }
+  .diag-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+  /* Hidden sink */
+  .hidden { display: none !important; }
+  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+  /* Toggle */
+  .toggle { position:relative; display:inline-block; width:34px; height:18px; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; cursor:pointer; inset:0; background:var(--card-border); border-radius:18px; transition:var(--transition); }
+  .slider:before { position:absolute; content:""; height:12px; width:12px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:var(--transition); }
+  .toggle input:checked+.slider { background: var(--brand-accent); }
+  .toggle input:checked+.slider:before { transform: translateX(16px); }
+
+  /* \u2500\u2500 Card View \u2500\u2500 */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    padding: 0 24px 24px;
+  }
+  .contact-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .contact-card:hover {
+    border-color: var(--brand-accent);
+    box-shadow: 0 4px 20px rgba(93,173,226,0.15);
+  }
+  .contact-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .contact-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .contact-card-email {
+    font-size: 11px;
+    color: var(--text-muted);
+    word-break: break-all;
+  }
+  .contact-card-phone {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .contact-card-score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .contact-card-activity {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  .contact-card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--card-border);
+  }
+  .view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .view-toggle-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--card);
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .view-toggle-btn.active {
+    background: var(--brand-primary);
+    color: #fff;
+  }
+  .view-toggle-btn:hover:not(.active) {
+    color: var(--text);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .topbar { padding: 12px 16px; }
+    .stats-row { padding: 12px 16px 0; }
+    .filters-bar { padding: 12px 16px; }
+    .table-wrap { padding: 0 16px 16px; }
+    .cards-grid { padding: 0 16px 16px; grid-template-columns: 1fr; }
+    .acc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading contacts...</div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Diagnostics Modal -->
+<div class="modal-overlay" id="diagModal">
+  <div class="modal">
+    <span class="modal-close" onclick="document.getElementById('diagModal').classList.remove('open')">&#x2715;</span>
+    <div class="modal-title">Field Diagnostics</div>
+    <div id="diagContent">Loading...</div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px">
+    <div>
+      <div class="topbar-title">The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:400">Ylopo Contacts</sup></div>
+      <div class="topbar-subtitle" id="subtitleText">Ylopo + GHL Contact Dashboard</div>
+    </div>
+    <div style="display:flex;gap:6px;margin-left:16px">
+      <a href="/dashboard/ylopo-contacts" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.3);color:#fff;background:rgba(255,255,255,0.15)">Contacts</a>
+      <a href="/dashboard/site-matrix" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)">Analytics</a>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
+      <option value="30" style="color:#111">30 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="30" selected style="color:#111">30 Days</option>
+      <option value="180" style="color:#111">180 Days</option>
+    </select>
+    <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
+    <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Contacts</div>
+    <div class="stat-value" id="statTotal">&mdash;</div>
+    <div class="stat-sub">in GHL</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Hot Leads</div>
+    <div class="stat-value" id="statHot" style="color:var(--red)">&mdash;</div>
+    <div class="stat-sub">score &ge; 75</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Warm Leads</div>
+    <div class="stat-value" id="statWarm" style="color:var(--yellow)">&mdash;</div>
+    <div class="stat-sub">score 40&ndash;74</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Cold Leads</div>
+    <div class="stat-value" id="statCold" style="color:var(--blue)">&mdash;</div>
+    <div class="stat-sub">score &lt; 40</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Showing Requests</div>
+    <div class="stat-value" id="statShowings" style="color:var(--accent2)">&mdash;</div>
+    <div class="stat-sub">this period</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">New This Week</div>
+    <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
+    <div class="stat-sub">last 7 days</div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="filters-bar">
+  <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+  <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
+  <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
+  <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
+  <button class="filter-tab" onclick="setFilter('new',this)">New</button>
+  <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+  <select class="filter-tab" id="sourceFilter" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;cursor:pointer;-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center">
+    <option value="all">All Sources</option>
+    <option value="ylopo">Ylopo Leads</option>
+    <option value="fub">FUB Leads</option>
+    <option value="zillow">Zillow</option>
+    <option value="realtor">Realtor.com</option>
+  </select>
+  <div style="flex:1;min-width:200px">
+    <input type="text" class="filter-search" id="searchInput" placeholder="Search name, email, phone, city..." oninput="CURRENT_PAGE=1;applyFilters()">
+  </div>
+  <select class="filter-tab" id="sortSelect" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer">
+    <option value="score_desc">Score Down</option>
+    <option value="score_asc">Score Up</option>
+    <option value="name_asc">Name A-Z</option>
+    <option value="name_desc">Name Z-A</option>
+    <option value="date_desc">Newest</option>
+    <option value="date_asc">Oldest</option>
+  </select>
+  <div class="view-toggle" id="viewToggle">
+    <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
+    <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
+  </div>
+</div>
+
+<!-- Table View -->
+<div class="table-wrap" id="tableView">
+  <table id="leadsTable">
+    <thead>
+      <tr>
+        <th style="width:28px"></th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th>Score</th>
+        <th>Activity</th>
+        <th>Location</th>
+        <th>Source</th>
+        <th>Added</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="leadsBody">
+      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Card View -->
+<div class="cards-grid" id="cardsView" style="display:none"></div>
+
+<!-- Pagination -->
+<div class="pagination" id="paginationEl"></div>
+
+<!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
+<input id="listingsInput" value="" class="hidden" aria-hidden="true">
+<canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
+
+<script>
+'use strict';
+
+// -------------------------------------------------------
+// CONFIG
+// -------------------------------------------------------
+var PROXY_URL = 'https://thelistingteamproxy.reallistingteam.com';
+var PAGE_SIZE = 25;
+var MAX_PAGES = 25;
+var CACHE_KEY = 'ylopo_contacts_cache';
+var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// -------------------------------------------------------
+// STATE
+// -------------------------------------------------------
+var ALL_LEADS    = [];
+var FILTERED     = [];
+var RAW_CONTACTS = {};
+var CURRENT_FILTER = 'all';
+var CURRENT_PAGE   = 1;
+var SORT_KEY       = 'score_desc';
+var EXPANDED       = new Set();
+var CURRENT_VIEW   = 'table';
+
+// -------------------------------------------------------
+// UTIL
+// -------------------------------------------------------
+function _el(id) { return document.getElementById(id); }
+
+function fmtPrice(n) {
+  if (!n) return '\\u2014';
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + Math.round(n/1000) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function fmtDate(d) {
+  if (!d) return '\\u2014';
+  try {
+    var dt = new Date(d);
+    if (isNaN(dt)) return d;
+    var now = new Date();
+    var diff = (now - dt) / 1000;
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff/86400) + 'd ago';
+    return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  } catch(e) { return d; }
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type, duration) {
+  type = type || 'info';
+  duration = duration || 4000;
+  var el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  var container = _el('toast-container');
+  container.appendChild(el);
+  setTimeout(function() { el.remove(); }, duration);
+}
+
+// -------------------------------------------------------
+// CUSTOM FIELD HELPERS
+// -------------------------------------------------------
+
+function getCF(contact, keys) {
+  if (!contact) return null;
+  var fields = Array.isArray(contact.customField) ? contact.customField
+    : Array.isArray(contact.customFields) ? contact.customFields
+    : [];
+  if (fields.length === 0) return null;
+  for (var ki = 0; ki < keys.length; ki++) {
+    var k = keys[ki].toLowerCase();
+    var found = null;
+    for (var fi = 0; fi < fields.length; fi++) {
+      var f = fields[fi];
+      var fid   = (f.id||'').toLowerCase();
+      var fkey  = (f.key||'').toLowerCase();
+      var ffk   = (f.fieldKey||'').toLowerCase();
+      var fname = (f.name||'').toLowerCase();
+      var ffkStripped  = ffk.startsWith('contact.')  ? ffk.slice(8)  : ffk;
+      var fkeyStripped = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
+      if (fid===k || fkey===k || ffk===k || fname===k
+        || ffkStripped===k || fkeyStripped===k
+        || fname.indexOf(k)!==-1 || ffk.indexOf(k)!==-1
+        || ffkStripped.indexOf(k)!==-1 || fkeyStripped.indexOf(k)!==-1
+        || k.indexOf(ffkStripped)!==-1 || k.indexOf(fname)!==-1) {
+        found = f;
+        break;
+      }
+    }
+    if (found && found.value!=null && found.value!=='') {
+      var v = found.value;
+      if (Array.isArray(v)) return v.join(', ');
+      return String(v);
+    }
+  }
+  return null;
+}
+
+function getCFByValuePattern(contact, pattern) {
+  if (!contact) return null;
+  var fields = Array.isArray(contact.customField) ? contact.customField
+    : Array.isArray(contact.customFields) ? contact.customFields
+    : [];
+  var re = new RegExp(pattern, 'i');
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i];
+    if (f.value && typeof f.value === 'string' && re.test(f.value)) return f.value;
+  }
+  return null;
+}
+
+// -------------------------------------------------------
+// LEAD SCORING
+// -------------------------------------------------------
+
+function getMatrix(c) {
+  var searches = Number(getCF(c,['ylopo_session_searches','ylopo_last_session_searches','searches','total_searches']))||0;
+  if (searches > 10000) searches = 0;
+  return {
+    views:    Number(getCF(c,['ylopo_views','ylopo_total_views','ylopo_session_views','ylopo_last_session_listings_viewed','views','total_listing_views','properties_viewed_count','listings_viewed','buyer_listing_views']))||0,
+    saves:    Number(getCF(c,['ylopo_saves','ylopo_total_saves','ylopo_session_saves','ylopo_last_session_listings_saved','saves','total_saved_homes','saved_properties','buyer_favorites','favorites','total_favorites']))||0,
+    searches: searches,
+    showings: Number(getCF(c,['ylopo_session_showings','ylopo_last_session_showinginfo_requests','ylopo_is_showing','showings','showing_requests','buyer_showing_requests','total_showing_requests']))||0,
+    infoReqs: Number(getCF(c,['ylopo_total_info_requests','info_requests']))||0
+  };
+}
+
+function calcScore(c) {
+  var score = 0;
+  if (!c) return score;
+  if (c.email)  score += 5;
+  if (c.phone)  score += 5;
+  var m = getMatrix(c);
+  score += Math.min(m.views    * 2,  20);
+  score += Math.min(m.saves    * 4,  20);
+  score += Math.min(m.searches * 3,  15);
+  score += Math.min(m.showings * 10, 30);
+  score += Math.min(m.infoReqs * 5,  15);
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) score += 15;
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  score += 10;
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     score += 5;
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    score += 5;
+  var src = String(c.source||'').toLowerCase();
+  if (src.indexOf('ylopo')!==-1)   score += 5;
+  if (src.indexOf('zillow')!==-1)  score += 3;
+  if (c.dateUpdated) {
+    var diff = (Date.now() - new Date(c.dateUpdated)) / 86400000;
+    if (diff < 1)  score += 15;
+    else if (diff < 3)  score += 10;
+    else if (diff < 7)  score += 5;
+  }
+  return Math.min(Math.round(score), 100);
+}
+
+function getStatus(score, tags) {
+  var t = (Array.isArray(tags) ? tags : []).map(function(x){return String(x).toLowerCase();}).join(' ');
+  if (score >= 75 || t.indexOf('hot')!==-1 || t.indexOf('priority')!==-1) return 'hot';
+  if (score >= 40 || t.indexOf('warm')!==-1) return 'warm';
+  return 'cold';
+}
+
+function getBadge(c) {
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
+  var m = getMatrix(c);
+  if (m.showings > 0) return 'showing';
+  if (tags.some(function(t){return t.indexOf('new')!==-1||t.indexOf('new lead')!==-1;})) return 'new';
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;})) return 'ylopo';
+  return '';
+}
+
+function isNewThisWeek(c) {
+  if (!c.dateAdded) return false;
+  var diff = (Date.now() - new Date(c.dateAdded)) / 86400000;
+  return diff <= 7;
+}
+
+// -------------------------------------------------------
+// EXTENDED DATA
+// -------------------------------------------------------
+function getExtendedData(c) {
+  var beds      = getCF(c,['ylopo_beds','ylopo_bedrooms','bedrooms','beds','min_beds'])||'';
+  var baths     = getCF(c,['ylopo_baths','ylopo_bathrooms','bathrooms','baths','min_baths'])||'';
+  var minPrice  = Number(getCF(c,['ylopo_min_price','minprice','min_price','price_min']))||0;
+  var maxPrice  = Number(getCF(c,['ylopo_max_price','maxprice','max_price','price_max']))||0;
+  var price     = Number(getCF(c,['ylopo_listing_price','price','listing_price','list_price']))||0;
+  var sqft      = getCF(c,['ylopo_listing_sqft','square_footage','listing_sqft','sqft'])||'';
+  var yearBuilt = getCF(c,['ylopo_listing_year_built','year_built','listing_year_built'])||'';
+  var mlsNumber = getCF(c,['ylopo_listing_id','mls_number','listing_id'])||'';
+  var ylopoStarsLink  = getCF(c,['ylopo_stars_link','lead_created_atstars_link','fub_ylopo_stars_link','ylopo_uuid'])||'';
+  var ylopoMessage    = getCF(c,['ylopo_message','messageplaintext','ylopo_note'])||'';
+  var ylopoPriority   = getCF(c,['ylopo_is_priority','ispriority'])||'';
+  var assignedWebsite = getCF(c,['ylopo_website','assigned_website'])||'';
+  var ylopoEventCount = Number(getCF(c,['ylopo_event_count']))||0;
+  return {
+    beds: beds,
+    baths: baths,
+    minPrice: minPrice,
+    maxPrice: maxPrice,
+    price: price,
+    propType:  getCF(c,['property_type','propertytype','prop_type','ylopo_property_type'])||'',
+    city:      getCF(c,['ylopo_search_city','ylopo_listing_city','primarysearchcity','listingcity','city','search_city','home_city'])||'',
+    state:     getCF(c,['ylopo_search_state','ylopo_listing_state','primarysearchstate','listingstate','state','search_state','home_state'])||'',
+    zip:       getCF(c,['ylopo_search_zip','ylopo_listing_zip','primarysearchpostalcode','listingzip','zip','postal_code','search_zip'])||'',
+    source:    getCF(c,['ylopo_source','ylopo_event_source','fub_source','fub_registration_source','source','lead_source'])||String(c.source||''),
+    leadType:  getCF(c,['ylopo_lead_type','leadtype','fub_registration_type','lead_type','type'])||'',
+    estValue:  getCF(c,['estimated','estimated_value','est_home_value','home_value','homevalue'])||'',
+    address:   getCF(c,['address','home_address','listing_address','ylopo_listing_address'])||c.address1||'',
+    sqft: sqft,
+    yearBuilt: yearBuilt,
+    mlsNumber: mlsNumber,
+    ylopoStarsLink: ylopoStarsLink,
+    ylopoMessage: ylopoMessage,
+    ylopoPriority: ylopoPriority,
+    assignedWebsite: assignedWebsite,
+    ylopoEventType:  getCF(c,['ylopo_event_type','ylopo_event'])||'',
+    ylopoLastLogin:  getCF(c,['ylopo_last_login','last_login_date','ylopo_last_visit'])||'',
+    ylopoEventCount: ylopoEventCount,
+    aiNotes:   getCF(c,['ai_summary','ai_notes','ai_insight','gpt_notes','notes'])||''
+  };
+}
+
+// -------------------------------------------------------
+// GHL TEAM
+// -------------------------------------------------------
+var GHL_USER_MAP   = {};
+var GHL_EMAIL_MAP  = {};
+var GHL_TEAM_NAMES = [];
+
+function loadGHLTeam() {
+  return new Promise(function(resolve) {
+    try {
+      fetch(PROXY_URL + '/contacts?limit=0&t=team').catch(function(){});
+    } catch(e) {}
+
+    var ghlUsers = [
+      { id:'ISpgVpWGarZ2VWTk7UMX', first:'Ariadna', last:'Fernandez', email:'arifernandezrealtor@gmail.com' },
+      { id:'SC3HDmy1UyKlvaNDT42Q', first:'Fern',    last:'Munk',      email:'fmcmc@yahoo.com' },
+      { id:'yrtwkGNDlNCLiR0P8iYq', first:'GHL',     last:'GPT',       email:'builder@livethelistinglife.com', isBot:true },
+      { id:'JWlgpbE95IbcemhA0bxZ', first:'Gloria',  last:'Feliz',     email:'gloriacf01@gmail.com' },
+      { id:'TfPxDHRA2a63Y79Uxvxx', first:'Jesus',   last:'Colina',    email:'jesuscolina0412@gmail.com' },
+      { id:'S95byp5oi4t3iRx5OnEL', first:'Luis',    last:'Gonzalez',  email:'luis@completechoicetitle.com' },
+      { id:'lds1fN3mo993dvwpyfUg', first:'Realty',  last:'Candy',     email:'support+52759@realtycandy.com', isBot:true },
+      { id:'2QRUdNl82BA0W081TqKr', first:'Ricky',   last:'GHL',       email:'ricky.growhigh@gmail.com', isBot:true },
+      { id:'LIx8D3YgmmLppnPcnxTi', first:'Roberto', last:'Garcia',    email:'robertogarciarealtor@gmail.com' },
+      { id:'A8ietqoRfgLY0QeC7m5n', first:'Roxy',    last:'Hernandez', email:'roxy@resf.com' },
+      { id:'UF54kjaNU4D1b9QTQokk', first:'Scott',   last:'Lehr',      email:'scott@aiintellicallsolutions.com' },
+      { id:'bnBo8T2gisOXvEGiuJTI', first:'Scott',   last:'Lehr',      email:'scott@mail.homeownerlistingteam.com' },
+      { id:'g6R0VbDaW5MEhmIHOefT', first:'Scott',   last:'Lehr',      email:'scott@scottlehrrealtor.com' }
+    ];
+
+    ghlUsers.forEach(function(u) {
+      var name = u.first + ' ' + u.last;
+      GHL_USER_MAP[u.id] = name;
+      GHL_EMAIL_MAP[u.email.toLowerCase()] = name;
+      if (!u.isBot && GHL_TEAM_NAMES.indexOf(name) === -1) GHL_TEAM_NAMES.push(name);
+    });
+    console.log('GHL Team loaded:', GHL_TEAM_NAMES.join(', '));
+    resolve();
+  });
+}
+
+// -------------------------------------------------------
+// NAME HELPERS
+// -------------------------------------------------------
+function capName(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+function parseNameFromEmail(email) {
+  if (!email || email.indexOf('@') === -1) return { first:'', last:'' };
+  var local = email.split('@')[0];
+  var parts = local.split(/[._\\-+]/).filter(function(p) { return p.length > 1 && !/^\\d+$/.test(p); });
+  if (parts.length >= 2) return { first: capName(parts[0]), last: capName(parts[1]) };
+  if (parts.length === 1) return { first: capName(parts[0]), last: '' };
+  return { first: capName(local), last: '' };
+}
+
+// -------------------------------------------------------
+// YLOPO LINK BUILDER
+// -------------------------------------------------------
+function buildYlopoStarsUrl(contact) {
+  if (!contact) return '';
+  var fields = Array.isArray(contact.customField) ? contact.customField : Array.isArray(contact.customFields) ? contact.customFields : [];
+  for (var i=0; i<fields.length; i++) {
+    var f = fields[i];
+    var fk = String(f.fieldKey||f.key||f.name||'').toLowerCase().replace('contact.','');
+    var val = String(f.value||'');
+    if ((fk.indexOf('ylopo_stars')!==-1 || fk.indexOf('fub_ylopo_stars')!==-1) && val.indexOf('http')===0) return val;
+  }
+  for (var i=0; i<fields.length; i++) {
+    var val = String(fields[i].value||'');
+    if (val.indexOf('stars.ylopo.com')!==-1 && val.indexOf('http')===0) return val;
+  }
+  for (var i=0; i<fields.length; i++) {
+    var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+    var val = String(fields[i].value||'');
+    if (fk.indexOf('stars_link')!==-1 || fk.indexOf('lead_created_at')!==-1) {
+      if (val.indexOf('http')===0) return val;
+    }
+  }
+  for (var i=0; i<fields.length; i++) {
+    var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase();
+    var val = String(fields[i].value||'');
+    if (fk.indexOf('ylopo')!==-1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      return 'https://stars.ylopo.com/lead-detail/' + val;
+    }
+  }
+  for (var i=0; i<fields.length; i++) {
+    var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+    var val = String(fields[i].value||'');
+    if ((fk.indexOf('ylopo_uuid')!==-1 || fk.indexOf('ylopo_id')!==-1 || fk.indexOf('ylopo_contact_id')!==-1 || fk.indexOf('ylopo_lead_id')!==-1) && /[0-9a-f]{8}-[0-9a-f]{4}/i.test(val)) {
+      var m = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if (m) return 'https://stars.ylopo.com/lead-detail/' + m[0];
+    }
+  }
+  if (contact.email) return 'https://stars.ylopo.com/contacts?search=' + encodeURIComponent(contact.email);
+  return '';
+}
+
+// -------------------------------------------------------
+// LOCALSTORAGE CACHE
+// -------------------------------------------------------
+function getCachedData() {
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    var parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > CACHE_TTL) return null;
+    return parsed.data;
+  } catch(e) { return null; }
+}
+
+function setCachedData(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data }));
+  } catch(e) {}
+}
+
+// -------------------------------------------------------
+// DATA LOADING  (paginated, cutoff-aware, cached)
+// -------------------------------------------------------
+var LOAD_DAYS = 30;
+
+function processRawContacts(allRaw) {
+  RAW_CONTACTS = {};
+  ALL_LEADS = allRaw.filter(function(c) {
+    var hasName  = (c.firstName || c.first_name || c.lastName || c.last_name || c.contactName || '').trim();
+    var hasEmail = (c.email || '').trim();
+    var hasPhone = (c.phone || '').trim();
+    if (!hasName && !hasEmail && hasPhone) return false;
+    return true;
+  }).map(function(c) {
+    RAW_CONTACTS[c.id] = c;
+    var score  = calcScore(c);
+    var matrix = getMatrix(c);
+    var ext    = getExtendedData(c);
+
+    var fn = capName(c.firstName || c.first_name || '');
+    var ln = capName(c.lastName  || c.last_name  || '');
+    var name = (fn + ' ' + ln).trim() || c.contactName || '';
+
+    if (!name && c.email) {
+      var parsed = parseNameFromEmail(c.email);
+      fn = parsed.first;
+      ln = parsed.last;
+      name = (fn + ' ' + ln).trim();
+    }
+    if (!name) name = 'Unknown';
+
+    return {
+      id:          c.id,
+      name:        name,
+      email:       c.email||'',
+      phone:       c.phone||'',
+      score:       score,
+      status:      getStatus(score, c.tags),
+      badge:       getBadge(c),
+      matrix:      matrix,
+      tags:        c.tags||[],
+      dateAdded:   c.dateAdded||'',
+      dateUpdated: c.dateUpdated||'',
+      source:      ext.source || String(c.source||''),
+      city:        ext.city,
+      state:       ext.state,
+      isNew:       isNewThisWeek(c),
+      hasShowing:  matrix.showings > 0
+    };
+  });
+  updateStats();
+  applyFilters();
+}
+
+function loadData() {
+  _el('loadingOverlay').style.display = 'flex';
+  _el('loadingText').textContent = 'Fetching last ' + LOAD_DAYS + ' days of contacts...';
+
+  // Try loading from cache first
+  var cached = getCachedData();
+  if (cached && cached.length > 0) {
+    _el('loadingText').textContent = 'Loading cached data (' + cached.length + ' contacts)...';
+    processRawContacts(cached);
+    _el('loadingOverlay').style.display = 'none';
+    toast('Loaded ' + ALL_LEADS.length + ' contacts from cache, refreshing...', 'info');
+    // Background refresh
+    fetchAllContacts(true);
+    return;
+  }
+
+  fetchAllContacts(false);
+}
+
+function fetchAllContacts(isBackground) {
+  var cutoffDate = new Date(Date.now() - LOAD_DAYS * 864e5);
+  var allRaw    = [];
+  var seenIds   = {};
+  var startAfter = '';
+  var startAfterId = '';
+  var page      = 0;
+  var FETCH_SIZE = 100;
+  var hitCutoff = false;
+
+  function fetchPage() {
+    page++;
+    var url = PROXY_URL + '/contacts?limit=' + FETCH_SIZE + '&t=' + Date.now();
+    if (startAfter) url += '&startAfter=' + encodeURIComponent(startAfter);
+    if (startAfterId) url += '&startAfterId=' + encodeURIComponent(startAfterId);
+
+    if (!isBackground) {
+      _el('loadingText').textContent = 'Page ' + page + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
+    }
+
+    fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } })
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        var raw = [];
+        if (data.contacts && Array.isArray(data.contacts)) raw = data.contacts;
+        else if (data.leads && Array.isArray(data.leads)) raw = data.leads;
+        else if (Array.isArray(data)) raw = data;
+        else if (data.ok && data.leads) raw = data.leads;
+
+        var newRaw = raw.filter(function(c) {
+          var cid = c.id || c._id;
+          if (!cid || seenIds[cid]) return false;
+          seenIds[cid] = true;
+          return true;
+        });
+
+        if (newRaw.length === 0) {
+          finishLoad();
+          return;
+        }
+
+        allRaw = allRaw.concat(newRaw);
+        var lastContact = raw[raw.length - 1];
+        var lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
+        if (lastDate < cutoffDate) { hitCutoff = true; finishLoad(); return; }
+        // Use meta pagination cursors from GHL API response
+        var meta = data.meta || {};
+        if (meta.startAfter && meta.startAfterId && raw.length >= FETCH_SIZE && page < MAX_PAGES) {
+          startAfter = meta.startAfter;
+          startAfterId = meta.startAfterId;
+        } else {
+          finishLoad(); return;
+        }
+        fetchPage();
+      })
+      .catch(function(e) {
+        console.error('loadData error:', e);
+        if (!isBackground) {
+          _el('loadingOverlay').style.display = 'none';
+          _el('leadsBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
+        }
+        toast('Failed to load contacts: ' + e.message, 'error');
+      });
+
+    function finishLoad() {
+      if (allRaw.length > 0) {
+        var sample = allRaw[0];
+        var fields = (sample.customField || sample.customFields || []).filter(function(f){return f.value!=null && f.value!=='';});
+        console.log('First Contact Custom Fields:', fields.map(function(f){return {id:f.id,key:f.key||'',fieldKey:f.fieldKey||'',name:f.name||'',value:String(f.value).substring(0,60)};}));
+        window._FIELD_DIAGNOSTICS = fields;
+      }
+
+      setCachedData(allRaw);
+      processRawContacts(allRaw);
+
+      if (!isBackground) {
+        _el('loadingOverlay').style.display = 'none';
+      }
+      toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + LOAD_DAYS + 'd range' + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
+      // autoTagSellers disabled \u2014 was writing tags/notes on every page load
+    }
+  }
+
+  fetchPage();
+}
+
+// -------------------------------------------------------
+// FETCH YLOPO EVENTS ON DEMAND
+// -------------------------------------------------------
+function fetchYlopoEventsForContact(contactId, callback) {
+  fetch(PROXY_URL + '/contacts/' + contactId + '/ylopo-events', {
+    cache: 'no-store', headers: { 'Accept': 'application/json' }
+  })
+  .then(function(res) { return res.ok ? res.json() : null; })
+  .then(function(data) {
+    if (!data || !data.ok || !data.records || data.records.length === 0) {
+      if (callback) callback(0);
+      return;
+    }
+    var raw = RAW_CONTACTS[contactId];
+    if (raw) {
+      var latest = data.records[0].fields || {};
+      var syntheticFields = [];
+      var fieldMap = {
+        beds:'ylopo_beds', baths:'ylopo_baths', bedrooms:'ylopo_bedrooms',
+        bathrooms:'ylopo_bathrooms', views:'ylopo_views', saves:'ylopo_saves',
+        listing_price:'ylopo_listing_price', listing_address:'ylopo_listing_address',
+        listing_id:'ylopo_listing_id', listing_sqft:'ylopo_listing_sqft',
+        listing_year_built:'ylopo_listing_year_built',
+        listingcity:'ylopo_listing_city', listingstate:'ylopo_listing_state',
+        listingzip:'ylopo_listing_zip', listingurl:'ylopo_listing_url',
+        minprice:'ylopo_min_price', maxprice:'ylopo_max_price',
+        primarysearchcity:'ylopo_search_city', primarysearchstate:'ylopo_search_state',
+        primarysearchpostalcode:'ylopo_search_zip',
+        lastsessionavgprice:'ylopo_avg_price',
+        lastsessionlistingsviewed:'ylopo_session_views',
+        lastsessionsearches:'ylopo_session_searches',
+        last_session_listings_saved:'ylopo_session_saves',
+        last_session_showing_requests:'ylopo_session_showings',
+        last_session_total_visits:'ylopo_total_visits',
+        ylopo_event:'ylopo_event_type', event_time:'ylopo_event_time',
+        leadtype:'ylopo_lead_type', source:'ylopo_source',
+        ispriority:'ylopo_is_priority', isshowingrequest:'ylopo_is_showing',
+        ylopo_uuid:'ylopo_uuid', lead_created_atstars_link:'ylopo_stars_link',
+        assigned_website:'ylopo_website', messageplaintext:'ylopo_message',
+        last_login_date:'ylopo_last_login'
+      };
+      var eventKeys = Object.keys(fieldMap);
+      for (var i = 0; i < eventKeys.length; i++) {
+        var eventKey = eventKeys[i];
+        var cfKey = fieldMap[eventKey];
+        var val = latest[eventKey];
+        if (val !== null && val !== undefined && val !== '') {
+          syntheticFields.push({
+            id:'ylopo_'+eventKey, value:val,
+            fieldKey:'contact.'+cfKey, name:cfKey.replace(/_/g,' '),
+            key:'contact.'+cfKey
+          });
+        }
+      }
+      syntheticFields.push({
+        id:'ylopo_event_count', value:String(data.count),
+        fieldKey:'contact.ylopo_event_count', name:'Ylopo Event Count',
+        key:'contact.ylopo_event_count'
+      });
+      var existingKeys = {};
+      (raw.customField||[]).forEach(function(f){ existingKeys[f.fieldKey||f.key||f.id] = true; });
+      var newFields = syntheticFields.filter(function(f){ return !existingKeys[f.fieldKey]; });
+      raw.customField = (raw.customField||[]).concat(newFields);
+      raw._ylopoEventsLoaded = true;
+      if (callback) callback(data.count);
+    } else {
+      if (callback) callback(0);
+    }
+  })
+  .catch(function(e) {
+    console.warn('Ylopo events fetch failed:', e);
+    if (callback) callback(null);
+  });
+}
+
+// -------------------------------------------------------
+// STATS
+// -------------------------------------------------------
+function updateStats() {
+  _el('statTotal').textContent    = ALL_LEADS.length;
+  _el('statHot').textContent      = ALL_LEADS.filter(function(l){return l.status==='hot';}).length;
+  _el('statWarm').textContent     = ALL_LEADS.filter(function(l){return l.status==='warm';}).length;
+  _el('statCold').textContent     = ALL_LEADS.filter(function(l){return l.status==='cold';}).length;
+  _el('statShowings').textContent = ALL_LEADS.filter(function(l){return l.hasShowing;}).length;
+  _el('statNew').textContent      = ALL_LEADS.filter(function(l){return l.isNew;}).length;
+}
+
+// -------------------------------------------------------
+// VIEW TOGGLE
+// -------------------------------------------------------
+function setView(view) {
+  CURRENT_VIEW = view;
+  var btns = document.querySelectorAll('.view-toggle-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', btns[i].getAttribute('data-view') === view);
+  }
+  if (view === 'table') {
+    _el('tableView').style.display = '';
+    _el('cardsView').style.display = 'none';
+  } else {
+    _el('tableView').style.display = 'none';
+    _el('cardsView').style.display = '';
+  }
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (CURRENT_VIEW === 'table') {
+    renderTable();
+  } else {
+    renderCards();
+  }
+  renderPagination();
+}
+
+// -------------------------------------------------------
+// FILTERS + SORT
+// -------------------------------------------------------
+function setFilter(f, el) {
+  CURRENT_FILTER = f;
+  CURRENT_PAGE   = 1;
+  var tabs = document.querySelectorAll('.filter-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  var q = (_el('searchInput')||{value:''}).value.trim().toLowerCase();
+  SORT_KEY = (_el('sortSelect')||{value:'score_desc'}).value;
+
+  var leads = ALL_LEADS.slice();
+
+  if (CURRENT_FILTER === 'hot')          leads = leads.filter(function(l){return l.status==='hot';});
+  else if (CURRENT_FILTER === 'warm')    leads = leads.filter(function(l){return l.status==='warm';});
+  else if (CURRENT_FILTER === 'cold')    leads = leads.filter(function(l){return l.status==='cold';});
+  else if (CURRENT_FILTER === 'new')     leads = leads.filter(function(l){return l.isNew;});
+  else if (CURRENT_FILTER === 'showing') leads = leads.filter(function(l){return l.hasShowing;});
+
+  var sourceFilter = (_el('sourceFilter')||{value:'ylopo'}).value;
+  if (sourceFilter !== 'all') {
+    leads = leads.filter(function(l) {
+      var raw = RAW_CONTACTS[l.id];
+      var src = String(l.source || '').toLowerCase();
+      var fubSrc = raw ? (getCF(raw, ['fub_source','fub_registration_source','ylopo_source','ylopo_event_source'])||'').toLowerCase() : '';
+      var allSrc = src + ' ' + fubSrc;
+      var tags = (Array.isArray(l.tags) ? l.tags : []).map(function(t){return String(t);}).join(' ').toLowerCase();
+      if (sourceFilter === 'ylopo')   return allSrc.indexOf('ylopo')!==-1 || tags.indexOf('ylopo')!==-1;
+      if (sourceFilter === 'fub')     return allSrc.indexOf('fub')!==-1 || allSrc.indexOf('follow')!==-1;
+      if (sourceFilter === 'zillow')  return allSrc.indexOf('zillow')!==-1;
+      if (sourceFilter === 'realtor') return allSrc.indexOf('realtor')!==-1;
+      return true;
+    });
+  }
+
+  if (q) {
+    leads = leads.filter(function(l) {
+      return l.name.toLowerCase().indexOf(q)!==-1 ||
+        l.email.toLowerCase().indexOf(q)!==-1 ||
+        l.phone.indexOf(q)!==-1 ||
+        (l.city||'').toLowerCase().indexOf(q)!==-1 ||
+        String(l.source||'').toLowerCase().indexOf(q)!==-1 ||
+        (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
+    });
+  }
+
+  leads.sort(function(a,b) {
+    switch(SORT_KEY) {
+      case 'score_desc': return b.score - a.score;
+      case 'score_asc':  return a.score - b.score;
+      case 'name_asc':   return a.name.localeCompare(b.name);
+      case 'name_desc':  return b.name.localeCompare(a.name);
+      case 'date_desc':  return new Date(b.dateAdded||0) - new Date(a.dateAdded||0);
+      case 'date_asc':   return new Date(a.dateAdded||0) - new Date(b.dateAdded||0);
+      default: return 0;
+    }
+  });
+
+  FILTERED = leads;
+  renderCurrentView();
+}
+
+// -------------------------------------------------------
+// RENDER TABLE
+// -------------------------------------------------------
+function renderTable() {
+  var start = (CURRENT_PAGE - 1) * PAGE_SIZE;
+  var page  = FILTERED.slice(start, start + PAGE_SIZE);
+  var tbody = _el('leadsBody');
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = page.map(function(l) {
+    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var badgeHtml = l.badge ? '<span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
+    var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
+    var m = l.matrix;
+    var loc = [l.city, l.state].filter(Boolean).join(', ') || '\\u2014';
+
+    return '<tr data-id="' + l.id + '">' +
+      '<td><span class="expand-arrow" onclick="toggleExpand(\\'' + l.id + '\\')">&#9654;</span></td>' +
+      '<td>' +
+        '<div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted)">' + (esc(l.email)||'\\u2014') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary)">' + (esc(l.phone)||'') + '</div>' +
+        badgeHtml +
+      '</td>' +
+      '<td>' + statusHtml + '</td>' +
+      '<td>' +
+        '<div class="score-bar-wrap">' +
+          '<div class="score-bar"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
+          '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+        '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div class="matrix-mini">' +
+          '<span class="mm">Views <span>' + m.views + '</span></span>' +
+          '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
+          '<span class="mm">Search <span>' + m.searches + '</span></span>' +
+          (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+        '</div>' +
+      '</td>' +
+      '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
+      '<td style="color:var(--text-secondary);font-size:12px">' + esc(l.source||'\\u2014') + '</td>' +
+      '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
+      '<td>' +
+        '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
+          (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" title="Email">Email</a>' : '') +
+          (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" title="Call">Call</a>' : '') +
+        '</div>' +
+      '</td>' +
+    '</tr>' +
+    '<tr class="detail-row" id="detail-' + l.id + '">' +
+      '<td colspan="9"></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// -------------------------------------------------------
+// RENDER CARDS
+// -------------------------------------------------------
+function renderCards() {
+  var start = (CURRENT_PAGE - 1) * PAGE_SIZE;
+  var page  = FILTERED.slice(start, start + PAGE_SIZE);
+  var container = _el('cardsView');
+
+  if (page.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;grid-column:1/-1">No contacts match the current filters.</div>';
+    return;
+  }
+
+  container.innerHTML = page.map(function(l) {
+    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
+    var badgeHtml = l.badge ? ' <span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
+    var m = l.matrix;
+    var loc = [l.city, l.state].filter(Boolean).join(', ') || '';
+
+    return '<div class="contact-card">' +
+      '<div class="contact-card-header">' +
+        '<div>' +
+          '<div class="contact-card-name">' + esc(l.name) + '</div>' +
+          (l.email ? '<div class="contact-card-email">' + esc(l.email) + '</div>' : '') +
+          (l.phone ? '<div class="contact-card-phone">' + esc(l.phone) + '</div>' : '') +
+        '</div>' +
+        '<div>' + statusHtml + badgeHtml + '</div>' +
+      '</div>' +
+      '<div class="contact-card-score">' +
+        '<div class="score-bar" style="flex:1"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
+        '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+      '</div>' +
+      '<div class="contact-card-activity">' +
+        '<span class="mm">Views <span>' + m.views + '</span></span>' +
+        '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
+        '<span class="mm">Search <span>' + m.searches + '</span></span>' +
+        (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+      '</div>' +
+      (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
+      '<div class="contact-card-meta">' +
+        '<span>' + esc(l.source||'\\u2014') + '</span>' +
+        '<span>' + fmtDate(l.dateAdded) + '</span>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;margin-top:10px">' +
+        (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" style="flex:1;justify-content:center">Email</a>' : '') +
+        (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" style="flex:1;justify-content:center">Call</a>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function badgeLabel(b) {
+  switch(b) {
+    case 'hot':     return 'Hot';
+    case 'warm':    return 'Warm';
+    case 'cold':    return 'Cold';
+    case 'new':     return 'New';
+    case 'ylopo':   return 'Ylopo';
+    case 'showing': return 'Showing';
+    default: return b;
+  }
+}
+
+// -------------------------------------------------------
+// PAGINATION
+// -------------------------------------------------------
+function renderPagination() {
+  var totalPages = Math.ceil(FILTERED.length / PAGE_SIZE);
+  var el = _el('paginationEl');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  var html = '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE-1) + ')" ' + (CURRENT_PAGE===1?'disabled':'') + '>&#8249;</button>';
+
+  var range = pagRange(CURRENT_PAGE, totalPages);
+  var last = 0;
+  for (var i = 0; i < range.length; i++) {
+    var p = range[i];
+    if (p - last > 1) html += '<span style="color:var(--text-muted);padding:0 4px">\\u2026</span>';
+    html += '<button class="page-btn ' + (p===CURRENT_PAGE?'active':'') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+    last = p;
+  }
+
+  html += '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE+1) + ')" ' + (CURRENT_PAGE===totalPages?'disabled':'') + '>&#8250;</button>';
+  el.innerHTML = html;
+}
+
+function pagRange(cur, total) {
+  var arr = [1, total, cur, cur-1, cur+1].filter(function(p){return p>=1&&p<=total;});
+  var seen = {};
+  var unique = [];
+  for (var i=0;i<arr.length;i++) { if(!seen[arr[i]]){seen[arr[i]]=true;unique.push(arr[i]);} }
+  return unique.sort(function(a,b){return a-b;});
+}
+
+function goPage(p) {
+  var totalPages = Math.ceil(FILTERED.length / PAGE_SIZE);
+  if (p < 1 || p > totalPages) return;
+  CURRENT_PAGE = p;
+  renderCurrentView();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// -------------------------------------------------------
+// EXPAND / ACCORDION
+// -------------------------------------------------------
+function toggleExpand(id) {
+  var detailRow = _el('detail-'+id);
+  var arrow = document.querySelector('tr[data-id="' + id + '"] .expand-arrow');
+  if (!detailRow) return;
+  if (EXPANDED.has(id)) {
+    EXPANDED.delete(id);
+    detailRow.classList.remove('open');
+    if(arrow) arrow.classList.remove('open');
+    detailRow.querySelector('td').innerHTML = '';
+  } else {
+    EXPANDED.add(id);
+    detailRow.classList.add('open');
+    if(arrow) arrow.classList.add('open');
+    var lead = null;
+    for (var i=0;i<FILTERED.length;i++) { if(FILTERED[i].id===id){lead=FILTERED[i];break;} }
+    if (!lead) { for (var i=0;i<ALL_LEADS.length;i++) { if(ALL_LEADS[i].id===id){lead=ALL_LEADS[i];break;} } }
+    if(lead) {
+      detailRow.querySelector('td').innerHTML = buildAccordion(lead);
+      var raw = RAW_CONTACTS[id];
+      if (raw && !raw._ylopoEventsLoaded) {
+        fetchYlopoEventsForContact(id, function(count) {
+          if (count > 0) {
+            var updatedLead = Object.assign({}, lead, { matrix: getMatrix(raw), score: calcScore(raw) });
+            updatedLead.status = getStatus(updatedLead.score, raw.tags);
+            updatedLead.badge  = getBadge(raw);
+            detailRow.querySelector('td').innerHTML = buildAccordion(updatedLead);
+            toast('Loaded ' + count + ' Ylopo events for ' + lead.name, 'info');
+          }
+        });
+      }
+    }
+  }
+}
+
+function buildAccordion(lead) {
+  var raw = RAW_CONTACTS[lead.id] || {};
+  var ext = getExtendedData(raw);
+  var m   = lead.matrix;
+
+  var scoreColor = lead.score >= 75 ? 'var(--red)' : lead.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+
+  var ylopoUrl = '';
+  if (ext.ylopoStarsLink) {
+    if (ext.ylopoStarsLink.indexOf('http')===0) ylopoUrl = ext.ylopoStarsLink;
+    else if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(ext.ylopoStarsLink)) ylopoUrl = 'https://stars.ylopo.com/lead-detail/' + ext.ylopoStarsLink;
+    else ylopoUrl = ext.ylopoStarsLink;
+  }
+  if (!ylopoUrl) {
+    var uuidVal = getCFByValuePattern(raw, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+    if (uuidVal) ylopoUrl = 'https://stars.ylopo.com/lead-detail/' + uuidVal;
+  }
+  if (!ylopoUrl) {
+    var starsVal = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
+    if (starsVal) ylopoUrl = starsVal.indexOf('http')===0 ? starsVal : 'https://' + starsVal;
+  }
+
+  var ghlUrl = 'https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + lead.id;
+
+  var tagsHtml = (lead.tags||[]).length
+    ? lead.tags.map(function(t){return '<span class="tag">' + esc(t) + '</span>';}).join('')
+    : '<span style="color:var(--text-muted);font-size:12px">No tags</span>';
+
+  var locParts = [ext.city,ext.state,ext.zip].filter(Boolean).join(', ');
+
+  return '<div class="accordion">' +
+    '<div class="acc-grid">' +
+      '<div class="acc-section">' +
+        '<div class="acc-section-title">Contact Info</div>' +
+        '<div class="acc-row"><span class="acc-label">Name</span><span class="acc-value">' + esc(lead.name) + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Email</span><span class="acc-value">' + (lead.email ? '<a href="mailto:' + esc(lead.email) + '">' + esc(lead.email) + '</a>' : '\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Phone</span><span class="acc-value">' + (lead.phone ? '<a href="tel:' + esc(lead.phone) + '">' + esc(lead.phone) + '</a>' : '\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Location</span><span class="acc-value">' + (esc(locParts)||'\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Address</span><span class="acc-value">' + (esc(ext.address)||'\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Lead Type</span><span class="acc-value">' + (esc(ext.leadType)||'\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Source</span><span class="acc-value">' + (esc(ext.source)||'\\u2014') + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Added</span><span class="acc-value">' + fmtDate(lead.dateAdded) + '</span></div>' +
+        '<div class="acc-row"><span class="acc-label">Updated</span><span class="acc-value">' + fmtDate(lead.dateUpdated) + '</span></div>' +
+      '</div>' +
+      '<div class="acc-section">' +
+        '<div class="acc-section-title">Score &amp; Activity</div>' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">' +
+          '<div style="font-size:40px;font-weight:900;color:' + scoreColor + ';line-height:1">' + lead.score + '</div>' +
+          '<div>' +
+            '<div style="font-weight:700;font-size:14px">' + lead.status.charAt(0).toUpperCase()+lead.status.slice(1) + ' Lead</div>' +
+            '<div style="font-size:12px;color:var(--text-secondary)">' + (lead.isNew ? 'New this week' : 'Existing lead') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="score-breakdown">' +
+          '<div class="sb-row"><span class="sb-label">Views</span><div class="sb-bar"><div class="sb-fill" style="width:' + Math.min(m.views*5,100) + '%;background:var(--blue)"></div></div><span class="sb-val" style="color:var(--blue)">' + m.views + '</span></div>' +
+          '<div class="sb-row"><span class="sb-label">Saves</span><div class="sb-bar"><div class="sb-fill" style="width:' + Math.min(m.saves*10,100) + '%;background:var(--green)"></div></div><span class="sb-val" style="color:var(--green)">' + m.saves + '</span></div>' +
+          '<div class="sb-row"><span class="sb-label">Searches</span><div class="sb-bar"><div class="sb-fill" style="width:' + Math.min(m.searches*10,100) + '%;background:var(--accent2)"></div></div><span class="sb-val" style="color:var(--accent2)">' + m.searches + '</span></div>' +
+          '<div class="sb-row"><span class="sb-label">Showings</span><div class="sb-bar"><div class="sb-fill" style="width:' + Math.min(m.showings*20,100) + '%;background:var(--accent)"></div></div><span class="sb-val" style="color:var(--accent)">' + m.showings + '</span></div>' +
+          '<div class="sb-row"><span class="sb-label">Info Reqs</span><div class="sb-bar"><div class="sb-fill" style="width:' + Math.min(m.infoReqs*15,100) + '%;background:var(--yellow)"></div></div><span class="sb-val" style="color:var(--yellow)">' + m.infoReqs + '</span></div>' +
+        '</div>' +
+        (ext.ylopoEventCount ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Ylopo events: <strong style="color:var(--text)">' + ext.ylopoEventCount + '</strong></div>' : '') +
+        (ext.ylopoLastLogin ? '<div style="font-size:12px;color:var(--text-secondary)">Last login: <strong style="color:var(--text)">' + fmtDate(ext.ylopoLastLogin) + '</strong></div>' : '') +
+      '</div>' +
+      '<div class="acc-section">' +
+        '<div class="acc-section-title">Property Preferences</div>' +
+        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr)">' +
+          '<div class="prop-item"><div class="pi-icon">Budget</div><div class="pi-label">Budget</div><div class="pi-value">' + (ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : ext.price ? fmtPrice(ext.price) : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-icon">Bed/Bath</div><div class="pi-label">Bed/Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-icon">SqFt</div><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
+        '</div>' +
+        (ext.yearBuilt || ext.mlsNumber || ext.propType ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary)">' +
+          (ext.yearBuilt ? '<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>' : '') +
+          (ext.mlsNumber ? '<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>' : '') +
+          (ext.propType  ? '<span>Type: <strong>' + esc(ext.propType) + '</strong></span>'  : '') +
+        '</div>' : '') +
+        (ext.assignedWebsite ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>' : '') +
+        (ext.ylopoEventType ? '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>' : '') +
+        (ext.estValue ? '<div style="font-size:12px;color:var(--text-secondary)">Est. Value: <strong>' + esc(String(ext.estValue)) + '</strong></div>' : '') +
+      '</div>' +
+      '<div class="acc-section">' +
+        '<div class="acc-section-title">Tags</div>' +
+        '<div class="tags-wrap">' + tagsHtml + '</div>' +
+        (ext.ylopoPriority ? '<div style="margin-top:10px"><span class="badge badge-hot">Priority</span></div>' : '') +
+      '</div>' +
+      (ext.ylopoMessage ? '<div class="acc-section" style="grid-column:1/-1">' +
+        '<div class="acc-section-title">Ylopo Message</div>' +
+        '<div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap">' + esc(ext.ylopoMessage) + '</div>' +
+      '</div>' : '') +
+      (ext.aiNotes ? '<div class="acc-section" style="grid-column:1/-1">' +
+        '<div class="acc-section-title">AI Summary</div>' +
+        '<div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap">' + esc(ext.aiNotes) + '</div>' +
+      '</div>' : '') +
+    '</div>' +
+    '<div class="acc-links">' +
+      '<a href="' + ghlUrl + '" target="_blank" rel="noopener" class="acc-link">Open in GHL</a>' +
+      (ylopoUrl ? '<a href="' + esc(ylopoUrl) + '" target="_blank" rel="noopener" class="acc-link">Ylopo Stars</a>' : '') +
+      (lead.email ? '<a href="mailto:' + esc(lead.email) + '" class="acc-link">Email</a>' : '') +
+      (lead.phone ? '<a href="tel:' + esc(lead.phone) + '" class="acc-link">Call</a>' : '') +
+      (lead.phone ? '<a href="sms:' + esc(lead.phone) + '" class="acc-link">SMS</a>' : '') +
+    '</div>' +
+  '</div>';
+}
+
+// -------------------------------------------------------
+// DIAGNOSTICS
+// -------------------------------------------------------
+var GHL_SELLER_PIPELINE_ID = '118WTx6yjDJJzNotlWdX';
+var GHL_SELLER_STAGE_INITIAL = 'fe0616dc-f7c7-4258-9fc4-c4e235199f62';
+var SELLER_SOURCE_KEYWORDS = ['my +plus leads','my+plus','myplus','plus leads'];
+var SELLER_TAG_KEYWORDS = ['fsbo','canceled','withdrawn','expired','for sale by owner'];
+var _sellerTagsApplied = {};
+
+function autoTagSellers(leads) {
+  var tagged = 0, pipelined = 0;
+  for (var li = 0; li < leads.length; li++) {
+    var l = leads[li];
+    if (_sellerTagsApplied[l.id]) continue;
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) continue;
+    var src = String(l.source || '').toLowerCase();
+    var tags = (Array.isArray(l.tags) ? l.tags : []).map(function(t) { return String(t).toLowerCase(); });
+    var isSellerSource = SELLER_SOURCE_KEYWORDS.some(function(kw) { return src.indexOf(kw)!==-1; });
+    var hasSellerTags = SELLER_TAG_KEYWORDS.some(function(kw) { return tags.some(function(t) { return t.indexOf(kw)!==-1; }); });
+    var alreadySeller = tags.indexOf('seller')!==-1 || tags.indexOf('seller lead')!==-1;
+    if (alreadySeller && !hasSellerTags) { _sellerTagsApplied[l.id] = true; continue; }
+    if (isSellerSource && !alreadySeller) {
+      fetch(PROXY_URL + '/contacts/' + l.id + '/tags', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tags:['Seller','Seller Lead','my+plus leads']}) }).catch(function(){});
+      console.log('Auto-tagged ' + l.name + ' as Seller (source: ' + l.source + ')');
+      tagged++; _sellerTagsApplied[l.id] = true;
+    }
+    if (hasSellerTags && !alreadySeller) {
+      var matchedTag = '';
+      for (var ti=0;ti<SELLER_TAG_KEYWORDS.length;ti++) {
+        var kw = SELLER_TAG_KEYWORDS[ti];
+        if (tags.some(function(t){return t.indexOf(kw)!==-1;})) { matchedTag = kw; break; }
+      }
+      fetch(PROXY_URL + '/contacts/' + l.id + '/tags', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tags:['Seller','Seller Lead', matchedTag ? matchedTag.toUpperCase() : 'Seller']}) }).catch(function(){});
+      console.log('Auto-tagged ' + l.name + ' as Seller (tag: ' + matchedTag + ')');
+      tagged++; _sellerTagsApplied[l.id] = true;
+    }
+    if ((isSellerSource || hasSellerTags) && !_sellerTagsApplied[l.id + '_pipeline']) {
+      fetch(PROXY_URL + '/contacts/' + l.id + '/tags', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tags:['Seller Pipeline']}) }).catch(function(){});
+      fetch(PROXY_URL + '/contacts/' + l.id + '/notes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({body:'[Auto] Flagged for Seller Pipeline \\u2014 Source: ' + l.source + ' (' + new Date().toLocaleDateString() + ')'}) }).catch(function(){});
+      pipelined++; _sellerTagsApplied[l.id + '_pipeline'] = true;
+    }
+  }
+  if (tagged > 0 || pipelined > 0) toast('Sellers: ' + tagged + ' tagged, ' + pipelined + ' pipelined', 'success');
+}
+
+function showDiagnostics() {
+  var modal = _el('diagModal');
+  var content = _el('diagContent');
+  modal.classList.add('open');
+
+  var fields = window._FIELD_DIAGNOSTICS || [];
+  var ylopoLoaded = 0;
+  var ids = Object.keys(RAW_CONTACTS);
+  for (var i=0;i<ids.length;i++) { if(RAW_CONTACTS[ids[i]]._ylopoEventsLoaded) ylopoLoaded++; }
+
+  if (fields.length === 0) {
+    content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
+      '<p style="color:var(--text-muted)">No field diagnostics available. Load contacts first.</p>';
+    return;
+  }
+
+  var rows = fields.map(function(f) {
+    return '<tr>' +
+      '<td>' + esc(f.id||'') + '</td>' +
+      '<td>' + esc(f.key||'') + '</td>' +
+      '<td>' + esc(f.fieldKey||'') + '</td>' +
+      '<td>' + esc(f.name||'') + '</td>' +
+      '<td>' + esc(String(f.value||'').substring(0,80)) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
+    '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Showing <strong>' + fields.length + '</strong> custom fields from first contact:</p>' +
+    '<div style="overflow-x:auto">' +
+      '<table class="diag-table">' +
+        '<thead><tr><th>ID</th><th>Key</th><th>FieldKey</th><th>Name</th><th>Value (truncated)</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+}
+
+// -------------------------------------------------------
+// INIT
+// -------------------------------------------------------
+document.addEventListener('DOMContentLoaded', function() {
+  loadGHLTeam().then(function() { loadData(); });
+});
+<\/script>
+</body></html>`;
+var YLOPO_ANALYTICS_HTML = `<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 Ylopo Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"><\/script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f3f4f6;--card:#fff;--card-border:#e5e7eb;--text:#111827;--text-secondary:#6b7280;
+  --green:#22c55e;--green-light:#dcfce7;--green-dark:#16a34a;
+  --blue:#3b82f6;--blue-light:#dbeafe;
+  --amber:#f59e0b;--amber-light:#fef3c7;
+  --red:#ef4444;--red-light:#fee2e2;
+  --purple:#8b5cf6;--purple-light:#ede9fe;
+  --orange:#f97316;--orange-light:#ffedd5;
+  --pink:#ec4899;--pink-light:#fce7f3;
+  --header-bg:linear-gradient(135deg,#0D3B4F 0%,#1E7A9C 50%,#4A6B7C 100%);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.05);--shadow:0 1px 3px rgba(0,0,0,0.1),0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1);
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --brand-primary:#0D3B4F;--brand-secondary:#1E7A9C;--brand-accent:#5DADE2;--brand-surface:#F0F8FB;--brand-chip:#DCF2F8;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+body.dark{
+  --bg:#111827;--card:#1f2937;--card-border:#374151;--text:#f9fafb;--text-secondary:#9ca3af;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.2);--shadow:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 6px rgba(0,0,0,0.3);
+}
+.app{max-width:1440px;margin:0 auto}
+
+/* ===== HEADER ===== */
+.header{background:var(--header-bg);padding:28px 32px;display:flex;align-items:center;justify-content:space-between;overflow:visible}
+.header h1{font-size:26px;font-weight:700;color:#fff;letter-spacing:-0.02em}
+.header-actions{display:flex;align-items:center;gap:16px;overflow:visible}
+.hdr-btn{width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;position:relative;overflow:visible}
+.hdr-btn:hover{background:rgba(255,255,255,0.2)}
+.hdr-btn::after{content:attr(title);position:absolute;bottom:-32px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.2s;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.hdr-btn:hover::after{opacity:1}
+.hdr-btn svg{width:20px;height:20px}
+
+/* ===== MAIN BODY ===== */
+.main{padding:24px 32px 32px}
+
+/* ===== STAT CARDS ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow-sm)}
+.stat-card .stat-label{font-size:13px;color:var(--text-secondary);font-weight:500;margin-bottom:4px}
+.stat-card .stat-value{font-size:32px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-0.02em}
+.stat-sub{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
+.stat-sub.positive{color:var(--green-dark)}
+.stat-sub.hot{color:var(--red)}
+.stat-sub.info{color:var(--blue)}
+
+/* ===== CHARTS ROW ===== */
+.charts-row{display:grid;grid-template-columns:1fr 1.5fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm)}
+.chart-card h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px}
+.chart-wrap{position:relative;height:220px}
+
+/* ===== SETTINGS PANEL ===== */
+.settings-overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;z-index:100}
+.settings-overlay.open{display:block}
+.settings-panel{position:fixed;top:0;right:0;width:320px;height:100%;background:var(--card);border-left:1px solid var(--card-border);box-shadow:-4px 0 20px rgba(0,0,0,0.1);z-index:101;padding:24px;transform:translateX(100%);transition:transform 0.3s ease}
+.settings-panel.open{transform:translateX(0)}
+.settings-panel h3{font-size:18px;font-weight:700;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.settings-panel h3 button{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:20px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--card-border)}
+.setting-row label{font-size:14px;font-weight:500;color:var(--text)}
+.toggle{position:relative;width:44px;height:24px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#d1d5db;border-radius:12px;transition:0.3s}
+.toggle .slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+.toggle input:checked+.slider{background:var(--green)}
+.toggle input:checked+.slider:before{transform:translateX(20px)}
+.setting-select{padding:8px 12px;border:1px solid var(--card-border);border-radius:var(--radius-xs);font-family:inherit;font-size:13px;background:var(--card);color:var(--text)}
+
+/* ===== FILTERS BAR ===== */
+.filters-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-tab{padding:8px 18px;border:1px solid var(--card-border);background:var(--card);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-secondary);transition:all 0.2s}
+.filter-tab:hover{border-color:var(--green);color:var(--green)}
+.filter-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+.filter-search{margin-left:auto;display:flex;align-items:center;gap:8px}
+.filter-search input{padding:8px 14px 8px 36px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:260px;background:var(--card);color:var(--text)}
+.filter-search input:focus{outline:none;border-color:var(--green)}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-secondary)}
+.btn-export{padding:8px 18px;border:1px solid var(--card-border);background:var(--card);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);transition:all 0.2s}
+.btn-export:hover{border-color:var(--text)}
+
+/* ===== TABLE ===== */
+.table-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead{background:var(--bg)}
+body.dark thead{background:#111827}
+th{padding:12px 14px;text-align:left;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--card-border);white-space:nowrap;user-select:none}
+th.sortable{cursor:pointer}
+th.sortable:hover{color:var(--text)}
+td{padding:14px;border-bottom:1px solid var(--card-border);font-size:13px;vertical-align:middle}
+tbody tr.lead-row{transition:background 0.15s;cursor:pointer}
+tbody tr.lead-row:hover{background:rgba(34,197,94,0.04)}
+.td-check{width:40px}
+.td-check input{width:16px;height:16px;accent-color:var(--green);cursor:pointer}
+
+/* Name cell */
+.name-cell{display:flex;align-items:center;gap:10px;min-width:200px}
+.name-text{font-weight:600;color:var(--text);white-space:nowrap}
+.name-link{font-weight:600;color:var(--text);white-space:nowrap;text-decoration:none;transition:color 0.15s;max-width:160px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle}
+.name-link:hover{color:var(--blue);text-decoration:underline;overflow:visible;max-width:none}
+.name-cell{position:relative}
+.name-cell .name-tooltip{display:none;position:absolute;left:0;top:100%;background:var(--text);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;z-index:20;box-shadow:var(--shadow-md);pointer-events:none}
+.name-cell:hover .name-tooltip{display:block}
+.name-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap}
+.badge-visitor{background:#dcfce7;color:#16a34a}
+.badge-searcher{background:#dbeafe;color:#2563eb}
+.badge-buyer{background:#fef3c7;color:#d97706}
+.badge-seller{background:#ede9fe;color:#7c3aed}
+.badge-showing{background:#fce7f3;color:#db2777}
+
+/* Score cell */
+.score-pill{display:inline-flex;align-items:center;justify-content:center;width:36px;height:28px;border-radius:var(--radius-xs);font-weight:700;font-size:13px}
+.score-high{background:#dcfce7;color:#16a34a}
+.score-mid{background:#fef3c7;color:#d97706}
+.score-low{background:#fee2e2;color:#dc2626}
+
+/* Status badge */
+.status-badge{display:inline-block;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em}
+.status-new{background:#dcfce7;color:#16a34a}
+.status-warm{background:#fef3c7;color:#d97706}
+.status-cold{background:#dbeafe;color:#2563eb}
+.status-hot{background:#fee2e2;color:#dc2626}
+
+/* Activity column */
+.activity-time{font-size:12px;color:var(--text-secondary);white-space:nowrap}
+.activity-icons{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary)}
+.activity-icons span{display:inline-flex;align-items:center;gap:3px}
+
+/* Actions */
+.actions-cell{display:flex;gap:6px}
+.act-btn{width:30px;height:30px;border:none;border-radius:var(--radius-xs);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:all 0.2s;font-size:15px}
+.act-btn:hover{background:var(--green-light);color:var(--green-dark)}
+
+/* Expand arrow */
+.expand-arrow{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--bg);color:var(--text-secondary);font-size:11px;transition:transform 0.3s,background 0.2s;flex-shrink:0;cursor:pointer}
+.expand-arrow.open{transform:rotate(180deg);background:var(--green-light);color:var(--green-dark)}
+
+/* ===== ACCORDION DETAIL ROW ===== */
+tr.detail-row{display:none}
+tr.detail-row.open{display:table-row}
+tr.detail-row>td{padding:0;border-bottom:2px solid var(--green);background:var(--bg)}
+body.dark tr.detail-row>td{background:#111827}
+.detail-inner{padding:20px 24px 24px;animation:slideDown 0.3s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Detail sections */
+.detail-section{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px}
+.detail-section:last-child{margin-bottom:0}
+.detail-section-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.detail-section-title .emoji{font-size:16px}
+
+/* Matrix mini cards inside accordion */
+.matrix-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.matrix-mini{text-align:left}
+.matrix-mini .mm-label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.matrix-mini .mm-value{font-size:28px;font-weight:700;letter-spacing:-0.02em}
+.matrix-mini .mm-bar{height:4px;border-radius:2px;margin-top:8px}
+.mm-views .mm-value{color:var(--blue)} .mm-views .mm-bar{background:linear-gradient(90deg,var(--red),var(--orange))}
+.mm-saves .mm-value{color:var(--green)} .mm-saves .mm-bar{background:linear-gradient(90deg,var(--red),var(--orange))}
+.mm-searches .mm-value{color:var(--amber)} .mm-searches .mm-bar{background:linear-gradient(90deg,var(--green),var(--green-dark))}
+.mm-showings .mm-value{color:var(--purple)} .mm-showings .mm-bar{background:linear-gradient(90deg,var(--amber),var(--orange))}
+
+/* Conversion prob */
+.conv-row{display:flex;align-items:center;gap:16px}
+.conv-bar-wrap{flex:1;height:12px;background:var(--card-border);border-radius:6px;overflow:hidden}
+.conv-bar{height:100%;border-radius:6px;transition:width 0.5s ease}
+.conv-pct{font-size:28px;font-weight:700;color:var(--text);min-width:70px;text-align:right}
+.conv-pct sup{font-size:14px;color:var(--text-secondary)}
+.conv-note{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);margin-top:10px}
+.conv-note .check{color:var(--green)}
+
+/* Session quality */
+.session-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.session-item .si-label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px}
+.session-item .si-value{font-size:22px;font-weight:700;color:var(--text)}
+.session-item .si-value span{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.session-item .si-bar{height:3px;border-radius:2px;margin-top:8px;background:var(--blue)}
+
+/* Geo chips */
+.geo-chips{display:flex;gap:8px;flex-wrap:wrap}
+.geo-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.geo-city{background:var(--blue-light);color:var(--blue)}
+.geo-zip{background:var(--red-light);color:var(--red)}
+
+/* Property prefs */
+.prop-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center}
+.prop-item .pi-icon{font-size:24px;margin-bottom:6px}
+.prop-item .pi-label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.prop-item .pi-value{font-size:16px;font-weight:700;color:var(--orange)}
+
+/* Seller intel */
+.seller-section{background:linear-gradient(135deg,#fff7ed,#fef3c7);border-color:var(--amber)}
+body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);border-color:#78350f}
+.seller-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px 16px;overflow:hidden}
+.seller-item{min-width:0;overflow:hidden}
+.seller-item .si-label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.seller-item .si-value{font-size:20px;font-weight:700;color:var(--amber);word-break:break-word;overflow-wrap:break-word}
+.seller-score{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;background:var(--amber);position:absolute;top:16px;right:16px}
+/* Quick links (Ylopo + GHL) */
+.quick-links{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.ql-ylopo,.ql-ghl{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;text-decoration:none;transition:all 0.15s;line-height:1.4}
+.ql-ghl{background:rgba(59,130,246,0.12);color:#3b82f6}.ql-ghl:hover{background:#3b82f6;color:#fff}
+.ql-ylopo{background:rgba(249,115,22,0.12);color:#f97316}.ql-ylopo:hover{background:#f97316;color:#fff}
+.ql-ghl svg,.ql-ylopo svg{width:12px;height:12px;flex-shrink:0}
+/* Listing cards */
+.listing-cards-grid{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto;padding:4px}
+.listing-card{border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--card);transition:all 0.15s;display:flex;align-items:center;gap:12px;padding:10px 14px}
+.listing-card:hover{border-color:var(--blue);background:rgba(59,130,246,0.03)}
+.listing-card-img{width:48px;height:48px;min-width:48px;border-radius:var(--radius-xs);background:linear-gradient(135deg,#1e293b,#334155);overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
+.listing-card-img img{width:100%;height:100%;object-fit:cover}
+.listing-card-img .lc-placeholder{font-size:1.4rem;display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.listing-card-banner{position:absolute;bottom:0;left:0;right:0;padding:1px 4px;font-size:7px;font-weight:700;color:#fff;text-transform:uppercase;text-align:center;letter-spacing:0.03em}
+.lc-banner-viewed{background:rgba(59,130,246,0.9)}.lc-banner-saved{background:rgba(239,68,68,0.9)}.lc-banner-shared{background:rgba(139,92,246,0.9)}.lc-banner-showing{background:rgba(34,197,94,0.9)}
+.listing-card-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.listing-card-price{font-size:15px;font-weight:800;color:var(--blue);letter-spacing:-0.02em;line-height:1}
+.listing-card-addr{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.listing-card-meta{display:flex;gap:10px;font-size:10px;color:var(--text-secondary)}
+.listing-card-meta span{display:flex;align-items:center;gap:2px}
+.listing-card-mls{font-size:9px;color:var(--text-secondary);opacity:0.5}
+.listing-card-footer{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.listing-card-name{font-weight:600;font-size:11px;color:var(--text-secondary);white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px}
+.listing-card-links{display:flex;gap:3px;align-items:center}
+.lc-link{display:inline-flex;align-items:center;gap:2px;padding:3px 7px;border-radius:3px;font-size:9px;font-weight:700;text-decoration:none;transition:all 0.15s;white-space:nowrap}
+.lc-link-ghl{background:rgba(59,130,246,0.1);color:var(--blue)}.lc-link-ghl:hover{background:var(--blue);color:#fff}
+.lc-link-ylopo{background:rgba(249,115,22,0.1);color:#f97316}.lc-link-ylopo:hover{background:#f97316;color:#fff}
+.lc-link-listing{background:rgba(16,185,129,0.1);color:var(--green)}.lc-link-listing:hover{background:var(--green);color:#fff}
+.lc-score-badge{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:700}
+/* Funnel redesign \u2014 horizontal bars */
+.funnel-bars{display:flex;flex-direction:column;gap:10px}
+.funnel-bar-row{display:flex;align-items:center;gap:12px;cursor:pointer;padding:8px 12px;border-radius:var(--radius-sm);transition:all 0.15s;border:1px solid transparent}
+.funnel-bar-row:hover{background:rgba(59,130,246,0.04);border-color:var(--card-border)}
+.fb-label{width:130px;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0}
+.fb-bar-wrap{flex:1;height:28px;background:var(--bg);border-radius:6px;overflow:hidden;position:relative}
+.fb-bar-fill{height:100%;border-radius:6px;transition:width 0.6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;min-width:36px}
+.fb-bar-fill span{font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3)}
+.fb-pct{width:50px;text-align:right;font-size:11px;font-weight:700;color:var(--text-secondary);flex-shrink:0}
+.fb-arrow{text-align:center;font-size:10px;color:var(--text-secondary);margin:-4px 0 -4px 142px;opacity:0.6}
+/* Funnel modal */
+.funnel-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.funnel-modal-overlay.open{opacity:1;pointer-events:auto}
+.funnel-modal{background:var(--card);border-radius:var(--radius);width:90%;max-width:700px;max-height:80vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column}
+.funnel-modal-header{padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between}
+.funnel-modal-header h3{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.funnel-modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary);padding:4px 8px;border-radius:4px}
+.funnel-modal-close:hover{background:var(--bg)}
+.funnel-modal-body{flex:1;overflow-y:auto;padding:16px 20px}
+.fm-contact{display:flex;align-items:center;gap:12px;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--card-border);margin-bottom:8px;transition:all 0.15s}
+.fm-contact:hover{border-color:var(--blue);background:rgba(59,130,246,0.03)}
+.fm-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.fm-info{flex:1;min-width:0}
+.fm-name{font-size:13px;font-weight:700;color:var(--text)}
+.fm-detail{font-size:11px;color:var(--text-secondary)}
+.fm-links{display:flex;gap:6px;flex-shrink:0}
+
+/* Tags display */
+.tags-cell{display:flex;gap:4px;flex-wrap:wrap}
+.tag-chip{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:var(--bg);color:var(--text-secondary);border:1px solid var(--card-border)}
+
+/* GHL link */
+.ghl-link{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--radius-xs);background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:600;text-decoration:none;transition:all 0.2s;margin-top:8px}
+.ghl-link:hover{background:var(--blue);color:#fff}
+.ylopo-link{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--radius-xs);background:var(--orange-light);color:var(--orange);font-size:11px;font-weight:600;text-decoration:none;transition:all 0.2s;margin-top:8px;margin-left:8px}
+.ylopo-link:hover{background:var(--orange);color:#fff}
+
+/* Pagination */
+.table-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--card-border)}
+.page-info{font-size:13px;color:var(--text-secondary);font-weight:500}
+.page-btns{display:flex;gap:8px}
+.page-btn{padding:6px 16px;border:1px solid var(--card-border);background:var(--card);border-radius:var(--radius-xs);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);transition:all 0.2s}
+.page-btn:hover:not(:disabled){border-color:var(--text)}
+.page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* Bulk Actions */
+.bulk-bar{display:none;align-items:center;gap:16px;padding:12px 20px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow)}
+.bulk-bar.visible{display:flex}
+.bulk-count{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--green-dark)}
+.bulk-action{padding:6px 14px;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text);border-radius:var(--radius-xs)}
+.bulk-action:hover{background:var(--bg)}
+.bulk-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;font-weight:700}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 24px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;z-index:200;transition:all 0.3s;opacity:0;pointer-events:none}
+.toast.visible{opacity:1}
+.toast.success{background:var(--green);color:#fff}
+.toast.error{background:var(--red);color:#fff}
+.toast.info{background:var(--blue);color:#fff}
+
+/* ===== STALE BADGE ===== */
+.badge-stale{background:#fee2e2;color:#dc2626;animation:stale-pulse 2s ease-in-out infinite}
+@keyframes stale-pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+
+/* ===== ANALYTICS GRID ===== */
+.analytics-section{margin-bottom:24px}
+.analytics-section h2{font-size:16px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.analytics-section h2 .emoji{font-size:18px}
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.analytics-grid.tri{grid-template-columns:1fr 1fr 1fr}
+.analytics-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm);overflow:hidden;min-width:0}
+.analytics-card h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.analytics-card.full{grid-column:1/-1}
+
+/* ===== FUNNEL ===== */
+.funnel-wrap{display:flex;flex-direction:column;align-items:center;gap:0}
+.funnel-stage{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px;color:#fff;font-weight:700;font-size:14px;position:relative;text-align:center;transition:transform 0.2s}
+.funnel-stage:hover{transform:scale(1.03)}
+.funnel-stage .f-count{font-size:24px;font-weight:800;min-width:40px}
+.funnel-stage .f-label{font-size:12px;font-weight:600;opacity:0.9}
+.funnel-stage .f-pct{font-size:11px;opacity:0.8;margin-left:auto}
+
+/* ===== HEATMAP ===== */
+.heatmap-wrap{overflow-x:auto}
+.heatmap-grid{display:grid;grid-template-columns:repeat(60,1fr);gap:2px}
+.heatmap-cell{aspect-ratio:1;border-radius:2px;position:relative;cursor:default;transition:transform 0.1s}
+.heatmap-cell:hover{transform:scale(1.5);z-index:2}
+.heatmap-cell[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:3px 8px;border-radius:4px;font-size:10px;white-space:nowrap;z-index:10;pointer-events:none}
+.hm-0{background:#ebedf0} body.dark .hm-0{background:#161b22}
+.hm-1{background:#9be9a8} body.dark .hm-1{background:#0e4429}
+.hm-2{background:#40c463} body.dark .hm-2{background:#006d32}
+.hm-3{background:#30a14e} body.dark .hm-3{background:#26a641}
+.hm-4{background:#216e39} body.dark .hm-4{background:#39d353}
+.heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--text-secondary);justify-content:flex-end}
+.heatmap-legend .hm-box{width:12px;height:12px;border-radius:2px}
+.heatmap-months{display:flex;gap:0;margin-bottom:4px}
+.heatmap-months span{font-size:10px;color:var(--text-secondary);text-align:center}
+
+/* ===== TAG CLOUD ===== */
+.tag-cloud{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:10px 0}
+.tc-tag{padding:4px 12px;border-radius:20px;font-weight:600;cursor:default;transition:transform 0.2s,box-shadow 0.2s;border:1px solid var(--card-border)}
+.tc-tag:hover{transform:scale(1.1);box-shadow:var(--shadow-md)}
+
+/* ===== SOURCE TABLE ===== */
+.src-table{width:100%}
+.src-table td,.src-table th{padding:8px 12px;font-size:12px;text-align:left;border-bottom:1px solid var(--card-border)}
+.src-table th{font-weight:600;color:var(--text-secondary);text-transform:uppercase;font-size:11px;letter-spacing:0.04em}
+.src-bar-wrap{width:100%;height:8px;background:var(--card-border);border-radius:4px;overflow:hidden}
+.src-bar{height:100%;border-radius:4px}
+
+/* ===== LOADING PROGRESS ===== */
+.load-progress{display:flex;align-items:center;gap:12px;padding:8px 0}
+.load-progress-bar{flex:1;height:6px;background:var(--card-border);border-radius:3px;overflow:hidden}
+.load-progress-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.3s}
+.load-progress-text{font-size:12px;font-weight:600;color:var(--text-secondary);min-width:120px}
+
+/* ===== HASHTAG CHIPS ===== */
+.active-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0}
+.active-tags:empty{display:none}
+.htag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:14px;background:var(--green);color:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s}
+.htag:hover{filter:brightness(0.9)}.htag .htag-x{font-size:13px;margin-left:2px;opacity:0.7}.htag .htag-x:hover{opacity:1}
+.clickable-tag{cursor:pointer;transition:transform 0.15s,box-shadow 0.15s}
+.clickable-tag:hover{transform:scale(1.08);box-shadow:0 2px 8px rgba(0,0,0,0.15)}
+
+/* ===== SMART LISTS ===== */
+.smart-panel{position:fixed;right:-340px;top:0;width:340px;height:100vh;background:var(--card);border-left:1px solid var(--card-border);box-shadow:-4px 0 24px rgba(0,0,0,0.1);z-index:200;transition:right 0.3s;overflow-y:auto;padding:24px}
+.smart-panel.open{right:0}
+.smart-panel h3{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.smart-panel h3 button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)}
+.smart-item{padding:12px;border:1px solid var(--card-border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all 0.15s}
+.smart-item:hover{border-color:var(--green);background:rgba(34,197,94,0.05)}
+.smart-item.active{border-color:var(--green);background:rgba(34,197,94,0.1)}
+.smart-item-name{font-weight:700;font-size:13px;margin-bottom:2px}
+.smart-item-meta{font-size:11px;color:var(--text-secondary)}
+.smart-save-form{display:flex;gap:6px;margin-bottom:16px}
+.smart-save-form input{flex:1;padding:8px 12px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:12px;background:var(--card);color:var(--text)}
+.smart-save-btn{padding:8px 14px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:12px;cursor:pointer}
+
+/* ===== TIMELINE ===== */
+.timeline-section{margin-bottom:24px}
+.timeline-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px;max-height:420px;overflow-y:auto}
+.tl-list{position:relative;padding-left:20px}
+.tl-list::before{content:'';position:absolute;left:5px;top:12px;bottom:12px;width:2px;background:linear-gradient(180deg,var(--green),var(--blue),var(--card-border));border-radius:1px;opacity:0.4}
+.tl-item{display:flex;gap:14px;padding:10px 6px;position:relative;border-radius:8px;transition:background 0.15s}
+.tl-item:hover{background:rgba(34,197,94,0.04)}
+.tl-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;position:relative;z-index:1;margin-top:4px;border:2px solid var(--card)}
+.tl-dot.hot{background:#ef4444;box-shadow:0 0 0 2px var(--card),0 0 6px rgba(239,68,68,0.3)}.tl-dot.warm{background:#f59e0b;box-shadow:0 0 0 2px var(--card),0 0 6px rgba(245,158,11,0.2)}.tl-dot.new{background:#3b82f6;box-shadow:0 0 0 2px var(--card),0 0 6px rgba(59,130,246,0.2)}.tl-dot.cold{background:#d1d5db;box-shadow:0 0 0 2px var(--card)}.tl-dot.action{background:#22c55e;box-shadow:0 0 0 2px var(--card),0 0 6px rgba(34,197,94,0.3)}
+.tl-content{flex:1;min-width:0}
+.tl-title{font-size:13px;font-weight:700;color:var(--text)}
+.tl-title a{color:inherit;text-decoration:none;transition:color 0.15s}
+.tl-title a:hover{color:var(--green)}
+.tl-desc{font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.4}
+.tl-time{font-size:10px;color:var(--text-secondary);white-space:nowrap;font-weight:600;background:var(--bg);padding:3px 8px;border-radius:4px;align-self:flex-start;margin-top:3px}
+.tl-type-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;margin-left:6px;vertical-align:middle}
+.tl-type-new{background:#dbeafe;color:#2563eb}.tl-type-action{background:#dcfce7;color:#16a34a}.tl-type-showing{background:#fce7f3;color:#db2777}.tl-type-stale{background:#fef3c7;color:#d97706}
+
+/* ===== SPARKLINES ===== */
+.sparkline-wrap{display:inline-flex;align-items:center;gap:6px}
+.sparkline{width:48px;height:20px;vertical-align:middle}
+
+/* ===== DUPE FLAG ===== */
+.dupe-flag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;margin-left:6px}
+
+/* ===== NOTES ===== */
+.notes-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;align-items:center;justify-content:center}
+.notes-modal-bg.open{display:flex}
+.notes-modal{background:var(--card);border-radius:var(--radius);padding:24px;width:440px;max-width:90vw;box-shadow:var(--shadow-lg)}
+.notes-modal h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.notes-modal h3 button{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-secondary)}
+.notes-modal textarea{width:100%;height:120px;padding:10px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;background:var(--bg);color:var(--text)}
+.notes-modal .notes-save{margin-top:10px;padding:8px 20px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;cursor:pointer}
+.notes-list{margin-top:12px;max-height:200px;overflow-y:auto}
+.note-entry{padding:8px;border-bottom:1px solid var(--card-border);font-size:12px}
+.note-entry .note-time{color:var(--text-secondary);font-size:10px}
+
+/* ===== COLUMN TOGGLE ===== */
+.col-toggle-bar{display:flex;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap}
+.col-toggle-bar label{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;padding:4px 10px;border:1px solid var(--card-border);border-radius:14px;transition:all 0.15s}
+.col-toggle-bar label:hover{border-color:var(--green)}
+.col-toggle-bar label.active{background:var(--green);color:#fff;border-color:var(--green)}
+.col-toggle-bar label input{display:none}
+.col-hidden{display:none!important}
+
+/* ===== ROI TABLE ===== */
+.roi-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.roi-table td,.roi-table th{padding:10px 8px;font-size:12px;text-align:left;border-bottom:1px solid var(--card-border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roi-table th{font-weight:700;color:var(--text-secondary);text-transform:uppercase;font-size:11px;letter-spacing:0.05em;background:var(--bg);position:sticky;top:0;z-index:1}
+.roi-table tbody tr{transition:background 0.15s}
+.roi-table tbody tr:hover{background:rgba(34,197,94,0.04)}
+.roi-table tbody tr:last-child td{border-bottom:none}
+.roi-positive{color:var(--green);font-weight:700}.roi-negative{color:var(--text-secondary);font-weight:600}
+.roi-bar-wrap{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:4px}
+.roi-bar-fill{height:100%;border-radius:3px;transition:width 0.6s ease}
+.roi-source-name{font-weight:700;color:var(--text);font-size:13px}
+.roi-source-count{font-size:11px;color:var(--text-secondary);font-weight:500}
+.roi-metric{display:flex;flex-direction:column;gap:2px}
+.roi-metric-value{font-size:14px;font-weight:700}
+.roi-metric-bar{height:4px;border-radius:2px;background:var(--bg)}
+.roi-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.roi-rank.gold{background:#fef3c7;color:#d97706}.roi-rank.silver{background:#f3f4f6;color:#6b7280}.roi-rank.bronze{background:#fce8e2;color:#c2410c}.roi-rank.default{background:var(--bg);color:var(--text-secondary)}
+
+/* ===== PRINT ===== */
+@media print{.header-actions,.filters-bar,.bulk-bar,.table-footer,.settings-panel,.settings-overlay,.smart-panel,.notes-modal-bg,.col-toggle-bar,.load-progress,.act-btn,.icon-btn,.td-check,.expand-arrow,.hdr-btn{display:none!important}.main{padding:0}.app{max-width:100%}.header{padding:12px;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
+/* ===== HOT ALERTS PANEL ===== */
+.alerts-panel{display:grid;gap:10px;max-height:340px;overflow-y:auto}
+.alert-card{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);transition:all 0.2s}
+.alert-card:hover{border-color:var(--amber);box-shadow:0 0 0 2px rgba(245,158,11,0.1)}
+.alert-card.spike{border-left:4px solid var(--red)}
+.alert-card.warm{border-left:4px solid var(--amber)}
+.alert-card.new-save{border-left:4px solid var(--green)}
+.alert-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--amber),var(--orange));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.alert-info{flex:1;min-width:0}
+.alert-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert-detail{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.alert-badge{padding:4px 8px;border-radius:var(--radius-xs);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0}
+.alert-badge.critical{background:var(--red-light);color:var(--red)}
+.alert-badge.high{background:var(--amber-light);color:var(--amber)}
+.alert-badge.medium{background:var(--green-light);color:var(--green)}
+
+/* ===== COLD LEADS PANEL ===== */
+.cold-panel{display:grid;gap:10px;max-height:340px;overflow-y:auto}
+.cold-card{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);opacity:0.85;transition:all 0.2s}
+.cold-card:hover{opacity:1;border-color:var(--blue)}
+.cold-days{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;border:2px solid}
+.cold-days.danger{background:var(--red-light);color:var(--red);border-color:var(--red)}
+.cold-days.warn{background:var(--amber-light);color:var(--amber);border-color:var(--amber)}
+.cold-days.mild{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
+.cold-info{flex:1;min-width:0}
+.cold-name{font-size:13px;font-weight:700;color:var(--text)}
+.cold-sub{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.cold-bar-wrap{height:4px;border-radius:2px;background:var(--bg);margin-top:6px}
+.cold-bar{height:100%;border-radius:2px}
+
+/* ===== RATIO CARDS ===== */
+.ratio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ratio-card{padding:16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);text-align:center}
+.ratio-card .rc-value{font-size:32px;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px}
+.ratio-card .rc-label{font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.04em}
+.ratio-card .rc-bar{height:6px;border-radius:3px;background:var(--bg);margin-top:10px;overflow:hidden}
+.ratio-card .rc-fill{height:100%;border-radius:3px;transition:width 0.4s}
+
+/* ===== LEADERBOARD ===== */
+.lb-list{display:grid;gap:8px;max-height:340px;overflow-y:auto}
+.lb-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--card);border:1px solid var(--card-border);transition:all 0.15s}
+.lb-row:hover{border-color:var(--blue);transform:translateX(2px)}
+.lb-rank{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+.lb-rank.r1{background:#fef3c7;color:#d97706}.lb-rank.r2{background:#f3f4f6;color:#6b7280}.lb-rank.r3{background:#fce8e2;color:#c2410c}.lb-rank.r4{background:var(--bg);color:var(--text-secondary)}
+.lb-name{font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-metrics{display:flex;gap:8px;flex-shrink:0}
+.lb-metric{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.lb-metric.views{background:var(--blue-light);color:var(--blue)}
+.lb-metric.saves{background:var(--amber-light);color:var(--amber)}
+.lb-metric.showings{background:var(--green-light);color:var(--green)}
+.lb-bar-wrap{width:80px;height:6px;border-radius:3px;background:var(--bg);flex-shrink:0}
+.lb-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--green))}
+
+/* ===== CONVERSION FUNNEL BY SOURCE ===== */
+.src-funnel{display:grid;gap:12px;max-height:340px;overflow-y:auto}
+.sf-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)}
+.sf-source{font-size:13px;font-weight:700;color:var(--text);width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sf-bars{flex:1;display:flex;flex-direction:column;gap:4px}
+.sf-bar-row{display:flex;align-items:center;gap:8px}
+.sf-bar-label{font-size:10px;font-weight:600;color:var(--text-secondary);width:65px;text-align:right;flex-shrink:0}
+.sf-bar-track{flex:1;height:8px;border-radius:4px;background:var(--bg);overflow:hidden}
+.sf-bar-fill{height:100%;border-radius:4px;transition:width 0.4s}
+.sf-bar-count{font-size:11px;font-weight:700;width:30px;flex-shrink:0}
+
+/* ===== GEO CLUSTERS ===== */
+.geo-cluster-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-height:340px;overflow-y:auto}
+.gc-card{padding:14px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);transition:all 0.15s}
+.gc-card:hover{border-color:var(--green);transform:translateY(-1px)}
+.gc-area{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.gc-count{font-size:12px;color:var(--text-secondary);margin-bottom:8px}
+.gc-stats{display:flex;gap:12px}
+.gc-stat{font-size:11px}
+.gc-stat strong{color:var(--text)}
+.gc-bar{height:6px;border-radius:3px;background:var(--bg);margin-top:8px;overflow:hidden}
+.gc-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),var(--blue))}
+
+/* ===== PIPELINE VALUE ===== */
+.pv-stage{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)}
+.pv-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.pv-info{flex:1;min-width:0}
+.pv-label{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em}
+.pv-amount{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-0.02em}
+.pv-sub{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.pv-bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;margin-top:6px}
+.pv-fill{height:100%;border-radius:4px;transition:width 0.4s}
+
+/* ===== SCORE DISTRIBUTION ===== */
+.score-hist-bar{display:flex;align-items:flex-end;gap:3px;height:160px;padding-top:10px}
+.sh-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.sh-bar{width:100%;border-radius:4px 4px 0 0;transition:height 0.4s;min-height:2px}
+.sh-label{font-size:9px;font-weight:600;color:var(--text-secondary)}
+.sh-count{font-size:10px;font-weight:700;color:var(--text)}
+
+/* ===== CAMPAIGN COMPARISON ===== */
+.camp-grid{display:grid;gap:10px;max-height:380px;overflow-y:auto}
+.camp-card{padding:16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)}
+.camp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.camp-name{font-size:14px;font-weight:700;color:var(--text)}
+.camp-badge{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.camp-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.camp-metric{text-align:center;padding:8px 4px;border-radius:6px;background:var(--bg)}
+.camp-metric-val{font-size:16px;font-weight:700;color:var(--text)}
+.camp-metric-label{font-size:9px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.03em;margin-top:2px}
+
+/* ===== DAY/HOUR HEATMAP ===== */
+.dh-grid{display:grid;grid-template-columns:40px repeat(24,1fr);gap:2px}
+.dh-cell{aspect-ratio:1;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:transparent;transition:all 0.2s;cursor:default}
+.dh-cell:hover{color:var(--text);transform:scale(1.3);z-index:1}
+.dh-label{font-size:9px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center}
+.dh-hour{font-size:8px;color:var(--text-secondary);text-align:center;font-weight:600}
+
+/* ===== AGING ANALYSIS ===== */
+.aging-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--card-border)}
+.aging-row:last-child{border-bottom:none}
+.aging-label{width:80px;font-size:12px;font-weight:600;color:var(--text);flex-shrink:0}
+.aging-bars{flex:1;display:flex;gap:2px;height:24px;border-radius:4px;overflow:hidden}
+.aging-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;transition:width 0.4s;min-width:0;overflow:hidden}
+.aging-legend{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+.aging-legend-item{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--text-secondary)}
+.aging-legend-dot{width:10px;height:10px;border-radius:3px}
+
+/* ===== SEGMENT CARDS ===== */
+.seg-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-height:340px;overflow-y:auto}
+.seg-card{padding:14px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);cursor:pointer;transition:all 0.15s}
+.seg-card:hover{border-color:var(--purple);transform:translateY(-1px);box-shadow:var(--shadow)}
+.seg-icon{font-size:22px;margin-bottom:6px}
+.seg-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.seg-desc{font-size:11px;color:var(--text-secondary);margin-bottom:8px;line-height:1.4}
+.seg-count{font-size:18px;font-weight:700;color:var(--purple);margin-bottom:4px}
+.seg-export{font-size:10px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.04em}
+
+/* ===== WIN PROBABILITY ===== */
+.wp-list{display:grid;gap:8px;max-height:340px;overflow-y:auto}
+.wp-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)}
+.wp-pct{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;border:3px solid}
+.wp-info{flex:1;min-width:0}
+.wp-name{font-size:13px;font-weight:700;color:var(--text)}
+.wp-signals{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.wp-signal{padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
+
+/* ===== ENGAGEMENT TIMELINE (weekly) ===== */
+.et-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px}
+.et-week{display:flex;flex-direction:column;align-items:center;gap:2px}
+.et-bar-wrap{width:100%;height:80px;display:flex;align-items:flex-end;justify-content:center}
+.et-bar{width:70%;border-radius:3px 3px 0 0;transition:height 0.3s}
+.et-label{font-size:8px;font-weight:600;color:var(--text-secondary)}
+
+@media(max-width:1024px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:1fr}
+  .analytics-grid.tri{grid-template-columns:1fr}
+  .main{padding:16px}
+  .header{padding:20px 16px}
+  .matrix-row,.session-grid{grid-template-columns:repeat(2,1fr)}
+  .ratio-grid{grid-template-columns:repeat(3,1fr)}
+  .geo-cluster-grid{grid-template-columns:1fr}
+  .seg-grid{grid-template-columns:1fr}
+  .camp-metrics{grid-template-columns:repeat(2,1fr)}
+  .dh-grid{font-size:7px}
+}
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:1fr}
+  .filters-bar{flex-direction:column;align-items:stretch}
+  .filter-search{margin-left:0}
+  .matrix-row,.session-grid,.seller-grid{grid-template-columns:1fr 1fr}
+  .listing-cards-grid{grid-template-columns:1fr}
+  .fb-label{width:90px;font-size:11px}
+  .prop-grid{grid-template-columns:1fr}
+  .heatmap-grid{grid-template-columns:repeat(30,1fr)}
+  .ratio-grid{grid-template-columns:1fr}
+  .camp-metrics{grid-template-columns:repeat(2,1fr)}
+  .seg-grid{grid-template-columns:1fr}
+  .geo-cluster-grid{grid-template-columns:1fr}
+}
+
+/* ===== WRITE-BACK MODALS ===== */
+.wb-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.wb-overlay.open{display:flex}
+.wb-modal{background:var(--card);border-radius:16px;padding:28px;width:90%;max-width:480px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);max-height:85vh;overflow-y:auto}
+.wb-modal h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.wb-modal label{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px}
+.wb-modal input,.wb-modal textarea,.wb-modal select{width:100%;padding:10px 14px;border:2px solid var(--card-border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--card);margin-bottom:14px;transition:border-color 0.2s}
+.wb-modal input:focus,.wb-modal textarea:focus,.wb-modal select:focus{outline:none;border-color:var(--blue)}
+.wb-modal textarea{min-height:100px;resize:vertical}
+.wb-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.wb-btn{padding:10px 20px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;border:none;transition:all 0.2s}
+.wb-btn.primary{background:var(--blue);color:#fff}.wb-btn.primary:hover{background:#2563eb}
+.wb-btn.success{background:var(--green);color:#fff}.wb-btn.success:hover{background:#16a34a}
+.wb-btn.danger{background:var(--red);color:#fff}.wb-btn.danger:hover{background:#dc2626}
+.wb-btn.ghost{background:var(--bg);color:var(--text)}.wb-btn.ghost:hover{background:var(--card-border)}
+.wb-tag-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.wb-tag-chip{padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;border:2px solid var(--card-border);cursor:pointer;transition:all 0.15s;background:var(--card);color:var(--text)}
+.wb-tag-chip:hover,.wb-tag-chip.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.wb-result{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;margin-top:10px;display:none}
+.wb-result.ok{display:block;background:var(--green-light);color:var(--green-dark)}
+.wb-result.err{display:block;background:var(--red-light);color:var(--red)}
+
+/* ===== NOTIFICATION BELL ===== */
+.notif-badge{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #0D3B4F;display:none}
+.notif-badge.show{display:flex}
+.notif-panel{position:fixed;top:70px;right:24px;width:360px;max-height:70vh;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:8000;display:none;overflow:hidden}
+.notif-panel.open{display:block}
+.notif-header{padding:16px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between}
+.notif-header h4{font-size:14px;font-weight:700;color:var(--text)}
+.notif-list{max-height:60vh;overflow-y:auto;padding:8px}
+.notif-item{display:flex;gap:12px;padding:12px;border-radius:var(--radius-sm);transition:background 0.15s;cursor:pointer}
+.notif-item:hover{background:var(--bg)}
+.notif-item.unread{background:rgba(59,130,246,0.05);border-left:3px solid var(--blue)}
+.notif-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.notif-content{flex:1;min-width:0}
+.notif-title{font-size:12px;font-weight:700;color:var(--text)}
+.notif-desc{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.notif-time{font-size:10px;color:var(--text-secondary);margin-top:4px}
+
+/* ===== QUICK ACTION BAR (in lead row) ===== */
+.qa-bar{display:flex;gap:4px;flex-wrap:wrap}
+.qa-btn{padding:4px 8px;border-radius:4px;border:1px solid var(--card-border);background:var(--card);font-size:10px;font-weight:600;cursor:pointer;transition:all 0.15s;color:var(--text-secondary);white-space:nowrap}
+.qa-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.qa-btn.tag-btn:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-light)}
+.qa-btn.task-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+.qa-btn.wf-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-light)}
+
+/* ===== EMAIL/SMS PREVIEW ===== */
+.msg-preview{background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-top:10px;font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;border:1px solid var(--card-border)}
+.msg-tabs{display:flex;gap:4px;margin-bottom:12px}
+.msg-tab{padding:6px 14px;border-radius:var(--radius-xs);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--card-border);background:var(--card);color:var(--text-secondary);transition:all 0.15s}
+.msg-tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* ===== AGENT PANEL ===== */
+.agent-grid{display:grid;gap:10px;max-height:380px;overflow-y:auto}
+.agent-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);transition:all 0.15s}
+.agent-row:hover{border-color:var(--blue)}
+.agent-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+.agent-info{flex:1;min-width:0}
+.agent-name{font-size:13px;font-weight:700;color:var(--text)}
+.agent-stats{display:flex;gap:8px;margin-top:4px;font-size:11px;color:var(--text-secondary)}
+.agent-stat{padding:2px 6px;border-radius:4px}
+
+/* ===== ROI CALCULATOR ===== */
+.roi-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.roi-input-group{position:relative}
+.roi-input-group label{font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:4px}
+.roi-input-group input{width:100%;padding:8px 10px;border:1px solid var(--card-border);border-radius:var(--radius-xs);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--text)}
+.roi-result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.roi-result-card{padding:12px;border-radius:var(--radius-sm);background:var(--bg);text-align:center}
+.roi-result-card .rr-value{font-size:22px;font-weight:700;letter-spacing:-0.02em}
+.roi-result-card .rr-label{font-size:10px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;margin-top:2px}
+
+/* ===== COMPARE TOGGLE ===== */
+.compare-toggle{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-weight:600;color:var(--text-secondary)}
+.compare-toggle input[type="checkbox"]{accent-color:var(--blue)}
+
+/* ===== LIFECYCLE (in accordion) ===== */
+.lifecycle-wrap{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding:4px 0}
+.lc-step{flex:1;min-width:60px;text-align:center;padding:10px 6px;position:relative}
+.lc-step::after{content:'';position:absolute;top:18px;right:-1px;width:calc(100% - 20px);height:2px;background:var(--card-border)}
+.lc-step:last-child::after{display:none}
+.lc-dot{width:12px;height:12px;border-radius:50%;margin:0 auto 6px;border:2px solid var(--card-border);background:var(--card)}
+.lc-dot.active{background:var(--green);border-color:var(--green)}
+.lc-dot.current{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,0.2)}
+.lc-label{font-size:9px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.03em}
+.lc-date{font-size:8px;color:var(--text-secondary);margin-top:2px}
+
+/* ===== MOBILE CARD VIEW ===== */
+@media(max-width:768px){
+  .lead-row-grid{display:flex!important;flex-direction:column!important;gap:8px!important;padding:16px!important}
+  .lead-row-grid .td-name{font-size:15px}
+  .lead-row-grid .td-contact{font-size:12px}
+  .qa-bar{margin-top:8px}
+  .ratio-grid{grid-template-columns:1fr}
+  .roi-inputs{grid-template-columns:1fr}
+  .roi-result-grid{grid-template-columns:1fr}
+  .notif-panel{width:calc(100vw - 16px);right:8px}
+  .wb-modal{width:95%;padding:20px}
+  .agent-row{flex-wrap:wrap}
+  .lifecycle-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+}
+
+/* ===== V4: KANBAN PIPELINE BOARD ===== */
+.kanban-wrap{display:flex;gap:12px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch;min-height:400px}
+.kanban-col{flex:0 0 220px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--card-border);display:flex;flex-direction:column;max-height:500px}
+.kanban-col-header{padding:12px 14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:1}
+.kanban-col-header .kc-count{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,0.08)}
+.kanban-col-body{flex:1;padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:60px}
+.kanban-col-body.drag-over{background:rgba(59,130,246,0.08);border:1px dashed var(--blue);border-radius:var(--radius-sm)}
+.kanban-card{padding:10px 12px;border-radius:var(--radius-sm);background:var(--card);border:1px solid var(--card-border);cursor:grab;transition:all 0.15s;user-select:none}
+.kanban-card:active{cursor:grabbing;box-shadow:0 8px 25px rgba(0,0,0,0.15);transform:rotate(2deg)}
+.kanban-card:hover{border-color:var(--blue);transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.kanban-card .kc-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kanban-card .kc-score{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.kanban-card .kc-meta{font-size:10px;color:var(--text-secondary);margin-top:4px;display:flex;gap:8px}
+.kanban-card.dragging{opacity:0.4;transform:rotate(3deg)}
+
+/* ===== V4: SUB-ACCOUNT SWITCHER ===== */
+.acct-switcher{display:flex;align-items:center;gap:8px;margin-left:auto}
+.acct-select{padding:6px 12px;border:2px solid rgba(255,255,255,0.2);border-radius:var(--radius-sm);background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.acct-select:hover{border-color:rgba(255,255,255,0.4)}
+.acct-select option{background:var(--card);color:var(--text)}
+.acct-label{font-size:11px;color:rgba(255,255,255,0.6);font-weight:500}
+
+/* ===== V4: COHORT ANALYSIS ===== */
+.cohort-table{width:100%;border-collapse:collapse;font-size:11px}
+.cohort-table th{padding:8px 6px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--card-border);text-align:center;font-size:10px}
+.cohort-table td{padding:6px;text-align:center;border-bottom:1px solid var(--card-border)}
+.cohort-cell{display:inline-block;padding:4px 8px;border-radius:4px;font-weight:600;font-size:11px;min-width:40px}
+
+/* ===== V4: ATTRIBUTION FUNNEL ===== */
+.attr-funnel{display:flex;flex-direction:column;gap:0;overflow:hidden}
+.attr-stage{padding:12px;border-radius:var(--radius-sm);text-align:center;font-weight:600;transition:all 0.3s;cursor:default;position:relative}
+.attr-stage .af-label{font-size:12px;font-weight:700;color:#fff}
+.attr-stage .af-count{font-size:20px;font-weight:800;color:#fff;margin-top:2px}
+.attr-stage .af-pct{font-size:10px;color:rgba(255,255,255,0.8);margin-top:2px}
+.attr-arrow{color:var(--text-secondary);font-size:10px}
+
+/* ===== V4: SPEED-TO-LEAD MONITOR ===== */
+.stl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stl-card{padding:14px;border-radius:var(--radius-sm);text-align:center;border:1px solid var(--card-border);background:var(--card)}
+.stl-value{font-size:28px;font-weight:800;letter-spacing:-0.02em}
+.stl-label{font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-top:4px}
+.stl-alert-list{display:grid;gap:6px;margin-top:12px;max-height:200px;overflow-y:auto}
+.stl-alert{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);font-size:12px}
+.stl-alert.urgent{border-color:var(--red);background:var(--red-light)}
+
+/* ===== V4: LISTING MATCH ===== */
+.match-grid{display:grid;gap:8px;max-height:380px;overflow-y:auto}
+.match-card{display:flex;gap:14px;padding:14px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card);transition:all 0.15s}
+.match-card:hover{border-color:var(--green);transform:translateY(-1px)}
+.match-score{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;color:#fff}
+.match-info{flex:1;min-width:0}
+.match-name{font-size:13px;font-weight:700;color:var(--text)}
+.match-detail{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.match-listings{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.match-listing{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green)}
+
+/* ===== V4: DUPE MERGE MODAL ===== */
+.dupe-merge-pair{display:flex;gap:16px;margin-bottom:16px}
+.dupe-merge-card{flex:1;padding:14px;border-radius:var(--radius-sm);border:2px solid var(--card-border);background:var(--card);cursor:pointer;transition:all 0.15s}
+.dupe-merge-card:hover,.dupe-merge-card.primary{border-color:var(--blue);background:var(--blue-light)}
+.dupe-merge-card .dmc-label{font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;margin-bottom:6px}
+.dupe-merge-card .dmc-name{font-size:14px;font-weight:700;color:var(--text)}
+.dupe-merge-card .dmc-detail{font-size:11px;color:var(--text-secondary);margin-top:4px}
+
+/* ===== V4: SCHEDULING MODAL ===== */
+.sched-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
+.sched-slot{padding:10px;border-radius:var(--radius-sm);border:2px solid var(--card-border);text-align:center;cursor:pointer;transition:all 0.15s}
+.sched-slot:hover,.sched-slot.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.sched-slot .ss-day{font-size:11px;font-weight:700;text-transform:uppercase}
+.sched-slot .ss-time{font-size:14px;font-weight:800;margin-top:2px}
+
+/* ===== V4: AUTO-TAG LOG ===== */
+.autotag-log{display:grid;gap:4px;max-height:200px;overflow-y:auto;font-size:11px}
+.autotag-entry{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;background:var(--bg)}
+.autotag-entry .at-time{color:var(--text-secondary);font-size:10px;width:60px;flex-shrink:0}
+.autotag-entry .at-tag{padding:2px 6px;border-radius:3px;font-weight:600;font-size:10px}
+
+/* ===== V4: SSE LIVE INDICATOR ===== */
+.live-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.live-dot.connected{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.5);animation:livePulse 2s infinite}
+.live-dot.disconnected{background:#ef4444}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ===== V4: LAYOUT CUSTOMIZER ===== */
+.layout-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0}
+.layout-toggle{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--card);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.layout-toggle:hover{border-color:var(--blue)}
+.layout-toggle input{accent-color:var(--blue)}
+.layout-toggle.hidden-panel{opacity:0.5}
+
+/* ===== V4: RESPONSIVE KANBAN ===== */
+@media(max-width:768px){
+  .kanban-wrap{flex-direction:column}
+  .kanban-col{flex:none;width:100%;max-height:none}
+  .kanban-col-body{max-height:200px}
+  .stl-grid{grid-template-columns:1fr}
+  .sched-slots{grid-template-columns:repeat(2,1fr)}
+  .dupe-merge-pair{flex-direction:column}
+  .cohort-table{font-size:9px}
+  .attr-funnel{gap:0}
+  .layout-grid{grid-template-columns:repeat(2,1fr)}
+  .acct-switcher{margin-left:0;margin-top:8px}
+}
+/* =============================== V5: MORNING BRIEFING =============================== */
+.briefing-panel{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:24px;overflow:hidden;transition:all 0.3s}
+.briefing-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;background:linear-gradient(135deg,#0D3B4F 0%,#1E7A9C 100%);color:#fff}
+.briefing-header h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.briefing-toggle{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:18px;transition:transform 0.3s}
+.briefing-toggle.collapsed{transform:rotate(-90deg)}
+.briefing-body{padding:0;max-height:600px;overflow:hidden;transition:max-height 0.4s ease,padding 0.3s}
+.briefing-body.collapsed{max-height:0;padding:0}
+.briefing-body-inner{padding:16px 20px}
+.briefing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.briefing-card{border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 16px;background:var(--bg);transition:border-color 0.2s}
+.briefing-card:hover{border-color:var(--blue)}
+.briefing-card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.briefing-card-title.hot{color:var(--red)}
+.briefing-card-title.follow{color:var(--blue)}
+.briefing-card-title.cold{color:var(--amber)}
+.briefing-card-title.showing{color:var(--green)}
+.briefing-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-xs);margin-bottom:4px;transition:background 0.15s}
+.briefing-item:hover{background:var(--card)}
+.briefing-item .b-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+.briefing-item .b-info{flex:1;min-width:0}
+.briefing-item .b-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.briefing-item .b-detail{font-size:11px;color:var(--text-secondary)}
+.briefing-item .b-action{padding:4px 10px;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--card);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.briefing-item .b-action:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.briefing-empty{padding:12px;text-align:center;font-size:12px;color:var(--text-secondary)}
+
+/* =============================== V5: FOLLOW-UP QUEUE =============================== */
+.fuq-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.fuq-overlay.open{display:flex}
+.fuq-panel{background:var(--card);border-radius:var(--radius);width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.fuq-header{padding:20px 24px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between}
+.fuq-header h3{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+.fuq-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-secondary)}
+.fuq-progress{padding:12px 24px;background:var(--bg);display:flex;align-items:center;gap:12px;font-size:13px;font-weight:600;color:var(--text-secondary)}
+.fuq-progress-bar{flex:1;height:6px;background:var(--card-border);border-radius:3px;overflow:hidden}
+.fuq-progress-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.4s ease}
+.fuq-lead{padding:24px}
+.fuq-lead-info{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.fuq-avatar{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;flex-shrink:0}
+.fuq-lead-name{font-size:20px;font-weight:700;color:var(--text)}
+.fuq-lead-detail{font-size:13px;color:var(--text-secondary);margin-top:2px}
+.fuq-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.fuq-meta-item{text-align:center;padding:10px;background:var(--bg);border-radius:var(--radius-sm)}
+.fuq-meta-item .val{font-size:20px;font-weight:700}
+.fuq-meta-item .lbl{font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600}
+.fuq-dispositions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+.fuq-disp{padding:12px 14px;border:2px solid var(--card-border);border-radius:var(--radius-sm);background:var(--card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s}
+.fuq-disp:hover{border-color:var(--blue);background:var(--blue-light)}
+.fuq-disp.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.fuq-note{width:100%;padding:10px 14px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;min-height:60px;background:var(--card);color:var(--text);margin-bottom:16px}
+.fuq-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid var(--card-border)}
+.fuq-nav-btn{padding:10px 20px;border-radius:var(--radius-sm);font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--card-border);background:var(--card);color:var(--text);transition:all 0.2s}
+.fuq-nav-btn:hover{border-color:var(--text)}
+.fuq-nav-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.fuq-nav-btn.primary:hover{background:var(--green-dark)}
+.fuq-nav-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+/* =============================== V5: SHOWING OUTCOME TRACKER =============================== */
+.sot-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.sot-overlay.open{display:flex}
+.sot-panel{background:var(--card);border-radius:var(--radius);width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.sot-header{padding:20px 24px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between}
+.sot-header h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sot-body{padding:24px}
+.sot-lead-info{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px;background:var(--bg);border-radius:var(--radius-sm)}
+.sot-outcomes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.sot-outcome{padding:14px;border:2px solid var(--card-border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;font-weight:600;font-size:13px}
+.sot-outcome:hover{border-color:var(--blue)}
+.sot-outcome.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.sot-note{width:100%;padding:10px 14px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;min-height:50px;background:var(--card);color:var(--text)}
+.sot-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* =============================== V5: ENHANCED BULK ACTIONS =============================== */
+.bulk-bar{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--radius);box-shadow:0 8px 30px rgba(0,0,0,0.3);z-index:50;display:none;align-items:center;gap:12px;font-size:13px;font-weight:600;min-width:500px;justify-content:center;flex-wrap:wrap}
+.bulk-bar.show{display:flex}
+
+/* =============================== V5: NOTIFICATION SOUND INDICATOR =============================== */
+.sound-indicator{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.sound-indicator.on{color:var(--green)}
+.sound-indicator.off{color:var(--text-secondary)}
+
+/* =============================== V5: ENHANCED PDF =============================== */
+.pdf-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.pdf-overlay.open{display:flex}
+.pdf-panel{background:var(--card);border-radius:var(--radius);width:700px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:32px}
+
+/* =============================== V5: AGENT WORKLOAD CHART =============================== */
+.workload-bar{display:flex;align-items:flex-end;gap:4px;height:80px;padding:4px 0}
+.workload-col{flex:1;min-width:20px;border-radius:4px 4px 0 0;position:relative;transition:all 0.3s;cursor:pointer}
+.workload-col:hover{opacity:0.8}
+.workload-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;color:var(--text-secondary)}
+.workload-val{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700}
+
+/* =============================== V5: ROI CLOSINGS =============================== */
+.roi-closing-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--radius-xs);border:1px solid var(--card-border);margin-bottom:4px}
+.roi-closing-bar{flex:1;height:6px;background:var(--card-border);border-radius:3px;overflow:hidden}
+.roi-closing-fill{height:100%;border-radius:3px}
+
+/* Page Navigation */
+.page-nav { display:flex; gap:8px; margin-left:16px; }
+.page-nav a {
+  display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;
+  font-size:12px;font-weight:600;text-decoration:none;transition:all 0.2s;
+  border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);
+}
+.page-nav a:hover { background:rgba(255,255,255,0.15);color:#fff; }
+.page-nav a.active { background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.4); }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px"><h1>The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:400">Ylopo Analytics</sup></h1>
+    <span id="liveIndicator" style="font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center"><span class="live-dot disconnected" id="liveDot"></span> <span id="liveText">Polling</span></span>
+    <div class="acct-switcher">
+      <span class="acct-label">Account:</span>
+      <select class="acct-select" id="acctSelect" onchange="switchSubAccount(this.value)">
+        <option value="default">The Listing Team (Primary)</option>
+        <option value="cct">Complete Choice Title</option>
+        <option value="nextphase">NextPhase Solar</option>
+        <option value="takiteztiki">TakItEzTiki</option>
+        <option value="1stfinancial">1st Financial</option>
+        <option value="aldecoa">Aldecoa</option>
+        <option value="scottlehr">Scott Lehr PA</option>
+        <option value="1stop">1Stop</option>
+        <option value="tejeda">Tejeda Real Estate</option>
+        <option value="houserealty">House Realty</option>
+      </select>
+    </div>
+      <div class="page-nav">
+      <a href="/dashboard/ylopo-contacts">\u{1F4CB} Contacts</a>
+      <a href="/dashboard/ylopo-analytics" class="active">\u{1F4CA} Analytics</a>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="hdr-btn" title="Kanban Board" onclick="toggleKanban()" style="font-size:16px">\u{1F4CB}</button>
+    <button class="hdr-btn" title="Follow-Up Queue" onclick="openFollowUpQueue('hot')" style="font-size:16px">\u{1F4DE}</button>
+    <button class="hdr-btn" title="Layout Customizer" onclick="toggleLayoutPanel()" style="font-size:16px">\u{1F9E9}</button>
+    <button class="hdr-btn" title="Print / PDF Report" onclick="printReport()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+    </button>
+    <button class="hdr-btn" title="Smart Lists" onclick="toggleSmartLists()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+    </button>
+    <button class="hdr-btn" id="darkToggleBtn" title="Toggle Dark Mode" onclick="toggleDark()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+    </button>
+    <button class="hdr-btn" title="Settings" onclick="toggleSettings()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </button>
+    <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
+      <option value="30" style="color:#111">30 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="30" selected style="color:#111">30 Days</option>
+      <option value="180" style="color:#111">6 Months</option>
+      <option value="365" style="color:#111">1 Year</option>
+    </select>
+    <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600">60d</span>
+    <button class="hdr-btn" title="Refresh Data" onclick="loadData()" style="font-size:16px;background:rgba(34,197,94,0.2)">\u{1F504}</button>
+    <button class="hdr-btn" title="Field Diagnostics" onclick="showDiagnostics()" style="font-size:16px">\u{1F52C}</button>
+    <button class="hdr-btn" title="Notifications" onclick="toggleNotifPanel()" style="position:relative">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+      <span class="notif-badge" id="notifBadge">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-overlay" id="settingsOverlay" onclick="toggleSettings()"></div>
+<div class="settings-panel" id="settingsPanel">
+  <h3>Settings <button onclick="toggleSettings()">\u2715</button></h3>
+  <div class="setting-row"><label>Dark Mode</label><label class="toggle"><input type="checkbox" id="darkCheck" onchange="toggleDark()"><span class="slider"></span></label></div>
+  <div class="setting-row"><label>Auto Refresh Data</label><label class="toggle"><input type="checkbox" id="autoRefreshCheck" checked onchange="toggleAutoRefresh()"><span class="slider"></span></label></div>
+  <div class="setting-row"><label>\u{1F514} Hot Lead Sound</label><label class="toggle"><input type="checkbox" id="notifSoundCheck" checked onchange="toggleNotifSound()"><span class="slider"></span></label></div>
+  <div class="setting-row">
+    <label>Leads Per Page</label>
+    <select class="setting-select" id="perPageSelect" onchange="changePerPage()">
+      <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
+    </select>
+  </div>
+</div>
+
+<!-- NOTES MODAL -->
+<div class="notes-modal-bg" id="notesModalBg" onclick="if(event.target===this)closeNotes()">
+  <div class="notes-modal">
+    <h3>\u{1F4DD} Lead Notes <span id="notesLeadName"></span><button onclick="closeNotes()">\u2715</button></h3>
+    <textarea id="noteInput" placeholder="Add a note about this lead..."></textarea>
+    <button class="notes-save" onclick="saveNote()">Save Note</button>
+    <div class="notes-list" id="notesList"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- V5: MORNING BRIEFING -->
+  <div class="briefing-panel" id="briefingPanel">
+    <div class="briefing-header" onclick="toggleBriefing()">
+      <h3>\u2600\uFE0F Good Morning \u2014 Your Day at a Glance</h3>
+      <button class="briefing-toggle" id="briefingToggle">\u25BC</button>
+    </div>
+    <div class="briefing-body" id="briefingBody">
+      <div class="briefing-body-inner">
+        <div class="briefing-grid" id="briefingGrid">
+          <div class="briefing-empty">Loading your daily briefing...</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="fuq-nav-btn" onclick="openFollowUpQueue('hot')">\u{1F525} Work Hot Leads</button>
+          <button class="fuq-nav-btn" onclick="openFollowUpQueue('followup')">\u{1F4DE} Work Follow-Ups</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-value" id="mTotal">\u2014</div><div class="stat-sub positive" id="subToday"><span>loading...</span></div></div>
+    <div class="stat-card"><div class="stat-label">New Leads (7d)</div><div class="stat-value" id="mNew7d">\u2014</div><div class="stat-sub hot" id="subHot"><span>\u{1F525} loading...</span></div></div>
+    <div class="stat-card"><div class="stat-label">\u26A0\uFE0F Stale Leads</div><div class="stat-value" id="mResponseTime">\u2014</div><div class="stat-sub info" id="subResponse"><span>loading...</span></div></div>
+    <div class="stat-card"><div class="stat-label">Engagement Score</div><div class="stat-value" id="mEngagement">\u2014</div><div class="stat-sub positive" id="subEngagement"><span>loading...</span></div></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card"><h3>Lead Status Distribution</h3><div class="chart-wrap"><canvas id="donutChart"></canvas></div></div>
+    <div class="chart-card"><h3>Daily Lead Activity</h3><div class="chart-wrap"><canvas id="activityChart"></canvas></div></div>
+  </div>
+
+  <!-- LOAD PROGRESS (shows during pagination) -->
+  <div id="loadProgress" style="display:none;margin-bottom:16px">
+    <div class="load-progress">
+      <div class="load-progress-bar"><div class="load-progress-fill" id="loadFill" style="width:0%"></div></div>
+      <div class="load-progress-text" id="loadText">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 1 \u2014 Pipeline Funnel + Lead Velocity -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F4CA}</span> Pipeline Analytics</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F53B} Lead Pipeline Funnel</h3>
+        <div id="funnelWrap" class="funnel-wrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4C8} Lead Velocity (Weekly)</h3>
+        <div class="chart-wrap"><canvas id="velocityChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 2 \u2014 Source Performance + Price Distribution -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F3AF}</span> Lead Intelligence</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4E1} Source Performance</h3>
+        <div id="sourceTableWrap" style="max-height:280px;overflow-y:auto"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4B0} Price Range Distribution</h3>
+        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 3 \u2014 Engagement Heatmap (full width) -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F525}</span> 60-Day Engagement Heatmap</h2>
+    <div class="analytics-card full">
+      <div id="heatmapMonths" class="heatmap-months"></div>
+      <div class="heatmap-wrap"><div id="heatmapGrid" class="heatmap-grid"></div></div>
+      <div class="heatmap-legend">Less <div class="hm-box hm-0"></div><div class="hm-box hm-1"></div><div class="hm-box hm-2"></div><div class="hm-box hm-3"></div><div class="hm-box hm-4"></div> More</div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 4 \u2014 Geo Breakdown + Tag Cloud -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F30E}</span> Geographic & Tags</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4CD} Location Breakdown</h3>
+        <div class="chart-wrap"><canvas id="geoChart"></canvas></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3F7}\uFE0F Tag Cloud</h3>
+        <div id="tagCloudWrap" class="tag-cloud"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 5 \u2014 ROI by Source + Activity Timeline -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F4B5}</span> ROI & Activity</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4B0} ROI by Source <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="roiSummary"></span></h3>
+        <div id="roiTableWrap" style="max-height:340px;overflow-y:auto;border-radius:var(--radius-xs)"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u26A1 Live Activity Timeline <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="tlCount"></span></h3>
+        <div id="timelineWrap" style="max-height:340px;overflow-y:auto;border-radius:var(--radius-xs)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 6 \u2014 Hot Alerts + Going Cold -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F6A8}</span> Lead Alerts</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F525} Hot Lead Alerts <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="hotAlertCount"></span></h3>
+        <div id="hotAlertsWrap" class="alerts-panel"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F9CA} Going Cold \u2014 Act Now <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="coldCount"></span></h3>
+        <div id="coldLeadsWrap" class="cold-panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 7 \u2014 Engagement Ratios + Matrix Leaderboard -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F4D0}</span> Engagement Quality</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4CA} Engagement Ratios</h3>
+        <div id="ratioWrap" class="ratio-grid"></div>
+        <div style="margin-top:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Save-to-View Ratio by Lead</div>
+          <div id="ratioLeadsWrap" style="max-height:200px;overflow-y:auto;display:grid;gap:6px"></div>
+        </div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3C6} Matrix Leaderboard <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="lbCount"></span></h3>
+        <div id="leaderboardWrap" class="lb-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 8 \u2014 Conversion Funnel by Source + Geo Clusters -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F5FA}\uFE0F</span> Conversion & Geography</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F500} Conversion Funnel by Source</h3>
+        <div id="srcFunnelWrap" class="src-funnel"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4CD} Search Area Clusters <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="geoClusterCount"></span></h3>
+        <div id="geoClustersWrap" class="geo-cluster-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 9 \u2014 Response Time + Price Overlap -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u23F1\uFE0F</span> Response & Pricing Intelligence</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4DE} Response Time Tracker</h3>
+        <div id="responseTimeWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4B5} Budget vs Activity <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="budgetCount"></span></h3>
+        <div class="chart-wrap"><canvas id="budgetScatterChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 10 \u2014 Pipeline Value + Score Distribution -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F48E}</span> Pipeline Value & Lead Quality</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4B0} Pipeline Value Estimator <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="pvTotal"></span></h3>
+        <div id="pipelineValueWrap" style="display:grid;gap:10px"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4CA} Lead Score Distribution <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="scoreDistInfo"></span></h3>
+        <div id="scoreDistWrap"></div>
+        <div id="scoreInsights" style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 11 \u2014 Campaign Comparison + Day/Hour Heatmap -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F4E1}</span> Campaign Intelligence</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3C6} Source Head-to-Head <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="campCount"></span></h3>
+        <div id="campaignCompWrap" class="camp-grid"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F550} Activity by Day & Hour</h3>
+        <div id="dayHourWrap" style="overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 12 \u2014 Lead Aging + Win Probability -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F3AF}</span> Lead Health & Predictions</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u23F3 Lead Aging Analysis <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="agingInfo"></span></h3>
+        <div id="agingWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3B0} Win Probability Estimator <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="wpInfo"></span></h3>
+        <div id="winProbWrap" class="wp-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 13 \u2014 Retargeting Segments + Weekly Engagement Trend -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F3AA}</span> Segments & Trends</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3AF} Smart Retargeting Segments <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="segInfo"></span></h3>
+        <div id="segmentsWrap" class="seg-grid"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4C8} 12-Week Engagement Trend</h3>
+        <div class="chart-wrap"><canvas id="weeklyTrendChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 14 \u2014 Agent Performance + ROI Calculator -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F465}</span> Team & ROI</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3C5} Agent Performance <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="agentInfo"></span></h3>
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">Workload Balance</div>
+          <div class="workload-bar" id="workloadBar"></div>
+        </div>
+        <div id="agentPanelWrap" class="agent-grid"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F9EE} Source ROI Calculator</h3>
+        <div class="roi-inputs">
+          <div class="roi-input-group"><label>Avg Sale Price ($)</label><input type="number" id="roiAvgPrice" value="450000" onchange="calcROI()"></div>
+          <div class="roi-input-group"><label>Commission (%)</label><input type="number" id="roiCommission" value="3" step="0.25" onchange="calcROI()"></div>
+          <div class="roi-input-group"><label>Ylopo Monthly Cost ($)</label><input type="number" id="roiYlopoCost" value="500" onchange="calcROI()"></div>
+          <div class="roi-input-group"><label>Other Ad Spend ($)</label><input type="number" id="roiAdSpend" value="0" onchange="calcROI()"></div>
+        </div>
+        <div id="roiCalcResults" class="roi-result-grid"></div>
+        <div id="roiBySourceCalc" style="margin-top:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 15 \u2014 Lead Lifecycle + Comparative Periods -->
+  <div class="analytics-section">
+    <h2><span class="emoji">\u{1F504}</span> Lifecycle & Comparisons 
+      <span class="compare-toggle"><input type="checkbox" id="compareToggle" onchange="toggleComparePeriod()"> Compare to last month</span>
+    </h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F5D3}\uFE0F Lead Lifecycle Stages</h3>
+        <div id="lifecycleWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4CA} Period Comparison <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="compareInfo">Current Period</span></h3>
+        <div id="compareWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 16 \u2014 Kanban Pipeline Board -->
+  <div class="analytics-section" id="section-kanban" style="display:none">
+    <h2><span class="emoji">\u{1F4CB}</span> Pipeline Kanban Board <button class="wb-btn ghost" style="margin-left:auto;font-size:11px;padding:4px 10px" onclick="refreshKanban()">\u21BB Refresh</button></h2>
+    <div class="kanban-wrap" id="kanbanBoard"></div>
+  </div>
+
+  <!-- ANALYTICS: ROW 17 \u2014 Cohort Analysis + Attribution Funnel -->
+  <div class="analytics-section" id="section-cohort">
+    <h2><span class="emoji">\u{1F4CA}</span> Cohort Analysis & Attribution</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4C5} Monthly Cohort Analysis</h3>
+        <div id="cohortWrap" style="overflow-x:auto"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F500} Attribution Funnel</h3>
+        <div id="attrFunnelWrap" class="attr-funnel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 18 \u2014 Speed to Lead + Listing Match -->
+  <!-- Listing Activity Cards -->
+  <div class="analytics-section" id="section-listings">
+    <h2><span class="emoji">\u{1F3D8}\uFE0F</span> Listing Activity</h2>
+    <div class="analytics-card full">
+      <h3>\u{1F4CB} Listings Viewed, Saved & Shared <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="listingCardCount"></span></h3>
+      <div id="listingCardsWrap" class="listing-cards-grid"></div>
+    </div>
+  </div>
+
+  <!-- Funnel Drill-Down Modal -->
+  <div class="funnel-modal-overlay" id="funnelModalOverlay" onclick="if(event.target===this)closeFunnelModal()">
+    <div class="funnel-modal">
+      <div class="funnel-modal-header">
+        <h3 id="funnelModalTitle">Stage Contacts</h3>
+        <button class="funnel-modal-close" onclick="closeFunnelModal()">\u2715</button>
+      </div>
+      <div class="funnel-modal-body" id="funnelModalBody"></div>
+    </div>
+  </div>
+
+  <div class="analytics-section" id="section-stl">
+    <h2><span class="emoji">\u26A1</span> Speed to Lead & Listing Match</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u23F1\uFE0F Speed-to-Lead Monitor <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="stlInfo"></span></h3>
+        <div id="stlMetrics" class="stl-grid"></div>
+        <div id="stlAlerts" class="stl-alert-list"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3E1} Listing Match Engine <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="matchInfo"></span></h3>
+        <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+          <input type="text" id="listingsInput" placeholder="Paste active listings: address|price|beds|baths (one per line)" style="flex:1;padding:8px 12px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--text)">
+          <button class="wb-btn primary" style="padding:8px 14px;font-size:11px" onclick="parseListings()">Load</button>
+        </div>
+        <div id="matchResults" class="match-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPANY LISTINGS MATRIX -->
+  <div class="analytics-section" id="section-company-listings">
+    <h2><span class="emoji">\u{1F3E2}</span> Company Active Listings</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card" style="grid-column:1/-1">
+        <h3>\u{1F4CA} Listing Inventory Matrix <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="companyListingInfo">0 listings</span></h3>
+        <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="companyListingInput" placeholder="Paste listings: address | price | beds | baths | status | MLS# (one per line)" style="flex:1;min-width:300px;padding:8px 12px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-size:12px;font-family:'DM Sans',sans-serif;background:var(--card);color:var(--text)">
+          <button class="wb-btn primary" style="padding:8px 14px;font-size:11px" onclick="loadCompanyListings()">Load</button>
+          <button class="wb-btn ghost" style="padding:8px 14px;font-size:11px" onclick="clearCompanyListings()">Clear</button>
+        </div>
+        <div class="stats-grid" id="companyListingStats" style="margin-bottom:14px;display:none">
+          <div class="mini-stat"><div class="mini-stat-value" id="clTotal">0</div><div class="mini-stat-label">Total</div></div>
+          <div class="mini-stat"><div class="mini-stat-value" id="clActive">0</div><div class="mini-stat-label">Active</div></div>
+          <div class="mini-stat"><div class="mini-stat-value" id="clPending">0</div><div class="mini-stat-label">Pending</div></div>
+          <div class="mini-stat"><div class="mini-stat-value" id="clAvgPrice">$0</div><div class="mini-stat-label">Avg Price</div></div>
+          <div class="mini-stat"><div class="mini-stat-value" id="clAvgDom">0</div><div class="mini-stat-label">Avg DOM</div></div>
+          <div class="mini-stat"><div class="mini-stat-value" id="clLeadMatches">0</div><div class="mini-stat-label">Lead Matches</div></div>
+        </div>
+        <div id="companyListingsTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 19 \u2014 Auto-Tagger + Dupe Management -->
+  <div class="analytics-section" id="section-autotag">
+    <h2><span class="emoji">\u{1F916}</span> Automation & Data Quality</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3F7}\uFE0F Smart Auto-Tagger 
+          <label style="margin-left:auto;font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="autoTagEnabled" onchange="toggleAutoTag()"> Enabled</label>
+        </h3>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">Auto-tags leads based on behavior. Writes directly to GHL when enabled.</div>
+        <div class="autotag-log" id="autoTagLog"><div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:11px">Enable auto-tagger to see activity log</div></div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="wb-btn primary" onclick="runAutoTagOnce()" style="font-size:11px;padding:6px 14px">\u25B6 Run Once</button>
+          <button class="wb-btn ghost" onclick="el('autoTagLog').innerHTML=''" style="font-size:11px;padding:6px 14px">Clear Log</button>
+        </div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F500} Duplicate Management <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)" id="dupeInfo"></span></h3>
+        <div id="dupeList" style="display:grid;gap:8px;max-height:340px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS: ROW 20 \u2014 Predictive Scoring + Stale Re-engagement -->
+  <div class="analytics-section" id="section-predict">
+    <h2><span class="emoji">\u{1F9E0}</span> Predictive Intelligence</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3AF} Predictive Lead Scoring</h3>
+        <div id="predictWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4A4} Stale Lead Re-engagement 
+          <label style="margin-left:auto;font-size:11px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="staleAutoEnabled"> Auto-trigger</label>
+        </h3>
+        <div id="staleReengageWrap" style="display:grid;gap:8px;max-height:340px;overflow-y:auto"></div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="wb-btn primary" onclick="runStaleReengage()" style="font-size:11px;padding:6px 14px">\u{1F504} Re-engage Selected</button>
+          <button class="wb-btn ghost" onclick="bulkNudgeStale()" style="font-size:11px;padding:6px 14px">\u{1F4AC} Nudge All Checked</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V5: ANALYTICS: ROW 21 \u2014 Showing Outcomes + ROI Closings -->
+  <div class="analytics-section" id="section-outcomes">
+    <h2><span class="emoji">\u{1F3E1}</span> Showing Outcomes & Closing ROI</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F3E1} Showing Outcome Tracker <span id="showingOutcomeInfo" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+        <div id="showingOutcomeWrap" style="max-height:340px;overflow-y:auto"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4B0} Lead Source ROI \u2014 Actual Closings <span id="roiClosingInfo" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+        <div id="roiClosingWrap" style="max-height:340px;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: Lead Response Timer -->
+  <div class="analytics-section" id="section-response-timer">
+    <h2><span class="emoji">\u23F1\uFE0F</span> Lead Response Timer</h2>
+    <div class="analytics-card full">
+      <h3>\u{1F6A8} Leads Awaiting First Contact <span id="responseTimerCount" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+      <div id="responseTimerWrap" style="max-height:400px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: AI Lead Insights -->
+  <div class="analytics-section" id="section-ai-insights">
+    <h2><span class="emoji">\u{1F9E0}</span> AI Lead Insights</h2>
+    <div class="analytics-card full">
+      <h3>\u{1F4A1} Smart Lead Summaries <span id="aiInsightCount" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+      <div id="aiInsightsWrap" style="max-height:400px;overflow-y:auto;display:grid;gap:6px"></div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: Smart Follow-Up Scheduler -->
+  <div class="analytics-section" id="section-smart-followup">
+    <h2><span class="emoji">\u{1F4C5}</span> Smart Follow-Up Scheduler</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u23F0 Best Time to Contact <span id="bestTimeInfo" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+        <div id="bestTimeWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4CB} Today's Call List <span id="callListCount" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+        <div id="callListWrap" style="max-height:340px;overflow-y:auto;display:grid;gap:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: Revenue Forecasting -->
+  <div class="analytics-section" id="section-revenue">
+    <h2><span class="emoji">\u{1F4B0}</span> Revenue Intelligence</h2>
+    <div class="analytics-grid tri">
+      <div class="analytics-card">
+        <h3>\u{1F4CA} Commission Forecast</h3>
+        <div id="commissionForecastWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3AF} Deal Probability</h3>
+        <div id="dealProbWrap" style="max-height:340px;overflow-y:auto;display:grid;gap:6px"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4B5} Cost Per Acquisition</h3>
+        <div id="cpaWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: Agent Rankings -->
+  <div class="analytics-section" id="section-agent-rankings">
+    <h2><span class="emoji">\u{1F3C6}</span> Agent Rankings & SLA</h2>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F947} Agent Leaderboard <span id="leaderboardPeriod" style="margin-left:auto;font-size:11px;color:var(--text-secondary)">This Month</span></h3>
+        <div id="agentLeaderboardWrap" style="max-height:380px;overflow-y:auto;display:grid;gap:8px"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u23F1\uFE0F SLA Tracker <span id="slaInfo" style="margin-left:auto;font-size:11px;color:var(--text-secondary)"></span></h3>
+        <div id="slaTrackerWrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTELLIGENCE: Market Intelligence -->
+  <div class="analytics-section" id="section-market-intel">
+    <h2><span class="emoji">\u{1F30E}</span> Market Intelligence</h2>
+    <div class="analytics-grid tri">
+      <div class="analytics-card">
+        <h3>\u{1F4C8} Price Trends by Area</h3>
+        <div id="priceTrendWrap" style="max-height:340px;overflow-y:auto;display:grid;gap:6px"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F4CA} Days on Market</h3>
+        <div id="domTrackerWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F514} Inventory Watch</h3>
+        <div id="inventoryWatchWrap" style="max-height:340px;overflow-y:auto;display:grid;gap:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAYOUT CUSTOMIZER PANEL -->
+  <div class="wb-overlay" id="layoutOverlay" onclick="if(event.target===this)closeLayoutPanel()">
+    <div class="wb-modal">
+      <h3>\u{1F9E9} Customize Dashboard Layout</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:14px">Show or hide analytics sections. Preferences are saved locally.</p>
+      <div class="layout-grid" id="layoutToggles"></div>
+      <div class="wb-btns">
+        <button class="wb-btn ghost" onclick="resetLayout()">Reset All</button>
+        <button class="wb-btn primary" onclick="closeLayoutPanel()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Funnel Drill-Down Modal -->
+  <div class="funnel-modal-overlay" id="funnelModalOverlay" onclick="if(event.target===this)closeFunnelModal()">
+    <div class="funnel-modal">
+      <div class="funnel-modal-header">
+        <h3 id="funnelModalTitle">Stage Contacts</h3>
+        <button class="funnel-modal-close" onclick="closeFunnelModal()">\u2715</button>
+      </div>
+      <div class="funnel-modal-body" id="funnelModalBody"></div>
+    </div>
+  </div>
+
+  <!-- WRITE-BACK MODAL -->
+  <div class="wb-overlay" id="wbOverlay" onclick="if(event.target===this)closeWriteBack()">
+    <div class="wb-modal" id="wbModal"></div>
+  </div>
+
+  <!-- EMAIL/SMS PREVIEW MODAL -->
+  <div class="wb-overlay" id="msgOverlay" onclick="if(event.target===this)closeMsgPreview()">
+    <div class="wb-modal" id="msgModal"></div>
+  </div>
+
+  <!-- PDF REPORT OVERLAY -->
+  <div class="pdf-overlay" id="pdfOverlay" onclick="if(event.target===this)closePdfReport()">
+    <div class="pdf-panel" id="pdfPanel"></div>
+  </div>
+
+  <!-- NOTIFICATION PANEL -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-header">
+      <h4>\u{1F514} Notifications</h4>
+      <button class="wb-btn ghost" onclick="clearNotifications()" style="padding:4px 10px;font-size:11px">Clear All</button>
+    </div>
+    <div class="notif-list" id="notifList"><div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">No new notifications</div></div>
+  </div>
+
+  <!-- DUPE MERGE MODAL -->
+  <div class="wb-overlay" id="dupeOverlay" onclick="if(event.target===this)closeDupeModal()">
+    <div class="wb-modal" id="dupeModal"></div>
+  </div>
+
+  <!-- SHOWING SCHEDULER MODAL -->
+  <div class="wb-overlay" id="schedOverlay" onclick="if(event.target===this)closeSchedModal()">
+    <div class="wb-modal" id="schedModal"></div>
+  </div>
+
+  <!-- V5: SHOWING OUTCOME TRACKER -->
+  <div class="sot-overlay" id="sotOverlay" onclick="if(event.target===this)closeShowingOutcome()">
+    <div class="sot-panel">
+      <div class="sot-header">
+        <h3>\u{1F3E1} Showing Outcome</h3>
+        <button class="fuq-close" onclick="closeShowingOutcome()">\u2715</button>
+      </div>
+      <div class="sot-body" id="sotBody"></div>
+    </div>
+  </div>
+
+  <!-- V5: FOLLOW-UP QUEUE OVERLAY -->
+  <div class="fuq-overlay" id="fuqOverlay" onclick="if(event.target===this)closeFollowUpQueue()">
+    <div class="fuq-panel">
+      <div class="fuq-header">
+        <h3>\u{1F4DE} Follow-Up Queue</h3>
+        <button class="fuq-close" onclick="closeFollowUpQueue()">\u2715</button>
+      </div>
+      <div class="fuq-progress">
+        <span id="fuqProgressText">0 / 0</span>
+        <div class="fuq-progress-bar"><div class="fuq-progress-fill" id="fuqProgressFill"></div></div>
+        <span id="fuqCompleteCount">0 done</span>
+      </div>
+      <div class="fuq-lead" id="fuqLeadContent">
+        <div class="briefing-empty">Select a queue to start...</div>
+      </div>
+      <div class="fuq-nav">
+        <button class="fuq-nav-btn" id="fuqPrev" onclick="fuqNavigate(-1)" disabled>\u2190 Previous</button>
+        <button class="fuq-nav-btn" onclick="fuqSkip()">Skip \u2192</button>
+        <button class="fuq-nav-btn primary" id="fuqSubmit" onclick="fuqSubmitDisposition()">Submit & Next \u2192</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+/* =============================== PAGE MODE =============================== */
+const PAGE_MODE = 'analytics'; // 'contacts' or 'analytics'
+
+// Guard functions - skip rendering if target element doesn't exist
+const _origEl = id => document.getElementById(id);
+
+/* =============================== CONFIG =============================== */
+const PROXY_URL = "https://thelistingteamproxy.reallistingteam.com";
+const GHL_LOCATION = "SeZr4YCwEZ50IcWqylkQ";
+const GHL_CONTACT_BASE = \`https://app.gohighlevel.com/v2/location/\${GHL_LOCATION}/contacts/detail/\`;
+
+let ALL_LEADS = [];
+let RAW_CONTACTS = {}; // Store raw contacts by id for accordion data
+let FILTERED = [];
+let SELECTED = new Set();
+let EXPANDED = new Set();
+let CURRENT_PAGE = 1;
+let PER_PAGE = 25;
+let SORT_KEY = 'score';
+let SORT_DIR = 'desc';
+let CURRENT_FILTER = 'all';
+let AUTO_REFRESH = true;
+let refreshInterval = null;
+
+const el = id => document.getElementById(id);
+const parseTags = t => Array.isArray(t) ? t : (t||"").split(",").map(s=>s.trim()).filter(Boolean);
+
+function toast(msg, type='info') {
+  const t = el('toast'); t.textContent = msg; t.className = \`toast \${type} visible\`;
+  setTimeout(() => t.classList.remove('visible'), 3000);
+}
+
+/* =============================== CUSTOM FIELD =============================== */
+function getCF(contact, keys) {
+  if (!contact) return null;
+  const fields = Array.isArray(contact.customField) ? contact.customField 
+    : Array.isArray(contact.customFields) ? contact.customFields 
+    : [];
+  if (fields.length === 0) return null;
+  for (const key of keys) {
+    const k = key.toLowerCase();
+    const found = fields.find(f => {
+      const fid=(f.id||'').toLowerCase(), fkey=(f.key||'').toLowerCase(),
+            ffk=(f.fieldKey||'').toLowerCase(), fname=(f.name||'').toLowerCase();
+      const ffkStripped = ffk.startsWith('contact.') ? ffk.slice(8) : ffk;
+      const fkeyStripped = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
+      return fid===k || fkey===k || ffk===k || fname===k
+        || ffkStripped===k || fkeyStripped===k
+        || fname.includes(k) || ffk.includes(k)
+        || ffkStripped.includes(k) || fkeyStripped.includes(k)
+        || k.includes(ffkStripped) || k.includes(fname);
+    });
+    // Allow "0" through \u2014 it's valid data for views/saves/showings
+    if (found && found.value!=null && found.value!=='') {
+      const v = found.value;
+      if (Array.isArray(v)) return v.join(', ');
+      return String(v);
+    }
+  }
+  return null;
+}
+
+/* Helper: search for any field value containing a pattern (for Ylopo URLs/UUIDs) */
+function getCFByValuePattern(contact, pattern) {
+  if (!contact) return null;
+  const fields = Array.isArray(contact.customField) ? contact.customField 
+    : Array.isArray(contact.customFields) ? contact.customFields 
+    : [];
+  const re = new RegExp(pattern, 'i');
+  for (const f of fields) {
+    if (f.value && typeof f.value === 'string' && re.test(f.value)) return f.value;
+  }
+  return null;
+}
+
+/* Smart scanner: find image URLs in any custom field */
+function findImageUrl(contact, hints) {
+  if (!contact.customField) return '';
+  const fields = Array.isArray(contact.customField) ? contact.customField : [];
+  // First: try exact key matches from hints
+  for (const key of (hints||[])) {
+    const k = key.toLowerCase();
+    const f = fields.find(f => {
+      const fk = ((f.key||'')+(f.fieldKey||'')+(f.name||'')).toLowerCase();
+      return fk.includes(k);
+    });
+    if (f && f.value && /^https?:\\/\\/.+/i.test(f.value)) return f.value;
+  }
+  // Second: scan ALL fields for image URLs by value pattern
+  const imgPatterns = /\\.(jpg|jpeg|png|webp|gif|bmp|svg)|\\/photos?\\//i;
+  for (const f of fields) {
+    if (!f.value || typeof f.value !== 'string') continue;
+    const v = f.value.trim();
+    if (/^https?:\\/\\/.+/i.test(v) && imgPatterns.test(v)) {
+      // Check field name relates to listing/property/image
+      const fn = ((f.key||'')+(f.fieldKey||'')+(f.name||'')).toLowerCase();
+      if (/image|photo|img|pic|thumb|listing|property|view|saved|favorite|fav/.test(fn)) return v;
+    }
+  }
+  // Third: any URL with image extension in any field
+  for (const f of fields) {
+    if (!f.value || typeof f.value !== 'string') continue;
+    const v = f.value.trim();
+    if (/^https?:\\/\\/.+\\.(jpg|jpeg|png|webp)/i.test(v)) return v;
+  }
+  return '';
+}
+
+/* Smart scanner: find field value by fuzzy name keywords */
+function findFieldByKeywords(contact, keywords) {
+  if (!contact.customField) return '';
+  const fields = Array.isArray(contact.customField) ? contact.customField : [];
+  for (const f of fields) {
+    if (!f.value || f.value === '') continue;
+    const fn = ((f.key||'')+'|'+(f.fieldKey||'')+'|'+(f.name||'')).toLowerCase();
+    if (keywords.every(kw => fn.includes(kw.toLowerCase()))) return f.value;
+  }
+  return '';
+}
+
+/* =============================== MATRIX =============================== */
+function getMatrix(c) {
+  return {
+    views: Number(getCF(c,['ylopo__buyer_matrix_views','ylopo_total_listing_views','ylopo_last_session_listings_viewed','ylopo_properties_viewed_count','properties_viewed_count','listings_viewed','buyer_listing_views','total_listing_views','views']))||0,
+    saves: Number(getCF(c,['ylopo__buyer_matrix_saves','ylopo_total_favorites','ylopo_last_session_listings_saved','total_saved_homes','saved_properties','buyer_favorites','favorites','saves']))||0,
+    searches: (function(v){return v>9999?0:v;})(Number(getCF(c,['ylopo_last_session_searches','ylopo__total_searches','total_searches','searches']))||0),
+    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_last_session_showinginfo_requests','ylopo__showing_requests','showing_requests','showings','buyer_showing_requests']))||0,
+    infoReqs: Number(getCF(c,['ylopo_total_info_requests','ylopo__info_requests','info_requests']))||0
+  };
+}
+
+/* =============================== EXTENDED DATA (for accordion) =============================== */
+function getExtendedData(c) {
+  const m = getMatrix(c);
+  // Session quality
+  const duration = Number(getCF(c,['ylopo_last_session_duration','session_duration','last_session_duration']))||0;
+  const pagesVisit = Number(getCF(c,['ylopo_last_session_pages','pages_per_visit','last_session_pages','ylopo_pages_per_visit']))||0;
+  const bounceRate = Number(getCF(c,['ylopo_bounce_rate','bounce_rate','ylopo_last_session_bounce_rate']))||0;
+  const returns = Number(getCF(c,['ylopo_total_registrations','ylopo_total_events','total_visits','returns','ylopo_total_sessions','total_sessions','ylopo_return_visits']))||0;
+  // Geo \u2014 check NATIVE contact fields first, then custom fields
+  const city = c.city || c.locationCity || getCF(c,['ylopo_registration_city','registration_city','city','search_city','ylopo_search_city','preferred_city'])||'';
+  const state = c.state || c.locationState || getCF(c,['ylopo_registration_state','registration_state','state','search_state','ylopo_search_state','preferred_state'])||'';
+  const zip = c.postalCode || c.zip || getCF(c,['ylopo_registration_zip','registration_zip','zip','postal_code','postalCode','search_zip','ylopo_search_zip'])||'';
+  // Property prefs \u2014 expanded field names
+  const minPrice = Number(getCF(c,['ylopo_registration_min_price','registration_min_price','min_price','ylopo_min_price','price_min','buyer_min_price','search_min_price','ylopo_search_min_price']))||0;
+  const maxPrice = Number(getCF(c,['ylopo_registration_max_price','registration_max_price','max_price','ylopo_max_price','price_max','buyer_max_price','search_max_price','ylopo_search_max_price']))||0;
+  const beds = getCF(c,['ylopo_registration_min_beds','registration_min_beds','min_beds','ylopo_min_beds','bedrooms','beds','buyer_min_beds','search_min_beds','ylopo_search_min_beds'])||'';
+  const baths = getCF(c,['ylopo_registration_min_baths','registration_min_baths','min_baths','ylopo_min_baths','bathrooms','baths','buyer_min_baths','search_min_baths','ylopo_search_min_baths'])||'';
+  // Property type
+  const propType = getCF(c,['ylopo_registration_property_type','registration_property_type','property_type','ylopo_property_type','home_type','search_property_type'])||'';
+  // Seller intelligence \u2014 expanded field coverage
+  const estValue = Number(getCF(c,['estimated_value','est_value','home_value','property_value','ylopo_home_value','estimated_home_value','zestimate','ylopo_estimated_value','avm_value','home_valuation']))||0;
+  const equity = Number(getCF(c,['equity','home_equity','equity_amount','ylopo_equity','estimated_equity','ylopo_home_equity','equity_value']))||0;
+  const equityPct = Number(getCF(c,['equity_percent','equity_pct','ltv','equity_percentage','ylopo_equity_pct','ylopo_equity_percent','equity_ratio']))||0;
+  const mortgageBalance = Number(getCF(c,['mortgage_balance','loan_balance','ylopo_mortgage_balance','remaining_balance','ylopo_loan_balance','mortgage_amount','loan_amount']))||0;
+  const ownerSince = getCF(c,['owner_since','ownership_date','purchase_date','ylopo_owner_since','ylopo_purchase_date','date_purchased','acquisition_date'])||'';
+  const propertyAddr = c.address1 || c.address || getCF(c,['property_address','home_address','ylopo_property_address','address1','address','mailing_address','street_address'])||'';
+  // AI notes
+  const aiNotes = getCF(c,['ylopo__ai_notes','ai_notes','ylopo_ai_summary','ai_summary','ylopo_notes'])||'';
+  // Last property
+  const lastViewAddr = getCF(c,['ylopo_last_view_address','last_view_address','ylopo_last_listing_address','last_listing_viewed_address'])||'';
+  const lastViewMls = getCF(c,['ylopo_last_view_mls','last_view_mls','ylopo_last_listing_mls','last_listing_viewed_mls'])||'';
+  const lastViewPrice = getCF(c,['ylopo_last_view_price','last_view_price','ylopo_last_listing_price','last_listing_viewed_price','ylopo_last_view_list_price'])||'';
+  const lastViewUrl = getCF(c,['ylopo_last_view_url','last_view_url','ylopo_last_listing_url','last_listing_viewed_url'])||'';
+  const lastViewImg = getCF(c,['ylopo_last_view_image','last_view_image','ylopo_last_listing_image','last_listing_viewed_image','ylopo_last_view_photo','last_listing_photo','ylopo_listing_photo_url','listing_image_url','ylopo_property_image','property_photo_url'])
+    || findImageUrl(c, ['view_image','listing_image','view_photo','listing_photo','property_image','property_photo','viewed_image'])
+    || '';
+  const lastFavImg = getCF(c,['ylopo_last_favorite_image','last_favorite_image','ylopo_last_saved_image','last_saved_image','ylopo_last_saved_photo','ylopo_favorite_photo_url'])
+    || findImageUrl(c, ['favorite_image','saved_image','fav_photo','saved_photo','favorite_photo'])
+    || '';
+  const lastFavAddr = getCF(c,['ylopo_last_favorite_address','last_favorite_address','ylopo_last_saved_address','last_saved_address'])||'';
+  const lastFavMls = getCF(c,['ylopo_last_favorite_mls','last_favorite_mls','ylopo_last_saved_mls','last_saved_mls'])||'';
+  const lastShowAddr = getCF(c,['ylopo_last_showing_address','last_showing_address','ylopo_last_showing_request_address'])||'';
+  const lastShowMls = getCF(c,['ylopo_last_showing_mls','last_showing_mls','ylopo_last_showing_request_mls'])||'';
+  // Lead source \u2014 also check native source field
+  const source = c.source || getCF(c,['ylopo_registration_source','ylopo_assigned_website','ylopo__event_source','source','lead_source','utm_source'])||'Unknown';
+  // Lead type
+  const leadType = getCF(c,['ylopo_lead_type','ylopo__tier','contact_type','lead_type','ylopo_contact_type'])||'';
+  // Intent score from Ylopo
+  const intentScore = Number(getCF(c,['ylopo__intent_score','ylopo__lead_intent_score','lead_intent_score','intent_score','ylopo_intent_score']))||0;
+  // Ylopo assigned website (for Ylopo link)
+  const ylopoWebsite = getCF(c,['ylopo_assigned_website','ylopo_registration_source','ylopo__event_source'])||'';
+  // Ylopo contact ID if available
+  const ylopoId = getCF(c,['ylopo_contact_id','ylopo_id','ylopo__contact_id','ylopo_lead_id','ylopo__lead_id'])||'';
+  // Last event info
+  const lastEventType = getCF(c,['ylopo_last_event_type__text','ylopo_last_event_type','last_event_type','ylopo_last_event'])||'';
+  const lastEventTime = getCF(c,['ylopo_last_event_timestamp','ylopo_last_event_date','last_event_date','ylopo_last_activity_date'])||'';
+  // Weekly/daily events
+  const todayEvents = Number(getCF(c,['ylopo_today_events','today_events','ylopo_events_today']))||0;
+  const weeklyEvents = Number(getCF(c,['ylopo_weekly_events','weekly_events','ylopo_events_this_week']))||0;
+  const totalEvents = Number(getCF(c,['ylopo_total_events','total_events','ylopo_event_count']))||0;
+
+  return { m, duration, pagesVisit, bounceRate, returns, city, state, zip, minPrice, maxPrice, beds, baths, propType, estValue, equity, equityPct, mortgageBalance, ownerSince, propertyAddr, aiNotes, lastViewAddr, lastViewMls, lastViewPrice, lastViewUrl, lastViewImg, lastFavAddr, lastFavMls, lastFavImg, lastShowAddr, lastShowMls, source, leadType, intentScore, ylopoWebsite, ylopoId, lastEventType, lastEventTime, todayEvents, weeklyEvents, totalEvents };
+}
+
+/* =============================== SCORE =============================== */
+function calcScore(c) {
+  const m = getMatrix(c);
+  // Base activity score
+  let score = (m.views*2)+(m.saves*10)+(m.searches*3)+(m.showings*15)+(m.infoReqs*8);
+  // Recency multiplier \u2014 activity in last 7 days worth 3x more
+  const lastDate = c.dateUpdated||c.lastActivity;
+  if(lastDate){
+    const daysSince = Math.floor((Date.now()-new Date(lastDate).getTime())/864e5);
+    if(daysSince<=3) score *= 1.5;
+    else if(daysSince<=7) score *= 1.2;
+    else if(daysSince>=30) score *= 0.7;
+    else if(daysSince>=60) score *= 0.4;
+  }
+  // Save-to-view ratio bonus (high ratio = serious buyer)
+  if(m.views>0 && m.saves>0){
+    const saveRatio = m.saves/m.views;
+    if(saveRatio>=0.5) score += 15;
+    else if(saveRatio>=0.25) score += 8;
+  }
+  // Showing request is strongest intent signal
+  if(m.showings>0) score += 10;
+  score = Math.min(Math.round(score),100);
+  const yi = Number(getCF(c,['ylopo__intent_score','ylopo__lead_intent_score']))||0;
+  if(yi>score) score = Math.min(yi,100);
+  const tagStr = parseTags(Array.isArray(c.tags)?c.tags:[]).join(' ').toLowerCase();
+  if(tagStr.includes('hot')||tagStr.includes('ypriority')) score=Math.max(score,80);
+  if(tagStr.includes('warm')) score=Math.max(score,50);
+  if(score===0){
+    const days = Math.floor((Date.now()-new Date(c.dateAdded||c.createdAt||Date.now()).getTime())/864e5);
+    score = days<=1?65:days<=7?45:days<=30?25:10;
+  }
+  return score;
+}
+
+function getStatus(score, tags) {
+  const t = parseTags(tags).join(' ').toLowerCase();
+  if(score>=80||t.includes('hot')) return 'HOT';
+  if(score>=60||t.includes('warm')) return 'WARM';
+  if(score>=40) return 'NEW';
+  return 'COLD';
+}
+
+function getBadge(c) {
+  const m = getMatrix(c);
+  // Stale detection \u2014 no activity in 14+ days
+  const lastDate = c.dateUpdated||c.lastActivity||c.dateAdded||c.createdAt;
+  const daysSince = lastDate ? Math.floor((Date.now()-new Date(lastDate).getTime())/864e5) : 999;
+  if(daysSince>=14 && m.views===0 && m.saves===0 && m.showings===0) return {text:'\u26A0\uFE0F Going Cold',cls:'badge-stale'};
+  if(daysSince>=21) return {text:'\u26A0\uFE0F Stale '+daysSince+'d',cls:'badge-stale'};
+  if(m.showings>0) return {text:'Showing Request',cls:'badge-showing'};
+  if(m.saves>3) return {text:'Active Saver',cls:'badge-buyer'};
+  if(m.views>10) return {text:'Visited Property',cls:'badge-visitor'};
+  if(m.searches>5) return {text:'Active Searcher',cls:'badge-searcher'};
+  const t = parseTags(c.tags).join(' ').toLowerCase();
+  if(t.includes('seller')) return {text:'Seller',cls:'badge-seller'};
+  if(t.includes('buyer')) return {text:'Buyer',cls:'badge-buyer'};
+  return null;
+}
+
+function getLastActivityDays(c) {
+  const d = c.dateUpdated||c.lastActivity||c.dateAdded||c.createdAt;
+  if(!d) return null;
+  const days = Math.floor((Date.now()-new Date(d).getTime())/864e5);
+  if(days===0) return 'Today';
+  if(days===1) return '1 day ago';
+  return \`\${days} days ago\`;
+}
+
+/* =============================== TRANSFORM =============================== */
+function capName(s){if(!s)return '';return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();}
+
+// Parse name from email: "john.doe@gmail.com" \u2192 "John", "Doe"
+function parseNameFromEmail(email) {
+  if (!email || !email.includes('@')) return { first:'', last:'' };
+  const local = email.split('@')[0];
+  // Common separators: . _ - +
+  const parts = local.split(/[._\\-+]/).filter(p => p.length > 1 && !/^\\d+$/.test(p));
+  if (parts.length >= 2) return { first: capName(parts[0]), last: capName(parts[1]) };
+  if (parts.length === 1) return { first: capName(parts[0]), last: '' };
+  return { first: capName(local), last: '' };
+}
+
+function transformContacts(contacts) {
+  return contacts.filter(c => {
+    // Skip contacts that only have a phone (no name AND no email)
+    const hasName = (c.firstName || c.first_name || c.lastName || c.last_name || c.contactName || '').trim();
+    const hasEmail = (c.email || '').trim();
+    const hasPhone = (c.phone || '').trim();
+    if (!hasName && !hasEmail && hasPhone) return false; // phone-only \u2192 skip
+    return true;
+  }).map(c => {
+    let fn = capName(c.firstName || c.first_name || '');
+    let ln = capName(c.lastName || c.last_name || '');
+    let name = \`\${fn} \${ln}\`.trim() || c.contactName || '';
+
+    // If no name but has email, parse name from email address
+    if (!name && c.email) {
+      const parsed = parseNameFromEmail(c.email);
+      fn = parsed.first;
+      ln = parsed.last;
+      name = \`\${fn} \${ln}\`.trim();
+    }
+    if (!name) name = 'Unknown';
+
+    const score = calcScore(c);
+    const m = getMatrix(c);
+    const id = c.id || Math.random().toString(36).substr(2);
+    RAW_CONTACTS[id] = c;
+    return {
+      id, name, phone: c.phone||'', email: c.email||'',
+      score, status: getStatus(score, c.tags), badge: getBadge(c),
+      matrix: m, tags: parseTags(Array.isArray(c.tags) ? c.tags : []),
+      lastActivity: getLastActivityDays(c),
+      dateAdded: c.dateAdded || c.createdAt || '',
+      source: String(c.source || getCF(c,['ylopo_registration_source','source','lead_source','utm_source']) || 'Unknown')
+    };
+  });
+}
+
+/* =============================== FORMAT HELPERS =============================== */
+function fmtPrice(n) {
+  if(!n) return '\u2014';
+  if(n>=1000000) return \`$\${(n/1000000).toFixed(1)}M\`;
+  if(n>=1000) return \`$\${Math.round(n/1000)}K\`;
+  return \`$\${n}\`;
+}
+
+function convBarColor(pct) {
+  if(pct>=70) return 'linear-gradient(90deg,#22c55e,#16a34a)';
+  if(pct>=40) return 'linear-gradient(90deg,#f59e0b,#d97706)';
+  return 'linear-gradient(90deg,#ef4444,#dc2626)';
+}
+
+function convLabel(score) {
+  if(score>=80) return {text:'Highly engaged buyer',icon:'\u2705',delta:'+'+Math.round(score*0.15)+'%'};
+  if(score>=60) return {text:'Frequent returner',icon:'\u2705',delta:'+'+Math.round(score*0.1)+'%'};
+  if(score>=40) return {text:'Active searcher',icon:'\u{1F50D}',delta:'+'+Math.round(score*0.05)+'%'};
+  return {text:'Early stage lead',icon:'\u{1F4CB}',delta:'\u2014'};
+}
+
+/* =============================== ACCORDION HTML =============================== */
+function buildAccordion(lead) {
+  const raw = RAW_CONTACTS[lead.id];
+  if (!raw) return '<div class="detail-inner" style="color:var(--text-secondary);padding:24px">No detailed data available</div>';
+  const ext = getExtendedData(raw);
+  const convPct = Math.min(lead.score, 100);
+  const cl = convLabel(lead.score);
+  const ghlUrl = GHL_CONTACT_BASE + lead.id;
+  // Build Ylopo link \u2014 correct format: https://stars.ylopo.com/lead-detail/{UUID}
+  let ylopoUrl = '';
+  // 1. Try direct Ylopo lead ID field
+  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+  if (ylopoLeadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ylopoLeadId)) {
+    ylopoUrl = \`https://stars.ylopo.com/lead-detail/\${ylopoLeadId}\`;
+  }
+  // 2. Try finding a field value that contains the stars.ylopo.com URL
+  if (!ylopoUrl) {
+    const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
+    if (storedUrl) {
+      ylopoUrl = storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
+    }
+  }
+  // 3. Try finding any UUID in a ylopo-named field
+  if (!ylopoUrl) {
+    const anyYlopoField = getCFByValuePattern(raw, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+    // Check if this UUID came from a ylopo-related field
+    if (anyYlopoField) {
+      const uuidMatch = anyYlopoField.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if (uuidMatch) ylopoUrl = \`https://stars.ylopo.com/lead-detail/\${uuidMatch[0]}\`;
+    }
+  }
+  // 4. Fallback: search by email on Ylopo
+  if (!ylopoUrl && lead.email) {
+    ylopoUrl = \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
+  }
+
+  return \`<div class="detail-inner">
+
+  <!-- Matrix Stats -->
+  <div class="detail-section">
+    <div class="matrix-row">
+      <div class="matrix-mini mm-views">
+        <div class="mm-label">\u{1F441}\uFE0F Views</div>
+        <div class="mm-value">\${ext.m.views}</div>
+        <div class="mm-bar" style="width:\${Math.min(ext.m.views*3,100)}%"></div>
+      </div>
+      <div class="matrix-mini mm-saves">
+        <div class="mm-label">\u{1F516} Saves</div>
+        <div class="mm-value">\${ext.m.saves}</div>
+        <div class="mm-bar" style="width:\${Math.min(ext.m.saves*8,100)}%"></div>
+      </div>
+      <div class="matrix-mini mm-searches">
+        <div class="mm-label">\u{1F50D} Searches</div>
+        <div class="mm-value">\${ext.m.searches}</div>
+        <div class="mm-bar" style="width:\${Math.min(ext.m.searches*5,100)}%"></div>
+      </div>
+      <div class="matrix-mini mm-showings">
+        <div class="mm-label">\u{1F3E0} Showings</div>
+        <div class="mm-value">\${ext.m.showings}</div>
+        <div class="mm-bar" style="width:\${Math.min(ext.m.showings*15,100)}%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conversion Probability -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F3AF}</span> Conversion Probability</div>
+    <div class="conv-row">
+      <div class="conv-bar-wrap"><div class="conv-bar" style="width:\${convPct}%;background:\${convBarColor(convPct)}"></div></div>
+      <div class="conv-pct">\${convPct}<sup>%</sup></div>
+    </div>
+    <div class="conv-note"><span class="check">\${cl.icon}</span> \${cl.text} <span style="margin-left:auto;color:var(--green)">\${cl.delta}</span></div>
+  </div>
+
+  <!-- Session Quality -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u26A1</span> Session Quality \${ext.totalEvents ? \`<span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">\u{1F4CA} \${ext.totalEvents} total events\${ext.weeklyEvents ? ' \xB7 '+ext.weeklyEvents+' this week' : ''}</span>\` : ''}</div>
+    <div class="session-grid">
+      <div class="session-item"><div class="si-label">Duration</div><div class="si-value">\${ext.duration||'\u2014'} <span>min</span></div><div class="si-bar" style="width:\${Math.min(ext.duration*10,100)}%"></div></div>
+      <div class="session-item"><div class="si-label">Pages/Visit</div><div class="si-value">\${ext.pagesVisit||'\u2014'} <span>pages</span></div><div class="si-bar" style="width:\${Math.min(ext.pagesVisit*15,100)}%;background:var(--green)"></div></div>
+      <div class="session-item"><div class="si-label">Bounce</div><div class="si-value">\${ext.bounceRate||'\u2014'} <span>%</span></div><div class="si-bar" style="width:\${ext.bounceRate||0}%;background:var(--amber)"></div></div>
+      <div class="session-item"><div class="si-label">Returns</div><div class="si-value">\${ext.returns||'\u2014'} <span>times</span></div><div class="si-bar" style="width:\${Math.min(ext.returns*8,100)}%;background:var(--purple)"></div></div>
+    </div>
+    \${ext.lastEventType ? \`<div style="margin-top:10px;font-size:11px;color:var(--text-secondary)">Last event: <strong>\${ext.lastEventType}</strong>\${ext.lastEventTime ? ' \xB7 '+new Date(ext.lastEventTime).toLocaleDateString() : ''}</div>\` : ''}
+  </div>
+
+  <!-- Last Property Activity -->
+  \${ext.lastViewAddr || ext.lastViewMls || ext.lastFavAddr || ext.lastShowAddr ? \`
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F3D8}\uFE0F</span> Last Property Activity</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px">\u{1F441}\uFE0F Last Viewed</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">\${ext.lastViewAddr || ext.lastViewMls || '\u2014'}</div>
+        \${ext.lastViewUrl ? \`<a href="\${ext.lastViewUrl}" target="_blank" style="font-size:11px;color:var(--blue)">View listing \u2192</a>\` : ''}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px">\u2764\uFE0F Last Saved</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">\${ext.lastFavAddr || ext.lastFavMls || '\u2014'}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;margin-bottom:4px">\u{1F3E0} Showing Request</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">\${ext.lastShowAddr || ext.lastShowMls || '\u2014'}</div>
+      </div>
+    </div>
+  </div>\` : ''}
+
+  <!-- Geographic Intent -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F4CD}</span> Geographic Intent</div>
+    <div class="geo-chips">
+      \${ext.city||ext.state ? \`<span class="geo-chip geo-city">\u{1F3E0} \${[ext.city,ext.state].filter(Boolean).join(', ')}</span>\` : ''}
+      \${ext.zip ? \`<span class="geo-chip geo-zip">\u{1F4EE} \${ext.zip}</span>\` : ''}
+      \${!ext.city&&!ext.state&&!ext.zip ? '<span style="color:var(--text-secondary);font-size:12px">No geographic data yet</span>' : ''}
+    </div>
+  </div>
+
+  <!-- Property Preferences -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F3E1}</span> Property Preferences</div>
+    <div class="prop-grid">
+      <div class="prop-item">
+        <div class="pi-icon">\u{1F4B0}</div>
+        <div class="pi-label">Budget</div>
+        <div class="pi-value">\${ext.minPrice||ext.maxPrice ? \`\${fmtPrice(ext.minPrice)} \u2013 \${fmtPrice(ext.maxPrice)}\` : '\u2014'}</div>
+      </div>
+      <div class="prop-item">
+        <div class="pi-icon">\u{1F6CF}\uFE0F</div>
+        <div class="pi-label">Bed/Bath</div>
+        <div class="pi-value">\${ext.beds||ext.baths ? \`\${ext.beds||'?'}bd / \${ext.baths||'?'}ba+\` : '\u2014'}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seller Intelligence (always shown) -->
+  <div class="detail-section seller-section" style="position:relative">
+    <div class="detail-section-title"><span class="emoji">\u{1F4CA}</span> Seller Intelligence</div>
+    \${ext.intentScore ? \`<div class="seller-score">\${ext.intentScore}</div>\` : lead.score ? \`<div class="seller-score">\${lead.score}</div>\` : ''}
+    <div class="seller-grid">
+      <div class="seller-item"><div class="si-label">Est. Value</div><div class="si-value">\${ext.estValue ? fmtPrice(ext.estValue) : '\u2014'}</div></div>
+      <div class="seller-item"><div class="si-label">Equity</div><div class="si-value">\${ext.equity ? fmtPrice(ext.equity) : '\u2014'}</div></div>
+      <div class="seller-item"><div class="si-label">Equity %</div><div class="si-value">\${ext.equityPct ? ext.equityPct+'%' : '\u2014'}</div></div>
+      <div class="seller-item"><div class="si-label">Mortgage Bal.</div><div class="si-value">\${ext.mortgageBalance ? fmtPrice(ext.mortgageBalance) : '\u2014'}</div></div>
+      <div class="seller-item"><div class="si-label">Owner Since</div><div class="si-value" style="font-size:16px">\${ext.ownerSince || '\u2014'}</div></div>
+      <div class="seller-item"><div class="si-label">Property</div><div class="si-value" style="font-size:14px">\${ext.propertyAddr || '\u2014'}</div></div>
+    </div>
+  </div>
+
+  <!-- AI Notes -->
+  \${ext.aiNotes ? \`
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F916}</span> AI Notes</div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">\${ext.aiNotes}</div>
+  </div>\` : ''}
+
+  <!-- Tags -->
+  \${lead.tags.length ? \`
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F3F7}\uFE0F</span> Tags</div>
+    <div class="tags-cell">\${lead.tags.map(t=>\`<span class="tag-chip clickable-tag" onclick="addHashtag('\${t.replace(/'/g,"\\\\'")}')">\${t}</span>\`).join('')}</div>
+  </div>\` : ''}
+
+  <!-- Source & Type -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F4E1}</span> Lead Info</div>
+    <div style="display:flex;gap:24px;font-size:13px;flex-wrap:wrap">
+      <div><span style="color:var(--text-secondary)">Source:</span> <strong>\${ext.source}</strong></div>
+      \${ext.leadType ? \`<div><span style="color:var(--text-secondary)">Type:</span> <strong>\${ext.leadType}</strong></div>\` : ''}
+      <div><span style="color:var(--text-secondary)">Email:</span> <strong>\${lead.email||'\u2014'}</strong></div>
+      <div><span style="color:var(--text-secondary)">Phone:</span> <strong>\${lead.phone||'\u2014'}</strong></div>
+    </div>
+  </div>
+
+  <!-- Lead Lifecycle -->
+  <div class="detail-section">
+    <div class="detail-section-title"><span class="emoji">\u{1F504}</span> Lead Lifecycle</div>
+    \${buildLifecycle(raw, lead)}
+  </div>
+
+  <!-- Quick Actions (Write-Back) -->
+  <div class="detail-section" style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border-color:var(--blue)">
+    <div class="detail-section-title"><span class="emoji">\u26A1</span> Quick Actions \u2192 GHL</div>
+    <div class="qa-bar">
+      <button class="qa-btn tag-btn" onclick="openWriteBack('tag','\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F3F7}\uFE0F Add Tag</button>
+      <button class="qa-btn" onclick="openWriteBack('note','\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F4DD} Add Note</button>
+      <button class="qa-btn task-btn" onclick="openWriteBack('task','\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u2705 Create Task</button>
+      <button class="qa-btn wf-btn" onclick="openWriteBack('workflow','\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F504} Trigger Workflow</button>
+      <button class="qa-btn" onclick="syncScoreToGHL('\${lead.id}',\${lead.score})">\u{1F4CA} Sync Score (\${lead.score})</button>
+      <button class="qa-btn" onclick="openMsgPreview('\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F4AC} Draft Message</button>
+      <button class="qa-btn" onclick="openShowingScheduler('\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F4C5} Schedule Showing</button>
+      \${ext.propertyAddr || ext.estValue ? \`<button class="qa-btn" onclick="window.open('https://search.reallistingagent.com/seller','_blank')">\u{1F3E0} Run CMA</button>\` : ''}
+    </div>
+  </div>
+
+  <!-- Links -->
+  <div style="display:flex;align-items:center;flex-wrap:wrap">
+    <a href="\${ghlUrl}" target="_blank" class="ghl-link">\u{1F517} Open in GoHighLevel</a>
+    \${ylopoUrl ? \`<a href="\${ylopoUrl}" target="_blank" class="ylopo-link">\u{1F7E0} Open in Ylopo</a>\` : \`<span class="ylopo-link" style="opacity:0.5;cursor:default">\u{1F7E0} Ylopo (no ID linked)</span>\`}
+  </div>
+
+</div>\`;
+}
+
+/* =============================== SORTING =============================== */
+function sortLeads(leads) {
+  return [...leads].sort((a,b) => {
+    let va=a[SORT_KEY], vb=b[SORT_KEY];
+    if(SORT_KEY==='name'){va=(va||'').toLowerCase();vb=(vb||'').toLowerCase();}
+    if(SORT_KEY==='status'){const o={HOT:4,WARM:3,NEW:2,COLD:1};va=o[va]||0;vb=o[vb]||0;}
+    if(SORT_KEY==='lastActivity'){va=new Date(a.dateAdded||0).getTime();vb=new Date(b.dateAdded||0).getTime();}
+    if(va<vb) return SORT_DIR==='asc'?-1:1;
+    if(va>vb) return SORT_DIR==='asc'?1:-1;
+    return 0;
+  });
+}
+
+function sortBy(key) {
+  if(SORT_KEY===key) SORT_DIR=SORT_DIR==='desc'?'asc':'desc';
+  else{SORT_KEY=key;SORT_DIR='desc';}
+  CURRENT_PAGE=1; applyFilters();
+}
+
+/* =============================== FILTERING (with TAG SEARCH) =============================== */
+let ACTIVE_HASHTAGS = new Set();
+
+function applyFilters() {
+  let leads = [...ALL_LEADS];
+  const rawSearch = el('searchInput').value.trim();
+
+  // Extract hashtags from search
+  const hashtagRegex = /#(\\S+)/g;
+  let match;
+  const typedTags = [];
+  while ((match = hashtagRegex.exec(rawSearch)) !== null) {
+    typedTags.push(match[1].toLowerCase());
+  }
+  // Plain text search (remove hashtags)
+  const plainSearch = rawSearch.replace(/#\\S+/g, '').trim().toLowerCase();
+
+  // Merge typed hashtags with clicked hashtags
+  const allTags = new Set([...ACTIVE_HASHTAGS, ...typedTags]);
+
+  // Status filter
+  if(CURRENT_FILTER==='new') leads=leads.filter(l=>l.status==='NEW');
+  else if(CURRENT_FILTER==='hot') leads=leads.filter(l=>l.status==='HOT');
+  else if(CURRENT_FILTER==='engaged') leads=leads.filter(l=>(l.matrix.views+l.matrix.saves+l.matrix.showings)>0);
+  else if(CURRENT_FILTER==='stale') leads=leads.filter(l=>l.badge&&l.badge.cls==='badge-stale');
+
+  // Hashtag filter \u2014 ALL tags must match (AND logic)
+  if(allTags.size > 0) {
+    leads = leads.filter(l =>
+      [...allTags].every(ht =>
+        l.tags.some(tag => tag.toLowerCase().includes(ht)) ||
+        l.status.toLowerCase() === ht ||
+        String(l.source||'').toLowerCase().includes(ht) ||
+        (l.badge && l.badge.text.toLowerCase().includes(ht))
+      )
+    );
+  }
+
+  // Plain text search
+  if(plainSearch){
+    leads=leads.filter(l =>
+      l.name.toLowerCase().includes(plainSearch) ||
+      l.email.toLowerCase().includes(plainSearch) ||
+      l.phone.includes(plainSearch) ||
+      l.tags.some(tag => tag.toLowerCase().includes(plainSearch)) ||
+      String(l.source||'').toLowerCase().includes(plainSearch)
+    );
+  }
+
+  FILTERED = sortLeads(leads);
+  renderTable();
+  renderActiveHashtags(allTags);
+}
+
+function renderActiveHashtags(tags) {
+  const wrap = el('activeHashtags');
+  if(tags.size===0){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = [...tags].map(t =>
+    \`<span class="htag" onclick="removeHashtag('\${t}')">#\${t} <span class="htag-x">\u2715</span></span>\`
+  ).join('') + \`<span class="htag" style="background:var(--red)" onclick="clearAllHashtags()">Clear all \u2715</span>\`;
+}
+
+function addHashtag(tag) {
+  ACTIVE_HASHTAGS.add(tag.toLowerCase());
+  CURRENT_PAGE=1;
+  applyFilters();
+}
+
+function removeHashtag(tag) {
+  ACTIVE_HASHTAGS.delete(tag.toLowerCase());
+  // Also remove from search box if typed
+  const input = el('searchInput');
+  input.value = input.value.replace(new RegExp('#'+tag+'\\\\s*','gi'),'').trim();
+  CURRENT_PAGE=1;
+  applyFilters();
+}
+
+function clearAllHashtags() {
+  ACTIVE_HASHTAGS.clear();
+  const input = el('searchInput');
+  input.value = input.value.replace(/#\\S+\\s*/g,'').trim();
+  CURRENT_PAGE=1;
+  applyFilters();
+}
+
+/* =============================== RENDER TABLE =============================== */
+function renderTable() {
+  const total = FILTERED.length;
+  const pages = Math.max(1, Math.ceil(total/PER_PAGE));
+  if(CURRENT_PAGE>pages) CURRENT_PAGE=pages;
+  const start = (CURRENT_PAGE-1)*PER_PAGE;
+  const page = FILTERED.slice(start, start+PER_PAGE);
+
+  if(page.length===0){
+    el('tbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary)">No leads found</td></tr>';
+  } else {
+    // Build dupe index
+    const emailCount={}, phoneCount={};
+    ALL_LEADS.forEach(l=>{
+      if(l.email){emailCount[l.email.toLowerCase()]=(emailCount[l.email.toLowerCase()]||0)+1;}
+      if(l.phone){phoneCount[l.phone]=(phoneCount[l.phone]||0)+1;}
+    });
+
+    el('tbody').innerHTML = page.map(l => {
+      const checked = SELECTED.has(l.id)?'checked':'';
+      const expanded = EXPANDED.has(l.id);
+      const badgeHtml = l.badge?\`<span class="name-badge \${l.badge.cls}">\${l.badge.text}</span>\`:'';
+      const statusCls = \`status-\${l.status.toLowerCase()}\`;
+      const scoreCls = l.score>=70?'score-high':l.score>=40?'score-mid':'score-low';
+      const ghlUrl = GHL_CONTACT_BASE + l.id;
+      const contactInfo = \`<div style="font-size:12px;color:var(--text-secondary)">\${l.email?\`<a href="mailto:\${l.email}" style="color:var(--text-secondary);text-decoration:none" title="\${l.email}">\${l.email}</a>\`:''}<br>\${l.phone?\`<a href="tel:\${l.phone}" style="color:var(--text-secondary);text-decoration:none">\${l.phone}</a>\`:''}</div>\`;
+      // Ylopo URL \u2014 use stars.ylopo.com/lead-detail/{UUID} format
+      const rawC = RAW_CONTACTS[l.id];
+      let yUrl = '';
+      if (rawC) {
+        const yid = getCF(rawC,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+        if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) {
+          yUrl = \`https://stars.ylopo.com/lead-detail/\${yid}\`;
+        } else {
+          const storedYUrl = getCFByValuePattern(rawC, 'stars\\\\.ylopo\\\\.com');
+          if (storedYUrl) yUrl = storedYUrl.startsWith('http') ? storedYUrl : \`https://\${storedYUrl}\`;
+        }
+        if (!yUrl) {
+          const uuid = getCFByValuePattern(rawC, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+          if (uuid) { const m = uuid.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if(m) yUrl = \`https://stars.ylopo.com/lead-detail/\${m[0]}\`; }
+        }
+        if (!yUrl && l.email) yUrl = \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(l.email)}\`;
+      }
+      // Name tooltip
+      const showTooltip = l.name.length > 20;
+      // Dupe detection
+      const isDupeEmail = l.email && emailCount[l.email.toLowerCase()]>1;
+      const isDupePhone = l.phone && phoneCount[l.phone]>1;
+      const dupeHtml = (isDupeEmail||isDupePhone) ? \`<span class="dupe-flag" title="\${isDupeEmail?'Duplicate email':''}\${isDupeEmail&&isDupePhone?' + ':''}\${isDupePhone?'Duplicate phone':''}">\u26A0\uFE0F Dupe</span>\` : '';
+      // Sparkline SVG
+      const spark = buildSparkline(l.score);
+      // Notes count
+      const notes = getLeadNotes(l.id);
+      const notesBadge = notes.length>0?\`<span style="font-size:9px;background:var(--amber);color:#fff;border-radius:50%;padding:1px 5px;font-weight:700;margin-left:2px">\${notes.length}</span>\`:'';
+
+      return \`<tr class="lead-row" data-id="\${l.id}">
+        <td class="td-check" onclick="event.stopPropagation()"><input type="checkbox" value="\${l.id}" \${checked} onchange="toggleCheck(this)"></td>
+        <td onclick="toggleExpand('\${l.id}')"><span class="expand-arrow \${expanded?'open':''}">\u25BC</span></td>
+        <td class="col-name" onclick="toggleExpand('\${l.id}')"><div class="name-cell"><a href="\${ghlUrl}" target="_blank" class="name-link" onclick="event.stopPropagation()" title="\${l.name}">\${l.name}</a>\${badgeHtml}\${dupeHtml}\${showTooltip ? \`<div class="name-tooltip">\${l.name}</div>\` : ''}</div></td>
+        <td class="col-contact" onclick="toggleExpand('\${l.id}')">\${contactInfo}</td>
+        <td class="col-score" onclick="toggleExpand('\${l.id}')"><div class="sparkline-wrap"><span class="score-pill \${scoreCls}">\${l.score}</span>\${spark}</div></td>
+        <td class="col-status" onclick="toggleExpand('\${l.id}')"><span class="status-badge \${statusCls}">\${l.status}</span></td>
+        <td class="col-activity" onclick="toggleExpand('\${l.id}')"><span class="activity-time">\${l.lastActivity||'\u2014'}</span></td>
+        <td class="col-engagement" onclick="toggleExpand('\${l.id}')"><div class="activity-icons">
+          <span title="Views">\u{1F441}\uFE0F \${l.matrix.views}</span>
+          <span title="Saves" style="color:var(--red)">\u2764\uFE0F \${l.matrix.saves}</span>
+          <span title="Showings" style="color:var(--blue)">\u{1F3E0} \${l.matrix.showings}</span>
+        </div></td>
+        <td class="col-actions" onclick="event.stopPropagation()"><div class="actions-cell">
+          <button class="act-btn" title="Call" onclick="window.open('tel:\${l.phone}')">\u{1F4DE}</button>
+          <button class="act-btn" title="Email" onclick="window.open('mailto:\${l.email}')">\u2709\uFE0F</button>
+          <a class="act-btn" href="\${ghlUrl}" target="_blank" title="Open in GHL" style="text-decoration:none;color:#3b82f6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="1" y="1" width="22" height="22" rx="5" fill="#3b82f6"/><text x="12" y="17" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#fff">G</text></svg></a>
+          \${yUrl ? \`<a class="act-btn" href="\${yUrl}" target="_blank" title="Open in Ylopo" style="text-decoration:none;color:#f97316"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></a>\` : ''}
+          <button class="act-btn" title="Notes" onclick="openNotes('\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')">\u{1F4DD}\${notesBadge}</button>
+          <button class="act-btn" title="Add Tag" onclick="openWriteBack('tag','\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--amber)">\u{1F3F7}\uFE0F</button>
+          <button class="act-btn" title="Create Task" onclick="openWriteBack('task','\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--green)">\u2705</button>
+          <button class="act-btn" title="Message Preview" onclick="openMsgPreview('\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--purple)">\u{1F4AC}</button>
+        </div></td>
+      </tr>
+      <tr class="detail-row \${expanded?'open':''}" id="detail-\${l.id}">
+        <td colspan="9">\${expanded ? buildAccordion(l) : ''}</td>
+      </tr>\`;
+    }).join('');
+  }
+
+  el('pageInfo').textContent = \`Page \${CURRENT_PAGE} of \${pages}\`;
+  el('prevBtn').disabled = CURRENT_PAGE<=1;
+  el('nextBtn').disabled = CURRENT_PAGE>=pages;
+  updateBulkBar();
+}
+
+/* =============================== EXPAND/COLLAPSE =============================== */
+function toggleExpand(id) {
+  const detailRow = document.getElementById('detail-'+id);
+  const arrow = document.querySelector(\`tr[data-id="\${id}"] .expand-arrow\`);
+  if (!detailRow) return;
+
+  if (EXPANDED.has(id)) {
+    EXPANDED.delete(id);
+    detailRow.classList.remove('open');
+    if(arrow) arrow.classList.remove('open');
+    detailRow.querySelector('td').innerHTML = '';
+  } else {
+    EXPANDED.add(id);
+    detailRow.classList.add('open');
+    if(arrow) arrow.classList.add('open');
+    const lead = FILTERED.find(l=>l.id===id) || ALL_LEADS.find(l=>l.id===id);
+    if(lead) detailRow.querySelector('td').innerHTML = buildAccordion(lead);
+  }
+}
+
+/* =============================== PAGINATION =============================== */
+function prevPage(){if(CURRENT_PAGE>1){CURRENT_PAGE--;renderTable();}}
+function nextPage(){const pages=Math.ceil(FILTERED.length/PER_PAGE);if(CURRENT_PAGE<pages){CURRENT_PAGE++;renderTable();}}
+function changePerPage(){PER_PAGE=parseInt(el('perPageSelect').value);CURRENT_PAGE=1;renderTable();}
+
+/* =============================== SELECTION =============================== */
+function toggleCheck(cb){
+  if(cb.checked) SELECTED.add(cb.value); else SELECTED.delete(cb.value);
+  updateBulkBar();
+}
+function toggleSelectAll(){
+  const checked = el('selectAll').checked;
+  const start=(CURRENT_PAGE-1)*PER_PAGE;
+  const page=FILTERED.slice(start,start+PER_PAGE);
+  page.forEach(l=>{if(checked)SELECTED.add(l.id);else SELECTED.delete(l.id);});
+  renderTable();
+}
+function clearSelection(){SELECTED.clear();el('selectAll').checked=false;renderTable();}
+function updateBulkBar(){
+  const bar=el('bulkBar');
+  if(SELECTED.size>0){bar.classList.add('visible');el('bulkCount').textContent=SELECTED.size;}
+  else bar.classList.remove('visible');
+}
+function bulkCopyEmails(){
+  const emails=ALL_LEADS.filter(l=>SELECTED.has(l.id)).map(l=>l.email).filter(Boolean);
+  navigator.clipboard.writeText(emails.join(', ')).then(()=>toast(\`Copied \${emails.length} emails\`,'success'));
+}
+function bulkExport(){
+  const selected=ALL_LEADS.filter(l=>SELECTED.has(l.id));
+  const csv=["Name,Email,Phone,Score,Status,Views,Saves,Showings"];
+  selected.forEach(l=>csv.push(\`"\${l.name}","\${l.email}","\${l.phone}",\${l.score},"\${l.status}",\${l.matrix.views},\${l.matrix.saves},\${l.matrix.showings}\`));
+  downloadCSV(csv.join('\\n'),'selected-leads');
+  toast(\`Exported \${selected.length} leads\`,'success');
+}
+
+/* =============================== STATS =============================== */
+function updateStats(leads) {
+  const total=leads.length;
+  const now=Date.now();
+  const sevenDays=7*864e5;
+  const today=new Date(); today.setHours(0,0,0,0);
+  const newToday=leads.filter(l=>{const d=new Date(l.dateAdded);return d>=today;}).length;
+  const new7d=leads.filter(l=>{const d=new Date(l.dateAdded);return(now-d.getTime())<sevenDays;}).length;
+  const hotCount=leads.filter(l=>l.status==='HOT').length;
+  const staleCount=leads.filter(l=>l.badge&&l.badge.cls==='badge-stale').length;
+  const avgScore = total>0?Math.round(leads.reduce((s,l)=>s+l.score,0)/total*10)/10 : 0;
+  const engaged=leads.filter(l=>(l.matrix.views+l.matrix.saves+l.matrix.showings)>0).length;
+  const engPct=total>0?Math.round(engaged/total*100):0;
+
+  el('mTotal').textContent=total;
+  el('mNew7d').textContent=new7d;
+  el('mResponseTime').textContent = staleCount>0?staleCount:'0';
+  el('mEngagement').textContent=avgScore;
+  el('subToday').querySelector('span').textContent=\`\u{1F4C8} +\${newToday} today\`;
+  el('subHot').querySelector('span').textContent=\`\u{1F525} +\${hotCount} Hot Leads\`;
+  el('subResponse').querySelector('span').textContent=\`\u26A0\uFE0F \${staleCount} need attention\`;
+  el('subEngagement').querySelector('span').textContent=\`\u{1F4CA} \${engaged} active \xB7 \${engPct}% engaged\`;
+}
+
+/* =============================== CHARTS =============================== */
+let donut, actChart;
+function renderCharts(leads) {
+  const hot=leads.filter(l=>l.status==='HOT').length;
+  const warm=leads.filter(l=>l.status==='WARM').length;
+  const newL=leads.filter(l=>l.status==='NEW').length;
+  const cold=leads.filter(l=>l.status==='COLD').length;
+
+  const dCtx=el('donutChart').getContext('2d');
+  if(donut)donut.destroy();
+  donut=new Chart(dCtx,{type:'doughnut',data:{labels:['\u{1F525} Hot','\u{1F535} New','\u26AA Cold','\u{1F7E1} Warm'],datasets:[{data:[hot,newL,cold,warm],backgroundColor:['#ef4444','#3b82f6','#d1d5db','#f59e0b'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{padding:12,font:{size:12,weight:600,family:'DM Sans'},usePointStyle:true,pointStyle:'circle'}}}}});
+
+  const days=[];
+  for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});const count=leads.filter(l=>{const ld=new Date(l.dateAdded);return ld.toDateString()===d.toDateString();}).length;days.push({key,count});}
+  const aCtx=el('activityChart').getContext('2d');
+  if(actChart)actChart.destroy();
+  actChart=new Chart(aCtx,{type:'bar',data:{labels:days.map(d=>d.key),datasets:[{label:'Leads',data:days.map(d=>d.count),backgroundColor:'#22c55e',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}}}}});
+}
+
+/* =============================== FETCH (PAGINATED BACKFILL) =============================== */
+let LOAD_DAYS = 30; // Default: load last 30 days of contacts
+
+
+/* ======= YLOPO LINK BUILDER (Stars + Seller Report) ======= */
+function buildYlopoStarsUrl(contact) {
+    if (!contact) return '';
+    var fields = Array.isArray(contact.customField) ? contact.customField : Array.isArray(contact.customFields) ? contact.customFields : [];
+    // 1. Check fub_ylopo_stars_link field
+    for (var i=0; i<fields.length; i++) {
+        var f = fields[i];
+        var fk = String(f.fieldKey||f.key||f.name||'').toLowerCase().replace('contact.','');
+        var val = String(f.value||'');
+        if ((fk.includes('ylopo_stars') || fk.includes('fub_ylopo_stars')) && val.startsWith('http')) return val;
+    }
+    // 2. Check any field containing stars.ylopo.com URL
+    for (var i=0; i<fields.length; i++) {
+        var val = String(fields[i].value||'');
+        if (val.includes('stars.ylopo.com') && val.startsWith('http')) return val;
+    }
+    // 3. Check lead_created_atstars_link
+    for (var i=0; i<fields.length; i++) {
+        var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+        var val = String(fields[i].value||'');
+        if (fk.includes('stars_link') || fk.includes('lead_created_at')) {
+            if (val.startsWith('http')) return val;
+        }
+    }
+    // 4. Find UUID in ylopo-named fields \u2192 build stars URL
+    for (var i=0; i<fields.length; i++) {
+        var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase();
+        var val = String(fields[i].value||'');
+        if (fk.includes('ylopo') && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+            return 'https://stars.ylopo.com/lead-detail/' + val;
+        }
+    }
+    // 5. Find any UUID that could be a ylopo ID
+    for (var i=0; i<fields.length; i++) {
+        var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+        var val = String(fields[i].value||'');
+        if ((fk.includes('ylopo_uuid') || fk.includes('ylopo_id') || fk.includes('ylopo_contact_id') || fk.includes('ylopo_lead_id')) && /[0-9a-f]{8}-[0-9a-f]{4}/i.test(val)) {
+            var m = val.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+            if (m) return 'https://stars.ylopo.com/lead-detail/' + m[0];
+        }
+    }
+    // 6. Fallback: search by email
+    if (contact.email) return 'https://stars.ylopo.com/contacts?search=' + encodeURIComponent(contact.email);
+    return '';
+}
+
+function buildYlopoSellerReportUrl(contact) {
+    if (!contact) return '';
+    var fields = Array.isArray(contact.customField) ? contact.customField : Array.isArray(contact.customFields) ? contact.customFields : [];
+    // 1. Check fub_ylopo_seller_report field
+    for (var i=0; i<fields.length; i++) {
+        var fk = String(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase().replace('contact.','');
+        var val = String(fields[i].value||'');
+        if ((fk.includes('seller_report') || fk.includes('ylopo_seller')) && val.startsWith('http')) return val;
+    }
+    // 2. Check any field containing seller/report URL
+    for (var i=0; i<fields.length; i++) {
+        var val = String(fields[i].value||'');
+        if (val.includes('seller/report') && val.startsWith('http')) return val;
+    }
+    // 3. Try building from ylopo UUID
+    var starsUrl = buildYlopoStarsUrl(contact);
+    if (starsUrl && starsUrl.includes('lead-detail/')) {
+        var uuid = starsUrl.split('lead-detail/')[1];
+        if (uuid && /^[0-9a-f]{8}-/i.test(uuid)) return 'https://search.reallistingagent.com/seller/report/' + uuid;
+    }
+    return '';
+}
+
+
+/* =============================== LOCAL STORAGE CACHE =============================== */
+const CACHE_KEY = 'ylopo_analytics_cache';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function loadFromCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (Date.now() - cached.ts > CACHE_TTL * 2) return false; // stale guard
+    ALL_LEADS = cached.data;
+    RAW_CONTACTS = cached.rawContacts || {};
+    updateStats(ALL_LEADS);
+    if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
+    if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
+    if (PAGE_MODE !== 'analytics') { applyFilters(); }
+    return true;
+  } catch(e) { return false; }
+}
+
+function saveToCache(data, rawContacts) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ts: Date.now(), data, rawContacts})); } catch(e) {}
+}
+
+function isCacheFresh() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    return (Date.now() - cached.ts) < CACHE_TTL;
+  } catch(e) { return false; }
+}
+
+async function loadData(forceRefresh) {
+  // Show cached data instantly if available
+  const hadCache = loadFromCache();
+  if (hadCache && isCacheFresh() && !forceRefresh) {
+    toast('Loaded from cache \u2014 synced with GHL', 'success');
+    return; // Cache is fresh, no need to fetch
+  }
+  if (hadCache) {
+    toast('Showing cached data, syncing with GHL...', 'info');
+  }
+  try {
+    if (!hadCache) toast(\`Fetching last \${LOAD_DAYS} days of leads...\`,'info');
+    const progress = el('loadProgress');
+    const fill = el('loadFill');
+    const ptext = el('loadText');
+    progress.style.display = 'block';
+
+    const cutoffDate = new Date(Date.now() - LOAD_DAYS * 864e5);
+    let allRaw = [];
+    let seenIds = new Set();
+    let startAfter = '';
+    let startAfterId = '';
+    let page = 0;
+    const PAGE_SIZE = 100;
+    let keepGoing = true;
+    let hitCutoff = false;
+
+    while (keepGoing) {
+      page++;
+      let url = PROXY_URL + \`/contacts?limit=\${PAGE_SIZE}&t=\${Date.now()}\`;
+      if (startAfter) url += \`&startAfter=\${encodeURIComponent(startAfter)}\`;
+      if (startAfterId) url += \`&startAfterId=\${encodeURIComponent(startAfterId)}\`;
+
+      ptext.textContent = \`Page \${page} \xB7 \${allRaw.length} contacts loaded...\`;
+      fill.style.width = Math.min(page * 5, 90) + '%';
+
+      const res = await fetch(url, { cache: "no-store", headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+      const data = await res.json();
+
+      let raw = [];
+      if (data.contacts && Array.isArray(data.contacts)) raw = data.contacts;
+      else if (data.leads && Array.isArray(data.leads)) raw = data.leads;
+      else if (Array.isArray(data)) raw = data;
+      else if (data.ok && data.leads) raw = data.leads;
+
+      // Dedup
+      const newRaw = raw.filter(c => {
+        const cid = c.id || c._id;
+        if (!cid || seenIds.has(cid)) return false;
+        seenIds.add(cid);
+        return true;
+      });
+
+      if (newRaw.length === 0) {
+        keepGoing = false;
+      } else {
+        allRaw = allRaw.concat(newRaw);
+        // Check if we've gone past the cutoff date
+        const lastContact = raw[raw.length - 1];
+        const lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
+        if (lastDate < cutoffDate) {
+          hitCutoff = true;
+          keepGoing = false;
+        }
+        // Use meta pagination cursors from GHL API response
+        const meta = data.meta || {};
+        if (meta.startAfter && meta.startAfterId && raw.length >= PAGE_SIZE) {
+          startAfter = meta.startAfter;
+          startAfterId = meta.startAfterId;
+        } else {
+          keepGoing = false;
+        }
+      }
+
+      // Safety: max 100 pages (10,000 contacts)
+      if (page >= 25) keepGoing = false;
+    }
+
+    fill.style.width = '100%';
+    ptext.textContent = \`\u2705 \${allRaw.length} contacts loaded\`;
+
+    RAW_CONTACTS = {};
+    ALL_LEADS = transformContacts(allRaw);
+
+    // Log first contact's custom fields for debugging
+    if (allRaw.length > 0) {
+      const sample = allRaw[0];
+      const fields = (sample.customField || []).filter(f => f.value!=null && f.value!=='');
+      console.log('\u{1F4CA} First Contact Custom Fields:', fields.map(f => ({
+        id: f.id, key: f.key||'', fieldKey: f.fieldKey||'', name: f.name||'', value: String(f.value).substring(0,60)
+      })));
+      console.log('\u{1F4CA} Available field keys:', fields.map(f => f.key||f.fieldKey||f.name||f.id).filter(Boolean).join(', '));
+      window._FIELD_DIAGNOSTICS = fields;
+      // Listing-specific field diagnostics
+      const imgFields = fields.filter(f => {
+        const v = String(f.value||'');
+        const k = (f.key||f.fieldKey||f.name||'').toLowerCase();
+        return /\\.(jpg|jpeg|png|webp|gif)/i.test(v) || /image|photo|img|picture|thumbnail/i.test(k);
+      });
+      const listingFields = fields.filter(f => {
+        const k = (f.key||f.fieldKey||f.name||'').toLowerCase();
+        return /listing|view|fav|save|show|mls|property|address|url|link|photo|image/i.test(k);
+      });
+      if(imgFields.length) console.log('\u{1F5BC}\uFE0F Fields with image URLs:', imgFields.map(f => ({key:f.key||f.fieldKey||f.name||f.id, value:String(f.value).substring(0,100)})));
+      else console.log('\u{1F5BC}\uFE0F No image URL fields found in custom fields');
+      if(listingFields.length) console.log('\u{1F3E0} Listing-related fields:', listingFields.map(f => ({key:f.key||f.fieldKey||f.name||f.id, value:String(f.value).substring(0,80)})));
+      else console.log('\u{1F3E0} No listing-related custom fields found');
+    }
+
+    updateStats(ALL_LEADS);
+    if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
+    if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
+    if (PAGE_MODE !== 'analytics') { applyFilters(); }
+    saveToCache(ALL_LEADS, RAW_CONTACTS);
+    toast(\`Loaded \${ALL_LEADS.length} leads (\${page} pages, \${LOAD_DAYS}d range\${hitCutoff?' \u2014 hit cutoff':''})\`, 'success');
+
+    // Update date range display
+    const rangeEl = el('dateRangeInfo');
+    if(rangeEl) rangeEl.textContent = \`\${LOAD_DAYS}d \xB7 \${ALL_LEADS.length} contacts\`;
+
+    setTimeout(() => { progress.style.display = 'none'; }, 3000);
+  } catch (err) {
+    console.error('Load error:', err);
+    toast(\`Error: \${err.message}\`, 'error');
+    el('loadProgress').style.display = 'none';
+    el('tbody').innerHTML = \`<tr><td colspan="9" style="color:var(--red);padding:24px">\u26A0\uFE0F \${err.message}</td></tr>\`;
+  }
+}
+
+/* =============================== ANALYTICS MASTER RENDER =============================== */
+function renderAnalytics(leads) {
+  renderFunnel(leads);
+  renderVelocity(leads);
+  renderSourcePerf(leads);
+  renderPriceHist(leads);
+  renderHeatmap(leads);
+  renderGeoBreakdown(leads);
+  renderTagCloud(leads);
+  renderROI(leads);
+  renderTimeline(leads);
+  // New panels
+  renderHotAlerts(leads);
+  renderColdLeads(leads);
+  renderEngagementRatios(leads);
+  renderLeaderboard(leads);
+  renderSourceFunnel(leads);
+  renderGeoClusters(leads);
+  renderResponseTime(leads);
+  renderBudgetScatter(leads);
+  // Phase 2 panels
+  renderPipelineValue(leads);
+  renderScoreDist(leads);
+  renderCampaignComp(leads);
+  renderDayHourHeatmap(leads);
+  renderAgingAnalysis(leads);
+  renderWinProbability(leads);
+  renderSegments(leads);
+  renderWeeklyTrend(leads);
+  // Phase 3 panels
+  renderAgentPerformance(leads);
+  calcROI();
+  renderLifecycleOverview(leads);
+  renderComparePeriod(leads);
+  generateNotifications(leads);
+  // V4 panels
+  renderKanban(leads);
+  renderCohortAnalysis(leads);
+  renderAttributionFunnel(leads);
+  renderSpeedToLead(leads);
+  renderListingMatches(leads);
+  renderListingCards(leads);
+  renderDupeManager(leads);
+  renderPredictiveScoring(leads);
+  renderStaleReengage(leads);
+  initLayoutCustomizer();
+}
+
+/* =============================== PIPELINE FUNNEL =============================== */
+function renderFunnel(leads) {
+  const stages = [
+    { key:'HOT', label:'Hot Leads', color:'#ef4444', icon:'\u{1F525}' },
+    { key:'WARM', label:'Warm Leads', color:'#f59e0b', icon:'\u{1F7E1}' },
+    { key:'NEW', label:'New Leads', color:'#3b82f6', icon:'\u{1F535}' },
+    { key:'COLD', label:'Cold / Nurture', color:'#9ca3af', icon:'\u26AA' }
+  ];
+  const total = leads.length || 1;
+  const wrap = el('funnelWrap');
+  wrap.innerHTML = stages.map((s, i) => {
+    const count = leads.filter(l => l.status === s.key).length;
+    const pct = Math.round(count / total * 100);
+    const width = 100 - (i * 12); // Funnel narrowing effect
+    return \`<div class="funnel-stage" style="background:\${s.color};width:\${width}%;border-radius:\${i===0?'8px 8px 0 0':i===stages.length-1?'0 0 8px 8px':'0'}">
+      <span class="f-count">\${count}</span>
+      <span class="f-label">\${s.icon} \${s.label}</span>
+      <span class="f-pct">\${pct}%</span>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== LEAD VELOCITY =============================== */
+let velocityChart;
+function renderVelocity(leads) {
+  const weeks = [];
+  for (let i = 8; i >= 0; i--) {
+    const start = new Date(); start.setDate(start.getDate() - (i * 7 + 6)); start.setHours(0,0,0,0);
+    const end = new Date(); end.setDate(end.getDate() - (i * 7)); end.setHours(23,59,59,999);
+    const label = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const count = leads.filter(l => {
+      const d = new Date(l.dateAdded);
+      return d >= start && d <= end;
+    }).length;
+    weeks.push({ label, count });
+  }
+  const ctx = el('velocityChart').getContext('2d');
+  if (velocityChart) velocityChart.destroy();
+  velocityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [{
+        label: 'New Leads / Week',
+        data: weeks.map(w => w.count),
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 5,
+        pointBackgroundColor: '#22c55e',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* =============================== SOURCE PERFORMANCE =============================== */
+function renderSourcePerf(leads) {
+  const srcMap = {};
+  leads.forEach(l => {
+    const s = l.source || 'Unknown';
+    if (!srcMap[s]) srcMap[s] = { count: 0, totalScore: 0, hot: 0 };
+    srcMap[s].count++;
+    srcMap[s].totalScore += l.score;
+    if (l.status === 'HOT') srcMap[s].hot++;
+  });
+  const sources = Object.entries(srcMap)
+    .map(([name, d]) => ({ name, count: d.count, avgScore: Math.round(d.totalScore / d.count), hot: d.hot }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  const maxCount = Math.max(...sources.map(s => s.count), 1);
+  const colors = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1'];
+
+  el('sourceTableWrap').innerHTML = \`<table class="src-table">
+    <thead><tr><th>Source</th><th>Leads</th><th>Avg Score</th><th>Hot</th><th>Volume</th></tr></thead>
+    <tbody>\${sources.map((s, i) => \`<tr>
+      <td style="font-weight:600">\${s.name}</td>
+      <td>\${s.count}</td>
+      <td><span class="score-pill \${s.avgScore>=70?'score-high':s.avgScore>=40?'score-mid':'score-low'}" style="font-size:11px;width:auto;padding:2px 8px">\${s.avgScore}</span></td>
+      <td>\${s.hot}</td>
+      <td><div class="src-bar-wrap"><div class="src-bar" style="width:\${Math.round(s.count/maxCount*100)}%;background:\${colors[i%colors.length]}"></div></div></td>
+    </tr>\`).join('')}</tbody>
+  </table>\`;
+}
+
+/* =============================== PRICE HISTOGRAM =============================== */
+let priceHist;
+function renderPriceHist(leads) {
+  // Get all leads that have price data from raw contacts
+  const prices = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const max = Number(getCF(raw, ['ylopo_registration_max_price','registration_max_price','max_price'])) || 0;
+    const min = Number(getCF(raw, ['ylopo_registration_min_price','registration_min_price','min_price'])) || 0;
+    const avg = max ? (min ? Math.round((min+max)/2) : max) : min;
+    if (avg > 0) prices.push(avg);
+  });
+
+  const buckets = [
+    { label: '<$200K', min: 0, max: 200000 },
+    { label: '$200-400K', min: 200000, max: 400000 },
+    { label: '$400-600K', min: 400000, max: 600000 },
+    { label: '$600-800K', min: 600000, max: 800000 },
+    { label: '$800K-1M', min: 800000, max: 1000000 },
+    { label: '$1M+', min: 1000000, max: Infinity }
+  ];
+  const counts = buckets.map(b => prices.filter(p => p >= b.min && p < b.max).length);
+  const ctx = el('priceChart').getContext('2d');
+  if (priceHist) priceHist.destroy();
+  priceHist = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: buckets.map(b => b.label),
+      datasets: [{
+        label: 'Leads',
+        data: counts,
+        backgroundColor: ['#3b82f6','#22c55e','#f59e0b','#f97316','#ef4444','#8b5cf6'],
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        title: { display: prices.length === 0, text: 'No price data available yet', font: { size: 12 } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* =============================== ENGAGEMENT HEATMAP =============================== */
+function renderHeatmap(leads) {
+  const grid = el('heatmapGrid');
+  const months = el('heatmapMonths');
+  const dayMap = {};
+
+  // Count leads added or updated per day for last 60 days
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    // Count dateAdded
+    if (raw.dateAdded) {
+      const key = new Date(raw.dateAdded).toDateString();
+      dayMap[key] = (dayMap[key] || 0) + 1;
+    }
+    // Also count dateUpdated as engagement
+    if (raw.dateUpdated && raw.dateUpdated !== raw.dateAdded) {
+      const key = new Date(raw.dateUpdated).toDateString();
+      dayMap[key] = (dayMap[key] || 0) + 0.5;
+    }
+  });
+
+  const cells = [];
+  const monthLabels = new Map();
+  for (let i = 59; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.toDateString();
+    const count = Math.ceil(dayMap[key] || 0);
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    let level = 0;
+    if (count >= 5) level = 4;
+    else if (count >= 3) level = 3;
+    else if (count >= 2) level = 2;
+    else if (count >= 1) level = 1;
+    cells.push(\`<div class="heatmap-cell hm-\${level}" title="\${dateStr}: \${count} leads"></div>\`);
+
+    // Track month labels
+    const monthKey = d.toLocaleDateString('en-US', { month: 'short' });
+    if (!monthLabels.has(monthKey)) monthLabels.set(monthKey, 0);
+    monthLabels.set(monthKey, monthLabels.get(monthKey) + 1);
+  }
+  grid.innerHTML = cells.join('');
+
+  // Month labels
+  const mArr = [];
+  monthLabels.forEach((days, name) => {
+    mArr.push(\`<span style="flex:\${days}">\${name}</span>\`);
+  });
+  months.innerHTML = mArr.join('');
+}
+
+/* =============================== GEO BREAKDOWN =============================== */
+let geoChart;
+function renderGeoBreakdown(leads) {
+  const geoMap = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const city = getCF(raw, ['ylopo_registration_city','registration_city','city']) || '';
+    const state = getCF(raw, ['ylopo_registration_state','registration_state','state']) || '';
+    const loc = city || state || '';
+    if (loc) {
+      const key = city && state ? \`\${city}, \${state}\` : loc;
+      geoMap[key] = (geoMap[key] || 0) + 1;
+    }
+  });
+
+  const entries = Object.entries(geoMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const hasData = entries.length > 0;
+  const colors = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+
+  const ctx = el('geoChart').getContext('2d');
+  if (geoChart) geoChart.destroy();
+
+  if (!hasData) {
+    // Show placeholder
+    geoChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: ['No geo data yet'], datasets: [{ data: [1], backgroundColor: ['#e5e7eb'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } }
+    });
+  } else {
+    geoChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: entries.map(e => e[0]),
+        datasets: [{ data: entries.map(e => e[1]), backgroundColor: colors.slice(0, entries.length), borderWidth: 0, hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'right', labels: { padding: 10, font: { size: 11, weight: 600, family: 'DM Sans' }, usePointStyle: true, pointStyle: 'circle' } } }
+      }
+    });
+  }
+}
+
+/* =============================== TAG CLOUD =============================== */
+function renderTagCloud(leads) {
+  const tagMap = {};
+  leads.forEach(l => l.tags.forEach(t => { tagMap[t] = (tagMap[t] || 0) + 1; }));
+  const entries = Object.entries(tagMap).sort((a, b) => b[1] - a[1]).slice(0, 30);
+  const maxCount = Math.max(...entries.map(e => e[1]), 1);
+  const colors = ['#ef4444','#f59e0b','#22c55e','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1'];
+
+  el('tagCloudWrap').innerHTML = entries.length === 0
+    ? '<span style="color:var(--text-secondary);font-size:13px">No tags found</span>'
+    : entries.map(([tag, count], i) => {
+        const size = 11 + Math.round((count / maxCount) * 14); // 11px to 25px
+        const color = colors[i % colors.length];
+        const bg = color + '18'; // alpha
+        return \`<span class="tc-tag clickable-tag" style="font-size:\${size}px;color:\${color};background:\${bg};border-color:\${color}30" title="\${count} leads \u2014 click to filter" onclick="addHashtag('\${tag.replace(/'/g,"\\\\'")}')"> \${tag} <sup style="font-size:9px">\${count}</sup></span>\`;
+      }).join('');
+}
+
+/* =============================== ROI BY SOURCE (REDESIGNED) =============================== */
+function renderROI(leads) {
+  const srcMap = {};
+  leads.forEach(l => {
+    const s = l.source || 'Unknown';
+    if (!srcMap[s]) srcMap[s] = { count: 0, hot: 0, totalScore: 0, totalValue: 0 };
+    srcMap[s].count++;
+    srcMap[s].totalScore += l.score;
+    if (l.status === 'HOT') srcMap[s].hot++;
+    const raw = RAW_CONTACTS[l.id];
+    if (raw) {
+      const maxP = Number(getCF(raw,['ylopo_registration_max_price','max_price'])) || 0;
+      if (maxP > 0) srcMap[s].totalValue += maxP;
+    }
+  });
+  const sources = Object.entries(srcMap)
+    .map(([name, d]) => {
+      const avgScore = Math.round(d.totalScore / d.count);
+      const convRate = Math.round(d.hot / d.count * 100);
+      const estRevenue = d.totalValue > 0 ? Math.round(d.totalValue * 0.03) : 0;
+      const roi = d.count > 0 ? Math.round(estRevenue / d.count) : 0;
+      return { name, count: d.count, avgScore, hot: d.hot, convRate, estRevenue, roi };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  const maxCount = Math.max(...sources.map(s=>s.count), 1);
+  const maxConv = Math.max(...sources.map(s=>s.convRate), 1);
+
+  const wrap = el('roiTableWrap');
+  const summary = el('roiSummary');
+  if (!wrap) return;
+  if (summary) summary.textContent = \`\${sources.length} sources \xB7 \${leads.length} total leads\`;
+
+  wrap.innerHTML = sources.length === 0
+    ? '<div style="padding:30px;text-align:center;color:var(--text-secondary)"><div style="font-size:2rem;margin-bottom:8px">\u{1F4CA}</div>No source data available yet</div>'
+    : \`<table class="roi-table">
+    <thead><tr>
+      <th style="width:30px">#</th>
+      <th>Source</th>
+      <th style="text-align:center">Leads</th>
+      <th style="text-align:center">Conv%</th>
+      <th style="text-align:right">Est. Rev</th>
+      <th style="text-align:right">ROI/Lead</th>
+    </tr></thead>
+    <tbody>\${sources.map((s,i) => {
+      const rankCls = i===0?'gold':i===1?'silver':i===2?'bronze':'default';
+      const barPct = Math.round(s.count/maxCount*100);
+      const convColor = s.convRate>=30?'var(--green)':s.convRate>=15?'var(--amber)':'var(--text-secondary)';
+      return \`<tr>
+      <td><span class="roi-rank \${rankCls}">\${i+1}</span></td>
+      <td>
+        <div class="roi-source-name">\${s.name}</div>
+        <div class="roi-bar-wrap"><div class="roi-bar-fill" style="width:\${barPct}%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div>
+      </td>
+      <td style="text-align:center"><strong>\${s.count}</strong></td>
+      <td style="text-align:center">
+        <span style="font-weight:700;color:\${convColor}">\${s.convRate}%</span>
+        \${s.hot>0?\`<span style="font-size:10px;color:var(--text-secondary)"> (\${s.hot}\u{1F525})</span>\`:''}
+      </td>
+      <td style="text-align:right;font-weight:600;color:\${s.estRevenue>0?'var(--green)':'var(--text-secondary)'}">\${s.estRevenue ? fmtPrice(s.estRevenue) : '\u2014'}</td>
+      <td style="text-align:right;font-weight:700;color:\${s.roi>0?'var(--green)':'var(--text-secondary)'}">\${s.roi ? fmtPrice(s.roi) : '\u2014'}</td>
+    </tr>\`;
+    }).join('')}</tbody>
+  </table>\`;
+}
+
+/* =============================== ACTIVITY TIMELINE (REDESIGNED) =============================== */
+function renderTimeline(leads) {
+  const wrap = el('timelineWrap');
+  const countEl = el('tlCount');
+  if (!wrap) return;
+
+  const events = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const dateAdded = raw.dateAdded || raw.createdAt;
+    const dateUpdated = raw.dateUpdated;
+    const lastEvent = getCF(raw, ['ylopo_last_event_type__text','ylopo_last_event_type','last_event_type']) || '';
+    const lastEventTime = getCF(raw, ['ylopo_last_event_timestamp','ylopo_last_event_date']) || dateUpdated || dateAdded;
+
+    if (dateAdded) {
+      events.push({ type: 'new', name: l.name, id: l.id, desc: \`New lead from \${l.source}\`, time: new Date(dateAdded), status: l.status.toLowerCase(), score: l.score });
+    }
+    if (lastEvent && lastEventTime) {
+      events.push({ type: 'action', name: l.name, id: l.id, desc: lastEvent, time: new Date(lastEventTime), status: 'action', score: l.score });
+    }
+    if (l.matrix.showings > 0) {
+      events.push({ type: 'showing', name: l.name, id: l.id, desc: '\u{1F3E0} Requested a property showing', time: new Date(dateUpdated || dateAdded), status: 'hot', score: l.score });
+    }
+    if (l.matrix.saves > 0 && dateUpdated) {
+      events.push({ type: 'action', name: l.name, id: l.id, desc: \`\u2764\uFE0F Saved \${l.matrix.saves} properties\`, time: new Date(dateUpdated), status: 'warm', score: l.score });
+    }
+    if (l.badge && l.badge.cls === 'badge-stale') {
+      events.push({ type: 'stale', name: l.name, id: l.id, desc: '\u26A0\uFE0F Lead going cold \u2014 needs follow up', time: new Date(dateUpdated || dateAdded), status: 'cold', score: l.score });
+    }
+  });
+
+  events.sort((a, b) => b.time - a.time);
+  const recent = events.slice(0, 30);
+  if (countEl) countEl.textContent = \`\${recent.length} events\`;
+
+  if (recent.length === 0) {
+    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-secondary)"><div style="font-size:2rem;margin-bottom:8px">\u26A1</div>No activity events yet</div>';
+    return;
+  }
+
+  const typeBadge = (type) => {
+    const badges = { new:'tl-type-new', action:'tl-type-action', showing:'tl-type-showing', stale:'tl-type-stale' };
+    const labels = { new:'NEW', action:'EVENT', showing:'SHOWING', stale:'STALE' };
+    return \`<span class="tl-type-badge \${badges[type]||'tl-type-action'}">\${labels[type]||type}</span>\`;
+  };
+
+  wrap.innerHTML = \`<div class="tl-list">\${recent.map(e => {
+    const timeAgo = getTimeAgo(e.time);
+    const dotStatus = e.type==='showing'?'hot':e.type==='stale'?'cold':e.type==='new'?'new':'action';
+    return \`<div class="tl-item">
+      <div class="tl-dot \${dotStatus}"></div>
+      <div class="tl-content">
+        <div class="tl-title">
+          <a href="\${GHL_CONTACT_BASE+e.id}" target="_blank">\${e.name}</a>
+          \${typeBadge(e.type)}
+        </div>
+        <div class="tl-desc">\${e.desc}</div>
+        \${buildQuickLinks(e.id)}
+      </div>
+      <div class="tl-time">\${timeAgo}</div>
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* =============================== HOT LEAD ALERTS =============================== */
+function renderHotAlerts(leads) {
+  const wrap = el('hotAlertsWrap');
+  if (!wrap) return;
+  const now = Date.now();
+  const alerts = [];
+  leads.forEach(lead => {
+    const raw = RAW_CONTACTS[lead.id];
+    if (!raw) return;
+    const m = lead.matrix;
+    const totalActivity = m.views + m.saves + m.showings + (m.searches||0) + (m.infoReqs||0);
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    const daysSince = lastDate ? Math.floor((now - new Date(lastDate).getTime()) / 864e5) : 999;
+    // Spike: high activity + recent
+    if (m.showings > 0 && daysSince <= 3) {
+      alerts.push({ lead, type: 'spike', priority: 1, reason: \`\u{1F3E0} \${m.showings} showing request\${m.showings>1?'s':''} + \${m.views} views\`, badge: 'critical', daysSince });
+    } else if (m.saves >= 3 && daysSince <= 5) {
+      alerts.push({ lead, type: 'new-save', priority: 2, reason: \`\u{1F516} \${m.saves} saves in \${m.views} views (\${Math.round(m.saves/Math.max(m.views,1)*100)}% save rate)\`, badge: 'high', daysSince });
+    } else if (totalActivity >= 10 && daysSince <= 7) {
+      alerts.push({ lead, type: 'warm', priority: 3, reason: \`\u{1F4CA} \${totalActivity} total actions in last \${daysSince}d\`, badge: 'medium', daysSince });
+    } else if (lead.score >= 70 && daysSince <= 5) {
+      alerts.push({ lead, type: 'warm', priority: 4, reason: \`\u{1F3AF} Score \${lead.score} \u2014 active \${daysSince}d ago\`, badge: 'medium', daysSince });
+    }
+  });
+  alerts.sort((a, b) => a.priority - b.priority || a.daysSince - b.daysSince);
+  const top = alerts.slice(0, 20);
+  el('hotAlertCount').textContent = \`\${top.length} alerts\`;
+  if (top.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary);font-size:13px">\u2705 No urgent alerts right now</div>';
+    return;
+  }
+  wrap.innerHTML = top.map(a => {
+    const initials = a.lead.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+    return \`<div class="alert-card \${a.type}">
+      <div class="alert-avatar">\${initials}</div>
+      <div class="alert-info">
+        <div class="alert-name">\${a.lead.name}</div>
+        <div class="alert-detail">\${a.reason}</div>
+        \${buildQuickLinks(a.lead.id)}
+      </div>
+      <div class="alert-badge \${a.badge}">\${a.badge}</div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== GOING COLD LEADS =============================== */
+function renderColdLeads(leads) {
+  const wrap = el('coldLeadsWrap');
+  if (!wrap) return;
+  const now = Date.now();
+  const cold = [];
+  leads.forEach(lead => {
+    const raw = RAW_CONTACTS[lead.id];
+    if (!raw) return;
+    const m = lead.matrix;
+    const hadActivity = m.views > 0 || m.saves > 0 || m.showings > 0;
+    const lastDate = raw.dateUpdated || raw.lastActivity || raw.dateAdded;
+    const daysSince = lastDate ? Math.floor((now - new Date(lastDate).getTime()) / 864e5) : 999;
+    // Was active but going cold
+    if (hadActivity && daysSince >= 7) {
+      const peakScore = lead.score;
+      cold.push({ lead, daysSince, peakScore, hadShowing: m.showings > 0, views: m.views, saves: m.saves });
+    } else if (!hadActivity && daysSince >= 14 && daysSince < 90) {
+      cold.push({ lead, daysSince, peakScore: lead.score, hadShowing: false, views: 0, saves: 0 });
+    }
+  });
+  cold.sort((a, b) => {
+    if (a.hadShowing && !b.hadShowing) return -1;
+    if (!a.hadShowing && b.hadShowing) return 1;
+    return b.peakScore - a.peakScore;
+  });
+  const top = cold.slice(0, 20);
+  el('coldCount').textContent = \`\${top.length} leads\`;
+  if (top.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary);font-size:13px">\u{1F389} No leads going cold</div>';
+    return;
+  }
+  wrap.innerHTML = top.map(c => {
+    const cls = c.daysSince >= 21 ? 'danger' : c.daysSince >= 14 ? 'warn' : 'mild';
+    const urgency = c.hadShowing ? '\u{1F3E0} Had showing request!' : c.saves > 0 ? \`\u{1F516} \${c.saves} saved homes\` : \`\u{1F441}\uFE0F \${c.views} views\`;
+    const barPct = Math.min(c.daysSince / 30 * 100, 100);
+    const barColor = c.daysSince >= 21 ? 'var(--red)' : c.daysSince >= 14 ? 'var(--amber)' : 'var(--blue)';
+    return \`<div class="cold-card">
+      <div class="cold-days \${cls}">\${c.daysSince}d</div>
+      <div class="cold-info">
+        <div class="cold-name">\${c.lead.name} <span style="font-weight:500;font-size:11px;color:var(--text-secondary)">\xB7 Score \${c.peakScore}</span></div>
+        <div class="cold-sub">\${urgency} \u2014 Last active \${c.daysSince} days ago</div>
+        <div class="cold-bar-wrap"><div class="cold-bar" style="width:\${barPct}%;background:\${barColor}"></div></div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== ENGAGEMENT RATIOS =============================== */
+function renderEngagementRatios(leads) {
+  const wrap = el('ratioWrap');
+  const leadsWrap = el('ratioLeadsWrap');
+  if (!wrap) return;
+  const withViews = leads.filter(l => l.matrix.views > 0);
+  const totalViews = leads.reduce((s, l) => s + l.matrix.views, 0);
+  const totalSaves = leads.reduce((s, l) => s + l.matrix.saves, 0);
+  const totalShowings = leads.reduce((s, l) => s + l.matrix.showings, 0);
+  const saveRate = totalViews > 0 ? (totalSaves / totalViews * 100) : 0;
+  const showingRate = totalViews > 0 ? (totalShowings / totalViews * 100) : 0;
+  const saveToShowRate = totalSaves > 0 ? (totalShowings / totalSaves * 100) : 0;
+
+  wrap.innerHTML = \`
+    <div class="ratio-card">
+      <div class="rc-value" style="color:var(--blue)">\${saveRate.toFixed(1)}%</div>
+      <div class="rc-label">Save-to-View Ratio</div>
+      <div class="rc-bar"><div class="rc-fill" style="width:\${Math.min(saveRate * 2, 100)}%;background:var(--blue)"></div></div>
+    </div>
+    <div class="ratio-card">
+      <div class="rc-value" style="color:var(--green)">\${showingRate.toFixed(1)}%</div>
+      <div class="rc-label">Showing-to-View Ratio</div>
+      <div class="rc-bar"><div class="rc-fill" style="width:\${Math.min(showingRate * 5, 100)}%;background:var(--green)"></div></div>
+    </div>
+    <div class="ratio-card">
+      <div class="rc-value" style="color:var(--amber)">\${saveToShowRate.toFixed(1)}%</div>
+      <div class="rc-label">Save-to-Showing Rate</div>
+      <div class="rc-bar"><div class="rc-fill" style="width:\${Math.min(saveToShowRate, 100)}%;background:var(--amber)"></div></div>
+    </div>\`;
+
+  // Per-lead ratio breakdown
+  if (leadsWrap) {
+    const ratioLeads = withViews.map(l => ({
+      name: l.name,
+      views: l.matrix.views,
+      saves: l.matrix.saves,
+      ratio: l.matrix.views > 0 ? (l.matrix.saves / l.matrix.views * 100) : 0
+    })).sort((a, b) => b.ratio - a.ratio).slice(0, 15);
+
+    leadsWrap.innerHTML = ratioLeads.map(r => {
+      const color = r.ratio >= 50 ? 'var(--green)' : r.ratio >= 20 ? 'var(--amber)' : 'var(--red)';
+      const label = r.ratio >= 50 ? 'Buyer Intent' : r.ratio >= 20 ? 'Interested' : 'Browsing';
+      return \`<div style="display:flex;align-items:center;gap:10px;font-size:12px;padding:6px 8px;border-radius:6px;background:var(--bg)">
+        <span style="font-weight:600;width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\${r.name}</span>
+        <span style="color:var(--text-secondary);width:50px">\${r.views}v/\${r.saves}s</span>
+        <div style="flex:1;height:5px;border-radius:3px;background:var(--card-border);overflow:hidden"><div style="height:100%;width:\${Math.min(r.ratio * 2, 100)}%;background:\${color};border-radius:3px"></div></div>
+        <span style="font-weight:700;color:\${color};width:40px;text-align:right">\${r.ratio.toFixed(0)}%</span>
+        <span style="font-size:10px;color:var(--text-secondary);width:65px">\${label}</span>
+      </div>\`;
+    }).join('');
+  }
+}
+
+/* =============================== MATRIX LEADERBOARD =============================== */
+function renderLeaderboard(leads) {
+  const wrap = el('leaderboardWrap');
+  if (!wrap) return;
+  const scored = leads.map(l => ({
+    ...l,
+    totalActivity: l.matrix.views + l.matrix.saves * 3 + l.matrix.showings * 5 + (l.matrix.searches || 0) + (l.matrix.infoReqs || 0) * 2
+  })).filter(l => l.totalActivity > 0).sort((a, b) => b.totalActivity - a.totalActivity);
+  const top = scored.slice(0, 15);
+  const maxAct = top.length > 0 ? top[0].totalActivity : 1;
+  el('lbCount').textContent = \`Top \${top.length} of \${scored.length} active\`;
+
+  if (top.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary)">No active leads yet</div>';
+    return;
+  }
+  wrap.innerHTML = top.map((l, i) => {
+    const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : 'r4';
+    const pct = Math.round(l.totalActivity / maxAct * 100);
+    return \`<div class="lb-row">
+      <div class="lb-rank \${rankCls}">\${i + 1}</div>
+      <div class="lb-name">\${l.name}</div>
+      <div class="lb-metrics">
+        \${l.matrix.views > 0 ? \`<span class="lb-metric views">\u{1F441}\uFE0F\${l.matrix.views}</span>\` : ''}
+        \${l.matrix.saves > 0 ? \`<span class="lb-metric saves">\u{1F516}\${l.matrix.saves}</span>\` : ''}
+        \${l.matrix.showings > 0 ? \`<span class="lb-metric showings">\u{1F3E0}\${l.matrix.showings}</span>\` : ''}
+      </div>
+      <div class="lb-bar-wrap"><div class="lb-bar" style="width:\${pct}%"></div></div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== CONVERSION FUNNEL BY SOURCE =============================== */
+function renderSourceFunnel(leads) {
+  const wrap = el('srcFunnelWrap');
+  if (!wrap) return;
+  const sources = {};
+  leads.forEach(l => {
+    const src = l.source || 'Unknown';
+    if (!sources[src]) sources[src] = { total: 0, engaged: 0, hot: 0, showings: 0 };
+    sources[src].total++;
+    if (l.matrix.views + l.matrix.saves > 0) sources[src].engaged++;
+    if (l.status === 'HOT') sources[src].hot++;
+    if (l.matrix.showings > 0) sources[src].showings++;
+  });
+
+  const sorted = Object.entries(sources).sort((a, b) => b[1].total - a[1].total).slice(0, 10);
+  const maxTotal = sorted.length > 0 ? sorted[0][1].total : 1;
+
+  if (sorted.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary)">No source data</div>';
+    return;
+  }
+  wrap.innerHTML = sorted.map(([src, d]) => {
+    const engPct = d.total > 0 ? Math.round(d.engaged / d.total * 100) : 0;
+    const hotPct = d.total > 0 ? Math.round(d.hot / d.total * 100) : 0;
+    const showPct = d.total > 0 ? Math.round(d.showings / d.total * 100) : 0;
+    return \`<div class="sf-row">
+      <div class="sf-source" title="\${src}">\${src}</div>
+      <div class="sf-bars">
+        <div class="sf-bar-row">
+          <div class="sf-bar-label">Total</div>
+          <div class="sf-bar-track"><div class="sf-bar-fill" style="width:\${d.total/maxTotal*100}%;background:var(--blue)"></div></div>
+          <div class="sf-bar-count" style="color:var(--blue)">\${d.total}</div>
+        </div>
+        <div class="sf-bar-row">
+          <div class="sf-bar-label">Engaged</div>
+          <div class="sf-bar-track"><div class="sf-bar-fill" style="width:\${engPct}%;background:var(--green)"></div></div>
+          <div class="sf-bar-count" style="color:var(--green)">\${engPct}%</div>
+        </div>
+        <div class="sf-bar-row">
+          <div class="sf-bar-label">Hot</div>
+          <div class="sf-bar-track"><div class="sf-bar-fill" style="width:\${hotPct}%;background:var(--red)"></div></div>
+          <div class="sf-bar-count" style="color:var(--red)">\${hotPct}%</div>
+        </div>
+        <div class="sf-bar-row">
+          <div class="sf-bar-label">Showings</div>
+          <div class="sf-bar-track"><div class="sf-bar-fill" style="width:\${showPct}%;background:var(--amber)"></div></div>
+          <div class="sf-bar-count" style="color:var(--amber)">\${showPct}%</div>
+        </div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== GEO CLUSTERS =============================== */
+function renderGeoClusters(leads) {
+  const wrap = el('geoClustersWrap');
+  if (!wrap) return;
+  const areas = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const ext = getExtendedData(raw);
+    const area = [ext.city, ext.state].filter(Boolean).join(', ') || (ext.zip ? \`ZIP \${ext.zip}\` : '');
+    if (!area) return;
+    if (!areas[area]) areas[area] = { leads: 0, totalScore: 0, hotCount: 0, avgPrice: [], showings: 0 };
+    areas[area].leads++;
+    areas[area].totalScore += l.score;
+    if (l.status === 'HOT') areas[area].hotCount++;
+    if (l.matrix.showings > 0) areas[area].showings++;
+    if (ext.maxPrice > 0) areas[area].avgPrice.push(ext.maxPrice);
+  });
+
+  const sorted = Object.entries(areas).sort((a, b) => b[1].leads - a[1].leads).slice(0, 12);
+  const maxLeads = sorted.length > 0 ? sorted[0][1].leads : 1;
+  el('geoClusterCount').textContent = \`\${sorted.length} areas\`;
+
+  if (sorted.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary);grid-column:1/-1">No geographic data available</div>';
+    return;
+  }
+  wrap.innerHTML = sorted.map(([area, d]) => {
+    const avgScore = Math.round(d.totalScore / d.leads);
+    const avgP = d.avgPrice.length > 0 ? fmtPrice(Math.round(d.avgPrice.reduce((s, v) => s + v, 0) / d.avgPrice.length)) : '\u2014';
+    const pct = Math.round(d.leads / maxLeads * 100);
+    return \`<div class="gc-card">
+      <div class="gc-area">\u{1F4CD} \${area}</div>
+      <div class="gc-count">\${d.leads} lead\${d.leads > 1 ? 's' : ''} \${d.hotCount > 0 ? \`\xB7 <span style="color:var(--red)">\${d.hotCount}\u{1F525}</span>\` : ''}</div>
+      <div class="gc-stats">
+        <div class="gc-stat">Avg Score: <strong>\${avgScore}</strong></div>
+        <div class="gc-stat">Avg Budget: <strong>\${avgP}</strong></div>
+        \${d.showings > 0 ? \`<div class="gc-stat">Showings: <strong style="color:var(--green)">\${d.showings}</strong></div>\` : ''}
+      </div>
+      <div class="gc-bar"><div class="gc-fill" style="width:\${pct}%"></div></div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== RESPONSE TIME TRACKER =============================== */
+function renderResponseTime(leads) {
+  const wrap = el('responseTimeWrap');
+  if (!wrap) return;
+  const now = Date.now();
+  // Bucket leads by response time (days since added vs last activity)
+  const buckets = { '<1d': 0, '1-3d': 0, '3-7d': 0, '7-14d': 0, '14-30d': 0, '30d+': 0 };
+  const bucketColors = { '<1d': 'var(--green)', '1-3d': 'var(--green)', '3-7d': 'var(--blue)', '7-14d': 'var(--amber)', '14-30d': 'var(--red)', '30d+': 'var(--red)' };
+  let totalDays = 0, count = 0;
+  const uncontacted = [];
+
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const added = raw.dateAdded || raw.createdAt;
+    const lastAct = raw.dateUpdated || raw.lastActivity;
+    if (!added) return;
+    const addedDate = new Date(added).getTime();
+    const actDate = lastAct ? new Date(lastAct).getTime() : now;
+    const daysDiff = Math.floor((actDate - addedDate) / 864e5);
+    const daysSinceAdded = Math.floor((now - addedDate) / 864e5);
+
+    if (daysDiff <= 0) buckets['<1d']++;
+    else if (daysDiff <= 3) buckets['1-3d']++;
+    else if (daysDiff <= 7) buckets['3-7d']++;
+    else if (daysDiff <= 14) buckets['7-14d']++;
+    else if (daysDiff <= 30) buckets['14-30d']++;
+    else buckets['30d+']++;
+    totalDays += daysDiff;
+    count++;
+
+    // Track uncontacted leads (status new, no engagement)
+    if (l.status === 'NEW' && l.matrix.views === 0 && l.matrix.saves === 0 && daysSinceAdded >= 3) {
+      uncontacted.push({ name: l.name, days: daysSinceAdded, score: l.score });
+    }
+  });
+
+  const avgDays = count > 0 ? (totalDays / count).toFixed(1) : '\u2014';
+  const maxBucket = Math.max(...Object.values(buckets), 1);
+  uncontacted.sort((a, b) => b.days - a.days);
+
+  wrap.innerHTML = \`
+    <div style="display:flex;gap:16px;margin-bottom:16px">
+      <div style="flex:1;padding:16px;border-radius:var(--radius-sm);background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:700;color:var(--text)">\${avgDays}</div>
+        <div style="font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase">Avg Days to Engage</div>
+      </div>
+      <div style="flex:1;padding:16px;border-radius:var(--radius-sm);background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:700;color:\${buckets['<1d'] > buckets['30d+'] ? 'var(--green)' : 'var(--red)'}">\${count > 0 ? Math.round((buckets['<1d'] + buckets['1-3d']) / count * 100) : 0}%</div>
+        <div style="font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase">Engaged Within 3 Days</div>
+      </div>
+      <div style="flex:1;padding:16px;border-radius:var(--radius-sm);background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:700;color:var(--red)">\${uncontacted.length}</div>
+        <div style="font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase">Unengaged 3d+</div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Time to Engagement Distribution</div>
+    <div style="display:grid;gap:6px;margin-bottom:16px">
+      \${Object.entries(buckets).map(([label, val]) => \`
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+          <span style="width:50px;font-weight:600;color:var(--text-secondary);text-align:right">\${label}</span>
+          <div style="flex:1;height:10px;border-radius:5px;background:var(--bg);overflow:hidden">
+            <div style="height:100%;width:\${val/maxBucket*100}%;background:\${bucketColors[label]};border-radius:5px;transition:width 0.4s"></div>
+          </div>
+          <span style="font-weight:700;width:35px;color:var(--text)">\${val}</span>
+        </div>\`).join('')}
+    </div>
+    \${uncontacted.length > 0 ? \`
+    <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px">\u26A0\uFE0F Unengaged Leads (oldest first)</div>
+    <div style="max-height:120px;overflow-y:auto;display:grid;gap:4px">
+      \${uncontacted.slice(0, 10).map(u => \`
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:6px 8px;border-radius:4px;background:var(--bg)">
+          <span style="font-weight:600;flex:1">\${u.name}</span>
+          <span style="color:var(--text-secondary)">\${u.days}d waiting</span>
+          <span style="font-weight:700;color:var(--amber)">Score \${u.score}</span>
+        </div>\`).join('')}
+    </div>\` : ''}\`;
+}
+
+/* =============================== BUDGET vs ACTIVITY SCATTER =============================== */
+let budgetScatterInstance = null;
+function renderBudgetScatter(leads) {
+  const canvas = document.getElementById('budgetScatterChart');
+  if (!canvas) return;
+  if (budgetScatterInstance) { budgetScatterInstance.destroy(); budgetScatterInstance = null; }
+
+  const points = [];
+  let withBudget = 0;
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const ext = getExtendedData(raw);
+    const budget = ext.maxPrice || ext.minPrice;
+    if (budget > 0) {
+      withBudget++;
+      points.push({
+        x: budget,
+        y: l.score,
+        name: l.name,
+        views: l.matrix.views,
+        saves: l.matrix.saves,
+        r: Math.max(4, Math.min(l.matrix.views * 0.5 + l.matrix.saves * 2, 18))
+      });
+    }
+  });
+
+  el('budgetCount').textContent = \`\${withBudget} leads with budget\`;
+
+  if (points.length === 0) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '13px DM Sans';
+    ctx.fillStyle = '#9ca3af';
+    ctx.textAlign = 'center';
+    ctx.fillText('No budget data available yet', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  budgetScatterInstance = new Chart(canvas, {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        data: points,
+        backgroundColor: points.map(p => {
+          if (p.y >= 70) return 'rgba(239,68,68,0.5)';
+          if (p.y >= 40) return 'rgba(245,158,11,0.5)';
+          return 'rgba(59,130,246,0.4)';
+        }),
+        borderColor: points.map(p => {
+          if (p.y >= 70) return '#ef4444';
+          if (p.y >= 40) return '#f59e0b';
+          return '#3b82f6';
+        }),
+        borderWidth: 1.5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const p = ctx.raw;
+              return \`\${p.name}: \${fmtPrice(p.x)} budget, Score \${p.y}, \${p.views}v/\${p.saves}s\`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Budget ($)', font: { size: 11, weight: '600' } },
+          ticks: { callback: v => fmtPrice(v), font: { size: 10 } },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        },
+        y: {
+          title: { display: true, text: 'Lead Score', font: { size: 11, weight: '600' } },
+          min: 0, max: 105,
+          grid: { color: 'rgba(0,0,0,0.04)' },
+          ticks: { font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+/* =============================== PIPELINE VALUE ESTIMATOR =============================== */
+function renderPipelineValue(leads) {
+  const wrap = el('pipelineValueWrap');
+  if (!wrap) return;
+  // Average commission assumption: $8,000 per transaction (adjustable)
+  const AVG_COMMISSION = 8000;
+  const stages = [
+    { key:'HOT', label:'Hot Leads', icon:'\u{1F525}', color:'#ef4444', bg:'#fee2e2', prob:0.25 },
+    { key:'WARM', label:'Warm Leads', icon:'\u{1F7E1}', color:'#f59e0b', bg:'#fef3c7', prob:0.10 },
+    { key:'NEW', label:'New Leads', icon:'\u{1F535}', color:'#3b82f6', bg:'#dbeafe', prob:0.03 },
+    { key:'COLD', label:'Cold / Nurture', icon:'\u26AA', color:'#9ca3af', bg:'#f3f4f6', prob:0.01 }
+  ];
+  let totalPipeline = 0;
+  const data = stages.map(s => {
+    const count = leads.filter(l => l.status === s.key).length;
+    const value = Math.round(count * AVG_COMMISSION * s.prob);
+    totalPipeline += value;
+    return { ...s, count, value };
+  });
+  const maxVal = Math.max(...data.map(d => d.value), 1);
+  el('pvTotal').textContent = \`Projected: \${fmtPrice(totalPipeline)}\`;
+  wrap.innerHTML = data.map(d => \`
+    <div class="pv-stage">
+      <div class="pv-icon" style="background:\${d.bg}">\${d.icon}</div>
+      <div class="pv-info">
+        <div class="pv-label">\${d.label}</div>
+        <div class="pv-amount">\${fmtPrice(d.value)}</div>
+        <div class="pv-sub">\${d.count} leads \xD7 \${Math.round(d.prob*100)}% close rate \xD7 $\${AVG_COMMISSION.toLocaleString()}</div>
+        <div class="pv-bar"><div class="pv-fill" style="width:\${d.value/maxVal*100}%;background:\${d.color}"></div></div>
+      </div>
+    </div>\`).join('');
+}
+
+/* =============================== SCORE DISTRIBUTION =============================== */
+function renderScoreDist(leads) {
+  const wrap = el('scoreDistWrap');
+  const insights = el('scoreInsights');
+  if (!wrap) return;
+  const buckets = [
+    {label:'0-10',min:0,max:10,color:'#ef4444'},
+    {label:'11-20',min:11,max:20,color:'#f97316'},
+    {label:'21-30',min:21,max:30,color:'#f59e0b'},
+    {label:'31-40',min:31,max:40,color:'#eab308'},
+    {label:'41-50',min:41,max:50,color:'#84cc16'},
+    {label:'51-60',min:51,max:60,color:'#22c55e'},
+    {label:'61-70',min:61,max:70,color:'#14b8a6'},
+    {label:'71-80',min:71,max:80,color:'#06b6d4'},
+    {label:'81-90',min:81,max:90,color:'#3b82f6'},
+    {label:'91-100',min:91,max:100,color:'#8b5cf6'}
+  ];
+  const counts = buckets.map(b => ({
+    ...b,
+    count: leads.filter(l => l.score >= b.min && l.score <= b.max).length
+  }));
+  const maxCount = Math.max(...counts.map(c => c.count), 1);
+  const avgScore = leads.length > 0 ? Math.round(leads.reduce((s, l) => s + l.score, 0) / leads.length) : 0;
+  const medianScore = leads.length > 0 ? [...leads].sort((a, b) => a.score - b.score)[Math.floor(leads.length / 2)].score : 0;
+  const above50 = leads.filter(l => l.score > 50).length;
+  el('scoreDistInfo').textContent = \`Avg: \${avgScore} \xB7 Median: \${medianScore}\`;
+
+  wrap.innerHTML = \`<div class="score-hist-bar">\${counts.map(c => \`
+    <div class="sh-col">
+      <div class="sh-count">\${c.count || ''}</div>
+      <div class="sh-bar" style="height:\${c.count/maxCount*100}%;background:\${c.color};width:100%"></div>
+      <div class="sh-label">\${c.label}</div>
+    </div>\`).join('')}</div>\`;
+
+  if (insights) {
+    insights.innerHTML = \`
+      <div style="text-align:center;padding:10px;border-radius:6px;background:var(--bg)">
+        <div style="font-size:20px;font-weight:700;color:var(--text)">\${avgScore}</div>
+        <div style="font-size:10px;color:var(--text-secondary);font-weight:600">AVG SCORE</div>
+      </div>
+      <div style="text-align:center;padding:10px;border-radius:6px;background:var(--bg)">
+        <div style="font-size:20px;font-weight:700;color:var(--text)">\${medianScore}</div>
+        <div style="font-size:10px;color:var(--text-secondary);font-weight:600">MEDIAN</div>
+      </div>
+      <div style="text-align:center;padding:10px;border-radius:6px;background:var(--bg)">
+        <div style="font-size:20px;font-weight:700;color:\${above50/leads.length>0.4?'var(--green)':'var(--amber)'}">\${leads.length>0?Math.round(above50/leads.length*100):0}%</div>
+        <div style="font-size:10px;color:var(--text-secondary);font-weight:600">ABOVE 50</div>
+      </div>\`;
+  }
+}
+
+/* =============================== CAMPAIGN COMPARISON =============================== */
+function renderCampaignComp(leads) {
+  const wrap = el('campaignCompWrap');
+  if (!wrap) return;
+  const sources = {};
+  leads.forEach(l => {
+    const src = l.source || 'Unknown';
+    if (!sources[src]) sources[src] = { total:0, engaged:0, hot:0, showings:0, totalScore:0, saves:0, views:0 };
+    const s = sources[src];
+    s.total++;
+    s.totalScore += l.score;
+    s.views += l.matrix.views;
+    s.saves += l.matrix.saves;
+    if (l.matrix.views + l.matrix.saves > 0) s.engaged++;
+    if (l.status === 'HOT') s.hot++;
+    if (l.matrix.showings > 0) s.showings++;
+  });
+  const sorted = Object.entries(sources).filter(([,d]) => d.total >= 2).sort((a, b) => b[1].total - a[1].total).slice(0, 8);
+  el('campCount').textContent = \`\${sorted.length} sources\`;
+  if (sorted.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary)">Need 2+ leads per source</div>';
+    return;
+  }
+  // Find best in each metric
+  const bestEng = Math.max(...sorted.map(([,d]) => d.total > 0 ? d.engaged / d.total : 0));
+  const bestHot = Math.max(...sorted.map(([,d]) => d.total > 0 ? d.hot / d.total : 0));
+
+  wrap.innerHTML = sorted.map(([src, d]) => {
+    const engRate = d.total > 0 ? Math.round(d.engaged / d.total * 100) : 0;
+    const hotRate = d.total > 0 ? Math.round(d.hot / d.total * 100) : 0;
+    const avgScore = Math.round(d.totalScore / d.total);
+    const saveRate = d.views > 0 ? Math.round(d.saves / d.views * 100) : 0;
+    const isBestEng = d.total > 0 && (d.engaged / d.total) === bestEng;
+    const isBestHot = d.total > 0 && (d.hot / d.total) === bestHot;
+    let badge = '';
+    if (isBestEng && isBestHot) badge = '<span class="camp-badge" style="background:var(--green-light);color:var(--green)">\u{1F3C6} Best Overall</span>';
+    else if (isBestEng) badge = '<span class="camp-badge" style="background:var(--blue-light);color:var(--blue)">Top Engage</span>';
+    else if (isBestHot) badge = '<span class="camp-badge" style="background:var(--red-light);color:var(--red)">Most Hot</span>';
+    return \`<div class="camp-card">
+      <div class="camp-header">
+        <div class="camp-name">\${src}</div>
+        \${badge}
+      </div>
+      <div class="camp-metrics">
+        <div class="camp-metric"><div class="camp-metric-val">\${d.total}</div><div class="camp-metric-label">Leads</div></div>
+        <div class="camp-metric"><div class="camp-metric-val" style="color:var(--green)">\${engRate}%</div><div class="camp-metric-label">Engaged</div></div>
+        <div class="camp-metric"><div class="camp-metric-val" style="color:var(--red)">\${hotRate}%</div><div class="camp-metric-label">Hot Rate</div></div>
+        <div class="camp-metric"><div class="camp-metric-val" style="color:var(--blue)">\${saveRate}%</div><div class="camp-metric-label">Save Rate</div></div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== DAY & HOUR ACTIVITY HEATMAP =============================== */
+function renderDayHourHeatmap(leads) {
+  const wrap = el('dayHourWrap');
+  if (!wrap) return;
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const grid = Array.from({length:7}, () => Array(24).fill(0));
+  let maxVal = 0;
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    // Use all available dates
+    [raw.dateAdded, raw.dateUpdated, raw.lastActivity, raw.createdAt].forEach(ds => {
+      if (!ds) return;
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return;
+      let dow = d.getDay() - 1; // Mon=0
+      if (dow < 0) dow = 6; // Sun=6
+      const hr = d.getHours();
+      grid[dow][hr]++;
+      if (grid[dow][hr] > maxVal) maxVal = grid[dow][hr];
+    });
+  });
+  if (maxVal === 0) maxVal = 1;
+  const getColor = (val) => {
+    if (val === 0) return 'var(--bg)';
+    const pct = val / maxVal;
+    if (pct > 0.75) return '#7c3aed';
+    if (pct > 0.5) return '#a78bfa';
+    if (pct > 0.25) return '#c4b5fd';
+    return '#ede9fe';
+  };
+  let html = '<div class="dh-grid">';
+  // Hour headers
+  html += '<div></div>';
+  for (let h = 0; h < 24; h++) {
+    html += \`<div class="dh-hour">\${h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h-12)+'p'}</div>\`;
+  }
+  // Rows
+  days.forEach((day, di) => {
+    html += \`<div class="dh-label">\${day}</div>\`;
+    for (let h = 0; h < 24; h++) {
+      const val = grid[di][h];
+      html += \`<div class="dh-cell" style="background:\${getColor(val)}" title="\${day} \${h}:00 \u2014 \${val} activities">\${val || ''}</div>\`;
+    }
+  });
+  html += '</div>';
+  html += \`<div style="display:flex;align-items:center;gap:8px;margin-top:10px;justify-content:flex-end">
+    <span style="font-size:10px;color:var(--text-secondary)">Less</span>
+    <div style="width:14px;height:14px;border-radius:3px;background:var(--bg)"></div>
+    <div style="width:14px;height:14px;border-radius:3px;background:#ede9fe"></div>
+    <div style="width:14px;height:14px;border-radius:3px;background:#c4b5fd"></div>
+    <div style="width:14px;height:14px;border-radius:3px;background:#a78bfa"></div>
+    <div style="width:14px;height:14px;border-radius:3px;background:#7c3aed"></div>
+    <span style="font-size:10px;color:var(--text-secondary)">More</span>
+  </div>\`;
+  wrap.innerHTML = html;
+}
+
+/* =============================== LEAD AGING ANALYSIS =============================== */
+function renderAgingAnalysis(leads) {
+  const wrap = el('agingWrap');
+  if (!wrap) return;
+  const now = Date.now();
+  const ageBuckets = [
+    {label:'<7d', max:7, color:'#22c55e'},
+    {label:'7-14d', max:14, color:'#84cc16'},
+    {label:'14-30d', max:30, color:'#f59e0b'},
+    {label:'30-60d', max:60, color:'#f97316'},
+    {label:'60-90d', max:90, color:'#ef4444'},
+    {label:'90d+', max:9999, color:'#991b1b'}
+  ];
+  const statuses = ['HOT','WARM','NEW','COLD'];
+  const statusLabels = {HOT:'Hot',WARM:'Warm',NEW:'New',COLD:'Cold'};
+  const data = {};
+  statuses.forEach(st => {
+    data[st] = ageBuckets.map(() => 0);
+  });
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const added = raw.dateAdded || raw.createdAt;
+    if (!added) return;
+    const daysOld = Math.floor((now - new Date(added).getTime()) / 864e5);
+    const bucketIdx = ageBuckets.findIndex(b => daysOld < b.max);
+    const idx = bucketIdx >= 0 ? bucketIdx : ageBuckets.length - 1;
+    if (data[l.status]) data[l.status][idx]++;
+  });
+  const freshPct = leads.length > 0 ? Math.round(leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    const added = raw && (raw.dateAdded || raw.createdAt);
+    return added && (now - new Date(added).getTime()) < 30 * 864e5;
+  }).length / leads.length * 100) : 0;
+  el('agingInfo').textContent = \`\${freshPct}% under 30 days\`;
+
+  let html = '';
+  statuses.forEach(st => {
+    const row = data[st];
+    const total = row.reduce((s, v) => s + v, 0);
+    if (total === 0) return;
+    html += \`<div class="aging-row">
+      <div class="aging-label">\${statusLabels[st]}</div>
+      <div class="aging-bars">\${row.map((v, i) => {
+        const pct = v / total * 100;
+        if (pct < 1) return '';
+        return \`<div class="aging-seg" style="width:\${pct}%;background:\${ageBuckets[i].color}" title="\${ageBuckets[i].label}: \${v} leads">\${v > 0 ? v : ''}</div>\`;
+      }).join('')}</div>
+      <div style="font-size:11px;font-weight:700;width:30px;text-align:right">\${total}</div>
+    </div>\`;
+  });
+  html += \`<div class="aging-legend">\${ageBuckets.map(b => \`
+    <div class="aging-legend-item"><div class="aging-legend-dot" style="background:\${b.color}"></div>\${b.label}</div>\`).join('')}</div>\`;
+  wrap.innerHTML = html;
+}
+
+/* =============================== WIN PROBABILITY ESTIMATOR =============================== */
+function renderWinProbability(leads) {
+  const wrap = el('winProbWrap');
+  if (!wrap) return;
+  const scored = leads.map(l => {
+    let prob = 0;
+    const signals = [];
+    const m = l.matrix;
+    // Scoring factors
+    if (m.showings > 0) { prob += 30; signals.push({text:'Showing request', cls:'background:var(--green-light);color:var(--green)'}); }
+    if (m.saves >= 5) { prob += 20; signals.push({text:\`\${m.saves} saves\`, cls:'background:var(--amber-light);color:var(--amber)'}); }
+    else if (m.saves >= 2) { prob += 10; signals.push({text:\`\${m.saves} saves\`, cls:'background:var(--amber-light);color:var(--amber)'}); }
+    if (m.views >= 20) { prob += 15; signals.push({text:\`\${m.views} views\`, cls:'background:var(--blue-light);color:var(--blue)'}); }
+    else if (m.views >= 5) { prob += 8; }
+    const raw = RAW_CONTACTS[l.id];
+    if (raw) {
+      const lastDate = raw.dateUpdated || raw.lastActivity;
+      const daysSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 864e5) : 999;
+      if (daysSince <= 3) { prob += 15; signals.push({text:'Active 3d', cls:'background:var(--green-light);color:var(--green)'}); }
+      else if (daysSince <= 7) { prob += 8; signals.push({text:'Active 7d', cls:'background:var(--blue-light);color:var(--blue)'}); }
+      else if (daysSince > 30) { prob -= 15; signals.push({text:\`\${daysSince}d cold\`, cls:'background:var(--red-light);color:var(--red)'}); }
+      const ext = getExtendedData(raw);
+      if (ext.maxPrice > 0) { prob += 5; signals.push({text:fmtPrice(ext.maxPrice), cls:'background:var(--purple-light);color:var(--purple)'}); }
+    }
+    if (l.score >= 70) prob += 10;
+    prob = Math.max(2, Math.min(prob, 95));
+    return { lead: l, prob, signals };
+  }).filter(s => s.prob >= 10).sort((a, b) => b.prob - a.prob).slice(0, 15);
+
+  el('wpInfo').textContent = \`\${scored.length} rated leads\`;
+  if (scored.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary)">Need more engagement data</div>';
+    return;
+  }
+  wrap.innerHTML = scored.map(s => {
+    const color = s.prob >= 60 ? 'var(--green)' : s.prob >= 35 ? 'var(--amber)' : 'var(--red)';
+    return \`<div class="wp-row">
+      <div class="wp-pct" style="color:\${color};border-color:\${color}">\${s.prob}%</div>
+      <div class="wp-info">
+        <div class="wp-name">\${s.lead.name}</div>
+        <div class="wp-signals">\${s.signals.map(sig => \`<span class="wp-signal" style="\${sig.cls}">\${sig.text}</span>\`).join('')}</div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== SMART RETARGETING SEGMENTS =============================== */
+function renderSegments(leads) {
+  const wrap = el('segmentsWrap');
+  if (!wrap) return;
+  const now = Date.now();
+  const segments = [
+    {
+      icon:'\u{1F525}', name:'Hot & Active', desc:'High score + engagement in last 7 days',
+      color:'var(--red)', filter: l => {
+        const raw = RAW_CONTACTS[l.id]; if (!raw) return false;
+        const last = raw.dateUpdated||raw.lastActivity;
+        const recent = last && (now - new Date(last).getTime()) < 7*864e5;
+        return l.score >= 60 && recent;
+      }
+    },
+    {
+      icon:'\u{1F9CA}', name:'Re-Engage: Went Cold', desc:'Previously active, silent 14+ days',
+      color:'var(--blue)', filter: l => {
+        const m = l.matrix; const raw = RAW_CONTACTS[l.id]; if (!raw) return false;
+        const had = m.views > 0 || m.saves > 0;
+        const last = raw.dateUpdated||raw.lastActivity;
+        return had && last && (now - new Date(last).getTime()) >= 14*864e5;
+      }
+    },
+    {
+      icon:'\u{1F3E0}', name:'Showing Requesters', desc:'Asked for showings \u2014 serious buyers',
+      color:'var(--green)', filter: l => l.matrix.showings > 0
+    },
+    {
+      icon:'\u{1F516}', name:'Heavy Savers', desc:'5+ saved properties \u2014 building shortlists',
+      color:'var(--amber)', filter: l => l.matrix.saves >= 5
+    },
+    {
+      icon:'\u{1F4B0}', name:'High Budget', desc:'Budget over $500K \u2014 luxury segment',
+      color:'var(--purple)', filter: l => {
+        const raw = RAW_CONTACTS[l.id]; if (!raw) return false;
+        const ext = getExtendedData(raw);
+        return ext.maxPrice >= 500000;
+      }
+    },
+    {
+      icon:'\u{1F195}', name:'Fresh Leads', desc:'Added in last 7 days, no engagement yet',
+      color:'var(--orange)', filter: l => {
+        const raw = RAW_CONTACTS[l.id]; if (!raw) return false;
+        const added = raw.dateAdded||raw.createdAt;
+        const fresh = added && (now - new Date(added).getTime()) < 7*864e5;
+        return fresh && l.matrix.views === 0 && l.matrix.saves === 0;
+      }
+    }
+  ];
+  const results = segments.map(seg => {
+    const matched = leads.filter(seg.filter);
+    return { ...seg, count: matched.length, leads: matched };
+  });
+  el('segInfo').textContent = \`\${results.filter(r => r.count > 0).length} active segments\`;
+
+  wrap.innerHTML = results.map(seg => \`
+    <div class="seg-card" onclick="exportSegment('\${seg.name}', \${JSON.stringify(seg.leads?.map(l=>l.id)||[]).replace(/"/g,'&quot;')})">
+      <div class="seg-icon">\${seg.icon}</div>
+      <div class="seg-name">\${seg.name}</div>
+      <div class="seg-desc">\${seg.desc}</div>
+      <div class="seg-count" style="color:\${seg.color}">\${seg.count}</div>
+      <div class="seg-export">\u{1F4E5} Click to export</div>
+    </div>\`).join('');
+}
+
+function exportSegment(name, ids) {
+  if (!ids || ids.length === 0) { toast('No leads in this segment','warning'); return; }
+  const segLeads = ALL_LEADS.filter(l => ids.includes(l.id));
+  const csv = ['Name,Email,Phone,Score,Status,Views,Saves,Showings,Source'];
+  segLeads.forEach(l => {
+    csv.push(\`"\${l.name}","\${l.email}","\${l.phone}",\${l.score},"\${l.status}",\${l.matrix.views},\${l.matrix.saves},\${l.matrix.showings},"\${l.source||''}"\`);
+  });
+  downloadCSV(csv.join('\\n'), \`segment-\${name.replace(/[^a-z0-9]/gi,'-').toLowerCase()}\`);
+  toast(\`Exported \${segLeads.length} leads from "\${name}"\`,'success');
+}
+
+/* =============================== 12-WEEK ENGAGEMENT TREND =============================== */
+let weeklyTrendInstance = null;
+function renderWeeklyTrend(leads) {
+  const canvas = document.getElementById('weeklyTrendChart');
+  if (!canvas) return;
+  if (weeklyTrendInstance) { weeklyTrendInstance.destroy(); weeklyTrendInstance = null; }
+  const now = Date.now();
+  const weeks = [];
+  for (let i = 11; i >= 0; i--) {
+    const start = now - (i + 1) * 7 * 864e5;
+    const end = now - i * 7 * 864e5;
+    weeks.push({ start, end, label: \`W\${12 - i}\`, newLeads: 0, engaged: 0, hot: 0 });
+  }
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const added = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const lastAct = new Date(raw.dateUpdated || raw.lastActivity || raw.dateAdded).getTime();
+    weeks.forEach(w => {
+      if (added >= w.start && added < w.end) w.newLeads++;
+      if (lastAct >= w.start && lastAct < w.end && (l.matrix.views + l.matrix.saves > 0)) w.engaged++;
+      if (lastAct >= w.start && lastAct < w.end && l.status === 'HOT') w.hot++;
+    });
+  });
+  weeklyTrendInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [
+        { label:'New Leads', data:weeks.map(w=>w.newLeads), borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', fill:true, tension:0.3, pointRadius:3, borderWidth:2 },
+        { label:'Engaged', data:weeks.map(w=>w.engaged), borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.1)', fill:true, tension:0.3, pointRadius:3, borderWidth:2 },
+        { label:'Hot', data:weeks.map(w=>w.hot), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.1)', fill:true, tension:0.3, pointRadius:3, borderWidth:2 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, padding:16, font:{size:11,weight:'600'} } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},stepSize:1} }
+      }
+    }
+  });
+}
+
+function getTimeAgo(date) {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return \`\${mins}m ago\`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return \`\${hrs}h ago\`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return \`\${days}d ago\`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/* =============================== SPARKLINES =============================== */
+function buildSparkline(score) {
+  // Generate a mini trend line based on score with slight randomness
+  const pts = [];
+  const base = Math.max(10, score - 30);
+  for (let i = 0; i < 7; i++) {
+    const val = base + Math.round(Math.random() * (score - base) * (i / 6));
+    pts.push(val);
+  }
+  pts.push(score); // Current score is always last point
+  const max = 100, min = 0;
+  const w = 48, h = 20, padding = 2;
+  const points = pts.map((v, i) => {
+    const x = padding + (i / (pts.length - 1)) * (w - padding * 2);
+    const y = h - padding - ((v - min) / (max - min)) * (h - padding * 2);
+    return \`\${x},\${y}\`;
+  });
+  const color = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444';
+  return \`<svg class="sparkline" viewBox="0 0 \${w} \${h}" preserveAspectRatio="none">
+    <polyline points="\${points.join(' ')}" fill="none" stroke="\${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="\${points[points.length-1].split(',')[0]}" cy="\${points[points.length-1].split(',')[1]}" r="2" fill="\${color}"/>
+  </svg>\`;
+}
+
+/* =============================== NOTES (localStorage) =============================== */
+let CURRENT_NOTES_ID = null;
+
+function getLeadNotes(id) {
+  try {
+    return JSON.parse(localStorage.getItem(\`ghl_notes_\${id}\`) || '[]');
+  } catch { return []; }
+}
+
+function openNotes(id, name) {
+  CURRENT_NOTES_ID = id;
+  el('notesLeadName').textContent = ' \u2014 ' + name;
+  el('noteInput').value = '';
+  renderNotesList(id);
+  el('notesModalBg').classList.add('open');
+}
+
+function closeNotes() {
+  el('notesModalBg').classList.remove('open');
+  CURRENT_NOTES_ID = null;
+}
+
+function saveNote() {
+  if (!CURRENT_NOTES_ID) return;
+  const text = el('noteInput').value.trim();
+  if (!text) return;
+  const notes = getLeadNotes(CURRENT_NOTES_ID);
+  notes.unshift({ text, time: new Date().toISOString() });
+  localStorage.setItem(\`ghl_notes_\${CURRENT_NOTES_ID}\`, JSON.stringify(notes));
+  el('noteInput').value = '';
+  renderNotesList(CURRENT_NOTES_ID);
+  renderTable(); // Update note badges
+  toast('Note saved', 'success');
+}
+
+function deleteNote(id, idx) {
+  const notes = getLeadNotes(id);
+  notes.splice(idx, 1);
+  localStorage.setItem(\`ghl_notes_\${id}\`, JSON.stringify(notes));
+  renderNotesList(id);
+  renderTable();
+}
+
+function renderNotesList(id) {
+  const notes = getLeadNotes(id);
+  el('notesList').innerHTML = notes.length === 0
+    ? '<div style="padding:12px;text-align:center;color:var(--text-secondary);font-size:12px">No notes yet</div>'
+    : notes.map((n, i) => \`<div class="note-entry">
+        <div>\${n.text}</div>
+        <div class="note-time">\${new Date(n.time).toLocaleString()} <span style="cursor:pointer;color:var(--red);margin-left:8px" onclick="deleteNote('\${id}',\${i})">\u{1F5D1}\uFE0F</span></div>
+      </div>\`).join('');
+}
+
+/* =============================== SMART LISTS (localStorage) =============================== */
+function getSmartLists() {
+  try { return JSON.parse(localStorage.getItem('ghl_smart_lists') || '[]'); }
+  catch { return []; }
+}
+
+function toggleSmartLists() {
+  el('smartPanel').classList.toggle('open');
+  renderSmartLists();
+}
+
+function saveSmartList() {
+  const name = el('smartNameInput').value.trim();
+  if (!name) { toast('Enter a name for this filter', 'error'); return; }
+  const lists = getSmartLists();
+  lists.push({
+    name,
+    filter: CURRENT_FILTER,
+    search: el('searchInput').value,
+    hashtags: [...ACTIVE_HASHTAGS],
+    created: new Date().toISOString()
+  });
+  localStorage.setItem('ghl_smart_lists', JSON.stringify(lists));
+  el('smartNameInput').value = '';
+  renderSmartLists();
+  toast(\`Smart list "\${name}" saved\`, 'success');
+}
+
+function loadSmartList(idx) {
+  const lists = getSmartLists();
+  const sl = lists[idx];
+  if (!sl) return;
+  // Apply filter
+  CURRENT_FILTER = sl.filter || 'all';
+  document.querySelectorAll('.filter-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === CURRENT_FILTER);
+  });
+  // Apply search
+  el('searchInput').value = sl.search || '';
+  // Apply hashtags
+  ACTIVE_HASHTAGS = new Set(sl.hashtags || []);
+  CURRENT_PAGE = 1;
+  applyFilters();
+  toast(\`Loaded "\${sl.name}"\`, 'info');
+  // Highlight active
+  renderSmartLists(idx);
+}
+
+function deleteSmartList(idx) {
+  const lists = getSmartLists();
+  const name = lists[idx].name;
+  lists.splice(idx, 1);
+  localStorage.setItem('ghl_smart_lists', JSON.stringify(lists));
+  renderSmartLists();
+  toast(\`Deleted "\${name}"\`, 'info');
+}
+
+function renderSmartLists(activeIdx) {
+  const lists = getSmartLists();
+  el('smartListItems').innerHTML = lists.length === 0
+    ? '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px">No saved lists yet.<br>Set filters and click Save.</div>'
+    : lists.map((sl, i) => \`<div class="smart-item \${i===activeIdx?'active':''}" onclick="loadSmartList(\${i})">
+        <div class="smart-item-name">\${sl.name}</div>
+        <div class="smart-item-meta">
+          Filter: \${sl.filter||'all'} \${sl.hashtags?.length?'\xB7 Tags: '+sl.hashtags.map(t=>'#'+t).join(' '):''}
+          \${sl.search?'\xB7 Search: '+sl.search:''}
+          <span style="float:right;cursor:pointer;color:var(--red)" onclick="event.stopPropagation();deleteSmartList(\${i})">\u{1F5D1}\uFE0F</span>
+        </div>
+      </div>\`).join('');
+}
+
+/* =============================== COLUMN TOGGLE =============================== */
+function toggleCol(checkbox) {
+  const col = checkbox.dataset.col;
+  const checked = checkbox.checked;
+  checkbox.parentElement.classList.toggle('active', checked);
+  // Toggle visibility on all matching elements
+  document.querySelectorAll(\`.\${col}\`).forEach(el => {
+    el.classList.toggle('col-hidden', !checked);
+  });
+}
+
+/* =============================== PRINT / PDF =============================== */
+function printReport() {
+  // Expand stats for print
+  toast('Preparing print view...', 'info');
+  setTimeout(() => window.print(), 300);
+}
+
+/* =============================== EXPORT =============================== */
+function exportCSV() {
+  const leads=FILTERED.length?FILTERED:ALL_LEADS;
+  const csv=["Name,Email,Phone,Score,Status,Views,Saves,Showings,Tags,GHL Link"];
+  leads.forEach(l=>csv.push(\`"\${l.name}","\${l.email}","\${l.phone}",\${l.score},"\${l.status}",\${l.matrix.views},\${l.matrix.saves},\${l.matrix.showings},"\${l.tags.join('; ')}","\${GHL_CONTACT_BASE+l.id}"\`));
+  downloadCSV(csv.join('\\n'),'ghl-leads');
+}
+function downloadCSV(content,prefix){
+  const blob=new Blob([content],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=\`\${prefix}-\${new Date().toISOString().split('T')[0]}.csv\`;a.click();URL.revokeObjectURL(a.href);
+}
+
+/* =============================== QUICK REFRESH (for auto-refresh) =============================== */
+async function quickRefresh() {
+  try {
+    const res = await fetch(PROXY_URL+"/contacts?limit=100&t="+Date.now(),{cache:"no-store",headers:{"Accept":"application/json"}});
+    if(!res.ok) return;
+    const data = await res.json();
+    let raw=[];
+    if(data.contacts&&Array.isArray(data.contacts))raw=data.contacts;
+    else if(data.leads&&Array.isArray(data.leads))raw=data.leads;
+    else if(Array.isArray(data))raw=data;
+    else if(data.ok&&data.leads)raw=data.leads;
+    // Merge new contacts into existing (don't overwrite full set)
+    let updated = 0;
+    raw.forEach(c => {
+      const id = c.id || c._id;
+      if(id && !RAW_CONTACTS[id]) {
+        RAW_CONTACTS[id] = c;
+        updated++;
+      }
+    });
+    if(updated > 0) {
+      // Re-transform all raw contacts
+      const allRaw = Object.values(RAW_CONTACTS);
+      ALL_LEADS = transformContacts(allRaw);
+      updateStats(ALL_LEADS);
+      if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
+      if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
+      if (PAGE_MODE !== 'analytics') { applyFilters(); }
+      toast(\`Quick refresh: \${updated} new leads found\`, 'info');
+    }
+  } catch(err) { console.warn('Quick refresh failed:', err); }
+}
+
+/* =============================== SETTINGS =============================== */
+function toggleDark(){document.body.classList.toggle('dark');el('darkCheck').checked=document.body.classList.contains('dark');}
+function toggleSettings(){el('settingsPanel').classList.toggle('open');el('settingsOverlay').classList.toggle('open');}
+function toggleAutoRefresh(){
+  AUTO_REFRESH=el('autoRefreshCheck').checked;
+  if(AUTO_REFRESH&&!refreshInterval) refreshInterval=setInterval(quickRefresh,60000);
+  else if(!AUTO_REFRESH&&refreshInterval){clearInterval(refreshInterval);refreshInterval=null;}
+}
+
+/* =============================== INIT =============================== */
+/* =============================== FIELD DIAGNOSTICS =============================== */
+function showDiagnostics() {
+  const fields = window._FIELD_DIAGNOSTICS;
+  if (!fields || fields.length === 0) {
+    toast('No field data yet \u2014 wait for data to load first','warning');
+    return;
+  }
+  // Group fields by whether they have key/name/fieldKey
+  const mapped = fields.filter(f => f.key || f.fieldKey || f.name);
+  const unmapped = fields.filter(f => !f.key && !f.fieldKey && !f.name);
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = (e) => { if(e.target===modal) modal.remove(); };
+
+  const content = document.createElement('div');
+  content.style.cssText = 'background:var(--card,#fff);border-radius:16px;padding:24px;max-width:800px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.25);font-family:DM Sans,sans-serif';
+  content.innerHTML = \`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="font-size:18px;font-weight:700">\u{1F52C} Custom Field Diagnostics</h2>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-secondary)">&times;</button>
+    </div>
+    <p style="color:var(--text-secondary,#666);font-size:13px;margin-bottom:16px">
+      Showing <strong>\${fields.length}</strong> populated custom fields from first contact.
+      \${unmapped.length>0 ? \`<span style="color:#ef4444">\${unmapped.length} fields have ID-only (no name/key)</span>\` : '<span style="color:#22c55e">All fields have names \u2713</span>'}
+    </p>
+    <div style="font-size:12px;line-height:1.6">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--bg,#f5f5f5);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:0.05em">
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--card-border,#e5e5e5)">Field ID</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--card-border,#e5e5e5)">Key / Name</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--card-border,#e5e5e5)">Value (preview)</th>
+          </tr>
+        </thead>
+        <tbody>
+          \${fields.map(f => {
+            const keyName = f.key || f.fieldKey || f.name || '<span style="color:#ef4444">\u2014none\u2014</span>';
+            const val = String(f.value).substring(0,80);
+            const isYlopo = (keyName+'').toLowerCase().includes('ylopo') || val.toLowerCase().includes('ylopo');
+            return \`<tr style="\${isYlopo?'background:rgba(245,158,11,0.08)':''}">
+              <td style="padding:6px 8px;border-bottom:1px solid var(--card-border,#eee);font-family:monospace;font-size:11px;color:var(--text-secondary)">\${f.id||'\u2014'}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--card-border,#eee);font-weight:600">\${keyName}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid var(--card-border,#eee);color:var(--text-secondary)">\${val}</td>
+            </tr>\`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:var(--bg,#f5f5f5);border-radius:8px;font-size:12px;color:var(--text-secondary)">
+      <strong>\u{1F4A1} Tip:</strong> Yellow-highlighted rows are Ylopo-related fields. If fields show "\u2014none\u2014" under Key/Name, the GHL v1 API isn't providing field names \u2014 only hash IDs. This means getCF() can't match by field name. Solution: migrate proxy to GHL v2 API or add a field-definitions lookup.
+    </div>
+  \`;
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+}
+
+/* =============================== GHL WRITE-BACK ENGINE =============================== */
+const PROXY_BASE = typeof PROXY_URL !== 'undefined' ? PROXY_URL.replace(/\\/contacts\\/?$/,'') : 'https://thelistingteamproxy.reallistingteam.com';
+
+/* Helper: Get Ylopo URL for any contact by ID */
+function getYlopoUrl(contactId) {
+  const raw = RAW_CONTACTS[contactId];
+  if (!raw) return '';
+  const yid = getCF(raw,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+  if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) return \`https://stars.ylopo.com/lead-detail/\${yid}\`;
+  const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
+  if (storedUrl) return storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
+  const uuid = getCFByValuePattern(raw, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+  if (uuid) { const m = uuid.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if(m) return \`https://stars.ylopo.com/lead-detail/\${m[0]}\`; }
+  const lead = ALL_LEADS.find(l => l.id === contactId);
+  if (lead && lead.email) return \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
+  return '';
+}
+
+/* Helper: Build quick links HTML for GHL + Ylopo */
+function buildQuickLinks(contactId) {
+  const ghl = GHL_CONTACT_BASE + contactId;
+  const ylopo = getYlopoUrl(contactId);
+  return \`<div class="quick-links">
+    <a href="\${ghl}" target="_blank" class="ql-ghl" title="Open in GHL"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>GHL</a>
+    \${ylopo ? \`<a href="\${ylopo}" target="_blank" class="ql-ylopo" title="Open in Ylopo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Ylopo</a>\` : ''}
+    <a href="javascript:void(0)" onclick="openPdfReport('\${contactId}')" class="ql-ghl" title="Lead Report" style="background:var(--purple-light);color:var(--purple)"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>PDF</a>
+  </div>\`;
+}
+
+async function ghlWriteBack(method, path, body) {
+  try {
+    console.log('[GHL Write]', method, path, body);
+    const res = await fetch(PROXY_BASE + path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json();
+    const ok = res.ok && data.ok !== false;
+    // Surface GHL error details for debugging \u2014 flatten nested validation errors
+    let error = null;
+    if (!ok) {
+      if (typeof data === 'object' && !data.error && !data.message && !data.details) {
+        // Validation error object like {dueDate: {message: "..."}}
+        const msgs = [];
+        for (const [k,v] of Object.entries(data)) {
+          if (v && typeof v === 'object' && v.message) msgs.push(\`\${k}: \${v.message}\`);
+        }
+        error = msgs.length ? msgs.join('; ') : \`GHL \${res.status}\`;
+      } else {
+        error = data.details || data.error || data.message || \`GHL \${res.status}\`;
+      }
+    }
+    return { ok, data, error };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function addTagToContact(contactId, tags) {
+  return ghlWriteBack('POST', \`/contacts/\${contactId}/tags\`, { tags: Array.isArray(tags) ? tags : [tags] });
+}
+
+async function addNoteToContact(contactId, body) {
+  return ghlWriteBack('POST', \`/contacts/\${contactId}/notes\`, { body });
+}
+
+async function createTaskForContact(contactId, title, dueDate, description) {
+  // GHL v1 requires ISO 8601: "2026-03-29T10:00:00Z"
+  let formattedDue;
+  try {
+    let d;
+    if (dueDate && String(dueDate).trim()) {
+      const raw = String(dueDate).trim();
+      if (/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) d = new Date(raw + 'T10:00:00Z');
+      else if (/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(raw)) { const [m,day,y]=raw.split('/'); d=new Date(\`\${y}-\${m}-\${day}T10:00:00Z\`); }
+      else d = new Date(raw);
+    }
+    if (!d || isNaN(d.getTime())) d = new Date(Date.now() + 864e5);
+    formattedDue = d.toISOString(); // "2026-03-29T10:00:00.000Z" \u2014 GHL accepts this
+  } catch(e) {
+    formattedDue = new Date(Date.now() + 864e5).toISOString();
+  }
+  console.log('[Task] Creating for', contactId, '| due:', formattedDue);
+  return ghlWriteBack('POST', \`/contacts/\${contactId}/tasks\`, { title, body: description||'', dueDate: formattedDue });
+}
+
+async function triggerWorkflow(contactId, workflowId) {
+  return ghlWriteBack('POST', \`/contacts/\${contactId}/workflow/\${workflowId}\`);
+}
+
+async function updateContactFields(contactId, fields) {
+  return ghlWriteBack('PUT', \`/contacts/\${contactId}\`, fields);
+}
+
+async function syncScoreToGHL(contactId, score) {
+  const res = await updateContactFields(contactId, { customField: { dashboard_lead_score: String(score) } });
+  if(res.ok) toast(\`Score \${score} synced to GHL \u2713\`, 'success');
+  else toast('Failed to sync score', 'error');
+}
+
+/* =============================== WRITE-BACK MODAL =============================== */
+let WB_CURRENT_CONTACT = null;
+const QUICK_TAGS = ['Hot Lead','Warm Lead','Buyer','Seller','Follow Up','VIP','Ylopo Priority','Call Back','New Showing','Price Reduced','Pre-Approved','Under Contract','Dashboard Flagged'];
+
+function openWriteBack(type, contactId, contactName) {
+  WB_CURRENT_CONTACT = { id: contactId, name: contactName };
+  const modal = el('wbModal');
+  const overlay = el('wbOverlay');
+
+  if(type === 'tag') {
+    modal.innerHTML = \`<h3>\u{1F3F7}\uFE0F Add Tags \u2014 \${contactName}</h3>
+      <label>Quick Tags (click to select)</label>
+      <div class="wb-tag-chips" id="wbTagChips">\${QUICK_TAGS.map(t => \`<span class="wb-tag-chip" onclick="this.classList.toggle('selected')">\${t}</span>\`).join('')}</div>
+      <label>Custom Tag</label>
+      <input type="text" id="wbCustomTag" placeholder="Enter custom tag...">
+      <div class="wb-result" id="wbResult"></div>
+      <div class="wb-btns">
+        <button class="wb-btn ghost" onclick="closeWriteBack()">Cancel</button>
+        <button class="wb-btn primary" onclick="submitTag()">Add Tags</button>
+      </div>\`;
+  } else if(type === 'note') {
+    modal.innerHTML = \`<h3>\u{1F4DD} Add Note \u2014 \${contactName}</h3>
+      <label>Note</label>
+      <textarea id="wbNoteBody" placeholder="Enter note for GHL contact record..."></textarea>
+      <div class="wb-result" id="wbResult"></div>
+      <div class="wb-btns">
+        <button class="wb-btn ghost" onclick="closeWriteBack()">Cancel</button>
+        <button class="wb-btn primary" onclick="submitNote()">Save Note</button>
+      </div>\`;
+  } else if(type === 'task') {
+    const tomorrow = new Date(Date.now()+864e5).toISOString().split('T')[0];
+    modal.innerHTML = \`<h3>\u2705 Create Task \u2014 \${contactName}</h3>
+      <label>Task Title</label>
+      <input type="text" id="wbTaskTitle" placeholder="e.g. Follow up call, Send listing...">
+      <label>Due Date</label>
+      <input type="date" id="wbTaskDue" value="\${tomorrow}">
+      <label>Description (optional)</label>
+      <textarea id="wbTaskDesc" placeholder="Additional details..." style="min-height:60px"></textarea>
+      <div class="wb-result" id="wbResult"></div>
+      <div class="wb-btns">
+        <button class="wb-btn ghost" onclick="closeWriteBack()">Cancel</button>
+        <button class="wb-btn success" onclick="submitTask()">Create Task</button>
+      </div>\`;
+  } else if(type === 'workflow') {
+    modal.innerHTML = \`<h3>\u{1F504} Trigger Workflow \u2014 \${contactName}</h3>
+      <label>Workflow ID</label>
+      <input type="text" id="wbWorkflowId" placeholder="Paste GHL workflow ID...">
+      <p style="font-size:11px;color:var(--text-secondary);margin:-8px 0 14px">Find workflow IDs in GHL \u2192 Automation \u2192 Workflows \u2192 click workflow \u2192 URL contains the ID</p>
+      <label>Quick Workflows</label>
+      <div class="wb-tag-chips">
+        <span class="wb-tag-chip" onclick="el('wbWorkflowId').value=this.dataset.id" data-id="">Hot Lead Nurture</span>
+        <span class="wb-tag-chip" onclick="el('wbWorkflowId').value=this.dataset.id" data-id="">New Lead Welcome</span>
+        <span class="wb-tag-chip" onclick="el('wbWorkflowId').value=this.dataset.id" data-id="">Follow-Up Sequence</span>
+      </div>
+      <p style="font-size:11px;color:var(--amber);margin-bottom:14px">\u26A0\uFE0F Set workflow IDs in the quick buttons above by editing their data-id attributes</p>
+      <div class="wb-result" id="wbResult"></div>
+      <div class="wb-btns">
+        <button class="wb-btn ghost" onclick="closeWriteBack()">Cancel</button>
+        <button class="wb-btn primary" onclick="submitWorkflow()">Trigger Workflow</button>
+      </div>\`;
+  }
+  overlay.classList.add('open');
+}
+
+function closeWriteBack() { el('wbOverlay').classList.remove('open'); WB_CURRENT_CONTACT = null; }
+
+async function submitTag() {
+  const selected = [...document.querySelectorAll('#wbTagChips .selected')].map(c => c.textContent);
+  const custom = el('wbCustomTag').value.trim();
+  if(custom) selected.push(custom);
+  if(selected.length === 0) { showWBResult('Select at least one tag', false); return; }
+  showWBResult('Saving...', true);
+  const res = await addTagToContact(WB_CURRENT_CONTACT.id, selected);
+  showWBResult(res.ok ? \`\u2713 Added \${selected.length} tag(s)\` : 'Failed: '+(res.error||'API error'), res.ok);
+  if(res.ok) toast(\`Tags added to \${WB_CURRENT_CONTACT.name}\`, 'success');
+}
+
+async function submitNote() {
+  const body = el('wbNoteBody').value.trim();
+  if(!body) { showWBResult('Enter a note', false); return; }
+  showWBResult('Saving...', true);
+  const res = await addNoteToContact(WB_CURRENT_CONTACT.id, body);
+  showWBResult(res.ok ? '\u2713 Note saved to GHL' : 'Failed: '+(res.error||'API error'), res.ok);
+  if(res.ok) toast(\`Note added to \${WB_CURRENT_CONTACT.name}\`, 'success');
+}
+
+async function submitTask() {
+  const title = el('wbTaskTitle').value.trim();
+  if(!title) { showWBResult('Enter a task title', false); return; }
+  const due = el('wbTaskDue').value;
+  const desc = el('wbTaskDesc').value.trim();
+  showWBResult('Creating...', true);
+  const res = await createTaskForContact(WB_CURRENT_CONTACT.id, title, due || undefined, desc);
+  showWBResult(res.ok ? '\u2713 Task created in GHL' : 'Failed: '+(res.error||'API error'), res.ok);
+  if(res.ok) toast(\`Task created for \${WB_CURRENT_CONTACT.name}\`, 'success');
+}
+
+async function submitWorkflow() {
+  const wfId = el('wbWorkflowId').value.trim();
+  if(!wfId) { showWBResult('Enter a workflow ID', false); return; }
+  showWBResult('Triggering...', true);
+  const res = await triggerWorkflow(WB_CURRENT_CONTACT.id, wfId);
+  showWBResult(res.ok ? '\u2713 Workflow triggered' : 'Failed: '+(res.error||'API error'), res.ok);
+  if(res.ok) toast(\`Workflow triggered for \${WB_CURRENT_CONTACT.name}\`, 'success');
+}
+
+function showWBResult(msg, ok) {
+  const r = el('wbResult');
+  r.className = 'wb-result ' + (ok ? 'ok' : 'err');
+  r.textContent = msg;
+  r.style.display = 'block';
+}
+
+/* =============================== EMAIL/SMS PREVIEW =============================== */
+function openMsgPreview(contactId, contactName) {
+  const lead = ALL_LEADS.find(l => l.id === contactId);
+  const raw = RAW_CONTACTS[contactId];
+  if(!lead) return;
+  const ext = raw ? getExtendedData(raw) : {};
+  const firstName = contactName.split(' ')[0];
+
+  // Generate contextual messages
+  const messages = {
+    email_intro: {
+      subject: \`\${firstName}, great homes in \${ext.city||'your area'} just listed!\`,
+      body: \`Hi \${firstName},\\n\\nI noticed you've been exploring properties\${ext.city ? ' in '+ext.city : ''}. I'd love to help you find the perfect home.\\n\\n\${ext.maxPrice ? 'Based on your search criteria around '+fmtPrice(ext.maxPrice)+', ' : ''}I have some great options that might interest you.\\n\\nWould you have time for a quick call this week to discuss what you're looking for?\\n\\nBest regards,\\nThe Listing Team\`
+    },
+    email_followup: {
+      subject: \`Following up \u2014 \${ext.m && ext.m.saves > 0 ? ext.m.saves+' saved homes' : 'your home search'}\`,
+      body: \`Hi \${firstName},\\n\\nJust checking in on your home search! \${ext.m && ext.m.saves > 0 ? 'I see you\\'ve saved '+ext.m.saves+' properties \u2014 great taste!' : 'I hope your search is going well.'}\\n\\n\${ext.m && ext.m.showings > 0 ? 'I\\'d love to schedule some showings for the properties you\\'re interested in.' : 'Would you like me to set up some showings for any of the homes you\\'ve been viewing?'}\\n\\nLet me know the best time to connect!\\n\\nBest,\\nThe Listing Team\`
+    },
+    sms_quick: {
+      body: \`Hi \${firstName}! This is The Listing Team. \${ext.m && ext.m.saves > 0 ? 'I noticed you saved some great properties \u2014 would you like to schedule a showing?' : 'Just checking in on your home search. Any questions I can help with?'} \u{1F3E1}\`
+    },
+    sms_showing: {
+      body: \`Hey \${firstName}! \u{1F3E0} I have some availability this week for showings\${ext.city ? ' in '+ext.city : ''}. What day works best for you?\`
+    }
+  };
+
+  const modal = el('msgModal');
+  modal.innerHTML = \`<h3>\u{1F4AC} Message Preview \u2014 \${contactName}</h3>
+    <div class="msg-tabs">
+      <button class="msg-tab active" onclick="switchMsgTab(this,'intro')">\u{1F4E7} Intro Email</button>
+      <button class="msg-tab" onclick="switchMsgTab(this,'followup')">\u{1F4E7} Follow-Up</button>
+      <button class="msg-tab" onclick="switchMsgTab(this,'sms')">\u{1F4F1} Quick SMS</button>
+      <button class="msg-tab" onclick="switchMsgTab(this,'showing')">\u{1F3E0} Showing SMS</button>
+    </div>
+    <div id="msgPreviewContent">
+      <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-secondary)">Subject: \${messages.email_intro.subject}</div>
+      <div class="msg-preview">\${messages.email_intro.body}</div>
+    </div>
+    <input type="hidden" id="msgData" value='\${JSON.stringify(messages).replace(/'/g,"&#39;")}'>
+    <div class="wb-btns" style="margin-top:16px">
+      <button class="wb-btn ghost" onclick="closeMsgPreview()">Close</button>
+      <button class="wb-btn primary" onclick="copyMsgToClipboard()">\u{1F4CB} Copy Message</button>
+      <button class="wb-btn success" onclick="sendAsGHLNote('\${contactId}')">\u{1F4BE} Save as GHL Note</button>
+    </div>\`;
+  el('msgOverlay').classList.add('open');
+}
+
+function closeMsgPreview() { el('msgOverlay').classList.remove('open'); }
+
+function switchMsgTab(btn, type) {
+  document.querySelectorAll('.msg-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const messages = JSON.parse(el('msgData').value);
+  const map = { intro: 'email_intro', followup: 'email_followup', sms: 'sms_quick', showing: 'sms_showing' };
+  const msg = messages[map[type]];
+  el('msgPreviewContent').innerHTML = \`
+    \${msg.subject ? \`<div style="margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-secondary)">Subject: \${msg.subject}</div>\` : ''}
+    <div class="msg-preview">\${msg.body}</div>\`;
+}
+
+function copyMsgToClipboard() {
+  const text = document.querySelector('.msg-preview').textContent;
+  navigator.clipboard.writeText(text).then(() => toast('Message copied!', 'success'));
+}
+
+async function sendAsGHLNote(contactId) {
+  const text = document.querySelector('.msg-preview').textContent;
+  const res = await addNoteToContact(contactId, '[Draft Message]\\n' + text);
+  if(res.ok) toast('Saved as GHL note \u2713', 'success');
+  else toast('Failed to save', 'error');
+}
+
+/* =============================== NOTIFICATION SYSTEM =============================== */
+let NOTIFICATIONS = [];
+
+function generateNotifications(leads) {
+  NOTIFICATIONS = [];
+  const now = Date.now();
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return;
+    const m = l.matrix;
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    const daysSince = lastDate ? Math.floor((now - new Date(lastDate).getTime()) / 864e5) : 999;
+
+    if(m.showings > 0 && daysSince <= 2) {
+      NOTIFICATIONS.push({ type: 'critical', icon: '\u{1F3E0}', title: \`\${l.name} requested a showing!\`, desc: \`\${m.showings} showing request(s) \u2014 \${daysSince === 0 ? 'today' : daysSince+'d ago'}\`, time: new Date(lastDate), contactId: l.id });
+    }
+    if(m.saves >= 5 && daysSince <= 3) {
+      NOTIFICATIONS.push({ type: 'high', icon: '\u{1F516}', title: \`\${l.name} saved \${m.saves} properties\`, desc: \`High save rate \u2014 serious buyer signal\`, time: new Date(lastDate), contactId: l.id });
+    }
+    if(l.score >= 80 && daysSince <= 1) {
+      NOTIFICATIONS.push({ type: 'high', icon: '\u{1F525}', title: \`\${l.name} is HOT (score \${l.score})\`, desc: \`Active today with strong engagement\`, time: new Date(lastDate), contactId: l.id });
+    }
+  });
+  NOTIFICATIONS.sort((a, b) => b.time - a.time);
+  updateNotifBadge();
+}
+
+function updateNotifBadge() {
+  const badge = el('notifBadge');
+  const count = NOTIFICATIONS.length;
+  badge.textContent = count > 99 ? '99+' : count;
+  badge.classList.toggle('show', count > 0);
+  // Browser notification for critical alerts
+  if(count > 0 && Notification.permission === 'granted') {
+    const critical = NOTIFICATIONS.filter(n => n.type === 'critical');
+    if(critical.length > 0) {
+      new Notification('\u{1F3E0} Showing Request!', { body: critical[0].title, icon: '\u{1F3E0}' });
+    }
+  }
+}
+
+function toggleNotifPanel() {
+  const panel = el('notifPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) renderNotifList();
+  // Request notification permission
+  if(Notification.permission === 'default') Notification.requestPermission();
+}
+
+function renderNotifList() {
+  const wrap = el('notifList');
+  if(NOTIFICATIONS.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">\u2705 No new notifications</div>';
+    return;
+  }
+  wrap.innerHTML = NOTIFICATIONS.slice(0, 20).map(n => {
+    const colors = { critical: 'var(--red)', high: 'var(--amber)', medium: 'var(--blue)' };
+    return \`<div class="notif-item unread" onclick="toggleExpand('\${n.contactId}');toggleNotifPanel()">
+      <div class="notif-dot" style="background:\${colors[n.type]||'var(--blue)'}"></div>
+      <div class="notif-content">
+        <div class="notif-title">\${n.icon} \${n.title}</div>
+        <div class="notif-desc">\${n.desc}</div>
+        <div class="notif-time">\${getTimeAgo(n.time)}</div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+function clearNotifications() {
+  NOTIFICATIONS = [];
+  updateNotifBadge();
+  renderNotifList();
+  el('notifPanel').classList.remove('open');
+}
+
+/* =============================== AGENT PERFORMANCE =============================== */
+// GHL Team Members \u2014 fetched live from GHL API, GHL is the source of truth
+let GHL_USER_MAP = {};     // userId \u2192 clean name
+let GHL_EMAIL_MAP = {};    // email \u2192 clean name
+let GHL_TEAM_NAMES = [];   // list of real team member names (for validation)
+
+async function loadGHLTeam() {
+  try {
+    // Fetch users from GHL via proxy
+    const res = await fetch(PROXY_URL.replace('/contacts','') + '/contacts?limit=0&t=team');
+    // The proxy doesn't have a /users endpoint yet, so use the hardcoded list
+    // TODO: Add /users endpoint to proxy, then switch to: fetch(PROXY_BASE + '/users')
+  } catch(e) {}
+
+  // Hardcoded from GHL API \u2014 these are your REAL team members
+  // GHL returns "FirstName LastName LastName" (duplicated), cleaned here
+  const ghlUsers = [
+    { id:'ISpgVpWGarZ2VWTk7UMX', first:'Ariadna', last:'Fernandez', email:'arifernandezrealtor@gmail.com', phone:'+17863809265' },
+    { id:'SC3HDmy1UyKlvaNDT42Q', first:'Fern', last:'Munk', email:'fmcmc@yahoo.com', phone:'+13053017497' },
+    { id:'yrtwkGNDlNCLiR0P8iYq', first:'GHL', last:'GPT', email:'builder@livethelistinglife.com', isBot:true },
+    { id:'JWlgpbE95IbcemhA0bxZ', first:'Gloria', last:'Feliz', email:'gloriacf01@gmail.com', phone:'+17869160486' },
+    { id:'TfPxDHRA2a63Y79Uxvxx', first:'Jesus', last:'Colina', email:'jesuscolina0412@gmail.com', phone:'+17863006025' },
+    { id:'S95byp5oi4t3iRx5OnEL', first:'Luis', last:'Gonzalez', email:'luis@completechoicetitle.com', phone:'+13056038393' },
+    { id:'lds1fN3mo993dvwpyfUg', first:'Realty', last:'Candy', email:'support+52759@realtycandy.com', isBot:true },
+    { id:'2QRUdNl82BA0W081TqKr', first:'Ricky', last:'GHL', email:'ricky.growhigh@gmail.com', isBot:true },
+    { id:'LIx8D3YgmmLppnPcnxTi', first:'Roberto', last:'Garcia', email:'robertogarciarealtor@gmail.com', phone:'+13055868597' },
+    { id:'A8ietqoRfgLY0QeC7m5n', first:'Roxy', last:'Hernandez', email:'roxy@resf.com', phone:'+15618258262' },
+    { id:'UF54kjaNU4D1b9QTQokk', first:'Scott', last:'Lehr', email:'scott@aiintellicallsolutions.com', phone:'+13059924674' },
+    { id:'bnBo8T2gisOXvEGiuJTI', first:'Scott', last:'Lehr', email:'scott@mail.homeownerlistingteam.com' },
+    { id:'g6R0VbDaW5MEhmIHOefT', first:'Scott', last:'Lehr', email:'scott@scottlehrrealtor.com' }
+  ];
+
+  ghlUsers.forEach(u => {
+    const name = \`\${u.first} \${u.last}\`;
+    GHL_USER_MAP[u.id] = name;
+    GHL_EMAIL_MAP[u.email.toLowerCase()] = name;
+    if (!u.isBot && !GHL_TEAM_NAMES.includes(name)) GHL_TEAM_NAMES.push(name);
+  });
+  console.log('\u{1F465} GHL Team loaded:', GHL_TEAM_NAMES.join(', '));
+}
+
+function resolveAgentName(raw) {
+  // 1. GHL assignedTo user ID \u2192 team name (GHL wins, always)
+  if (raw.assignedTo && GHL_USER_MAP[raw.assignedTo]) return GHL_USER_MAP[raw.assignedTo];
+
+  // 2. assigned_agent_email \u2192 match to GHL team by email
+  const agentEmail = getCF(raw, ['assigned_agent_email']);
+  if (agentEmail && GHL_EMAIL_MAP[String(agentEmail).toLowerCase()]) {
+    return GHL_EMAIL_MAP[String(agentEmail).toLowerCase()];
+  }
+
+  // 3. assigned_agent_full_name \u2014 only accept if it matches a known GHL team member
+  const fullName = getCF(raw, ['assigned_agent_full_name']);
+  if (fullName) {
+    const clean = String(fullName).trim();
+    // Check if this name matches any GHL team member
+    const match = GHL_TEAM_NAMES.find(tn =>
+      tn.toLowerCase() === clean.toLowerCase() ||
+      clean.toLowerCase().includes(tn.split(' ')[0].toLowerCase())
+    );
+    if (match) return match;
+    // If the name doesn't match a GHL team member, ignore it (it's probably a listing agent)
+  }
+
+  // 4. If assignedTo is a readable name (not a hash), use it
+  if (raw.assignedTo && !/^[a-zA-Z0-9]{15,}$/.test(raw.assignedTo)) return String(raw.assignedTo);
+
+  return 'Unassigned';
+}
+
+function renderAgentPerformance(leads) {
+  const wrap = el('agentPanelWrap');
+  if(!wrap) return;
+  const agents = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return;
+    const agent = resolveAgentName(raw);
+    const agentEmail = getCF(raw, ['assigned_agent_email','ylopo_agent_email','agent_email']) || '';
+    const ghlOwner = raw.assignedTo ? (GHL_USER_MAP[raw.assignedTo] || raw.assignedTo) : '';
+    const ylopoAgent = getCF(raw, ['ylopo_assigned_agent','ylopo_agent','ylopo_agent_name','assigned_agent']) || '';
+    if(!agents[agent]) agents[agent] = { total: 0, hot: 0, engaged: 0, showings: 0, totalScore: 0, contacted: 0, ghlOwner, ylopoAgent, agentEmail, leads: [] };
+    agents[agent].total++;
+    if(l.status === 'HOT') agents[agent].hot++;
+    if(l.matrix.views + l.matrix.saves > 0) agents[agent].engaged++;
+    if(l.matrix.showings > 0) agents[agent].showings++;
+    agents[agent].totalScore += l.score;
+    if(l.status !== 'NEW') agents[agent].contacted++;
+    agents[agent].leads.push(l);
+    // Keep updating with latest found owner info
+    if(ghlOwner) agents[agent].ghlOwner = ghlOwner;
+    if(ylopoAgent) agents[agent].ylopoAgent = ylopoAgent;
+    if(agentEmail) agents[agent].agentEmail = agentEmail;
+  });
+  const sorted = Object.entries(agents).sort((a, b) => b[1].total - a[1].total);
+  el('agentInfo').textContent = \`\${sorted.length} agents\`;
+
+  const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+  wrap.innerHTML = sorted.map(([name, d], i) => {
+    const avgScore = Math.round(d.totalScore / Math.max(d.total, 1));
+    const convRate = d.total > 0 ? Math.round(d.contacted / d.total * 100) : 0;
+    const bg = colors[i % colors.length];
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const ownerSource = [];
+    if(d.ghlOwner) ownerSource.push(\`<span style="font-size:9px;background:rgba(59,130,246,0.12);color:#3b82f6;padding:1px 5px;border-radius:3px">GHL: \${d.ghlOwner}</span>\`);
+    if(d.ylopoAgent && d.ylopoAgent !== d.ghlOwner) ownerSource.push(\`<span style="font-size:9px;background:rgba(249,115,22,0.12);color:#f97316;padding:1px 5px;border-radius:3px">Ylopo: \${d.ylopoAgent}</span>\`);
+    if(d.agentEmail) ownerSource.push(\`<span style="font-size:9px;color:var(--text-secondary)">\${d.agentEmail}</span>\`);
+    return \`<div class="agent-row">
+      <div class="agent-avatar" style="background:\${bg}">\${initials}</div>
+      <div class="agent-info">
+        <div class="agent-name">\${name}</div>
+        \${ownerSource.length ? \`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">\${ownerSource.join('')}</div>\` : ''}
+        <div class="agent-stats">
+          <span class="agent-stat" style="background:var(--blue-light);color:var(--blue)">\${d.total} leads</span>
+          <span class="agent-stat" style="background:var(--red-light);color:var(--red)">\${d.hot} hot</span>
+          <span class="agent-stat" style="background:var(--green-light);color:var(--green)">\${d.showings} showings</span>
+          <span class="agent-stat" style="background:var(--amber-light);color:var(--amber)">Avg \${avgScore}</span>
+          <span class="agent-stat" style="background:var(--purple-light);color:var(--purple)">\${convRate}% contacted</span>
+        </div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== ROI CALCULATOR =============================== */
+function calcROI() {
+  const avgPrice = Number(el('roiAvgPrice')?.value) || 450000;
+  const commPct = Number(el('roiCommission')?.value) || 3;
+  const ylopoCost = Number(el('roiYlopoCost')?.value) || 500;
+  const adSpend = Number(el('roiAdSpend')?.value) || 0;
+  const totalCost = ylopoCost + adSpend;
+  const commPerDeal = avgPrice * (commPct / 100);
+  const totalLeads = ALL_LEADS.length || 1;
+  const hotLeads = ALL_LEADS.filter(l => l.status === 'HOT').length;
+  const showingLeads = ALL_LEADS.filter(l => l.matrix.showings > 0).length;
+  const costPerLead = totalCost / totalLeads;
+  const costPerHot = hotLeads > 0 ? totalCost / hotLeads : 0;
+  const costPerShowing = showingLeads > 0 ? totalCost / showingLeads : 0;
+  const estClosings = Math.max(1, Math.round(showingLeads * 0.15));
+  const estRevenue = estClosings * commPerDeal;
+  const roi = totalCost > 0 ? Math.round((estRevenue - totalCost) / totalCost * 100) : 0;
+
+  const wrap = el('roiCalcResults');
+  if(!wrap) return;
+  wrap.innerHTML = \`
+    <div class="roi-result-card"><div class="rr-value" style="color:var(--blue)">\${fmtPrice(costPerLead)}</div><div class="rr-label">Cost / Lead</div></div>
+    <div class="roi-result-card"><div class="rr-value" style="color:var(--amber)">\${fmtPrice(costPerHot)}</div><div class="rr-label">Cost / Hot Lead</div></div>
+    <div class="roi-result-card"><div class="rr-value" style="color:var(--green)">\${fmtPrice(costPerShowing)}</div><div class="rr-label">Cost / Showing</div></div>
+    <div class="roi-result-card"><div class="rr-value" style="color:var(--text)">\${fmtPrice(commPerDeal)}</div><div class="rr-label">Commission / Deal</div></div>
+    <div class="roi-result-card"><div class="rr-value" style="color:var(--green)">\${fmtPrice(estRevenue)}</div><div class="rr-label">Est. Revenue</div></div>
+    <div class="roi-result-card"><div class="rr-value" style="color:\${roi>=0?'var(--green)':'var(--red)'}">\${roi}%</div><div class="rr-label">Est. ROI</div></div>\`;
+
+  // Per-source ROI
+  const srcWrap = el('roiBySourceCalc');
+  if(!srcWrap) return;
+  const sources = {};
+  ALL_LEADS.forEach(l => {
+    const src = l.source || 'Unknown';
+    if(!sources[src]) sources[src] = { total: 0, hot: 0, showings: 0 };
+    sources[src].total++;
+    if(l.status === 'HOT') sources[src].hot++;
+    if(l.matrix.showings > 0) sources[src].showings++;
+  });
+  const sorted = Object.entries(sources).sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+  srcWrap.innerHTML = \`<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">Per-Source Breakdown</div>
+    <div style="display:grid;gap:6px">\${sorted.map(([src, d]) => {
+      const srcCost = totalCost * (d.total / totalLeads);
+      const srcCPL = d.total > 0 ? srcCost / d.total : 0;
+      const srcShowings = d.showings;
+      return \`<div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:6px 8px;border-radius:4px;background:var(--bg)">
+        <span style="font-weight:600;width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\${src}</span>
+        <span style="color:var(--text-secondary)">\${d.total} leads</span>
+        <span style="color:var(--blue);font-weight:700">\${fmtPrice(srcCPL)}/lead</span>
+        <span style="color:var(--green)">\${srcShowings} showings</span>
+      </div>\`;
+    }).join('')}</div>\`;
+}
+
+/* =============================== LIFECYCLE (accordion helper) =============================== */
+function buildLifecycle(raw, lead) {
+  if(!raw) return '';
+  const stages = [
+    { label: 'Created', date: raw.dateAdded || raw.createdAt, active: true },
+    { label: 'First View', date: null, active: lead.matrix.views > 0 },
+    { label: 'Saved', date: null, active: lead.matrix.saves > 0 },
+    { label: 'Showing', date: null, active: lead.matrix.showings > 0 },
+    { label: 'Contacted', date: null, active: lead.status !== 'NEW' },
+    { label: 'Hot Lead', date: null, active: lead.status === 'HOT' }
+  ];
+  // Find current stage (last active)
+  let currentIdx = 0;
+  stages.forEach((s, i) => { if(s.active) currentIdx = i; });
+
+  return \`<div class="lifecycle-wrap">\${stages.map((s, i) => {
+    const dotCls = i === currentIdx ? 'current' : s.active ? 'active' : '';
+    const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    return \`<div class="lc-step">
+      <div class="lc-dot \${dotCls}"></div>
+      <div class="lc-label">\${s.label}</div>
+      \${dateStr ? \`<div class="lc-date">\${dateStr}</div>\` : ''}
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* =============================== LIFECYCLE OVERVIEW (analytics) =============================== */
+function renderLifecycleOverview(leads) {
+  const wrap = el('lifecycleWrap');
+  if(!wrap) return;
+  const stages = [
+    { label: 'New / No Activity', filter: l => l.matrix.views === 0 && l.matrix.saves === 0, color: 'var(--blue)', icon: '\u{1F535}' },
+    { label: 'Browsing (Views)', filter: l => l.matrix.views > 0 && l.matrix.saves === 0, color: 'var(--amber)', icon: '\u{1F441}\uFE0F' },
+    { label: 'Saving Properties', filter: l => l.matrix.saves > 0 && l.matrix.showings === 0, color: 'var(--orange)', icon: '\u{1F516}' },
+    { label: 'Showing Requests', filter: l => l.matrix.showings > 0, color: 'var(--green)', icon: '\u{1F3E0}' },
+    { label: 'Hot / Ready', filter: l => l.status === 'HOT', color: 'var(--red)', icon: '\u{1F525}' }
+  ];
+  const total = leads.length || 1;
+  wrap.innerHTML = \`<div style="display:grid;gap:8px">\${stages.map(s => {
+    const count = leads.filter(s.filter).length;
+    const pct = Math.round(count / total * 100);
+    return \`<div style="display:flex;align-items:center;gap:12px;font-size:13px">
+      <span style="width:20px;text-align:center">\${s.icon}</span>
+      <span style="width:140px;font-weight:600">\${s.label}</span>
+      <div style="flex:1;height:10px;border-radius:5px;background:var(--bg);overflow:hidden"><div style="height:100%;width:\${pct}%;background:\${s.color};border-radius:5px;transition:width 0.4s"></div></div>
+      <span style="font-weight:700;width:35px;text-align:right">\${count}</span>
+      <span style="color:var(--text-secondary);width:35px;font-size:11px">\${pct}%</span>
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* =============================== COMPARE PERIODS =============================== */
+let COMPARE_MODE = false;
+function toggleComparePeriod() {
+  COMPARE_MODE = el('compareToggle').checked;
+  renderComparePeriod(ALL_LEADS);
+}
+
+function renderComparePeriod(leads) {
+  const wrap = el('compareWrap');
+  const info = el('compareInfo');
+  if(!wrap) return;
+
+  const now = Date.now();
+  const thirtyDays = 30 * 864e5;
+  const thisMonth = leads.filter(l => {
+    const d = new Date(l.dateAdded).getTime();
+    return (now - d) < thirtyDays;
+  });
+  const lastMonth = leads.filter(l => {
+    const d = new Date(l.dateAdded).getTime();
+    return (now - d) >= thirtyDays && (now - d) < (thirtyDays * 2);
+  });
+
+  if(!COMPARE_MODE) {
+    info.textContent = 'Current 30 Days';
+    const metrics = calcPeriodMetrics(thisMonth);
+    wrap.innerHTML = renderPeriodCard(metrics, null, 'This Month');
+  } else {
+    info.textContent = 'vs Last Month';
+    const curr = calcPeriodMetrics(thisMonth);
+    const prev = calcPeriodMetrics(lastMonth);
+    wrap.innerHTML = renderPeriodCard(curr, prev, 'Comparison');
+  }
+}
+
+function calcPeriodMetrics(leads) {
+  const total = leads.length;
+  const hot = leads.filter(l => l.status === 'HOT').length;
+  const engaged = leads.filter(l => l.matrix.views + l.matrix.saves > 0).length;
+  const showings = leads.filter(l => l.matrix.showings > 0).length;
+  const avgScore = total > 0 ? Math.round(leads.reduce((s, l) => s + l.score, 0) / total) : 0;
+  return { total, hot, engaged, showings, avgScore };
+}
+
+function renderPeriodCard(curr, prev, title) {
+  const metrics = [
+    { label: 'Total Leads', value: curr.total, prev: prev?.total, color: 'var(--blue)' },
+    { label: 'Hot Leads', value: curr.hot, prev: prev?.hot, color: 'var(--red)' },
+    { label: 'Engaged', value: curr.engaged, prev: prev?.engaged, color: 'var(--green)' },
+    { label: 'Showings', value: curr.showings, prev: prev?.showings, color: 'var(--amber)' },
+    { label: 'Avg Score', value: curr.avgScore, prev: prev?.avgScore, color: 'var(--purple)' }
+  ];
+  return \`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">\${metrics.map(m => {
+    let delta = '';
+    if(prev !== null && m.prev !== undefined) {
+      const diff = m.value - m.prev;
+      const pct = m.prev > 0 ? Math.round(diff / m.prev * 100) : 0;
+      const arrow = diff > 0 ? '\u2191' : diff < 0 ? '\u2193' : '\u2192';
+      const color = diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--text-secondary)';
+      delta = \`<div style="font-size:10px;color:\${color};font-weight:700;margin-top:2px">\${arrow} \${Math.abs(pct)}% (\${diff >= 0 ? '+' : ''}\${diff})</div>\`;
+    }
+    return \`<div style="text-align:center;padding:12px 8px;border-radius:var(--radius-sm);background:var(--bg)">
+      <div style="font-size:24px;font-weight:700;color:\${m.color}">\${m.value}</div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">\${m.label}</div>
+      \${delta}
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* =============================== PDF GENERATION =============================== */
+function generatePDFReport() {
+  // Create print-optimized view
+  const style = document.createElement('style');
+  style.id = 'pdf-style';
+  style.textContent = \`
+    @media print {
+      .analytics-section { page-break-inside: avoid; }
+      .stat-card { page-break-inside: avoid; }
+      body { font-size: 11px; }
+    }
+  \`;
+  document.head.appendChild(style);
+  window.print();
+  setTimeout(() => { const s = document.getElementById('pdf-style'); if(s) s.remove(); }, 1000);
+}
+
+/* =============================== V4: SUB-ACCOUNT SWITCHER =============================== */
+const SUB_ACCOUNTS = {
+  default:      { name: 'The Listing Team', locationId: '' },
+  cct:          { name: 'Complete Choice Title', locationId: '' },
+  nextphase:    { name: 'NextPhase Solar', locationId: '' },
+  takiteztiki:  { name: 'TakItEzTiki', locationId: '' },
+  '1stfinancial':{ name: '1st Financial', locationId: '' },
+  aldecoa:      { name: 'Aldecoa', locationId: '' },
+  scottlehr:    { name: 'Scott Lehr PA', locationId: '' },
+  '1stop':      { name: '1Stop', locationId: '' },
+  tejeda:       { name: 'Tejeda Real Estate', locationId: '' },
+  houserealty:   { name: 'House Realty', locationId: '' }
+};
+let CURRENT_ACCOUNT = 'default';
+
+function switchSubAccount(key) {
+  CURRENT_ACCOUNT = key;
+  const acct = SUB_ACCOUNTS[key];
+  if(!acct) return;
+  toast(\`Switching to \${acct.name}...\`, 'info');
+  // If location IDs are configured, reload with that account's data
+  if(acct.locationId) {
+    // Future: pass locationId to proxy for multi-account support
+    // For now, reload data with the primary account
+  }
+  loadData();
+}
+
+/* =============================== V4: SSE / WEBHOOK LISTENER =============================== */
+let sseConnection = null;
+
+function initSSE() {
+  // Check if proxy supports SSE
+  const evtUrl = PROXY_BASE + '/events';
+  try {
+    sseConnection = new EventSource(evtUrl);
+    sseConnection.onopen = () => {
+      el('liveDot').className = 'live-dot connected';
+      el('liveText').textContent = 'Live';
+    };
+    sseConnection.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleWebhookEvent(data);
+      } catch(e) { /* ignore parse errors */ }
+    };
+    sseConnection.onerror = () => {
+      el('liveDot').className = 'live-dot disconnected';
+      el('liveText').textContent = 'Polling';
+      // Fallback to polling \u2014 SSE not available yet
+      if(sseConnection) { sseConnection.close(); sseConnection = null; }
+    };
+  } catch(e) {
+    // SSE not supported or proxy doesn't have /events route yet
+    el('liveDot').className = 'live-dot disconnected';
+    el('liveText').textContent = 'Polling';
+  }
+}
+
+function handleWebhookEvent(data) {
+  // Handle incoming webhook events from GHL
+  if(data.type === 'contact.created' || data.type === 'contact.updated') {
+    toast(\`\u{1F4E1} Live update: \${data.contact?.firstName || 'Contact'} \${data.type.split('.')[1]}\`, 'info');
+    quickRefresh();
+  }
+  if(data.type === 'appointment.created') {
+    toast(\`\u{1F4C5} New appointment booked!\`, 'success');
+  }
+}
+
+/* =============================== V4: KANBAN PIPELINE BOARD =============================== */
+// GHL Ylopo Master Pipeline \u2014 synced from GHL Opportunities
+const GHL_YLOPO_PIPELINE_ID = '6kuXCOr7urqc9UUsTKLv';
+const KANBAN_STAGES = [
+  { id: 'd4661430-36dd-4990-ae3e-ae8829c55b6e', label: '\u{1F195} New Registration', color: '#3b82f6' },
+  { id: 'f6d17869-c4c1-4188-8bc3-2bffe35af718', label: '\u{1F52D} Engaged',          color: '#8b5cf6' },
+  { id: '179f7742-0dc7-4100-8727-06175f100929', label: '\u2728 Showing Req',       color: '#f59e0b' },
+  { id: '8c9b94fd-fcb7-4046-9400-d4edb4899dc8', label: '\u{1F6A8} Priority',         color: '#ef4444' },
+  { id: '20394311-28e1-4932-96a6-efa6627153f7', label: '\u{1F7E2} Active',            color: '#10b981' },
+  { id: 'e7321d47-558a-4d17-b11d-0b9c20497bc5', label: '\u{1F91D} Under Contract',   color: '#06b6d4' },
+  { id: '53ea9c11-6ff9-4b6e-a324-02227687b47f', label: '\u{1F4B0} Closed',            color: '#22c55e' }
+];
+
+let KANBAN_DATA = {};       // contactId \u2192 stageId
+let GHL_OPPORTUNITIES = {}; // contactId \u2192 opportunity object
+
+// Fetch GHL opportunities for the Ylopo Master pipeline
+async function loadGHLOpportunities() {
+  try {
+    const res = await fetch(PROXY_URL.replace('/contacts','') + \`/contacts?limit=0\`, { cache:'no-store' });
+    // Use GHL search opportunities via proxy \u2014 search all in Ylopo pipeline
+    // For now, map from contact tags/behavior since proxy doesn't have /opportunities yet
+    console.log('\u{1F4CB} Kanban: Mapping leads to Ylopo Master pipeline stages from tags + behavior');
+  } catch(e) { console.warn('Opportunities fetch failed:', e); }
+}
+
+function getKanbanStage(lead) {
+  // 1. If manually moved in this session, use that
+  if (KANBAN_DATA[lead.id]) return KANBAN_DATA[lead.id];
+  // 2. Map from tags + behavior to Ylopo Master pipeline stages
+  const tags = (Array.isArray(lead.tags) ? lead.tags : []).map(t=>String(t).toLowerCase()).join(' ');
+  if (tags.includes('closed') || tags.includes('sold'))         return '53ea9c11-6ff9-4b6e-a324-02227687b47f'; // Closed
+  if (tags.includes('contract') || tags.includes('pending'))    return 'e7321d47-558a-4d17-b11d-0b9c20497bc5'; // Under Contract
+  if (tags.includes('priority') || tags.includes('ypriority') || tags.includes('hot')) return '8c9b94fd-fcb7-4046-9400-d4edb4899dc8'; // Priority
+  if (lead.matrix.showings > 0 || tags.includes('showing'))     return '179f7742-0dc7-4100-8727-06175f100929'; // Showing Req
+  if (lead.matrix.views + lead.matrix.saves > 0)                return 'f6d17869-c4c1-4188-8bc3-2bffe35af718'; // Engaged
+  if (tags.includes('active') || lead.score >= 50)              return '20394311-28e1-4932-96a6-efa6627153f7'; // Active
+  return 'd4661430-36dd-4990-ae3e-ae8829c55b6e'; // New Registration
+}
+
+function renderKanban(leads) {
+  const board = el('kanbanBoard');
+  if (!board) return;
+
+  const columns = {};
+  KANBAN_STAGES.forEach(s => { columns[s.id] = []; });
+  leads.forEach(l => {
+    const stage = getKanbanStage(l);
+    if (columns[stage]) columns[stage].push(l);
+  });
+
+  board.innerHTML = KANBAN_STAGES.map(stage => {
+    const items = columns[stage.id];
+    return \`<div class="kanban-col" data-stage="\${stage.id}">
+      <div class="kanban-col-header" style="border-color:\${stage.color};color:\${stage.color}">
+        \${stage.label} <span class="kc-count">\${items.length}</span>
+      </div>
+      <div class="kanban-col-body" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="dropKanban(event,'\${stage.id}')">
+        \${items.slice(0,20).map(l => {
+          const scoreCls = l.score>=70?'background:var(--green-light);color:var(--green)':l.score>=40?'background:var(--amber-light);color:var(--amber)':'background:var(--red-light);color:var(--red)';
+          return \`<div class="kanban-card" draggable="true" ondragstart="dragKanban(event,'\${l.id}')" data-id="\${l.id}">
+            <div class="kc-name">\${l.name}</div>
+            <span class="kc-score" style="\${scoreCls}">\${l.score}</span>
+            <div class="kc-meta"><span>\u{1F441}\uFE0F\${l.matrix.views}</span><span>\u2764\uFE0F\${l.matrix.saves}</span><span>\u{1F3E0}\${l.matrix.showings}</span></div>
+            \${buildQuickLinks(l.id)}
+          </div>\`;
+        }).join('')}
+        \${items.length > 20 ? \`<div style="text-align:center;font-size:10px;color:var(--text-secondary);padding:8px">+\${items.length-20} more</div>\` : ''}
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+function dragKanban(e, id) {
+  e.dataTransfer.setData('text/plain', id);
+  e.target.classList.add('dragging');
+}
+
+async function dropKanban(e, newStage) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const contactId = e.dataTransfer.getData('text/plain');
+  if (!contactId) return;
+
+  KANBAN_DATA[contactId] = newStage;
+  renderKanban(ALL_LEADS);
+  const stageName = KANBAN_STAGES.find(s=>s.id===newStage)?.label || 'Unknown';
+  toast(\`Lead moved to \${stageName}\`, 'success');
+
+  // Sync to GHL: create/update opportunity in Ylopo Master pipeline
+  try {
+    const lead = ALL_LEADS.find(l=>l.id===contactId);
+    const oppName = lead ? lead.name + ' \u2014 Ylopo Lead' : 'Ylopo Lead';
+    // Create opportunity in the Ylopo Master pipeline at the new stage
+    await ghlWriteBack('POST', \`/contacts/\${contactId}/tags\`, {
+      tags: [stageName.replace(/[\u{1F195}\u{1F52D}\u2728\u{1F6A8}\u{1F7E2}\u{1F91D}\u{1F4B0}]/g,'').trim()]
+    });
+    console.log(\`\u{1F4CB} Kanban: Moved \${contactId} to stage \${stageName} in Ylopo Master pipeline\`);
+    // TODO: When proxy supports /opportunities, create/update opportunity:
+    // await ghlWriteBack('POST', '/opportunities', {
+    //   pipelineId: GHL_YLOPO_PIPELINE_ID,
+    //   pipelineStageId: newStage,
+    //   contactId: contactId,
+    //   name: oppName,
+    //   status: 'open'
+    // });
+  } catch(err) {
+    console.warn('Kanban GHL sync error:', err);
+  }
+}
+
+function toggleKanban() {
+  const section = el('section-kanban');
+  if(!section) return;
+  section.style.display = section.style.display === 'none' ? 'block' : 'none';
+  if(section.style.display === 'block') renderKanban(ALL_LEADS);
+}
+
+function refreshKanban() { renderKanban(ALL_LEADS); }
+
+/* =============================== V4: COHORT ANALYSIS =============================== */
+function renderCohortAnalysis(leads) {
+  const wrap = el('cohortWrap');
+  if(!wrap) return;
+
+  // Group by month added
+  const cohorts = {};
+  leads.forEach(l => {
+    const d = new Date(l.dateAdded);
+    const key = \`\${d.getFullYear()}-\${String(d.getMonth()+1).padStart(2,'0')}\`;
+    if(!cohorts[key]) cohorts[key] = { total:0, engaged:0, hot:0, showings:0, avgScore:0, totalScore:0 };
+    cohorts[key].total++;
+    if(l.matrix.views + l.matrix.saves > 0) cohorts[key].engaged++;
+    if(l.status === 'HOT') cohorts[key].hot++;
+    if(l.matrix.showings > 0) cohorts[key].showings++;
+    cohorts[key].totalScore += l.score;
+  });
+
+  const sorted = Object.entries(cohorts).sort((a,b) => b[0].localeCompare(a[0])).slice(0,6);
+
+  function cellColor(pct) {
+    if(pct >= 50) return 'background:var(--green-light);color:var(--green-dark)';
+    if(pct >= 25) return 'background:var(--amber-light);color:var(--amber)';
+    if(pct >= 10) return 'background:var(--blue-light);color:var(--blue)';
+    return 'background:var(--bg);color:var(--text-secondary)';
+  }
+
+  wrap.innerHTML = \`<table class="cohort-table">
+    <tr><th>Cohort</th><th>Total</th><th>Engaged %</th><th>Hot %</th><th>Showing %</th><th>Avg Score</th></tr>
+    \${sorted.map(([month, d]) => {
+      const engPct = Math.round(d.engaged/Math.max(d.total,1)*100);
+      const hotPct = Math.round(d.hot/Math.max(d.total,1)*100);
+      const showPct = Math.round(d.showings/Math.max(d.total,1)*100);
+      const avgS = Math.round(d.totalScore/Math.max(d.total,1));
+      const label = new Date(month+'-15').toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+      return \`<tr>
+        <td style="font-weight:700;text-align:left">\${label}</td>
+        <td>\${d.total}</td>
+        <td><span class="cohort-cell" style="\${cellColor(engPct)}">\${engPct}%</span></td>
+        <td><span class="cohort-cell" style="\${cellColor(hotPct)}">\${hotPct}%</span></td>
+        <td><span class="cohort-cell" style="\${cellColor(showPct)}">\${showPct}%</span></td>
+        <td><span class="cohort-cell" style="\${cellColor(avgS)}">\${avgS}</span></td>
+      </tr>\`;
+    }).join('')}
+  </table>\`;
+}
+
+/* =============================== V4: ATTRIBUTION FUNNEL =============================== */
+let FUNNEL_LEADS_CACHE = {};
+function renderAttributionFunnel(leads) {
+  const wrap = el('attrFunnelWrap');
+  if(!wrap) return;
+
+  const total = leads.length;
+  const registered = leads.filter(l => l.email || l.phone);
+  const searched = leads.filter(l => l.matrix.searches > 0 || l.matrix.views > 0);
+  const saved = leads.filter(l => l.matrix.saves > 0);
+  const showings = leads.filter(l => l.matrix.showings > 0);
+  const hot = leads.filter(l => l.status === 'HOT');
+
+  const stages = [
+    { label: 'Total Leads', leads: leads, color: '#3b82f6', icon: '\u{1F4CA}' },
+    { label: 'Registered', leads: registered, color: '#8b5cf6', icon: '\u{1F4DD}' },
+    { label: 'Searched/Viewed', leads: searched, color: '#f59e0b', icon: '\u{1F50D}' },
+    { label: 'Saved Properties', leads: saved, color: '#ec4899', icon: '\u2764\uFE0F' },
+    { label: 'Showing Requests', leads: showings, color: '#ef4444', icon: '\u{1F3E0}' },
+    { label: 'Hot / Ready', leads: hot, color: '#22c55e', icon: '\u{1F525}' }
+  ];
+
+  // Cache for drill-down
+  stages.forEach(s => { FUNNEL_LEADS_CACHE[s.label] = s.leads; });
+
+  wrap.innerHTML = \`<div class="funnel-bars">\${stages.map((s, i) => {
+    const count = s.leads.length;
+    const pct = total > 0 ? Math.round(count / total * 100) : 0;
+    const barWidth = total > 0 ? Math.max(8, Math.round(count / total * 100)) : 8;
+    const dropoff = i > 0 ? Math.round((1 - count / Math.max(stages[i-1].leads.length, 1)) * 100) : 0;
+    return \`\${i > 0 ? \`<div class="fb-arrow">\u2193 \${dropoff}% drop-off</div>\` : ''}
+    <div class="funnel-bar-row" onclick="openFunnelDrillDown('\${s.label}','\${s.color}')" title="Click to see \${count} contacts">
+      <div class="fb-label">\${s.icon} \${s.label}</div>
+      <div class="fb-bar-wrap">
+        <div class="fb-bar-fill" style="width:\${barWidth}%;background:\${s.color}"><span>\${count}</span></div>
+      </div>
+      <div class="fb-pct">\${pct}%</div>
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* Funnel Drill-Down Modal */
+function openFunnelDrillDown(stageName, color) {
+  const leads = FUNNEL_LEADS_CACHE[stageName] || [];
+  const overlay = el('funnelModalOverlay');
+  const title = el('funnelModalTitle');
+  const body = el('funnelModalBody');
+  if(!overlay || !body) return;
+
+  title.innerHTML = \`<span style="color:\${color}">\u25CF</span> \${stageName} \u2014 \${leads.length} contacts\`;
+  const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4'];
+
+  body.innerHTML = leads.length === 0
+    ? '<div style="padding:32px;text-align:center;color:var(--text-secondary)">No contacts in this stage</div>'
+    : leads.slice(0, 100).map((l, i) => {
+      const initials = l.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+      const bg = colors[i % colors.length];
+      const ghl = GHL_CONTACT_BASE + l.id;
+      const ylopo = getYlopoUrl(l.id);
+      return \`<div class="fm-contact">
+        <div class="fm-avatar" style="background:\${bg}">\${initials}</div>
+        <div class="fm-info">
+          <div class="fm-name">\${l.name}</div>
+          <div class="fm-detail">\${l.email || l.phone || '\u2014'} \xB7 Score: \${l.score} \xB7 \u{1F441}\uFE0F\${l.matrix.views} \u2764\uFE0F\${l.matrix.saves} \u{1F3E0}\${l.matrix.showings}</div>
+        </div>
+        <div class="fm-links">
+          <a href="\${ghl}" target="_blank" class="ql-ghl" title="GHL"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>GHL</a>
+          \${ylopo ? \`<a href="\${ylopo}" target="_blank" class="ql-ylopo" title="Ylopo"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Ylopo</a>\` : ''}
+        </div>
+      </div>\`;
+    }).join('') + (leads.length > 100 ? \`<div style="text-align:center;padding:12px;font-size:11px;color:var(--text-secondary)">Showing 100 of \${leads.length} contacts</div>\` : '');
+
+  overlay.classList.add('open');
+}
+
+function closeFunnelModal() {
+  const overlay = el('funnelModalOverlay');
+  if(overlay) overlay.classList.remove('open');
+}
+
+/* =============================== V4: SPEED-TO-LEAD MONITOR =============================== */
+function renderSpeedToLead(leads) {
+  const metricsWrap = el('stlMetrics');
+  const alertsWrap = el('stlAlerts');
+  const info = el('stlInfo');
+  if(!metricsWrap) return;
+
+  const now = Date.now();
+  const fiveMin = 5 * 60 * 1000;
+  const oneHour = 60 * 60 * 1000;
+  let totalResponseTime = 0;
+  let respondedCount = 0;
+  const untouched = [];
+
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return;
+    const created = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const firstActivity = raw.dateUpdated ? new Date(raw.dateUpdated).getTime() : 0;
+    const activity = l.matrix.views + l.matrix.saves + l.matrix.showings;
+    const msSinceCreated = now - created;
+
+    if(activity > 0 && firstActivity > created) {
+      totalResponseTime += (firstActivity - created);
+      respondedCount++;
+    } else if(msSinceCreated < 7 * 864e5) {
+      untouched.push({ name: l.name, id: l.id, waitMs: msSinceCreated, score: l.score });
+    }
+  });
+
+  const avgResponseMin = respondedCount > 0 ? Math.round(totalResponseTime / respondedCount / 60000) : 0;
+  const under5 = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return false;
+    const created = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const updated = raw.dateUpdated ? new Date(raw.dateUpdated).getTime() : 0;
+    return updated > created && (updated - created) < fiveMin;
+  }).length;
+  const under1h = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return false;
+    const created = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const updated = raw.dateUpdated ? new Date(raw.dateUpdated).getTime() : 0;
+    return updated > created && (updated - created) < oneHour;
+  }).length;
+
+  info.textContent = \`\${untouched.length} waiting\`;
+
+  metricsWrap.innerHTML = \`
+    <div class="stl-card"><div class="stl-value" style="color:\${avgResponseMin<=30?'var(--green)':avgResponseMin<=120?'var(--amber)':'var(--red)'}">\${avgResponseMin<60?avgResponseMin+'m':Math.round(avgResponseMin/60)+'h'}</div><div class="stl-label">Avg Response Time</div></div>
+    <div class="stl-card"><div class="stl-value" style="color:var(--green)">\${under5}</div><div class="stl-label">Under 5 Min</div></div>
+    <div class="stl-card"><div class="stl-value" style="color:var(--blue)">\${under1h}</div><div class="stl-label">Under 1 Hour</div></div>\`;
+
+  // Untouched leads needing attention
+  untouched.sort((a,b) => b.waitMs - a.waitMs);
+  alertsWrap.innerHTML = untouched.slice(0,10).map(u => {
+    const hours = Math.round(u.waitMs / 3600000);
+    const urgent = hours >= 24;
+    return \`<div class="stl-alert \${urgent?'urgent':''}">
+      <span style="font-weight:700;flex:1">\${u.name}</span>
+      <span style="color:\${urgent?'var(--red)':'var(--amber)'}">\u23F0 \${hours < 24 ? hours+'h' : Math.round(hours/24)+'d'} waiting</span>
+      <button class="qa-btn" onclick="openWriteBack('task','\${u.id}','\${u.name.replace(/'/g,"\\\\'")}')">Create Task</button>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== V4: LISTING MATCH ENGINE =============================== */
+let ACTIVE_LISTINGS = [];
+
+function parseListings() {
+  const input = el('listingsInput').value.trim();
+  if(!input) return;
+  ACTIVE_LISTINGS = input.split('\\n').map(line => {
+    const parts = line.split('|').map(s => s.trim());
+    return { address: parts[0]||'', price: Number(parts[1])||0, beds: Number(parts[2])||0, baths: Number(parts[3])||0 };
+  }).filter(l => l.address);
+  toast(\`Loaded \${ACTIVE_LISTINGS.length} listings\`, 'success');
+  renderListingMatches(ALL_LEADS);
+}
+
+function renderListingMatches(leads) {
+  const wrap = el('matchResults');
+  const info = el('matchInfo');
+  if(!wrap) return;
+
+  if(ACTIVE_LISTINGS.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">Enter active listings above (format: address|price|beds|baths)</div>';
+    return;
+  }
+
+  const matches = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return;
+    const ext = getExtendedData(raw);
+    const matched = [];
+    ACTIVE_LISTINGS.forEach((listing, idx) => {
+      let matchScore = 0;
+      // Price match
+      if(ext.maxPrice > 0 && listing.price > 0) {
+        if(listing.price <= ext.maxPrice * 1.1 && listing.price >= (ext.minPrice || ext.maxPrice * 0.7)) matchScore += 40;
+      }
+      // Location match
+      if(ext.city && listing.address.toLowerCase().includes(ext.city.toLowerCase())) matchScore += 30;
+      // Beds/baths match
+      if(ext.beds > 0 && listing.beds >= ext.beds) matchScore += 15;
+      if(ext.baths > 0 && listing.baths >= ext.baths) matchScore += 15;
+      if(matchScore >= 30) matched.push({ listing, score: matchScore, idx });
+    });
+    if(matched.length > 0) {
+      matches.push({ lead: l, matched: matched.sort((a,b) => b.score - a.score), totalScore: matched.reduce((s,m) => s + m.score, 0) });
+    }
+  });
+
+  matches.sort((a,b) => b.totalScore - a.totalScore);
+  info.textContent = \`\${matches.length} matches found\`;
+
+  wrap.innerHTML = matches.length === 0
+    ? '<div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:12px">No matches found. Adjust listings or criteria.</div>'
+    : matches.slice(0,15).map(m => {
+      const bg = m.totalScore >= 80 ? 'var(--green)' : m.totalScore >= 50 ? 'var(--amber)' : 'var(--blue)';
+      return \`<div class="match-card">
+        <div class="match-score" style="background:\${bg}">\${m.totalScore}%</div>
+        <div class="match-info">
+          <div class="match-name">\${m.lead.name} <span style="font-size:10px;color:var(--text-secondary)">(Score: \${m.lead.score})</span></div>
+          <div class="match-detail">Budget: \${fmtPrice(getExtendedData(RAW_CONTACTS[m.lead.id]).maxPrice)} \xB7 \${getExtendedData(RAW_CONTACTS[m.lead.id]).beds || '?'} bd \xB7 \${getExtendedData(RAW_CONTACTS[m.lead.id]).city || '?'}</div>
+          <div class="match-listings">\${m.matched.map(mt => \`<span class="match-listing">\${mt.listing.address.substring(0,30)} (\${mt.score}%)</span>\`).join('')}</div>
+        </div>
+      </div>\`;
+    }).join('');
+}
+
+/* =============================== COMPANY LISTINGS MATRIX =============================== */
+let COMPANY_LISTINGS = [];
+
+function loadCompanyListings() {
+  const raw = el('companyListingInput').value.trim();
+  if(!raw) { toast('Paste listing data first', 'error'); return; }
+  
+  const lines = raw.split('\\n').filter(l => l.trim());
+  COMPANY_LISTINGS = lines.map((line, i) => {
+    const parts = line.split('|').map(p => p.trim());
+    return {
+      id: i,
+      address: parts[0] || 'Unknown',
+      price: parseFloat((parts[1]||'0').replace(/[^0-9.]/g,'')) || 0,
+      beds: parseInt(parts[2]) || 0,
+      baths: parseInt(parts[3]) || 0,
+      status: (parts[4] || 'Active').toLowerCase(),
+      mls: parts[5] || '',
+      dom: parseInt(parts[6]) || Math.floor(Math.random()*60),
+    };
+  });
+  
+  // Save to localStorage
+  try { localStorage.setItem('companyListings', JSON.stringify(COMPANY_LISTINGS)); } catch(e){}
+  
+  renderCompanyListings();
+  toast(\`\${COMPANY_LISTINGS.length} listings loaded\`, 'success');
+  el('companyListingInput').value = '';
+}
+
+function clearCompanyListings() {
+  COMPANY_LISTINGS = [];
+  try { localStorage.removeItem('companyListings'); } catch(e){}
+  el('companyListingsTable').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">No company listings loaded. Paste listing data above to populate.</div>';
+  el('companyListingStats').style.display = 'none';
+  el('companyListingInfo').textContent = '0 listings';
+}
+
+function renderCompanyListings() {
+  if(!COMPANY_LISTINGS.length) { clearCompanyListings(); return; }
+  
+  const total = COMPANY_LISTINGS.length;
+  const active = COMPANY_LISTINGS.filter(l => l.status.includes('active')).length;
+  const pending = COMPANY_LISTINGS.filter(l => l.status.includes('pending') || l.status.includes('contract')).length;
+  const avgPrice = total ? Math.round(COMPANY_LISTINGS.reduce((s,l) => s+l.price, 0) / total) : 0;
+  const avgDom = total ? Math.round(COMPANY_LISTINGS.reduce((s,l) => s+l.dom, 0) / total) : 0;
+  
+  // Match against leads
+  let matchCount = 0;
+  const matches = [];
+  COMPANY_LISTINGS.forEach(listing => {
+    ALL_LEADS.forEach(lead => {
+      const raw = RAW_CONTACTS[lead.id];
+      if(!raw) return;
+      const ext = getExtendedData(raw);
+      let score = 0;
+      if(ext.maxPrice && listing.price) {
+        const priceDiff = Math.abs(listing.price - parseFloat(ext.maxPrice)) / Math.max(listing.price, parseFloat(ext.maxPrice));
+        if(priceDiff < 0.2) score += 40;
+        else if(priceDiff < 0.4) score += 20;
+      }
+      if(ext.beds && listing.beds && parseInt(ext.beds) === listing.beds) score += 25;
+      if(ext.baths && listing.baths && parseInt(ext.baths) === listing.baths) score += 15;
+      if(ext.city && listing.address.toLowerCase().includes(ext.city.toLowerCase())) score += 20;
+      if(score >= 40) matches.push({ listing, lead, score });
+    });
+  });
+  matchCount = [...new Set(matches.map(m => m.lead.id))].length;
+  
+  // Update stats
+  el('companyListingStats').style.display = '';
+  el('clTotal').textContent = total;
+  el('clActive').textContent = active;
+  el('clPending').textContent = pending;
+  el('clAvgPrice').textContent = fmtPrice(avgPrice);
+  el('clAvgDom').textContent = avgDom + 'd';
+  el('clLeadMatches').textContent = matchCount;
+  el('companyListingInfo').textContent = \`\${total} listings \xB7 \${matchCount} matches\`;
+  
+  // Render table
+  const statusColors = {
+    'active': { bg:'var(--green-light)', fg:'var(--green)' },
+    'pending': { bg:'var(--amber-light)', fg:'var(--amber)' },
+    'sold': { bg:'var(--blue-light,rgba(59,130,246,0.1))', fg:'var(--blue)' },
+    'under contract': { bg:'var(--purple-light)', fg:'var(--purple)' }
+  };
+  
+  el('companyListingsTable').innerHTML = \`
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:2px solid var(--card-border)">
+            <th style="text-align:left;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">Address</th>
+            <th style="text-align:right;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">Price</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">Bd/Ba</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">Status</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">DOM</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">MLS#</th>
+            <th style="text-align:center;padding:8px 10px;font-weight:700;color:var(--text-secondary);font-size:10px;text-transform:uppercase">Lead Matches</th>
+          </tr>
+        </thead>
+        <tbody>
+          \${COMPANY_LISTINGS.map(l => {
+            const sc = statusColors[l.status] || statusColors['active'];
+            const listingMatches = matches.filter(m => m.listing.id === l.id).sort((a,b) => b.score - a.score).slice(0,3);
+            return \`<tr style="border-bottom:1px solid var(--card-border)">
+              <td style="padding:10px;font-weight:600">\${l.address}</td>
+              <td style="padding:10px;text-align:right;font-weight:700;color:var(--blue)">\${fmtPrice(l.price)}</td>
+              <td style="padding:10px;text-align:center">\${l.beds}/\${l.baths}</td>
+              <td style="padding:10px;text-align:center"><span style="padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;background:\${sc.bg};color:\${sc.fg};text-transform:capitalize">\${l.status}</span></td>
+              <td style="padding:10px;text-align:center;font-weight:600;color:\${l.dom>30?'var(--red)':l.dom>14?'var(--amber)':'var(--green)'}">\${l.dom}</td>
+              <td style="padding:10px;text-align:center;font-size:11px;color:var(--text-secondary)">\${l.mls || '\u2014'}</td>
+              <td style="padding:10px;text-align:center">\${listingMatches.length ? listingMatches.map(m => \`<a href="\${GHL_CONTACT_BASE+m.lead.id}" target="_blank" style="display:inline-block;padding:2px 6px;margin:1px;border-radius:3px;font-size:10px;font-weight:600;background:var(--green-light);color:var(--green);text-decoration:none" title="\${m.lead.name} (\${m.score}% match)">\${m.lead.name.split(' ')[0]}</a>\`).join('') : '<span style="color:var(--text-secondary);font-size:10px">\u2014</span>'}</td>
+            </tr>\`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  \`;
+}
+
+// Auto-load saved company listings
+function initCompanyListings() {
+  try {
+    const saved = localStorage.getItem('companyListings');
+    if(saved) {
+      COMPANY_LISTINGS = JSON.parse(saved);
+      if(COMPANY_LISTINGS.length) renderCompanyListings();
+    }
+  } catch(e){}
+}
+
+/* =============================== LISTING ACTIVITY CARDS =============================== */
+function buildYlopoContactUrl(raw, lead) {
+  // Build Ylopo Stars URL for a contact
+  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id']);
+  if (ylopoLeadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ylopoLeadId)) {
+    return \`https://stars.ylopo.com/lead-detail/\${ylopoLeadId}\`;
+  }
+  const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
+  if (storedUrl) return storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
+  if (lead && lead.email) return \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
+  return '';
+}
+
+function renderListingCards(leads) {
+  const wrap = el('listingCardsWrap');
+  const countEl = el('listingCardCount');
+  if(!wrap) return;
+
+  const cards = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return;
+    const ext = getExtendedData(raw);
+    const ylopoContactUrl = buildYlopoContactUrl(raw, l);
+
+    // Last Viewed
+    if(ext.lastViewAddr || ext.lastViewMls) {
+      cards.push({
+        type: 'viewed', label: 'VIEWED', cls: 'lc-banner-viewed',
+        addr: ext.lastViewAddr || ext.lastViewMls,
+        mls: ext.lastViewMls, url: ext.lastViewUrl, img: ext.lastViewImg,
+        leadName: l.name, leadId: l.id, leadEmail: l.email, score: l.score,
+        price: ext.lastViewPrice || ext.maxPrice, beds: ext.beds, baths: ext.baths,
+        views: l.matrix.views, time: raw.dateUpdated || raw.dateAdded,
+        ylopoUrl: ylopoContactUrl
+      });
+    }
+    // Last Saved / Favorited
+    if(ext.lastFavAddr || ext.lastFavMls) {
+      cards.push({
+        type: 'saved', label: 'SAVED', cls: 'lc-banner-saved',
+        addr: ext.lastFavAddr || ext.lastFavMls,
+        mls: ext.lastFavMls, url: '', img: ext.lastFavImg,
+        leadName: l.name, leadId: l.id, leadEmail: l.email, score: l.score,
+        price: ext.lastViewPrice || ext.maxPrice, beds: ext.beds, baths: ext.baths,
+        views: l.matrix.saves, time: raw.dateUpdated || raw.dateAdded,
+        ylopoUrl: ylopoContactUrl
+      });
+    }
+    // Showing Request
+    if(ext.lastShowAddr || ext.lastShowMls) {
+      cards.push({
+        type: 'showing', label: 'SHOWING REQ', cls: 'lc-banner-showing',
+        addr: ext.lastShowAddr || ext.lastShowMls,
+        mls: ext.lastShowMls, url: '', img: '',
+        leadName: l.name, leadId: l.id, leadEmail: l.email, score: l.score,
+        price: ext.maxPrice, beds: ext.beds, baths: ext.baths,
+        views: l.matrix.showings, time: raw.dateUpdated || raw.dateAdded,
+        ylopoUrl: ylopoContactUrl
+      });
+    }
+    // High saves count = aggregate card
+    if(l.matrix.saves >= 3 && !ext.lastFavAddr) {
+      cards.push({
+        type: 'saved', label: \`\${l.matrix.saves} SAVED\`, cls: 'lc-banner-saved',
+        addr: ext.city && ext.state ? \`\${ext.city}, \${ext.state}\` : \`\${l.matrix.saves} properties saved\`,
+        mls: '', url: '', img: '',
+        leadName: l.name, leadId: l.id, leadEmail: l.email, score: l.score,
+        price: ext.maxPrice, beds: ext.beds, baths: ext.baths,
+        views: l.matrix.saves, time: raw.dateUpdated || raw.dateAdded,
+        ylopoUrl: ylopoContactUrl
+      });
+    }
+    // Property card from GHL contact data (owner_address, mls_number, zillow_url)
+    // Shows the property associated with this contact even without Ylopo view/save events
+    const propAddr = getCF(raw, ['owner_address','property_address','address']) || raw.address1 || '';
+    const propMls = getCF(raw, ['mls_number','mls','listing_id']) || '';
+    const propZillow = getCF(raw, ['zillow_url','zillow_link']) || '';
+    const propType = getCF(raw, ['property_type','prop_type']) || '';
+    const propPrice = Number(getCF(raw, ['price','list_price','listing_price'])) || 0;
+    const propBeds = getCF(raw, ['bedrooms','beds']) || ext.beds || '';
+    const propBaths = getCF(raw, ['bathrooms','baths']) || ext.baths || '';
+    const propSqft = getCF(raw, ['square_footage','sqft','lot_size']) || '';
+    const propStatus = getCF(raw, ['status']) || '';
+    // Only create a card if we have an address AND no Ylopo listing cards were already created for this lead
+    const hasYlopoCards = ext.lastViewAddr || ext.lastFavAddr || ext.lastShowAddr;
+    if (propAddr && !hasYlopoCards) {
+      const labelText = propStatus ? String(propStatus).toUpperCase() : (propType ? String(propType).toUpperCase() : 'PROPERTY');
+      const bannerCls = propStatus && String(propStatus).toLowerCase().includes('active') ? 'lc-banner-showing'
+        : propStatus && String(propStatus).toLowerCase().includes('expired') ? 'lc-banner-saved'
+        : 'lc-banner-viewed';
+      cards.push({
+        type: 'property', label: labelText, cls: bannerCls,
+        addr: propAddr,
+        mls: propMls, url: propZillow, img: '',
+        leadName: l.name, leadId: l.id, leadEmail: l.email, score: l.score,
+        price: propPrice, beds: propBeds, baths: propBaths,
+        views: 0, time: raw.dateUpdated || raw.dateAdded,
+        ylopoUrl: ylopoContactUrl,
+        sqft: propSqft, propType: propType
+      });
+    }
+  });
+
+  // Sort by time descending
+  cards.sort((a, b) => new Date(b.time) - new Date(a.time));
+  const recent = cards.slice(0, 30);
+  if(countEl) countEl.textContent = \`\${recent.length} listings\`;
+
+  if(recent.length === 0) {
+    wrap.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-secondary);font-size:13px"><div style="font-size:2rem;margin-bottom:8px">\u{1F3D8}\uFE0F</div>No listing activity recorded yet</div>';
+    return;
+  }
+
+  wrap.innerHTML = recent.map(c => {
+    // Listing URL: prefer Ylopo URL, fallback to MLS Google search
+    const listingUrl = c.url || (c.mls ? \`https://www.google.com/search?q=\${encodeURIComponent(c.addr+' MLS '+c.mls+' Florida')}\` : '');
+    const timeAgo = c.time ? getTimeAgo(new Date(c.time)) : '';
+    const ghlUrl = GHL_CONTACT_BASE + c.leadId;
+    // Score color
+    const scoreBg = c.score>=70 ? 'var(--green-light)' : c.score>=40 ? 'var(--amber-light)' : 'var(--red-light)';
+    const scoreFg = c.score>=70 ? 'var(--green)' : c.score>=40 ? 'var(--amber)' : 'var(--red)';
+    // Image: try img field, then proxy Zillow og:image, then colored placeholder
+    let imgSrc = (c.img && c.img.startsWith('http')) ? c.img : '';
+    // If we have a Zillow URL, use the proxy to extract the listing photo
+    if (!imgSrc && c.url && c.url.includes('zillow.com')) {
+      imgSrc = PROXY_URL.replace('/contacts','') + '/listing-image?url=' + encodeURIComponent(c.url);
+    }
+    const typeColors = {'single family':'#2563eb','condominium':'#8b5cf6','condo':'#8b5cf6','townhouse':'#0d9488','mobile home':'#d97706','land':'#65a30d','multi':'#dc2626'};
+    const ptLower = (c.propType||c.label||'').toLowerCase();
+    const placeholderBg = Object.entries(typeColors).find(([k])=>ptLower.includes(k))?.[1] || '#475569';
+    const typeIcon = ptLower.includes('condo')?'\u{1F3E2}':ptLower.includes('town')?'\u{1F3D8}\uFE0F':ptLower.includes('mobile')?'\u{1F3D5}\uFE0F':ptLower.includes('land')?'\u{1F333}':'\u{1F3E0}';
+    const imgHtml = imgSrc
+      ? \`<img src="\${imgSrc}" alt="\${c.addr}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="lc-placeholder" style="display:none;background:\${placeholderBg};color:#fff;opacity:1;font-size:1.8rem">\${typeIcon}</div>\`
+      : \`<div class="lc-placeholder" style="background:\${placeholderBg};color:#fff;opacity:1;font-size:1.8rem">\${typeIcon}</div>\`;
+
+    return \`<div class="listing-card">
+      <div class="listing-card-img" \${listingUrl ? \`onclick="window.open('\${listingUrl}','_blank')"\` : ''} title="\${c.addr}">
+        \${imgHtml}
+        <span class="listing-card-banner \${c.cls}">\${c.label}</span>
+      </div>
+      <div class="listing-card-body">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          \${c.price ? \`<span class="listing-card-price">\${fmtPrice(c.price)}</span>\` : ''}
+          <span class="listing-card-addr" title="\${c.addr}">\${c.addr}</span>
+        </div>
+        <div class="listing-card-meta">
+          \${c.beds ? \`<span>\u{1F6CF} \${c.beds}bd</span>\` : ''}\${c.baths ? \`<span>\u{1F6C1} \${c.baths}ba</span>\` : ''}\${c.sqft ? \`<span>\u{1F4D0} \${Number(c.sqft).toLocaleString()}sf</span>\` : ''}\${c.propType ? \`<span>\${c.propType}</span>\` : ''}\${c.mls ? \`<span style="opacity:0.5">MLS# \${c.mls}</span>\` : ''}\${timeAgo ? \`<span>\u{1F550} \${timeAgo}</span>\` : ''}
+        </div>
+      </div>
+      <div class="listing-card-footer">
+        <div class="listing-card-name">\${c.leadName} <span class="lc-score-badge" style="background:\${scoreBg};color:\${scoreFg};padding:1px 5px;border-radius:3px;font-size:9px">\${c.score}</span></div>
+        <div class="listing-card-links">
+          <a href="\${ghlUrl}" target="_blank" class="lc-link lc-link-ghl">GHL</a>
+          \${listingUrl ? \`<a href="\${listingUrl}" target="_blank" class="lc-link lc-link-listing">View</a>\` : ''}
+        </div>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== V4: SMART AUTO-TAGGER =============================== */
+let AUTO_TAG_ENABLED = false;
+let AUTO_TAG_LOG = [];
+
+function toggleAutoTag() {
+  AUTO_TAG_ENABLED = el('autoTagEnabled').checked;
+  if(AUTO_TAG_ENABLED) {
+    toast('Auto-tagger enabled \u2014 will tag on next refresh', 'success');
+    runAutoTagOnce();
+  }
+}
+
+async function runAutoTagOnce() {
+  const log = el('autoTagLog');
+  AUTO_TAG_LOG = [];
+
+  for(const lead of ALL_LEADS) {
+    const raw = RAW_CONTACTS[lead.id];
+    if(!raw) continue;
+    const existingTags = lead.tags.map(t => t.toLowerCase());
+    const tagsToAdd = [];
+
+    // Rule: Score >= 80 and no hot tag
+    if(lead.score >= 80 && !existingTags.some(t => t.includes('hot'))) {
+      tagsToAdd.push('Hot Lead');
+    }
+    // Rule: 3+ saves in recent activity
+    if(lead.matrix.saves >= 3 && !existingTags.some(t => t.includes('active buyer') || t.includes('saver'))) {
+      tagsToAdd.push('Active Buyer');
+    }
+    // Rule: Showing request
+    if(lead.matrix.showings > 0 && !existingTags.some(t => t.includes('showing'))) {
+      tagsToAdd.push('Showing Requested');
+    }
+    // Rule: Stale 14+ days
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    const daysSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 864e5) : 999;
+    if(daysSince >= 14 && !existingTags.some(t => t.includes('stale') || t.includes('cold'))) {
+      tagsToAdd.push('Going Cold');
+    }
+    // Rule: Dashboard flagged
+    if(lead.score >= 70 && lead.matrix.saves >= 2 && lead.matrix.views >= 5 && !existingTags.includes('dashboard flagged')) {
+      tagsToAdd.push('Dashboard Flagged');
+    }
+
+    if(tagsToAdd.length > 0) {
+      AUTO_TAG_LOG.push({ time: new Date(), name: lead.name, id: lead.id, tags: tagsToAdd });
+      if(AUTO_TAG_ENABLED) {
+        await addTagToContact(lead.id, tagsToAdd);
+      }
+    }
+  }
+
+  // Render log
+  log.innerHTML = AUTO_TAG_LOG.length === 0
+    ? '<div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:11px">\u2705 All leads already properly tagged</div>'
+    : AUTO_TAG_LOG.map(entry => {
+      const tagColors = { 'Hot Lead':'var(--red)', 'Active Buyer':'var(--green)', 'Showing Requested':'var(--blue)', 'Going Cold':'var(--amber)', 'Dashboard Flagged':'var(--purple)' };
+      return \`<div class="autotag-entry">
+        <span class="at-time">\${entry.time.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>
+        <span style="font-weight:600;flex:1">\${entry.name}</span>
+        \${entry.tags.map(t => \`<span class="at-tag" style="background:\${(tagColors[t]||'var(--blue)')}20;color:\${tagColors[t]||'var(--blue)'}">\${t}</span>\`).join('')}
+        \${AUTO_TAG_ENABLED ? '<span style="color:var(--green);font-size:10px">\u2713 Synced</span>' : '<span style="color:var(--text-secondary);font-size:10px">Preview</span>'}
+      </div>\`;
+    }).join('');
+
+  toast(\`Auto-tag: \${AUTO_TAG_LOG.length} leads \${AUTO_TAG_ENABLED ? 'tagged' : 'identified'}\`, AUTO_TAG_ENABLED ? 'success' : 'info');
+}
+
+/* =============================== V4: DUPE MANAGER =============================== */
+function renderDupeManager(leads) {
+  const wrap = el('dupeList');
+  const info = el('dupeInfo');
+  if(!wrap) return;
+
+  const emailGroups = {};
+  const phoneGroups = {};
+  leads.forEach(l => {
+    if(l.email) {
+      const key = l.email.toLowerCase();
+      if(!emailGroups[key]) emailGroups[key] = [];
+      emailGroups[key].push(l);
+    }
+    if(l.phone) {
+      if(!phoneGroups[l.phone]) phoneGroups[l.phone] = [];
+      phoneGroups[l.phone].push(l);
+    }
+  });
+
+  const dupes = [];
+  Object.entries(emailGroups).forEach(([email, group]) => {
+    if(group.length > 1) dupes.push({ type: 'email', key: email, leads: group });
+  });
+  Object.entries(phoneGroups).forEach(([phone, group]) => {
+    if(group.length > 1 && !dupes.some(d => d.leads[0].id === group[0].id)) {
+      dupes.push({ type: 'phone', key: phone, leads: group });
+    }
+  });
+
+  info.textContent = \`\${dupes.length} duplicate groups\`;
+
+  if(dupes.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">\u2705 No duplicates found</div>';
+    return;
+  }
+
+  wrap.innerHTML = dupes.slice(0,15).map(d => {
+    const primary = d.leads.reduce((best, l) => l.score > best.score ? l : best, d.leads[0]);
+    return \`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)">
+      <span style="font-size:14px">\u26A0\uFE0F</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">\${d.leads.map(l=>l.name).join(' & ')}</div>
+        <div style="font-size:11px;color:var(--text-secondary)">\${d.type}: \${d.key} \xB7 \${d.leads.length} records</div>
+      </div>
+      <button class="qa-btn" onclick="openDupeMerge('\${d.leads.map(l=>l.id).join(',')}')">Merge</button>
+    </div>\`;
+  }).join('');
+}
+
+function openDupeMerge(idString) {
+  const ids = idString.split(',');
+  const leads = ids.map(id => ALL_LEADS.find(l => l.id === id)).filter(Boolean);
+  if(leads.length < 2) return;
+
+  const modal = el('dupeModal');
+  modal.innerHTML = \`<h3>\u{1F500} Merge Duplicates</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Select the PRIMARY record to keep. Tags and notes from other records will be merged in.</p>
+    <div class="dupe-merge-pair">
+      \${leads.map((l,i) => \`<div class="dupe-merge-card \${i===0?'primary':''}" onclick="selectDupePrimary(this)" data-id="\${l.id}">
+        <div class="dmc-label">\${i===0?'\u2B50 Primary':'Secondary'}</div>
+        <div class="dmc-name">\${l.name}</div>
+        <div class="dmc-detail">Score: \${l.score} \xB7 \${l.email||'No email'} \xB7 \${l.phone||'No phone'}</div>
+        <div class="dmc-detail">Views: \${l.matrix.views} \xB7 Saves: \${l.matrix.saves} \xB7 Showings: \${l.matrix.showings}</div>
+      </div>\`).join('')}
+    </div>
+    <div class="wb-result" id="dupeResult"></div>
+    <div class="wb-btns">
+      <button class="wb-btn ghost" onclick="closeDupeModal()">Cancel</button>
+      <button class="wb-btn danger" onclick="executeMerge('\${idString}')">Merge Records</button>
+    </div>\`;
+  el('dupeOverlay').classList.add('open');
+}
+
+function selectDupePrimary(card) {
+  document.querySelectorAll('.dupe-merge-card').forEach(c => { c.classList.remove('primary'); c.querySelector('.dmc-label').textContent = 'Secondary'; });
+  card.classList.add('primary');
+  card.querySelector('.dmc-label').textContent = '\u2B50 Primary';
+}
+
+async function executeMerge(idString) {
+  const ids = idString.split(',');
+  const primaryCard = document.querySelector('.dupe-merge-card.primary');
+  if(!primaryCard) return;
+  const primaryId = primaryCard.dataset.id;
+  const secondaryIds = ids.filter(id => id !== primaryId);
+
+  const result = el('dupeResult');
+  result.className = 'wb-result ok';
+  result.style.display = 'block';
+  result.textContent = 'Merging \u2014 adding tags from secondary records...';
+
+  for(const secId of secondaryIds) {
+    const secLead = ALL_LEADS.find(l => l.id === secId);
+    if(!secLead) continue;
+    // Add secondary tags to primary
+    if(secLead.tags.length > 0) {
+      await addTagToContact(primaryId, secLead.tags);
+    }
+    // Add merge note
+    await addNoteToContact(primaryId, \`[MERGED] Data from \${secLead.name} (\${secLead.email||secLead.phone}) merged into this record by Dashboard v4 on \${new Date().toLocaleDateString()}\`);
+    // Tag secondary as archived
+    await addTagToContact(secId, ['ARCHIVED - Merged Duplicate']);
+  }
+
+  result.textContent = \`\u2713 Merged \${secondaryIds.length} record(s) into primary. Secondary records tagged as archived.\`;
+  toast('Duplicates merged successfully', 'success');
+}
+
+function closeDupeModal() { el('dupeOverlay').classList.remove('open'); }
+
+/* =============================== V4: SHOWING SCHEDULER =============================== */
+function openShowingScheduler(contactId, contactName) {
+  const modal = el('schedModal');
+  // Generate next 6 available slots
+  const slots = [];
+  const now = new Date();
+  for(let i = 1; i <= 6; i++) {
+    const d = new Date(now.getTime() + i * 864e5);
+    if(d.getDay() === 0) continue; // Skip Sunday
+    slots.push({ date: d, time: '10:00 AM' });
+    slots.push({ date: d, time: '2:00 PM' });
+  }
+
+  modal.innerHTML = \`<h3>\u{1F3E0} Schedule Showing \u2014 \${contactName}</h3>
+    <label>Select a Time Slot</label>
+    <div class="sched-slots" id="schedSlots">
+      \${slots.slice(0,6).map((s,i) => \`<div class="sched-slot" onclick="selectSchedSlot(this,\${i})" data-idx="\${i}">
+        <div class="ss-day">\${s.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+        <div class="ss-time">\${s.time}</div>
+      </div>\`).join('')}
+    </div>
+    <label>Property Address (optional)</label>
+    <input type="text" id="schedAddress" placeholder="Enter showing address...">
+    <label>Notes</label>
+    <textarea id="schedNotes" placeholder="Any special instructions..." style="min-height:60px"></textarea>
+    <div class="wb-result" id="schedResult"></div>
+    <div class="wb-btns">
+      <button class="wb-btn ghost" onclick="closeSchedModal()">Cancel</button>
+      <button class="wb-btn success" onclick="bookShowing('\${contactId}','\${contactName.replace(/'/g,"\\\\'")}')">\u{1F4C5} Book Showing</button>
+    </div>\`;
+  el('schedOverlay').classList.add('open');
+}
+
+let SELECTED_SLOT = null;
+function selectSchedSlot(el, idx) {
+  document.querySelectorAll('.sched-slot').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  SELECTED_SLOT = idx;
+}
+
+async function bookShowing(contactId, contactName) {
+  if(SELECTED_SLOT === null) { document.getElementById('schedResult').className='wb-result err'; document.getElementById('schedResult').style.display='block'; document.getElementById('schedResult').textContent='Select a time slot'; return; }
+  const address = el('schedAddress').value.trim();
+  const notes = el('schedNotes').value.trim();
+
+  // Create task in GHL
+  const slot = document.querySelectorAll('.sched-slot')[SELECTED_SLOT];
+  const dateText = slot?.querySelector('.ss-day')?.textContent || '';
+  const timeText = slot?.querySelector('.ss-time')?.textContent || '';
+
+  const taskTitle = \`\u{1F3E0} Showing: \${contactName} \u2014 \${dateText} \${timeText}\`;
+  const taskDesc = \`\${address ? 'Property: '+address+'\\n' : ''}\${notes ? 'Notes: '+notes+'\\n' : ''}Booked from Dashboard v4\`;
+
+  const res = await createTaskForContact(contactId, taskTitle, undefined, taskDesc);
+  await addTagToContact(contactId, ['Showing Scheduled']);
+  await addNoteToContact(contactId, \`Showing scheduled: \${dateText} \${timeText}\${address ? ' at '+address : ''}\`);
+
+  const result = document.getElementById('schedResult');
+  result.className = 'wb-result ' + (res.ok ? 'ok' : 'err');
+  result.style.display = 'block';
+  result.textContent = res.ok ? '\u2713 Showing booked and synced to GHL!' : 'Failed to create task';
+  if(res.ok) toast(\`Showing booked for \${contactName}\`, 'success');
+}
+
+function closeSchedModal() { el('schedOverlay').classList.remove('open'); SELECTED_SLOT = null; }
+
+/* =============================== V4: PREDICTIVE SCORING =============================== */
+function renderPredictiveScoring(leads) {
+  const wrap = el('predictWrap');
+  if(!wrap) return;
+
+  // Simple predictive model based on behavioral signals
+  const predictions = leads.map(l => {
+    let closeProb = 0;
+    const m = l.matrix;
+
+    // Engagement depth
+    if(m.showings > 0) closeProb += 35;
+    if(m.saves >= 5) closeProb += 20;
+    else if(m.saves >= 2) closeProb += 10;
+    if(m.views >= 10) closeProb += 10;
+
+    // Intent signals
+    const raw = RAW_CONTACTS[l.id];
+    if(raw) {
+      const ext = getExtendedData(raw);
+      if(ext.maxPrice > 0) closeProb += 10; // Has budget
+      if(ext.beds > 0) closeProb += 5; // Specific criteria
+      const saveRatio = m.views > 0 ? m.saves / m.views : 0;
+      if(saveRatio >= 0.3) closeProb += 10; // High intent ratio
+    }
+
+    // Recency boost
+    const lastDate = raw?.dateUpdated || raw?.lastActivity;
+    if(lastDate) {
+      const days = Math.floor((Date.now() - new Date(lastDate).getTime()) / 864e5);
+      if(days <= 3) closeProb += 10;
+      else if(days >= 30) closeProb -= 15;
+    }
+
+    closeProb = Math.max(0, Math.min(95, closeProb));
+    return { ...l, closeProb };
+  }).filter(p => p.closeProb >= 20).sort((a,b) => b.closeProb - a.closeProb);
+
+  const tiers = [
+    { label: 'Very High (70%+)', filter: p => p.closeProb >= 70, color: 'var(--green)', bg: 'var(--green-light)' },
+    { label: 'High (50-69%)', filter: p => p.closeProb >= 50 && p.closeProb < 70, color: 'var(--blue)', bg: 'var(--blue-light)' },
+    { label: 'Medium (30-49%)', filter: p => p.closeProb >= 30 && p.closeProb < 50, color: 'var(--amber)', bg: 'var(--amber-light)' },
+    { label: 'Low (20-29%)', filter: p => p.closeProb >= 20 && p.closeProb < 30, color: 'var(--text-secondary)', bg: 'var(--bg)' }
+  ];
+
+  wrap.innerHTML = \`<div style="display:grid;gap:10px">
+    \${tiers.map(t => {
+      const group = predictions.filter(t.filter);
+      return \`<div style="padding:12px;border-radius:var(--radius-sm);background:\${t.bg};border:1px solid \${t.color}20">
+        <div style="font-size:12px;font-weight:700;color:\${t.color};margin-bottom:6px">\${t.label} \u2014 \${group.length} leads</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          \${group.slice(0,8).map(p => \`<span style="padding:3px 8px;border-radius:4px;background:var(--card);font-size:11px;font-weight:600;border:1px solid \${t.color}30" title="Close probability: \${p.closeProb}%">\${p.name} (\${p.closeProb}%)</span>\`).join('')}
+          \${group.length > 8 ? \`<span style="font-size:10px;color:\${t.color};padding:4px">+\${group.length-8} more</span>\` : ''}
+        </div>
+      </div>\`;
+    }).join('')}
+  </div>\`;
+}
+
+/* =============================== V4: STALE LEAD RE-ENGAGEMENT =============================== */
+function renderStaleReengage(leads) {
+  const wrap = el('staleReengageWrap');
+  if(!wrap) return;
+
+  const now = Date.now();
+  const stale = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if(!raw) return false;
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    if(!lastDate) return false;
+    const daysSince = Math.floor((now - new Date(lastDate).getTime()) / 864e5);
+    const hadActivity = l.matrix.views > 0 || l.matrix.saves > 0;
+    return daysSince >= 14 && hadActivity;
+  }).map(l => {
+    const raw = RAW_CONTACTS[l.id];
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    const daysCold = Math.floor((now - new Date(lastDate).getTime()) / 864e5);
+    // Re-engagement score: higher if they were more active before going cold
+    const peakActivity = l.matrix.views + l.matrix.saves * 3 + l.matrix.showings * 5;
+    const reengageScore = Math.min(100, Math.round(peakActivity * 2 + (l.score * 0.5)));
+    return { ...l, daysCold, reengageScore, peakActivity };
+  }).sort((a,b) => b.reengageScore - a.reengageScore);
+
+  if(stale.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary);font-size:12px">\u2705 No stale leads needing re-engagement</div>';
+    return;
+  }
+
+  wrap.innerHTML = stale.slice(0,15).map(l => {
+    const urgency = l.daysCold >= 30 ? 'var(--red)' : l.daysCold >= 21 ? 'var(--amber)' : 'var(--blue)';
+    return \`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--card)">
+      <input type="checkbox" class="stale-check" value="\${l.id}" style="accent-color:var(--blue)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">\${l.name}</div>
+        <div style="font-size:10px;color:var(--text-secondary)">Cold \${l.daysCold}d \xB7 Peak: \${l.peakActivity} actions \xB7 Re-engage: \${l.reengageScore}%</div>
+      </div>
+      <span style="color:\${urgency};font-size:11px;font-weight:700">\${l.daysCold}d</span>
+      <button class="qa-btn" onclick="openMsgPreview('\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')">\u{1F4AC}</button>
+    </div>\`;
+  }).join('');
+}
+
+async function runStaleReengage() {
+  const checked = [...document.querySelectorAll('.stale-check:checked')].map(c => c.value);
+  if(checked.length === 0) { toast('Select leads to re-engage', 'warning'); return; }
+  toast(\`Re-engaging \${checked.length} leads...\`, 'info');
+  for(const id of checked) {
+    await addTagToContact(id, ['Re-engage']);
+    await addNoteToContact(id, \`[Dashboard v4] Flagged for re-engagement on \${new Date().toLocaleDateString()}\`);
+  }
+  toast(\`\u2713 \${checked.length} leads tagged for re-engagement\`, 'success');
+}
+
+/* =============================== V4: LAYOUT CUSTOMIZER =============================== */
+const LAYOUT_SECTIONS = [
+  { id:'section-kanban', label:'\u{1F4CB} Kanban Board', default: false },
+  { id:'section-cohort', label:'\u{1F4CA} Cohort & Attribution', default: true },
+  { id:'section-listings', label:'\u{1F3D8}\uFE0F Listing Activity', default: true },
+  { id:'section-stl', label:'\u26A1 Speed to Lead', default: true },
+  { id:'section-company-listings', label:'\u{1F3E2} Company Listings', default: true },
+  { id:'section-autotag', label:'\u{1F916} Auto-Tagger', default: true },
+  { id:'section-predict', label:'\u{1F9E0} Predictive Scoring', default: true },
+  { id:'section-outcomes', label:'\u{1F3E1} Outcomes & ROI Closings', default: true },
+  { id:'section-response-timer', label:'\u23F1\uFE0F Response Timer', default: true },
+  { id:'section-ai-insights', label:'\u{1F9E0} AI Insights', default: true },
+  { id:'section-smart-followup', label:'\u{1F4C5} Follow-Up Scheduler', default: true },
+  { id:'section-revenue', label:'\u{1F4B0} Revenue Intel', default: true },
+  { id:'section-agent-rankings', label:'\u{1F3C6} Agent Rankings', default: true },
+  { id:'section-market-intel', label:'\u{1F30E} Market Intel', default: true }
+];
+
+function initLayoutCustomizer() {
+  const saved = localStorage.getItem('v4_layout');
+  const prefs = saved ? JSON.parse(saved) : {};
+  LAYOUT_SECTIONS.forEach(s => {
+    const visible = prefs[s.id] !== undefined ? prefs[s.id] : s.default;
+    const section = document.getElementById(s.id);
+    if(section) section.style.display = visible ? 'block' : 'none';
+  });
+}
+
+function toggleLayoutPanel() {
+  const overlay = el('layoutOverlay');
+  const toggles = el('layoutToggles');
+  const saved = localStorage.getItem('v4_layout');
+  const prefs = saved ? JSON.parse(saved) : {};
+
+  toggles.innerHTML = LAYOUT_SECTIONS.map(s => {
+    const visible = prefs[s.id] !== undefined ? prefs[s.id] : s.default;
+    return \`<label class="layout-toggle \${visible?'':'hidden-panel'}">
+      <input type="checkbox" \${visible?'checked':''} onchange="toggleSection('\${s.id}',this.checked)"> \${s.label}
+    </label>\`;
+  }).join('');
+  overlay.classList.add('open');
+}
+
+function closeLayoutPanel() { el('layoutOverlay').classList.remove('open'); }
+
+function toggleSection(id, visible) {
+  const section = document.getElementById(id);
+  if(section) section.style.display = visible ? 'block' : 'none';
+  const saved = localStorage.getItem('v4_layout');
+  const prefs = saved ? JSON.parse(saved) : {};
+  prefs[id] = visible;
+  localStorage.setItem('v4_layout', JSON.stringify(prefs));
+}
+
+function resetLayout() {
+  localStorage.removeItem('v4_layout');
+  LAYOUT_SECTIONS.forEach(s => {
+    const section = document.getElementById(s.id);
+    if(section) section.style.display = s.default ? 'block' : 'none';
+  });
+  closeLayoutPanel();
+  toast('Layout reset to defaults', 'info');
+}
+
+/* =============================== V5: ALL NEW FEATURES =============================== */
+
+// ===== #12: NOTIFICATION SOUND =====
+let NOTIF_SOUND_ENABLED = localStorage.getItem('v5_notif_sound') !== 'off';
+let audioCtx = null;
+function playNotifSound() {
+  if (!NOTIF_SOUND_ENABLED) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch(e) { /* silent fail */ }
+}
+function toggleNotifSound() {
+  NOTIF_SOUND_ENABLED = el('notifSoundCheck').checked;
+  localStorage.setItem('v5_notif_sound', NOTIF_SOUND_ENABLED ? 'on' : 'off');
+  if (NOTIF_SOUND_ENABLED) playNotifSound();
+}
+
+// ===== #1: MORNING BRIEFING =====
+function toggleBriefing() {
+  const body = el('briefingBody');
+  const toggle = el('briefingToggle');
+  body.classList.toggle('collapsed');
+  toggle.classList.toggle('collapsed');
+  localStorage.setItem('v5_briefing_collapsed', body.classList.contains('collapsed') ? '1' : '0');
+}
+
+function renderMorningBriefing(leads) {
+  const grid = el('briefingGrid');
+  if (!grid) return;
+
+  const now = Date.now();
+  const today = new Date().toDateString();
+  const yesterday = new Date(now - 864e5).toDateString();
+
+  // Hot leads who viewed properties yesterday/today
+  const hotActive = leads.filter(l => {
+    if (l.status !== 'HOT') return false;
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    if (!lastDate) return false;
+    const d = new Date(lastDate).toDateString();
+    return d === today || d === yesterday;
+  }).slice(0, 5);
+
+  // Leads going cold (were warm/hot, no activity in 5-14 days)
+  const goingCold = leads.filter(l => {
+    if (l.status === 'COLD') return false;
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    if (!lastDate) return false;
+    const days = Math.floor((now - new Date(lastDate).getTime()) / 864e5);
+    return days >= 5 && days <= 14 && (l.matrix.views > 0 || l.matrix.saves > 0);
+  }).slice(0, 5);
+
+  // Follow-ups due (new leads not yet contacted, older than 1 day)
+  const followUps = leads.filter(l => {
+    if (l.status !== 'NEW') return false;
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    const created = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const age = Math.floor((now - created) / 864e5);
+    return age >= 1 && age <= 7;
+  }).slice(0, 5);
+
+  // Past showings needing outcomes
+  const showingsNeedOutcome = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    const showDate = getCF(raw, ['showing_date', 'ylopo_showing_date', 'next_showing', 'scheduled_showing']);
+    if (!showDate) return false;
+    const d = new Date(showDate);
+    if (isNaN(d.getTime())) return false;
+    const tags = (raw.tags || []).map(t => t.toLowerCase());
+    const hasOutcome = tags.some(t => t.includes('showing-outcome') || t.includes('loved') || t.includes('no show') || t.includes('making offer'));
+    return d.getTime() < now && !hasOutcome;
+  }).slice(0, 5);
+
+  const colors = ['#ef4444', '#3b82f6', '#f59e0b', '#22c55e'];
+
+  function renderBriefingItems(items, emptyMsg, type) {
+    if (items.length === 0) return \`<div class="briefing-empty">\${emptyMsg}</div>\`;
+    return items.map(l => {
+      const initials = l.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+      const bgColor = type === 'hot' ? '#ef4444' : type === 'cold' ? '#f59e0b' : type === 'follow' ? '#3b82f6' : '#22c55e';
+      let actionLabel = '\u{1F4DE} Call';
+      let actionFn = \`callLead('\${l.id}')\`;
+      if (type === 'showing') {
+        actionLabel = '\u{1F4DD} Log';
+        actionFn = \`openShowingOutcome('\${l.id}','\${l.name.replace(/'/g, "\\\\'")}')\`;
+      }
+      return \`<div class="briefing-item">
+        <div class="b-avatar" style="background:\${bgColor}">\${initials}</div>
+        <div class="b-info">
+          <div class="b-name">\${l.name}</div>
+          <div class="b-detail">Score: \${l.score} \xB7 \${l.matrix.views}v/\${l.matrix.saves}s</div>
+        </div>
+        <button class="b-action" onclick="\${actionFn}">\${actionLabel}</button>
+      </div>\`;
+    }).join('');
+  }
+
+  // Update greeting based on time
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? '\u2600\uFE0F Good Morning' : hour < 17 ? '\u{1F324}\uFE0F Good Afternoon' : '\u{1F319} Good Evening';
+  const briefingHeader = el('briefingPanel').querySelector('.briefing-header h3');
+  if (briefingHeader) briefingHeader.textContent = \`\${greeting} \u2014 Your Day at a Glance\`;
+
+  grid.innerHTML = \`
+    <div class="briefing-card">
+      <div class="briefing-card-title hot">\u{1F525} Hot Leads Active (\${hotActive.length})</div>
+      \${renderBriefingItems(hotActive, '\u2705 No hot leads active right now', 'hot')}
+    </div>
+    <div class="briefing-card">
+      <div class="briefing-card-title follow">\u{1F4DE} Follow-Ups Due (\${followUps.length})</div>
+      \${renderBriefingItems(followUps, '\u2705 All follow-ups are current', 'follow')}
+    </div>
+    <div class="briefing-card">
+      <div class="briefing-card-title cold">\u26A0\uFE0F Going Cold (\${goingCold.length})</div>
+      \${renderBriefingItems(goingCold, '\u2705 No leads going cold', 'cold')}
+    </div>
+    <div class="briefing-card">
+      <div class="briefing-card-title showing">\u{1F3E1} Showings Need Outcome (\${showingsNeedOutcome.length})</div>
+      \${renderBriefingItems(showingsNeedOutcome, '\u2705 All showing outcomes logged', 'showing')}
+    </div>
+  \`;
+
+  // Restore collapse state
+  if (localStorage.getItem('v5_briefing_collapsed') === '1') {
+    el('briefingBody').classList.add('collapsed');
+    el('briefingToggle').classList.add('collapsed');
+  }
+}
+
+function callLead(id) {
+  const raw = RAW_CONTACTS[id];
+  if (raw && raw.phone) window.open(\`tel:\${raw.phone}\`);
+  else if (raw && raw.email) window.open(\`mailto:\${raw.email}\`);
+  else toast('No contact info available', 'warning');
+}
+
+// ===== #2: FOLLOW-UP QUEUE WITH DISPOSITIONS =====
+let FUQ_LEADS = [];
+let FUQ_INDEX = 0;
+let FUQ_COMPLETED = 0;
+let FUQ_SELECTED_DISP = '';
+
+const FUQ_DISPOSITIONS = [
+  { key: 'called-no-answer', label: '\u{1F4F5} Called \u2014 No Answer', icon: '\u{1F4F5}' },
+  { key: 'called-spoke', label: '\u{1F4DE} Called \u2014 Spoke', icon: '\u{1F4DE}' },
+  { key: 'texted', label: '\u{1F4AC} Texted', icon: '\u{1F4AC}' },
+  { key: 'left-vm', label: '\u{1F4E7} Left Voicemail', icon: '\u{1F4E7}' },
+  { key: 'not-interested', label: '\u274C Not Interested', icon: '\u274C' },
+  { key: 'appointment-set', label: '\u{1F4C5} Appointment Set', icon: '\u{1F4C5}' }
+];
+
+function openFollowUpQueue(type) {
+  FUQ_INDEX = 0;
+  FUQ_COMPLETED = 0;
+  FUQ_SELECTED_DISP = '';
+
+  if (type === 'hot') {
+    FUQ_LEADS = ALL_LEADS.filter(l => l.status === 'HOT').slice(0, 30);
+  } else if (type === 'followup') {
+    FUQ_LEADS = ALL_LEADS.filter(l => l.status === 'NEW').slice(0, 30);
+  } else if (type === 'cold') {
+    FUQ_LEADS = ALL_LEADS.filter(l => {
+      const raw = RAW_CONTACTS[l.id];
+      if (!raw) return false;
+      const lastDate = raw.dateUpdated || raw.lastActivity;
+      if (!lastDate) return false;
+      const days = Math.floor((Date.now() - new Date(lastDate).getTime()) / 864e5);
+      return days >= 7 && (l.matrix.views > 0 || l.matrix.saves > 0);
+    }).slice(0, 30);
+  } else {
+    FUQ_LEADS = [...ALL_LEADS].slice(0, 30);
+  }
+
+  if (FUQ_LEADS.length === 0) {
+    toast('No leads in this queue', 'info');
+    return;
+  }
+
+  el('fuqOverlay').classList.add('open');
+  renderFUQLead();
+}
+
+function closeFollowUpQueue() {
+  el('fuqOverlay').classList.remove('open');
+}
+
+function renderFUQLead() {
+  const lead = FUQ_LEADS[FUQ_INDEX];
+  if (!lead) {
+    el('fuqLeadContent').innerHTML = \`<div style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:12px">\u{1F389}</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Queue Complete!</div>
+      <div style="color:var(--text-secondary)">You worked through \${FUQ_COMPLETED} leads.</div>
+    </div>\`;
+    el('fuqSubmit').disabled = true;
+    return;
+  }
+
+  FUQ_SELECTED_DISP = '';
+  const raw = RAW_CONTACTS[lead.id] || {};
+  const initials = lead.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+  const scoreColor = lead.score >= 80 ? 'var(--green)' : lead.score >= 50 ? 'var(--amber)' : 'var(--red)';
+
+  // Update progress
+  el('fuqProgressText').textContent = \`\${FUQ_INDEX + 1} / \${FUQ_LEADS.length}\`;
+  el('fuqProgressFill').style.width = \`\${Math.round(((FUQ_INDEX + 1) / FUQ_LEADS.length) * 100)}%\`;
+  el('fuqCompleteCount').textContent = \`\${FUQ_COMPLETED} done\`;
+  el('fuqPrev').disabled = FUQ_INDEX === 0;
+  el('fuqSubmit').disabled = false;
+
+  el('fuqLeadContent').innerHTML = \`
+    <div class="fuq-lead-info">
+      <div class="fuq-avatar" style="background:\${scoreColor}">\${initials}</div>
+      <div>
+        <div class="fuq-lead-name">\${lead.name}</div>
+        <div class="fuq-lead-detail">\${raw.email || 'No email'} \xB7 \${raw.phone || 'No phone'}</div>
+      </div>
+    </div>
+    <div class="fuq-meta">
+      <div class="fuq-meta-item"><div class="val" style="color:\${scoreColor}">\${lead.score}</div><div class="lbl">Score</div></div>
+      <div class="fuq-meta-item"><div class="val">\${lead.matrix.views}</div><div class="lbl">Views</div></div>
+      <div class="fuq-meta-item"><div class="val">\${lead.matrix.saves}</div><div class="lbl">Saves</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:8px">Disposition</div>
+    <div class="fuq-dispositions">
+      \${FUQ_DISPOSITIONS.map(d => \`<button class="fuq-disp" data-disp="\${d.key}" onclick="selectDisposition(this,'\${d.key}')">\${d.icon} \${d.label.split(' \u2014 ').pop() || d.label}</button>\`).join('')}
+    </div>
+    <textarea class="fuq-note" id="fuqNote" placeholder="Quick note (optional)..."></textarea>
+  \`;
+}
+
+function selectDisposition(btn, key) {
+  document.querySelectorAll('.fuq-disp').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  FUQ_SELECTED_DISP = key;
+}
+
+async function fuqSubmitDisposition() {
+  const lead = FUQ_LEADS[FUQ_INDEX];
+  if (!lead) return;
+
+  if (!FUQ_SELECTED_DISP) {
+    toast('Select a disposition first', 'warning');
+    return;
+  }
+
+  const note = el('fuqNote')?.value?.trim() || '';
+  const dispLabel = FUQ_DISPOSITIONS.find(d => d.key === FUQ_SELECTED_DISP)?.label || FUQ_SELECTED_DISP;
+
+  toast(\`Logging: \${dispLabel}...\`, 'info');
+
+  try {
+    // Write tag
+    await addTagToContact(lead.id, [\`disposition-\${FUQ_SELECTED_DISP}\`]);
+    // Write note
+    const noteText = \`[Follow-Up Queue] \${dispLabel}\${note ? ' \u2014 ' + note : ''} (\${new Date().toLocaleString()})\`;
+    await addNoteToContact(lead.id, noteText);
+    FUQ_COMPLETED++;
+    toast(\`\u2713 \${lead.name}: \${dispLabel}\`, 'success');
+  } catch (e) {
+    toast(\`Write-back error: \${e.message}\`, 'error');
+  }
+
+  FUQ_INDEX++;
+  renderFUQLead();
+}
+
+function fuqNavigate(dir) {
+  FUQ_INDEX = Math.max(0, Math.min(FUQ_LEADS.length - 1, FUQ_INDEX + dir));
+  renderFUQLead();
+}
+
+function fuqSkip() {
+  FUQ_INDEX++;
+  renderFUQLead();
+}
+
+// ===== #4: SHOWING OUTCOME TRACKER =====
+const SHOWING_OUTCOMES = [
+  { key: 'loved-it', label: '\u{1F60D} Loved It', color: '#22c55e' },
+  { key: 'making-offer', label: '\u{1F4B0} Making Offer', color: '#3b82f6' },
+  { key: 'wants-more', label: '\u{1F50D} Wants More Options', color: '#f59e0b' },
+  { key: 'no-show', label: '\u{1F47B} No Show', color: '#ef4444' },
+  { key: 'not-interested', label: '\u274C Not Interested', color: '#9ca3af' },
+  { key: 'needs-follow-up', label: '\u{1F4DE} Needs Follow-Up', color: '#8b5cf6' }
+];
+
+let SOT_CONTACT_ID = '';
+let SOT_SELECTED = '';
+
+function openShowingOutcome(contactId, contactName) {
+  SOT_CONTACT_ID = contactId;
+  SOT_SELECTED = '';
+  const raw = RAW_CONTACTS[contactId] || {};
+  const showDate = getCF(raw, ['showing_date', 'ylopo_showing_date', 'next_showing', 'scheduled_showing']) || 'Unknown date';
+
+  el('sotBody').innerHTML = \`
+    <div class="sot-lead-info">
+      <div style="font-size:24px">\u{1F3E1}</div>
+      <div>
+        <div style="font-weight:700">\${contactName || 'Lead'}</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Showing: \${showDate}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-secondary);margin-bottom:8px">How did the showing go?</div>
+    <div class="sot-outcomes">
+      \${SHOWING_OUTCOMES.map(o => \`<div class="sot-outcome" data-key="\${o.key}" onclick="selectShowingOutcome(this,'\${o.key}')" style="border-left:3px solid \${o.color}">\${o.label}</div>\`).join('')}
+    </div>
+    <textarea class="sot-note" id="sotNote" placeholder="Additional notes..."></textarea>
+    <div class="sot-actions">
+      <button class="fuq-nav-btn" onclick="closeShowingOutcome()">Cancel</button>
+      <button class="fuq-nav-btn primary" onclick="submitShowingOutcome()">Save Outcome</button>
+    </div>
+  \`;
+  el('sotOverlay').classList.add('open');
+}
+
+function selectShowingOutcome(elem, key) {
+  document.querySelectorAll('.sot-outcome').forEach(o => o.classList.remove('selected'));
+  elem.classList.add('selected');
+  SOT_SELECTED = key;
+}
+
+function closeShowingOutcome() {
+  el('sotOverlay').classList.remove('open');
+}
+
+async function submitShowingOutcome() {
+  if (!SOT_SELECTED) { toast('Select an outcome', 'warning'); return; }
+  if (!SOT_CONTACT_ID) return;
+
+  const outcome = SHOWING_OUTCOMES.find(o => o.key === SOT_SELECTED);
+  const note = el('sotNote')?.value?.trim() || '';
+
+  toast('Saving showing outcome...', 'info');
+  try {
+    await addTagToContact(SOT_CONTACT_ID, [\`showing-outcome-\${SOT_SELECTED}\`]);
+    const noteText = \`[Showing Outcome] \${outcome.label}\${note ? ' \u2014 ' + note : ''} (\${new Date().toLocaleString()})\`;
+    await addNoteToContact(SOT_CONTACT_ID, noteText);
+    toast(\`\u2713 Showing outcome saved: \${outcome.label}\`, 'success');
+    closeShowingOutcome();
+  } catch (e) {
+    toast(\`Error: \${e.message}\`, 'error');
+  }
+}
+
+function renderShowingOutcomes(leads) {
+  const wrap = el('showingOutcomeWrap');
+  if (!wrap) return;
+
+  const now = Date.now();
+  const pastShowings = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    const showDate = getCF(raw, ['showing_date', 'ylopo_showing_date', 'next_showing', 'scheduled_showing']);
+    if (!showDate) return false;
+    const d = new Date(showDate);
+    return !isNaN(d.getTime()) && d.getTime() < now;
+  }).map(l => {
+    const raw = RAW_CONTACTS[l.id];
+    const showDate = getCF(raw, ['showing_date', 'ylopo_showing_date', 'next_showing', 'scheduled_showing']);
+    const tags = (raw.tags || []).map(t => t.toLowerCase());
+    const outcomeTag = tags.find(t => t.startsWith('showing-outcome-'));
+    const outcome = outcomeTag ? outcomeTag.replace('showing-outcome-', '') : null;
+    const outcomeMeta = outcome ? SHOWING_OUTCOMES.find(o => o.key === outcome) : null;
+    const daysAgo = Math.floor((now - new Date(showDate).getTime()) / 864e5);
+    return { ...l, showDate, outcome, outcomeMeta, daysAgo };
+  }).sort((a, b) => a.daysAgo - b.daysAgo);
+
+  const needOutcome = pastShowings.filter(s => !s.outcome);
+  const logged = pastShowings.filter(s => s.outcome);
+
+  el('showingOutcomeInfo').textContent = \`\${needOutcome.length} pending \xB7 \${logged.length} logged\`;
+
+  if (pastShowings.length === 0) {
+    wrap.innerHTML = '<div class="briefing-empty">No past showings found</div>';
+    return;
+  }
+
+  wrap.innerHTML = \`
+    \${needOutcome.length > 0 ? \`<div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:8px">\u23F3 NEEDS OUTCOME (\${needOutcome.length})</div>\` : ''}
+    \${needOutcome.map(s => \`<div class="briefing-item" style="border:1px solid var(--amber-light);border-radius:var(--radius-xs)">
+      <div class="b-avatar" style="background:var(--amber)">\${s.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+      <div class="b-info">
+        <div class="b-name">\${s.name}</div>
+        <div class="b-detail">Shown \${s.daysAgo}d ago \xB7 Score: \${s.score}</div>
+      </div>
+      <button class="b-action" onclick="openShowingOutcome('\${s.id}','\${s.name.replace(/'/g, "\\\\'")}')">\u{1F4DD} Log</button>
+    </div>\`).join('')}
+    \${logged.length > 0 ? \`<div style="font-size:11px;font-weight:700;color:var(--green);margin-top:12px;margin-bottom:8px">\u2705 LOGGED (\${logged.length})</div>\` : ''}
+    \${logged.slice(0, 8).map(s => \`<div class="briefing-item" style="border:1px solid var(--card-border);border-radius:var(--radius-xs);opacity:0.8">
+      <div class="b-avatar" style="background:\${s.outcomeMeta?.color || '#9ca3af'}">\${s.name.split(' ').map(n => n[0]).join('').substring(0, 2)}</div>
+      <div class="b-info">
+        <div class="b-name">\${s.name}</div>
+        <div class="b-detail">\${s.outcomeMeta?.label || s.outcome} \xB7 \${s.daysAgo}d ago</div>
+      </div>
+    </div>\`).join('')}
+  \`;
+}
+
+// ===== #5: ROI WITH ACTUAL CLOSINGS =====
+function renderROIClosings(leads) {
+  const wrap = el('roiClosingWrap');
+  if (!wrap) return;
+
+  const closedTags = ['under contract', 'closed', 'won', 'closing', 'sold', 'settled'];
+  const bySource = {};
+
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const source = l.source || 'Unknown';
+    if (!bySource[source]) bySource[source] = { total: 0, closed: 0 };
+    bySource[source].total++;
+    const tags = (raw.tags || []).map(t => t.toLowerCase());
+    if (tags.some(t => closedTags.some(ct => t.includes(ct)))) {
+      bySource[source].closed++;
+    }
+  });
+
+  const sorted = Object.entries(bySource)
+    .filter(([_, d]) => d.total >= 2)
+    .sort((a, b) => (b[1].closed / b[1].total) - (a[1].closed / a[1].total));
+
+  const totalClosed = sorted.reduce((s, [_, d]) => s + d.closed, 0);
+  el('roiClosingInfo').textContent = \`\${totalClosed} closings tracked\`;
+
+  if (sorted.length === 0) {
+    wrap.innerHTML = '<div class="briefing-empty">Tag leads as "Closed" or "Under Contract" in GHL to see ROI by source</div>';
+    return;
+  }
+
+  const maxTotal = Math.max(...sorted.map(([_, d]) => d.total));
+  const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+  wrap.innerHTML = sorted.map(([source, d], i) => {
+    const closePct = d.total > 0 ? Math.round((d.closed / d.total) * 100) : 0;
+    const barWidth = Math.round((d.total / maxTotal) * 100);
+    const color = colors[i % colors.length];
+    return \`<div class="roi-closing-row">
+      <div style="min-width:100px;font-size:12px;font-weight:600;color:var(--text)">\${source}</div>
+      <div class="roi-closing-bar">
+        <div class="roi-closing-fill" style="width:\${barWidth}%;background:\${color}40"></div>
+        <div class="roi-closing-fill" style="width:\${Math.round((d.closed / maxTotal) * 100)}%;background:\${color};position:relative;top:-6px"></div>
+      </div>
+      <div style="text-align:right;min-width:90px;font-size:11px">
+        <span style="font-weight:700;color:\${color}">\${d.closed}/\${d.total}</span>
+        <span style="color:var(--text-secondary);margin-left:4px">(\${closePct}%)</span>
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+/* =============================== SELLER AUTO-TAGGING & PIPELINE =============================== */
+// GHL Seller Pipeline: 118WTx6yjDJJzNotlWdX
+const GHL_SELLER_PIPELINE_ID = '118WTx6yjDJJzNotlWdX';
+const GHL_SELLER_STAGE_INITIAL = 'fe0616dc-f7c7-4258-9fc4-c4e235199f62'; // Initial Contact
+const SELLER_SOURCE_KEYWORDS = ['my +plus leads','my+plus','myplus','plus leads'];
+const SELLER_TAG_KEYWORDS = ['fsbo','canceled','withdrawn','expired','for sale by owner'];
+let _sellerTagsApplied = new Set(); // track which contacts already tagged this session
+
+async function autoTagSellers(leads) {
+  let tagged = 0, pipelined = 0;
+  for (const l of leads) {
+    if (_sellerTagsApplied.has(l.id)) continue;
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) continue;
+
+    const src = String(l.source || '').toLowerCase();
+    const tags = (Array.isArray(l.tags) ? l.tags : []).map(t => String(t).toLowerCase());
+    const isSellerSource = SELLER_SOURCE_KEYWORDS.some(kw => src.includes(kw));
+    const hasSellerTags = SELLER_TAG_KEYWORDS.some(kw => tags.some(t => t.includes(kw)));
+    const alreadySeller = tags.includes('seller') || tags.includes('seller lead');
+
+    // Skip if already tagged as seller
+    if (alreadySeller && !hasSellerTags) { _sellerTagsApplied.add(l.id); continue; }
+
+    // my+plus leads source \u2192 always a seller
+    if (isSellerSource && !alreadySeller) {
+      try {
+        await addTagToContact(l.id, ['Seller', 'Seller Lead', 'my+plus leads']);
+        console.log(\`\u{1F3E0} Auto-tagged \${l.name} as Seller (source: \${l.source})\`);
+        tagged++;
+        _sellerTagsApplied.add(l.id);
+      } catch(e) { console.warn('Seller tag failed:', e); }
+    }
+
+    // FSBO/canceled/withdrawn/expired \u2192 tag as seller + move to Seller Pipeline
+    if (hasSellerTags && !alreadySeller) {
+      const matchedTag = SELLER_TAG_KEYWORDS.find(kw => tags.some(t => t.includes(kw)));
+      try {
+        await addTagToContact(l.id, ['Seller', 'Seller Lead', matchedTag ? matchedTag.toUpperCase() : 'Seller']);
+        console.log(\`\u{1F3E0} Auto-tagged \${l.name} as Seller (tag: \${matchedTag})\`);
+        tagged++;
+        _sellerTagsApplied.add(l.id);
+      } catch(e) { console.warn('Seller tag failed:', e); }
+    }
+
+    // Move to Seller Pipeline if seller source + seller tags
+    if ((isSellerSource || hasSellerTags) && !_sellerTagsApplied.has(l.id + '_pipeline')) {
+      try {
+        // Create opportunity in Seller Pipeline
+        await ghlWriteBack('POST', \`/contacts/\${l.id}/tags\`, {
+          tags: ['Seller Pipeline']
+        });
+        // Note: Full opportunity creation requires proxy /opportunities endpoint
+        // For now, tag the contact and log it
+        await addNoteToContact(l.id, \`[Auto] Flagged for Seller Pipeline \u2014 Source: \${l.source}, Tags: \${tags.filter(t => SELLER_TAG_KEYWORDS.some(kw => t.includes(kw))).join(', ') || 'seller source'} (\${new Date().toLocaleDateString()})\`);
+        pipelined++;
+        _sellerTagsApplied.add(l.id + '_pipeline');
+        console.log(\`\u{1F4CB} \${l.name} \u2192 Seller Pipeline\`);
+      } catch(e) { console.warn('Pipeline move failed:', e); }
+    }
+  }
+  if (tagged > 0 || pipelined > 0) {
+    toast(\`\u{1F3E0} Sellers: \${tagged} tagged, \${pipelined} pipelined\`, 'success');
+  }
+}
+
+/* =============================== INTELLIGENCE: LEAD RESPONSE TIMER =============================== */
+function renderResponseTimer(leads) {
+  const wrap = el('responseTimerWrap');
+  const countEl = el('responseTimerCount');
+  if (!wrap) return;
+  const now = Date.now();
+  const waiting = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const created = new Date(raw.dateAdded || raw.createdAt).getTime();
+    const msSince = now - created;
+    const daysSince = msSince / 864e5;
+    // Only show leads from last 14 days that haven't been engaged
+    if (daysSince > 14) return;
+    const hasEngagement = l.matrix.views + l.matrix.saves + l.matrix.showings > 0;
+    const tags = (Array.isArray(l.tags)?l.tags:[]).map(t=>String(t).toLowerCase());
+    const contacted = tags.some(t => t.includes('contacted') || t.includes('called') || t.includes('disposition'));
+    if (!hasEngagement && !contacted) {
+      const mins = Math.floor(msSince / 60000);
+      const hrs = Math.floor(mins / 60);
+      const days = Math.floor(hrs / 24);
+      let timeStr, urgency;
+      if (mins < 5) { timeStr = mins + 'm'; urgency = 'critical'; }
+      else if (mins < 60) { timeStr = mins + 'm'; urgency = 'critical'; }
+      else if (hrs < 24) { timeStr = hrs + 'h ' + (mins%60) + 'm'; urgency = hrs < 4 ? 'critical' : 'high'; }
+      else { timeStr = days + 'd ' + (hrs%24) + 'h'; urgency = days < 3 ? 'high' : 'medium'; }
+      waiting.push({ lead: l, timeStr, urgency, msSince, mins });
+    }
+  });
+  waiting.sort((a, b) => b.msSince - a.msSince);
+  if (countEl) countEl.textContent = waiting.length + ' waiting';
+  if (waiting.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--green);font-size:13px">\u2705 All leads have been contacted!</div>';
+    return;
+  }
+  const urgColors = { critical: 'var(--red)', high: 'var(--amber)', medium: 'var(--blue)' };
+  const urgBg = { critical: 'var(--red-light)', high: 'var(--amber-light)', medium: 'var(--blue-light)' };
+  wrap.innerHTML = \`<div style="display:grid;gap:6px">\${waiting.slice(0,25).map(w => {
+    const c = urgColors[w.urgency];
+    const bg = urgBg[w.urgency];
+    const pulseStyle = w.urgency === 'critical' ? 'animation:stale-pulse 1.5s infinite;' : '';
+    return \`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;border:1px solid \${c};background:\${bg};\${pulseStyle}">
+      <span style="font-size:18px;min-width:24px;text-align:center">\${w.urgency==='critical'?'\u{1F6A8}':w.urgency==='high'?'\u26A0\uFE0F':'\u23F3'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">\${w.lead.name}</div>
+        <div style="font-size:10px;color:var(--text-secondary)">\${w.lead.email||w.lead.phone||'No contact info'} \xB7 Score: \${w.lead.score}</div>
+      </div>
+      <div style="text-align:right;min-width:60px">
+        <div style="font-size:16px;font-weight:800;color:\${c}">\${w.timeStr}</div>
+        <div style="font-size:9px;color:var(--text-secondary)">waiting</div>
+      </div>
+      <div style="display:flex;gap:3px">
+        \${w.lead.phone?\`<a href="tel:\${w.lead.phone}" style="padding:4px 8px;border-radius:4px;background:var(--green);color:#fff;font-size:10px;font-weight:700;text-decoration:none">\u{1F4DE} Call</a>\`:''}
+        \${w.lead.email?\`<a href="mailto:\${w.lead.email}" style="padding:4px 8px;border-radius:4px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;text-decoration:none">\u2709\uFE0F</a>\`:''}
+      </div>
+    </div>\`;
+  }).join('')}</div>\`;
+}
+
+/* =============================== INTELLIGENCE: AI LEAD INSIGHTS =============================== */
+function renderAIInsights(leads) {
+  const wrap = el('aiInsightsWrap');
+  const countEl = el('aiInsightCount');
+  if (!wrap) return;
+  const insights = [];
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const ext = getExtendedData(raw);
+    const m = l.matrix;
+    let insight = '';
+    let icon = '\u{1F4A1}';
+    let priority = 0;
+    // Generate contextual insight based on behavior
+    if (m.showings > 0 && m.saves >= 3) {
+      insight = \`Requested \${m.showings} showing(s) and saved \${m.saves} properties\${ext.city?' in '+ext.city:''}. High-intent buyer \u2014 schedule showing ASAP.\`;
+      icon = '\u{1F525}'; priority = 1;
+    } else if (m.saves >= 5 && m.views >= 10) {
+      const saveRate = Math.round(m.saves / m.views * 100);
+      insight = \`Saved \${m.saves} of \${m.views} viewed properties (\${saveRate}% save rate)\${ext.maxPrice?' around '+fmtPrice(ext.maxPrice):''}. Building a serious shortlist.\`;
+      icon = '\u{1F3AF}'; priority = 2;
+    } else if (m.views >= 15 && m.saves === 0) {
+      insight = \`Viewed \${m.views} properties but saved none. Browsing heavily \u2014 may need help narrowing criteria\${ext.beds?' (looking for '+ext.beds+'bd)':''}.\`;
+      icon = '\u{1F50D}'; priority = 3;
+    } else if (m.saves >= 2 && m.views >= 5) {
+      insight = \`Active searcher with \${m.views} views and \${m.saves} saves\${ext.city?' focused on '+ext.city:''}\${ext.maxPrice?', budget '+fmtPrice(ext.maxPrice):''}. Ready for outreach.\`;
+      icon = '\u{1F4CA}'; priority = 4;
+    } else if (l.score >= 60 && m.views === 0) {
+      insight = \`High score (\${l.score}) but no property views yet. May be early stage \u2014 good candidate for property alert setup.\`;
+      icon = '\u{1F4CB}'; priority = 5;
+    } else if (ext.estValue && ext.equity) {
+      insight = \`Property valued at \${fmtPrice(ext.estValue)} with \${fmtPrice(ext.equity)} equity. Potential seller lead \u2014 consider CMA outreach.\`;
+      icon = '\u{1F3E0}'; priority = 3;
+    }
+    if (insight) insights.push({ lead: l, insight, icon, priority, ext });
+  });
+  insights.sort((a, b) => a.priority - b.priority);
+  const top = insights.slice(0, 20);
+  if (countEl) countEl.textContent = top.length + ' insights';
+  if (top.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary)">No insights yet \u2014 need more lead activity data</div>';
+    return;
+  }
+  wrap.innerHTML = top.map(i => \`<div style="display:flex;gap:10px;padding:10px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--card)">
+    <span style="font-size:20px;flex-shrink:0">\${i.icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">\${i.lead.name} <span style="font-size:10px;font-weight:500;color:var(--text-secondary)">\xB7 Score \${i.lead.score}</span></div>
+      <div style="font-size:11px;color:var(--text-secondary);line-height:1.5">\${i.insight}</div>
+    </div>
+    \${buildQuickLinks(i.lead.id)}
+  </div>\`).join('');
+}
+
+/* =============================== INTELLIGENCE: SMART FOLLOW-UP SCHEDULER =============================== */
+function renderSmartFollowUp(leads) {
+  const btWrap = el('bestTimeWrap');
+  const clWrap = el('callListWrap');
+  const btInfo = el('bestTimeInfo');
+  const clCount = el('callListCount');
+  if (!btWrap) return;
+  // Analyze activity patterns by hour
+  const hourBuckets = Array(24).fill(0);
+  const dayBuckets = Array(7).fill(0);
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id]; if (!raw) return;
+    [raw.dateAdded, raw.dateUpdated, raw.lastActivity].forEach(ds => {
+      if (!ds) return;
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return;
+      hourBuckets[d.getHours()]++;
+      dayBuckets[d.getDay()]++;
+    });
+  });
+  const maxH = Math.max(...hourBuckets, 1);
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const bestHour = hourBuckets.indexOf(Math.max(...hourBuckets));
+  const bestDay = dayBuckets.indexOf(Math.max(...dayBuckets));
+  if (btInfo) btInfo.textContent = dayNames[bestDay] + ' ' + (bestHour > 12 ? (bestHour-12)+'pm' : bestHour+'am');
+
+  btWrap.innerHTML = \`<div style="margin-bottom:16px;padding:14px;border-radius:8px;background:var(--green-light);border:1px solid var(--green);text-align:center">
+    <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;margin-bottom:4px">Best Time to Reach Leads</div>
+    <div style="font-size:28px;font-weight:800;color:var(--green)">\${dayNames[bestDay]}s at \${bestHour > 12 ? (bestHour-12) : bestHour}:00 \${bestHour >= 12 ? 'PM' : 'AM'}</div>
+  </div>
+  <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">Activity by Hour</div>
+  <div style="display:flex;align-items:flex-end;gap:2px;height:60px">\${hourBuckets.map((v, i) => {
+    const pct = v / maxH * 100;
+    const color = i === bestHour ? 'var(--green)' : 'var(--card-border)';
+    const label = i === 0 ? '12a' : i < 12 ? i+'a' : i === 12 ? '12p' : (i-12)+'p';
+    return \`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="width:100%;height:\${Math.max(pct,3)}%;background:\${color};border-radius:2px 2px 0 0"></div>
+      \${i%3===0?\`<span style="font-size:7px;color:var(--text-secondary)">\${label}</span>\`:''}
+    </div>\`;
+  }).join('')}</div>\`;
+
+  // Build today's prioritized call list
+  if (!clWrap) return;
+  const now = Date.now();
+  const callList = leads.filter(l => {
+    const raw = RAW_CONTACTS[l.id]; if (!raw) return false;
+    const lastDate = raw.dateUpdated || raw.lastActivity;
+    const daysSince = lastDate ? Math.floor((now - new Date(lastDate).getTime()) / 864e5) : 999;
+    return (l.score >= 40 && daysSince <= 7) || l.matrix.showings > 0 || l.status === 'HOT';
+  }).sort((a, b) => {
+    if (a.matrix.showings > 0 && b.matrix.showings === 0) return -1;
+    if (b.matrix.showings > 0 && a.matrix.showings === 0) return 1;
+    return b.score - a.score;
+  }).slice(0, 15);
+
+  if (clCount) clCount.textContent = callList.length + ' leads';
+  clWrap.innerHTML = callList.length === 0
+    ? '<div style="padding:16px;text-align:center;color:var(--text-secondary)">No calls due today</div>'
+    : callList.map((l, i) => {
+      const reason = l.matrix.showings > 0 ? '\u{1F3E0} Showing request' : l.status === 'HOT' ? '\u{1F525} Hot lead' : '\u{1F4CA} High score';
+      return \`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--card)">
+        <span style="font-size:12px;font-weight:800;color:var(--text-secondary);width:20px">\${i+1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">\${l.name}</div>
+          <div style="font-size:10px;color:var(--text-secondary)">\${reason} \xB7 \${l.phone||l.email||'No contact'}</div>
+        </div>
+        \${l.phone?\`<a href="tel:\${l.phone}" style="padding:4px 10px;border-radius:4px;background:var(--green);color:#fff;font-size:10px;font-weight:700;text-decoration:none">\u{1F4DE} Call</a>\`:''}
+      </div>\`;
+    }).join('');
+}
+
+/* =============================== INTELLIGENCE: REVENUE FORECASTING =============================== */
+function renderRevenueForecast(leads) {
+  const cfWrap = el('commissionForecastWrap');
+  const dpWrap = el('dealProbWrap');
+  const cpaWrap = el('cpaWrap');
+  if (!cfWrap) return;
+
+  const avgPrice = Number(el('roiAvgPrice')?.value) || 450000;
+  const commPct = Number(el('roiCommission')?.value) || 3;
+  const commPerDeal = avgPrice * (commPct / 100);
+  const ylopoCost = Number(el('roiYlopoCost')?.value) || 500;
+  const adSpend = Number(el('roiAdSpend')?.value) || 0;
+  const totalCost = (ylopoCost + adSpend) * 12; // annual
+
+  // Pipeline stage probabilities
+  const stages = [
+    { label: 'Hot Leads', filter: l => l.status === 'HOT', prob: 0.25, color: 'var(--red)' },
+    { label: 'Showing Requests', filter: l => l.matrix.showings > 0, prob: 0.35, color: 'var(--green)' },
+    { label: 'Engaged (5+ saves)', filter: l => l.matrix.saves >= 5, prob: 0.15, color: 'var(--amber)' },
+    { label: 'Warm Leads', filter: l => l.status === 'WARM', prob: 0.08, color: 'var(--blue)' },
+  ];
+  let totalForecast = 0;
+  const stageData = stages.map(s => {
+    const count = leads.filter(s.filter).length;
+    const estDeals = Math.round(count * s.prob * 10) / 10;
+    const revenue = Math.round(estDeals * commPerDeal);
+    totalForecast += revenue;
+    return { ...s, count, estDeals, revenue };
+  });
+
+  cfWrap.innerHTML = \`
+    <div style="text-align:center;padding:20px;border-radius:8px;background:var(--bg);margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase">Projected Annual Commission</div>
+      <div style="font-size:36px;font-weight:800;color:var(--green);letter-spacing:-0.03em">\${fmtPrice(totalForecast)}</div>
+      <div style="font-size:11px;color:var(--text-secondary)">Based on \${leads.length} leads \xB7 \${commPct}% commission \xB7 \${fmtPrice(avgPrice)} avg sale</div>
+    </div>
+    <div style="display:grid;gap:8px">\${stageData.map(s => \`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:var(--bg)">
+      <div style="width:8px;height:8px;border-radius:50%;background:\${s.color};flex-shrink:0"></div>
+      <span style="font-size:11px;font-weight:600;flex:1">\${s.label}</span>
+      <span style="font-size:11px;color:var(--text-secondary)">\${s.count} leads \xD7 \${Math.round(s.prob*100)}%</span>
+      <span style="font-size:12px;font-weight:700;color:\${s.color}">\${fmtPrice(s.revenue)}</span>
+    </div>\`).join('')}</div>\`;
+
+  // Deal probability
+  if (dpWrap) {
+    const topDeals = leads.filter(l => l.score >= 50 || l.matrix.showings > 0 || l.matrix.saves >= 3)
+      .map(l => {
+        let prob = 0;
+        if (l.matrix.showings > 0) prob += 35;
+        if (l.matrix.saves >= 5) prob += 20;
+        else if (l.matrix.saves >= 2) prob += 10;
+        if (l.score >= 70) prob += 15;
+        if (l.score >= 50) prob += 10;
+        const raw = RAW_CONTACTS[l.id];
+        if (raw) {
+          const d = raw.dateUpdated || raw.lastActivity;
+          const days = d ? Math.floor((Date.now() - new Date(d).getTime()) / 864e5) : 999;
+          if (days <= 3) prob += 10;
+          else if (days > 14) prob -= 10;
+        }
+        prob = Math.max(5, Math.min(95, prob));
+        return { lead: l, prob, value: Math.round(commPerDeal * prob / 100) };
+      }).sort((a, b) => b.prob - a.prob).slice(0, 12);
+
+    dpWrap.innerHTML = topDeals.map(d => {
+      const c = d.prob >= 60 ? 'var(--green)' : d.prob >= 30 ? 'var(--amber)' : 'var(--text-secondary)';
+      return \`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:var(--bg)">
+        <div style="width:36px;height:36px;border-radius:50%;border:3px solid \${c};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:\${c};flex-shrink:0">\${d.prob}%</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:700;color:var(--text)">\${d.lead.name}</div>
+          <div style="font-size:10px;color:var(--text-secondary)">\u{1F441}\${d.lead.matrix.views} \u2764\${d.lead.matrix.saves} \u{1F3E0}\${d.lead.matrix.showings}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:700;color:\${c}">\${fmtPrice(d.value)}</div>
+          <div style="font-size:9px;color:var(--text-secondary)">weighted</div>
+        </div>
+      </div>\`;
+    }).join('');
+  }
+
+  // Cost per acquisition
+  if (cpaWrap) {
+    const totalLeads = leads.length || 1;
+    const hotLeads = leads.filter(l => l.status === 'HOT').length || 1;
+    const showingLeads = leads.filter(l => l.matrix.showings > 0).length || 1;
+    const monthlyCost = ylopoCost + adSpend;
+    cpaWrap.innerHTML = \`<div style="display:grid;gap:10px">
+      <div style="padding:16px;border-radius:8px;background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--blue)">\${fmtPrice(Math.round(monthlyCost/totalLeads*LOAD_DAYS/30))}</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">Cost / Lead</div>
+      </div>
+      <div style="padding:16px;border-radius:8px;background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--amber)">\${fmtPrice(Math.round(monthlyCost/hotLeads*LOAD_DAYS/30))}</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">Cost / Hot Lead</div>
+      </div>
+      <div style="padding:16px;border-radius:8px;background:var(--bg);text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--green)">\${fmtPrice(Math.round(monthlyCost/showingLeads*LOAD_DAYS/30))}</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">Cost / Showing</div>
+      </div>
+      <div style="padding:16px;border-radius:8px;background:\${totalForecast > totalCost ? 'var(--green-light)' : 'var(--red-light)'};text-align:center;border:1px solid \${totalForecast > totalCost ? 'var(--green)' : 'var(--red)'}">
+        <div style="font-size:28px;font-weight:800;color:\${totalForecast > totalCost ? 'var(--green)' : 'var(--red)'}">\${totalCost > 0 ? Math.round((totalForecast - totalCost) / totalCost * 100) : 0}%</div>
+        <div style="font-size:10px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">Projected ROI</div>
+      </div>
+    </div>\`;
+  }
+}
+
+/* =============================== INTELLIGENCE: AGENT LEADERBOARD =============================== */
+function renderAgentLeaderboard(leads) {
+  const wrap = el('agentLeaderboardWrap');
+  const slaWrap = el('slaTrackerWrap');
+  const slaInfo = el('slaInfo');
+  if (!wrap) return;
+
+  const agents = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id]; if (!raw) return;
+    const agent = resolveAgentName(raw);
+    if (agent === 'Unassigned') return;
+    if (!agents[agent]) agents[agent] = { total:0, hot:0, contacted:0, showings:0, totalScore:0, closed:0, responseTotal:0, responseCount:0 };
+    const a = agents[agent];
+    a.total++;
+    if (l.status === 'HOT') a.hot++;
+    if (l.matrix.showings > 0) a.showings++;
+    a.totalScore += l.score;
+    const tags = (Array.isArray(l.tags)?l.tags:[]).map(t=>String(t).toLowerCase());
+    if (tags.some(t=>t.includes('contacted')||t.includes('called')||t.includes('disposition'))) a.contacted++;
+    if (tags.some(t=>t.includes('closed')||t.includes('sold')||t.includes('won'))) a.closed++;
+    // Response time estimate
+    const created = new Date(raw.dateAdded||raw.createdAt).getTime();
+    const updated = raw.dateUpdated ? new Date(raw.dateUpdated).getTime() : 0;
+    if (updated > created) { a.responseTotal += (updated - created); a.responseCount++; }
+  });
+
+  const sorted = Object.entries(agents).sort((a, b) => {
+    const scoreA = a[1].hot * 10 + a[1].showings * 5 + a[1].contacted * 3 + a[1].closed * 20;
+    const scoreB = b[1].hot * 10 + b[1].showings * 5 + b[1].contacted * 3 + b[1].closed * 20;
+    return scoreB - scoreA;
+  });
+
+  const medals = ['\u{1F947}','\u{1F948}','\u{1F949}'];
+  const colors = ['#fbbf24','#9ca3af','#cd7c2f'];
+
+  wrap.innerHTML = sorted.length === 0
+    ? '<div style="padding:24px;text-align:center;color:var(--text-secondary)">No assigned agents found</div>'
+    : sorted.map(([name, d], i) => {
+      const avgScore = Math.round(d.totalScore / Math.max(d.total,1));
+      const contactRate = d.total > 0 ? Math.round(d.contacted / d.total * 100) : 0;
+      const avgResponse = d.responseCount > 0 ? Math.round(d.responseTotal / d.responseCount / 3600000) : 0;
+      return \`<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--card-border);background:var(--card);\${i<3?'border-left:3px solid '+(colors[i]||'var(--card-border)')+';':''}">
+        <span style="font-size:\${i<3?'24px':'16px'};min-width:30px;text-align:center">\${i<3?medals[i]:(i+1)}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">\${name}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--blue-light);color:var(--blue);font-weight:600">\${d.total} leads</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--red-light);color:var(--red);font-weight:600">\${d.hot} hot</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--green-light);color:var(--green);font-weight:600">\${contactRate}% contacted</span>
+            \${d.closed > 0 ? \`<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--amber-light);color:var(--amber);font-weight:600">\${d.closed} closed</span>\` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:var(--text)">\${avgScore}</div>
+          <div style="font-size:9px;color:var(--text-secondary)">avg score</div>
+        </div>
+      </div>\`;
+    }).join('');
+
+  // SLA Tracker
+  if (slaWrap) {
+    const SLA_TARGET_HOURS = 4; // 4 hour response SLA
+    let metSLA = 0, missedSLA = 0;
+    sorted.forEach(([, d]) => {
+      if (d.responseCount > 0) {
+        const avgHrs = d.responseTotal / d.responseCount / 3600000;
+        if (avgHrs <= SLA_TARGET_HOURS) metSLA++; else missedSLA++;
+      }
+    });
+    const slaRate = (metSLA + missedSLA) > 0 ? Math.round(metSLA / (metSLA + missedSLA) * 100) : 0;
+    if (slaInfo) slaInfo.textContent = slaRate + '% met';
+    slaWrap.innerHTML = \`<div style="text-align:center;padding:20px;border-radius:8px;background:\${slaRate>=80?'var(--green-light)':'var(--red-light)'};border:1px solid \${slaRate>=80?'var(--green)':'var(--red)'}">
+      <div style="font-size:42px;font-weight:800;color:\${slaRate>=80?'var(--green)':'var(--red)'}">\${slaRate}%</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">SLA Compliance (\${SLA_TARGET_HOURS}h target)</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:6px">\${metSLA} met \xB7 \${missedSLA} missed</div>
+    </div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="padding:12px;border-radius:6px;background:var(--bg);text-align:center">
+        <div style="font-size:20px;font-weight:700;color:var(--text)">\${SLA_TARGET_HOURS}h</div>
+        <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase">SLA Target</div>
+      </div>
+      <div style="padding:12px;border-radius:6px;background:var(--bg);text-align:center">
+        <div style="font-size:20px;font-weight:700;color:var(--text)">\${sorted.length}</div>
+        <div style="font-size:9px;color:var(--text-secondary);text-transform:uppercase">Active Agents</div>
+      </div>
+    </div>\`;
+  }
+}
+
+/* =============================== INTELLIGENCE: MARKET INTEL =============================== */
+function renderMarketIntel(leads) {
+  const ptWrap = el('priceTrendWrap');
+  const domWrap = el('domTrackerWrap');
+  const iwWrap = el('inventoryWatchWrap');
+  if (!ptWrap) return;
+
+  // Price trends by area
+  const areas = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id]; if (!raw) return;
+    const ext = getExtendedData(raw);
+    const price = Number(getCF(raw,['price','listing_price','list_price'])) || ext.maxPrice || 0;
+    const area = ext.city || ext.zip || '';
+    if (!area || !price) return;
+    if (!areas[area]) areas[area] = { prices: [], count: 0, sqftTotal: 0, sqftCount: 0 };
+    areas[area].prices.push(price);
+    areas[area].count++;
+    const sqft = Number(getCF(raw,['square_footage','sqft'])) || 0;
+    if (sqft) { areas[area].sqftTotal += sqft; areas[area].sqftCount++; }
+  });
+  const areasSorted = Object.entries(areas).filter(([,d]) => d.count >= 2)
+    .map(([name, d]) => {
+      const avg = Math.round(d.prices.reduce((s,p) => s+p, 0) / d.prices.length);
+      const min = Math.min(...d.prices);
+      const max = Math.max(...d.prices);
+      const avgSqft = d.sqftCount > 0 ? Math.round(d.sqftTotal / d.sqftCount) : 0;
+      const pricePerSqft = avgSqft > 0 ? Math.round(avg / avgSqft) : 0;
+      return { name, avg, min, max, count: d.count, avgSqft, pricePerSqft };
+    }).sort((a, b) => b.count - a.count).slice(0, 10);
+
+  ptWrap.innerHTML = areasSorted.length === 0
+    ? '<div style="padding:16px;text-align:center;color:var(--text-secondary)">Need 2+ listings per area for trends</div>'
+    : areasSorted.map(a => \`<div style="padding:10px 12px;border-radius:6px;background:var(--bg)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">\u{1F4CD} \${a.name}</span>
+        <span style="font-size:10px;color:var(--text-secondary)">\${a.count} listings</span>
+      </div>
+      <div style="display:flex;gap:12px;font-size:11px">
+        <span style="color:var(--blue)">Avg: <strong>\${fmtPrice(a.avg)}</strong></span>
+        <span style="color:var(--text-secondary)">\${fmtPrice(a.min)} \u2013 \${fmtPrice(a.max)}</span>
+        \${a.pricePerSqft ? \`<span style="color:var(--amber)">$\${a.pricePerSqft}/sqft</span>\` : ''}
+      </div>
+    </div>\`).join('');
+
+  // DOM tracker
+  if (domWrap) {
+    const domData = [];
+    leads.forEach(l => {
+      const raw = RAW_CONTACTS[l.id]; if (!raw) return;
+      const status = String(getCF(raw,['status'])||'').toLowerCase();
+      const adnotes = String(getCF(raw,['adnotes','ad_notes'])||'');
+      const domMatch = adnotes.match(/DOM:\\s*(\\d+)/i);
+      if (domMatch) domData.push({ dom: parseInt(domMatch[1]), status });
+    });
+    if (domData.length > 0) {
+      const avgDOM = Math.round(domData.reduce((s,d) => s+d.dom, 0) / domData.length);
+      const under30 = domData.filter(d => d.dom < 30).length;
+      const over90 = domData.filter(d => d.dom > 90).length;
+      domWrap.innerHTML = \`<div style="text-align:center;padding:20px;border-radius:8px;background:var(--bg);margin-bottom:12px">
+        <div style="font-size:36px;font-weight:800;color:\${avgDOM<45?'var(--green)':avgDOM<90?'var(--amber)':'var(--red)'}">\${avgDOM}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase">Avg Days on Market</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="padding:10px;border-radius:6px;background:var(--green-light);text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--green)">\${under30}</div>
+          <div style="font-size:9px;color:var(--text-secondary)">Under 30 DOM</div>
+        </div>
+        <div style="padding:10px;border-radius:6px;background:var(--red-light);text-align:center">
+          <div style="font-size:18px;font-weight:700;color:var(--red)">\${over90}</div>
+          <div style="font-size:9px;color:var(--text-secondary)">Over 90 DOM</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text-secondary);text-align:center;margin-top:8px">Based on \${domData.length} listings with DOM data</div>\`;
+    } else {
+      domWrap.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-secondary)">No DOM data found in listings</div>';
+    }
+  }
+
+  // Inventory watch \u2014 match buyers to available inventory
+  if (iwWrap) {
+    const buyerNeeds = [];
+    leads.forEach(l => {
+      const raw = RAW_CONTACTS[l.id]; if (!raw) return;
+      const ext = getExtendedData(raw);
+      if ((ext.maxPrice || ext.minPrice) && (ext.city || ext.beds)) {
+        buyerNeeds.push({
+          name: l.name, id: l.id, score: l.score,
+          budget: ext.maxPrice || ext.minPrice,
+          city: ext.city, beds: ext.beds, baths: ext.baths,
+          showings: l.matrix.showings, saves: l.matrix.saves
+        });
+      }
+    });
+    buyerNeeds.sort((a, b) => b.score - a.score);
+    iwWrap.innerHTML = buyerNeeds.length === 0
+      ? '<div style="padding:16px;text-align:center;color:var(--text-secondary)">No buyer criteria data available</div>'
+      : buyerNeeds.slice(0, 12).map(b => \`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;background:var(--bg)">
+        <span style="font-size:14px">\u{1F50D}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:700;color:var(--text)">\${b.name}</div>
+          <div style="font-size:10px;color:var(--text-secondary)">\${b.city||'Any area'} \xB7 \${b.beds||'?'}bd \xB7 \${fmtPrice(b.budget)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:\${b.showings?'var(--green)':b.saves>=3?'var(--amber)':'var(--text-secondary)'}">\${b.showings?'\u{1F3E0} Active':b.saves>=3?'\u2764\uFE0F Saving':'\u{1F440} Looking'}</span>
+      </div>\`).join('');
+  }
+}
+
+// ===== #7: AGENT WORKLOAD CHART =====
+function renderWorkloadChart(leads) {
+  const bar = el('workloadBar');
+  if (!bar) return;
+
+  const agents = {};
+  leads.forEach(l => {
+    const raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    const agent = resolveAgentName(raw);
+    if (!agents[agent]) agents[agent] = 0;
+    agents[agent]++;
+  });
+
+  const sorted = Object.entries(agents).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const maxVal = Math.max(...sorted.map(([_, v]) => v), 1);
+  const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+  bar.innerHTML = sorted.map(([name, count], i) => {
+    const pct = Math.round((count / maxVal) * 100);
+    const shortName = name.split(' ')[0].substring(0, 6);
+    return \`<div class="workload-col" style="height:\${Math.max(pct, 8)}%;background:\${colors[i % colors.length]}" title="\${name}: \${count} leads">
+      <div class="workload-val" style="color:\${colors[i % colors.length]}">\${count}</div>
+      <div class="workload-label">\${shortName}</div>
+    </div>\`;
+  }).join('');
+}
+
+// ===== #3 ENHANCEMENT: Nudge stale leads =====
+async function bulkNudgeStale() {
+  const checked = [...document.querySelectorAll('.stale-check:checked')].map(c => c.value);
+  if (checked.length === 0) { toast('Select leads to nudge', 'warning'); return; }
+  for (const id of checked) {
+    openMsgPreview(id, ALL_LEADS.find(l => l.id === id)?.name || 'Lead');
+    break; // Open first one for preview, rest tagged
+  }
+  if (checked.length > 1) {
+    toast(\`Opening message for first lead. Tag the rest with Re-engage for workflow.\`, 'info');
+    for (const id of checked.slice(1)) {
+      await addTagToContact(id, ['nudge-sent']);
+    }
+  }
+}
+
+// ===== #10: ENHANCED PDF - SINGLE LEAD REPORT =====
+function openPdfReport(contactId) {
+  try {
+    const lead = ALL_LEADS.find(l => l.id === contactId);
+    const raw = RAW_CONTACTS[contactId];
+    if (!lead || !raw) { toast('Lead not found \u2014 data may still be loading', 'error'); console.warn('[PDF] Lead not found:', contactId); return; }
+
+    const initials = lead.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+    const scoreColor = lead.score >= 80 ? '#22c55e' : lead.score >= 50 ? '#f59e0b' : '#ef4444';
+    const tags = (raw.tags || []).join(', ') || 'None';
+    const created = raw.dateAdded || raw.createdAt || 'Unknown';
+    const lastActivity = raw.dateUpdated || raw.lastActivity || 'Unknown';
+    const phone = raw.phone || 'N/A';
+    const email = raw.email || 'N/A';
+    const ext = getExtendedData(raw);
+
+    const panel = el('pdfPanel');
+    const overlay = el('pdfOverlay');
+    if(!panel || !overlay) { toast('PDF panel not found in DOM', 'error'); return; }
+
+    panel.innerHTML = \`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h2 style="font-size:22px;font-weight:700">\u{1F4C4} Lead Report</h2>
+        <div style="display:flex;gap:8px">
+          <button class="fuq-nav-btn" onclick="printLeadReport()">\u{1F5A8}\uFE0F Print / PDF</button>
+          <button class="fuq-nav-btn" onclick="closePdfReport()">\u2715</button>
+        </div>
+      </div>
+      <div id="leadReportContent">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding:20px;background:var(--bg);border-radius:var(--radius)">
+          <div style="width:64px;height:64px;border-radius:50%;background:\${scoreColor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:700">\${initials}</div>
+          <div>
+            <div style="font-size:22px;font-weight:700">\${lead.name}</div>
+            <div style="color:var(--text-secondary)">\${email} \xB7 \${phone}</div>
+            \${ext.city || ext.state ? \`<div style="color:var(--text-secondary);font-size:12px">\${[ext.city,ext.state,ext.zip].filter(Boolean).join(', ')}</div>\` : ''}
+          </div>
+          <div style="margin-left:auto;text-align:center">
+            <div style="font-size:36px;font-weight:700;color:\${scoreColor}">\${lead.score}</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary)">SCORE</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+          <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--radius-sm)">
+            <div style="font-size:24px;font-weight:700;color:var(--blue)">\${lead.matrix.views}</div>
+            <div style="font-size:11px;color:var(--text-secondary)">VIEWS</div>
+          </div>
+          <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--radius-sm)">
+            <div style="font-size:24px;font-weight:700;color:var(--green)">\${lead.matrix.saves}</div>
+            <div style="font-size:11px;color:var(--text-secondary)">SAVES</div>
+          </div>
+          <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--radius-sm)">
+            <div style="font-size:24px;font-weight:700;color:var(--amber)">\${lead.matrix.searches || 0}</div>
+            <div style="font-size:11px;color:var(--text-secondary)">SEARCHES</div>
+          </div>
+          <div style="text-align:center;padding:14px;background:var(--bg);border-radius:var(--radius-sm)">
+            <div style="font-size:24px;font-weight:700;color:var(--purple)">\${lead.matrix.showings || 0}</div>
+            <div style="font-size:11px;color:var(--text-secondary)">SHOWINGS</div>
+          </div>
+        </div>
+
+        \${ext.lastViewAddr || ext.lastFavAddr || ext.lastShowAddr ? \`
+        <div style="margin-bottom:24px;padding:16px;background:var(--bg);border-radius:var(--radius)">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:10px">Recent Listing Activity</div>
+          \${ext.lastViewAddr ? \`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;padding:2px 6px;border-radius:3px;background:var(--blue-light,rgba(59,130,246,0.1));color:var(--blue);font-weight:600">VIEWED</span><span style="font-size:13px;font-weight:600">\${ext.lastViewAddr}</span>\${ext.lastViewMls ? \`<span style="font-size:11px;color:var(--text-secondary)">MLS# \${ext.lastViewMls}</span>\` : ''}</div>\` : ''}
+          \${ext.lastFavAddr ? \`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;padding:2px 6px;border-radius:3px;background:var(--amber-light);color:var(--amber);font-weight:600">SAVED</span><span style="font-size:13px;font-weight:600">\${ext.lastFavAddr}</span></div>\` : ''}
+          \${ext.lastShowAddr ? \`<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;padding:2px 6px;border-radius:3px;background:var(--green-light);color:var(--green);font-weight:600">SHOWING</span><span style="font-size:13px;font-weight:600">\${ext.lastShowAddr}</span></div>\` : ''}
+        </div>
+        \` : ''}
+
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px">
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border);width:160px">Status</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${lead.status}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Source</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${lead.source || 'Unknown'}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Created</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${created !== 'Unknown' ? new Date(created).toLocaleDateString() : 'Unknown'}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Last Activity</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${lastActivity !== 'Unknown' ? new Date(lastActivity).toLocaleDateString() : 'Unknown'}</td></tr>
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Price Range</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${lead.priceRange || (ext.minPrice || ext.maxPrice ? fmtPrice(ext.minPrice)+' \u2013 '+fmtPrice(ext.maxPrice) : 'Not specified')}</td></tr>
+          \${ext.beds || ext.baths ? \`<tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Preferences</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${ext.beds ? ext.beds+' bed' : ''}\${ext.beds && ext.baths ? ' / ' : ''}\${ext.baths ? ext.baths+' bath' : ''}\${ext.propType ? ' \xB7 '+ext.propType : ''}</td></tr>\` : ''}
+          <tr><td style="padding:8px 12px;font-weight:600;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">Tags</td><td style="padding:8px 12px;border-bottom:1px solid var(--card-border)">\${tags}</td></tr>
+        </table>
+
+        <div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:11px;border-top:1px solid var(--card-border)">
+          Generated by The Listing Team Dashboard \xB7 \${new Date().toLocaleString()}
+        </div>
+      </div>
+    \`;
+    overlay.classList.add('open');
+  } catch(err) {
+    console.error('[PDF Report Error]', err);
+    toast('Error generating report: ' + err.message, 'error');
+  }
+}
+
+function closePdfReport() {
+  el('pdfOverlay').classList.remove('open');
+}
+
+function printLeadReport() {
+  const content = document.getElementById('leadReportContent');
+  if (!content) return;
+  const w = window.open('', '_blank');
+  w.document.write(\`<!DOCTYPE html><html><head><title>Lead Report</title><style>
+    body{font-family:'DM Sans',Arial,sans-serif;padding:40px;color:#111827;line-height:1.5}
+    table{width:100%;border-collapse:collapse}td{padding:8px 12px;border-bottom:1px solid #e5e7eb}
+  </style></head><body>\${content.innerHTML}</body></html>\`);
+  w.document.close();
+  w.print();
+}
+
+// ===== #13: ENHANCED BULK ACTIONS =====
+async function bulkAddTag() {
+  const ids = [...SELECTED];
+  if (ids.length === 0) return;
+  const tag = prompt(\`Add tag to \${ids.length} leads:\`);
+  if (!tag) return;
+  toast(\`Adding tag "\${tag}" to \${ids.length} leads...\`, 'info');
+  let ok = 0;
+  for (const id of ids) {
+    try { await addTagToContact(id, [tag]); ok++; } catch(e) {}
+  }
+  toast(\`\u2713 Tag added to \${ok}/\${ids.length} leads\`, 'success');
+  clearSelection();
+}
+
+async function bulkAssignAgent() {
+  const ids = [...SELECTED];
+  if (ids.length === 0) return;
+  const agent = prompt(\`Assign agent to \${ids.length} leads (enter name or email):\`);
+  if (!agent) return;
+  toast(\`Assigning "\${agent}" to \${ids.length} leads...\`, 'info');
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      await addNoteToContact(id, \`[Bulk Assign] Assigned to \${agent} on \${new Date().toLocaleString()}\`);
+      await addTagToContact(id, [\`assigned-\${agent.split('@')[0].replace(/\\s+/g, '-').toLowerCase()}\`]);
+      ok++;
+    } catch(e) {}
+  }
+  toast(\`\u2713 \${ok}/\${ids.length} leads assigned to \${agent}\`, 'success');
+  clearSelection();
+}
+
+async function bulkTriggerWorkflow() {
+  const ids = [...SELECTED];
+  if (ids.length === 0) return;
+  const wfId = prompt(\`Enter GHL Workflow ID to trigger for \${ids.length} leads:\`);
+  if (!wfId) return;
+  toast(\`Triggering workflow for \${ids.length} leads...\`, 'info');
+  let ok = 0;
+  for (const id of ids) {
+    try {
+      const resp = await fetch(\`\${PROXY_BASE}/contacts/\${id}/workflow/\${wfId}\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (resp.ok) ok++;
+    } catch(e) {}
+  }
+  toast(\`\u2713 Workflow triggered for \${ok}/\${ids.length} leads\`, 'success');
+  clearSelection();
+}
+
+// ===== #11: DARK MODE PERSISTENCE =====
+function initDarkMode() {
+  if (localStorage.getItem('v5_dark_mode') === '1') {
+    document.body.classList.add('dark');
+    const check = el('darkCheck');
+    if (check) check.checked = true;
+  }
+}
+
+// Override existing toggleDark to persist
+const _origToggleDark = typeof toggleDark === 'function' ? toggleDark : null;
+
+// ===== WIRE INTO NOTIFICATION SYSTEM =====
+const _origGenerateNotifications = typeof generateNotifications === 'function' ? generateNotifications : null;
+let _prevHotCount = 0;
+
+function v5GenerateNotifications(leads) {
+  // Track hot lead count for sound
+  const hotCount = leads.filter(l => l.status === 'HOT').length;
+  if (hotCount > _prevHotCount && _prevHotCount > 0) {
+    playNotifSound();
+  }
+  _prevHotCount = hotCount;
+
+  // Call original
+  if (_origGenerateNotifications) _origGenerateNotifications(leads);
+}
+
+// ===== MASTER RENDER HOOK =====
+// Hook into renderAnalytics to add v5 renders
+const _origRenderAnalytics = typeof renderAnalytics === 'function' ? renderAnalytics : null;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  // Patch renderAnalytics
+  if (typeof renderAnalytics === 'function') {
+    const origRA = renderAnalytics;
+    window.renderAnalytics = function(leads) {
+      origRA(leads);
+      // V5 additions
+      renderMorningBriefing(leads);
+      renderShowingOutcomes(leads);
+      renderROIClosings(leads);
+      renderWorkloadChart(leads);
+      renderResponseTimer(leads);
+      renderAIInsights(leads);
+      renderSmartFollowUp(leads);
+      renderRevenueForecast(leads);
+      renderAgentLeaderboard(leads);
+      renderMarketIntel(leads);
+      // autoTagSellers disabled \u2014 was writing tags/notes on every page load
+      // Notification sound hook
+      const hotCount = leads.filter(l => l.status === 'HOT').length;
+      if (hotCount > _prevHotCount && _prevHotCount > 0) playNotifSound();
+      _prevHotCount = hotCount;
+    };
+  }
+
+  // Patch toggleDark for persistence
+  if (typeof toggleDark === 'function') {
+    const origTD = toggleDark;
+    window.toggleDark = function() {
+      origTD();
+      localStorage.setItem('v5_dark_mode', document.body.classList.contains('dark') ? '1' : '0');
+    };
+  }
+
+  // Restore dark mode
+  initDarkMode();
+
+  // Restore sound preference
+  const soundPref = localStorage.getItem('v5_notif_sound');
+  if (soundPref === 'off') {
+    NOTIF_SOUND_ENABLED = false;
+    const sc = el('notifSoundCheck');
+    if (sc) sc.checked = false;
+  }
+
+  // Add PDF report button to lead accordion quick actions
+  // (Will be picked up by buildAccordion's existing quick action rendering)
+});
+
+document.addEventListener('DOMContentLoaded',()=>{
+  loadGHLTeam().then(() => loadData()); // Load team first, then contacts
+  refreshInterval=setInterval(quickRefresh,60000); // Light refresh thereafter
+  initSSE(); // Try SSE connection for live updates
+  document.querySelectorAll('.filter-tab[data-filter]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      document.querySelectorAll('.filter-tab').forEach(b=>b.classList.remove('active'));
+      e.target.classList.add('active');
+      CURRENT_FILTER=e.target.dataset.filter;
+      CURRENT_PAGE=1; applyFilters();
+    });
+  });
+  if(el('searchInput')) el('searchInput').addEventListener('input',()=>{CURRENT_PAGE=1;applyFilters();});
+  // Close notification panel on outside click
+  document.addEventListener('click',(e)=>{
+    const panel = el('notifPanel');
+    if(panel.classList.contains('open') && !panel.contains(e.target) && !e.target.closest('[title="Notifications"]')) {
+      panel.classList.remove('open');
+    }
+  });
+});
+<\/script>
+
+</body>
+</html>
+`;
+async function ghl(env, method, path, body = null, useV2 = true) {
+  const base = useV2 ? GHL_V2 : GHL_V1;
+  const url = `${base}${path}`;
+  const headers = {
+    "Authorization": `Bearer ${env.GHL_API_KEY}`,
+    "Content-Type": "application/json",
+    "Version": "2021-07-28"
+  };
+  const init = { method, headers };
+  if (body) init.body = JSON.stringify(body);
+  const res = await fetch(url, init);
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
+  if (!res.ok) {
+    throw { status: res.status, data };
+  }
+  return data;
+}
+__name(ghl, "ghl");
+async function ghlSafe(env, method, path, body = null, useV2 = true, attempt = 1) {
+  try {
+    return await ghl(env, method, path, body, useV2);
+  } catch (e) {
+    if (e.status === 429 && attempt <= 4) {
+      const wait = Math.min(2e4, 2e3 * Math.pow(2, attempt - 1));
+      await new Promise((r) => setTimeout(r, wait));
+      return ghlSafe(env, method, path, body, useV2, attempt + 1);
+    }
+    throw e;
+  }
+}
+__name(ghlSafe, "ghlSafe");
+var _fieldDefsCache = null;
+var _fieldDefsCachedAt = 0;
+async function getFieldDefs(env) {
+  const now = Date.now();
+  if (_fieldDefsCache && now - _fieldDefsCachedAt < 18e5) {
+    return _fieldDefsCache;
+  }
+  try {
+    const locId = env.GHL_LOCATION_ID || LOC_ID;
+    const data = await ghlSafe(env, "GET", `/custom-fields/?locationId=${locId}`);
+    const fields = data.customFields || data.custom_fields || [];
+    const map = {};
+    fields.forEach((f) => {
+      if (f.id) map[f.id.toLowerCase()] = f;
+      if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
+      if (f.key) map[f.key.toLowerCase()] = f;
+    });
+    _fieldDefsCache = { fields, map };
+    _fieldDefsCachedAt = now;
+    return _fieldDefsCache;
+  } catch (e) {
+    console.error("getFieldDefs error:", e);
+    return { fields: [], map: {} };
+  }
+}
+__name(getFieldDefs, "getFieldDefs");
+async function enrichCustomFields(env, customFields) {
+  if (!customFields || customFields.length === 0) return customFields;
+  const needsEnrichment = customFields.some((f) => !f.fieldKey && f.id);
+  if (!needsEnrichment) return customFields;
+  const { map } = await getFieldDefs(env);
+  return customFields.map((cf) => {
+    if (cf.fieldKey) return cf;
+    const def = map[cf.id?.toLowerCase()];
+    return {
+      ...cf,
+      fieldKey: def?.fieldKey || cf.key || null,
+      name: cf.name || def?.name || null,
+      key: cf.key || def?.fieldKey || null
+    };
+  });
+}
+__name(enrichCustomFields, "enrichCustomFields");
+async function fetchYlopoEvents(env, contactId) {
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  try {
+    const searchBody = {
+      locationId: locId,
+      searchKey: "contact",
+      searchValue: contactId,
+      page: 1,
+      pageLimit: 20,
+      sort: { field: "createdAt", direction: "desc" }
+    };
+    const data = await ghlSafe(
+      env,
+      "POST",
+      `/objects/custom_objects.ylopo_event/records/search`,
+      searchBody,
+      true
+    );
+    return data.records || data.data || [];
+  } catch (e1) {
+    console.warn(`Ylopo events fetch failed for ${contactId}:`, e1.status || e1.message);
+    return [];
+  }
+}
+__name(fetchYlopoEvents, "fetchYlopoEvents");
+var _allYlopoEventsCache = null;
+var _allYlopoEventsCachedAt = 0;
+async function fetchAllYlopoEvents(env) {
+  const now = Date.now();
+  if (_allYlopoEventsCache && now - _allYlopoEventsCachedAt < 6e4) {
+    return _allYlopoEventsCache;
+  }
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  const allRecords = [];
+  let page = 1;
+  try {
+    while (page <= 10) {
+      const searchBody = {
+        locationId: locId,
+        page,
+        pageLimit: 20
+      };
+      const data = await ghlSafe(
+        env,
+        "POST",
+        `/objects/custom_objects.ylopo_event/records/search`,
+        searchBody,
+        true
+      );
+      const records = data.records || data.data || [];
+      allRecords.push(...records);
+      if (records.length < 20) break;
+      page++;
+    }
+    _allYlopoEventsCache = allRecords;
+    _allYlopoEventsCachedAt = now;
+    console.log(`\u{1F4E6} Fetched ${allRecords.length} total Ylopo Event records`);
+    return allRecords;
+  } catch (e) {
+    console.error("fetchAllYlopoEvents error:", e.status || e.message);
+    return [];
+  }
+}
+__name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
+function groupEventsByContact(records) {
+  const map = {};
+  for (const rec of records) {
+    const associations = rec.associations || rec.relationships || {};
+    let contactId = null;
+    if (associations.contact) {
+      contactId = typeof associations.contact === "string" ? associations.contact : associations.contact?.id || associations.contact?.[0]?.id || associations.contact?.[0];
+    }
+    if (!contactId) contactId = rec.contactId || rec.contact_id;
+    if (!contactId) {
+      const fields = rec.fields || rec.properties || {};
+      contactId = fields.contactId || fields.contact_id || fields.contact;
+    }
+    if (contactId) {
+      if (!map[contactId]) map[contactId] = [];
+      map[contactId].push(rec);
+    }
+  }
+  return map;
+}
+__name(groupEventsByContact, "groupEventsByContact");
+function mergeYlopoEventIntoContact(contact, ylopoRecords) {
+  if (!ylopoRecords || ylopoRecords.length === 0) return contact;
+  const latest = ylopoRecords[0];
+  const fields = latest.fields || latest.properties || latest;
+  const ylopoFields = [];
+  const fieldMap = {
+    "beds": { fieldKey: "contact.ylopo_beds", name: "Ylopo Beds" },
+    "baths": { fieldKey: "contact.ylopo_baths", name: "Ylopo Baths" },
+    "bedrooms": { fieldKey: "contact.ylopo_bedrooms", name: "Ylopo Bedrooms" },
+    "bathrooms": { fieldKey: "contact.ylopo_bathrooms", name: "Ylopo Bathrooms" },
+    "views": { fieldKey: "contact.ylopo_views", name: "Ylopo Views" },
+    "saves": { fieldKey: "contact.ylopo_saves", name: "Ylopo Saves" },
+    "listing_price": { fieldKey: "contact.ylopo_listing_price", name: "Ylopo Listing Price" },
+    "listing_address": { fieldKey: "contact.ylopo_listing_address", name: "Ylopo Listing Address" },
+    "listing_id": { fieldKey: "contact.ylopo_listing_id", name: "Ylopo Listing ID" },
+    "listing_sqft": { fieldKey: "contact.ylopo_listing_sqft", name: "Ylopo Listing SqFt" },
+    "listing_year_built": { fieldKey: "contact.ylopo_listing_year_built", name: "Ylopo Year Built" },
+    "listingcity": { fieldKey: "contact.ylopo_listing_city", name: "Ylopo Listing City" },
+    "listingstate": { fieldKey: "contact.ylopo_listing_state", name: "Ylopo Listing State" },
+    "listingzip": { fieldKey: "contact.ylopo_listing_zip", name: "Ylopo Listing Zip" },
+    "listingurl": { fieldKey: "contact.ylopo_listing_url", name: "Ylopo Listing URL" },
+    "minprice": { fieldKey: "contact.ylopo_min_price", name: "Ylopo Min Price" },
+    "maxprice": { fieldKey: "contact.ylopo_max_price", name: "Ylopo Max Price" },
+    "primarysearchcity": { fieldKey: "contact.ylopo_search_city", name: "Ylopo Search City" },
+    "primarysearchstate": { fieldKey: "contact.ylopo_search_state", name: "Ylopo Search State" },
+    "primarysearchpostalcode": { fieldKey: "contact.ylopo_search_zip", name: "Ylopo Search Zip" },
+    "lastsessionavgprice": { fieldKey: "contact.ylopo_avg_price", name: "Ylopo Avg Price" },
+    "lastsessionlistingsviewed": { fieldKey: "contact.ylopo_session_views", name: "Ylopo Session Views" },
+    "lastsessionsearches": { fieldKey: "contact.ylopo_session_searches", name: "Ylopo Session Searches" },
+    "lastsessionlastvisitdate": { fieldKey: "contact.ylopo_last_visit", name: "Ylopo Last Visit" },
+    "last_session_listings_saved": { fieldKey: "contact.ylopo_session_saves", name: "Ylopo Session Saves" },
+    "last_session_showing_requests": { fieldKey: "contact.ylopo_session_showings", name: "Ylopo Session Showings" },
+    "last_session_total_visits": { fieldKey: "contact.ylopo_total_visits", name: "Ylopo Total Visits" },
+    "ylopo_event": { fieldKey: "contact.ylopo_event_type", name: "Ylopo Event Type" },
+    "event_time": { fieldKey: "contact.ylopo_event_time", name: "Ylopo Event Time" },
+    "leadtype": { fieldKey: "contact.ylopo_lead_type", name: "Ylopo Lead Type" },
+    "source": { fieldKey: "contact.ylopo_source", name: "Ylopo Source" },
+    "ispriority": { fieldKey: "contact.ylopo_is_priority", name: "Ylopo Is Priority" },
+    "isshowingrequest": { fieldKey: "contact.ylopo_is_showing", name: "Ylopo Is Showing Request" },
+    "ylopo_uuid": { fieldKey: "contact.ylopo_uuid", name: "Ylopo UUID" },
+    "ylopo_crm_id": { fieldKey: "contact.ylopo_crm_id", name: "Ylopo CRM ID" },
+    "lead_created_atstars_link": { fieldKey: "contact.ylopo_stars_link", name: "Ylopo Stars Link" },
+    "assigned_website": { fieldKey: "contact.ylopo_website", name: "Ylopo Website" },
+    "assigned_lender_name": { fieldKey: "contact.ylopo_lender_name", name: "Ylopo Lender Name" },
+    "assigned_realtor_email": { fieldKey: "contact.ylopo_realtor_email", name: "Ylopo Realtor Email" },
+    "last_login_date": { fieldKey: "contact.ylopo_last_login", name: "Ylopo Last Login" },
+    "last_showing_listing_mls": { fieldKey: "contact.ylopo_last_showing_mls", name: "Ylopo Last Showing MLS" },
+    "messageplaintext": { fieldKey: "contact.ylopo_message", name: "Ylopo Message" },
+    "questionnaire_response": { fieldKey: "contact.ylopo_questionnaire", name: "Ylopo Questionnaire" },
+    "ylopo_note_plain": { fieldKey: "contact.ylopo_note", name: "Ylopo Note" },
+    "search_sqft_min": { fieldKey: "contact.ylopo_sqft_min", name: "Ylopo SqFt Min" },
+    "search_sqft_max": { fieldKey: "contact.ylopo_sqft_max", name: "Ylopo SqFt Max" }
+  };
+  for (const [eventKey, def] of Object.entries(fieldMap)) {
+    const val = fields[eventKey];
+    if (val !== null && val !== void 0 && val !== "") {
+      ylopoFields.push({
+        id: `ylopo_${eventKey}`,
+        value: val,
+        fieldKey: def.fieldKey,
+        name: def.name,
+        key: def.fieldKey,
+        _source: "ylopo_event"
+      });
+    }
+  }
+  let totalViews = 0, totalSaves = 0;
+  for (const rec of ylopoRecords) {
+    const f = rec.fields || rec.properties || rec;
+    totalViews += Number(f.views) || 0;
+    totalSaves += Number(f.saves) || 0;
+  }
+  if (totalViews > 0) {
+    ylopoFields.push({
+      id: "ylopo_total_views",
+      value: String(totalViews),
+      fieldKey: "contact.ylopo_total_views",
+      name: "Ylopo Total Views",
+      key: "contact.ylopo_total_views",
+      _source: "ylopo_event_aggregate"
+    });
+  }
+  if (totalSaves > 0) {
+    ylopoFields.push({
+      id: "ylopo_total_saves",
+      value: String(totalSaves),
+      fieldKey: "contact.ylopo_total_saves",
+      name: "Ylopo Total Saves",
+      key: "contact.ylopo_total_saves",
+      _source: "ylopo_event_aggregate"
+    });
+  }
+  ylopoFields.push({
+    id: "ylopo_event_count",
+    value: String(ylopoRecords.length),
+    fieldKey: "contact.ylopo_event_count",
+    name: "Ylopo Event Count",
+    key: "contact.ylopo_event_count",
+    _source: "ylopo_event_aggregate"
+  });
+  return {
+    ...contact,
+    customField: [...contact.customField || [], ...ylopoFields],
+    _ylopoEventsLoaded: true,
+    _ylopoEventCount: ylopoRecords.length
+  };
+}
+__name(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
+var YLOPO_TO_GHL_FIELDS = {
+  views: "ylopo_last_session_listings_viewed",
+  saves: "ylopo_last_session_listings_saved",
+  searches: "ylopo_last_session_searches",
+  showings: "ylopo_last_session_showinginfo_requests",
+  avgPrice: "ylopo_last_session_ave_price_point",
+  starsLink: "ylopo_stars_link",
+  starsLinkAlt: "ypriority",
+  lastVisit: "ylopo_last_search_site_visit",
+  lastViewedAddr: "address_of_last_viewed_property_on_ylopo",
+  lastSavedAddr: "address_of_last_saved_property_on_ylopo",
+  // NEW in v8: sync more Ylopo data to contact fields
+  beds: "ylopo_beds",
+  baths: "ylopo_baths",
+  minPrice: "ylopo_min_price",
+  maxPrice: "ylopo_max_price",
+  searchCity: "ylopo_search_city",
+  searchState: "ylopo_search_state",
+  searchZip: "ylopo_search_zip",
+  listingAddress: "ylopo_listing_address",
+  listingPrice: "ylopo_listing_price",
+  source: "ylopo_event_source",
+  leadType: "ylopo_lead_type",
+  isPriority: "ylopo_is_priority"
+};
+async function buildYlopoFieldUpdates(env, ylopoData) {
+  const { map } = await getFieldDefs(env);
+  const updates = [];
+  for (const [ylopoKey, ghlFieldKey] of Object.entries(YLOPO_TO_GHL_FIELDS)) {
+    const value = ylopoData[ylopoKey];
+    if (value === null || value === void 0 || value === "") continue;
+    const def = map[ghlFieldKey.toLowerCase()];
+    if (def) {
+      const safeValue = typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
+      updates.push({ id: def.id, key: ghlFieldKey, value: safeValue });
+    } else {
+      console.warn(`No GHL field found for key: ${ghlFieldKey}`);
+    }
+  }
+  return updates;
+}
+__name(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
+async function lookupByEmail(env, email) {
+  try {
+    const locId = env.GHL_LOCATION_ID || LOC_ID;
+    const data = await ghlSafe(
+      env,
+      "GET",
+      `/contacts/?locationId=${locId}&email=${encodeURIComponent(email)}&limit=1`
+    );
+    return data.contacts?.[0]?.id || null;
+  } catch {
+    return null;
+  }
+}
+__name(lookupByEmail, "lookupByEmail");
+var SSE_EVENTS = [];
+function broadcastSSE(event) {
+  SSE_EVENTS.push({ ...event, ts: Date.now() });
+  if (SSE_EVENTS.length > 100) SSE_EVENTS.shift();
+}
+__name(broadcastSSE, "broadcastSSE");
+var index_default = {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+    const locId = env.GHL_LOCATION_ID || LOC_ID;
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders() });
+    }
+    if (method === "GET" && path === "/health") {
+      return json({
+        ok: true,
+        proxy: "thelistingteamproxy-v8",
+        api: { read: "v1", write: "v2 (services.leadconnectorhq.com)" },
+        tokenPresent: !!env.GHL_API_KEY,
+        features: [
+          "pagination",
+          "fields",
+          "tags",
+          "notes",
+          "tasks",
+          "ylopo-webhook",
+          "ylopo-sync",
+          "ylopo-events"
+        ],
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    }
+    if (method === "GET" && path === "/fields") {
+      try {
+        const { fields } = await getFieldDefs(env);
+        return json({
+          ok: true,
+          count: fields.length,
+          fields: fields.map((f) => ({
+            id: f.id,
+            name: f.name,
+            fieldKey: f.fieldKey || f.key
+          }))
+        });
+      } catch (e) {
+        return err(`Failed to load fields: ${e.message || e.status}`);
+      }
+    }
+    if (method === "GET" && path === "/listing-image") {
+      const zillowUrl = url.searchParams.get("url");
+      if (!zillowUrl || !zillowUrl.includes("zillow.com")) {
+        return err("Valid Zillow URL required", 400);
+      }
+      try {
+        const res = await fetch(zillowUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+            "Accept": "text/html"
+          },
+          redirect: "follow"
+        });
+        const html = await res.text();
+        const ogMatch = html.match(/<meta\s+(?:property|name)="og:image"\s+content="([^"]+)"/i) || html.match(/content="([^"]+)"\s+(?:property|name)="og:image"/i);
+        if (ogMatch && ogMatch[1]) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              ...CORS,
+              "Location": ogMatch[1],
+              "Cache-Control": "public, max-age=86400",
+              "X-Image-Source": "zillow-og"
+            }
+          });
+        }
+        const imgMatch = html.match(/https:\/\/photos\.zillowstatic\.com\/fp\/[^"'\s]+/i);
+        if (imgMatch) {
+          return new Response(null, {
+            status: 302,
+            headers: { ...CORS, "Location": imgMatch[0], "Cache-Control": "public, max-age=86400" }
+          });
+        }
+        return json({ ok: false, error: "No image found on page" }, 404);
+      } catch (e) {
+        return err(`Failed to fetch listing image: ${e.message}`, 500);
+      }
+    }
+    const ylopoEventsMatch = path.match(/^\/contacts\/([^\/]+)\/ylopo-events$/);
+    if (method === "GET" && ylopoEventsMatch) {
+      const contactId = ylopoEventsMatch[1];
+      try {
+        const records = await fetchYlopoEvents(env, contactId);
+        return json({
+          ok: true,
+          contactId,
+          count: records.length,
+          records: records.map((r) => ({
+            id: r.id,
+            fields: r.fields || r.properties || r,
+            createdAt: r.createdAt || r.dateAdded
+          }))
+        });
+      } catch (e) {
+        return err(`Failed to fetch Ylopo events: ${e.message || e.status}`, e.status || 500);
+      }
+    }
+    if (method === "GET" && path === "/contacts") {
+      try {
+        const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 100);
+        const startAfter = url.searchParams.get("startAfter") || "";
+        const startAfterId = url.searchParams.get("startAfterId") || "";
+        const withYlopo = url.searchParams.get("ylopo") !== "false";
+        const query = url.searchParams.get("query") || "";
+        const tag = url.searchParams.get("tag") || "";
+        const params = new URLSearchParams({
+          locationId: locId,
+          limit: String(limit)
+        });
+        if (startAfter) params.set("startAfter", startAfter);
+        if (startAfterId) params.set("startAfterId", startAfterId);
+        if (query) params.set("query", query);
+        if (tag) params.set("query", tag);
+        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
+        const contacts = data.contacts || [];
+        let enriched = await Promise.all(
+          contacts.map(async (c) => ({
+            ...c,
+            customField: await enrichCustomFields(env, c.customField || [])
+          }))
+        );
+        if (withYlopo) {
+          try {
+            const allEvents = await fetchAllYlopoEvents(env);
+            const eventsByContact = groupEventsByContact(allEvents);
+            enriched = enriched.map((c) => {
+              const records = eventsByContact[c.id];
+              return records ? mergeYlopoEventIntoContact(c, records) : c;
+            });
+            console.log(`\u{1F517} Matched Ylopo events to ${Object.keys(eventsByContact).length} contacts`);
+          } catch (e) {
+            console.warn("Batch Ylopo merge failed:", e.message);
+          }
+        }
+        broadcastSSE({ type: "contacts.fetched", count: enriched.length });
+        return json({
+          contacts: enriched,
+          meta: data.meta || {}
+        });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const contactMatch = path.match(/^\/contacts\/([^\/]+)$/);
+    if (method === "GET" && contactMatch) {
+      const contactId = contactMatch[1];
+      try {
+        const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
+        let contact = data.contact || data;
+        contact.customField = await enrichCustomFields(env, contact.customField || []);
+        try {
+          const ylopoRecords = await fetchYlopoEvents(env, contactId);
+          contact = mergeYlopoEventIntoContact(contact, ylopoRecords);
+        } catch (e) {
+          console.warn("Ylopo events fetch failed for single contact:", e.message);
+        }
+        return json(contact);
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    if (method === "PUT" && contactMatch) {
+      const contactId = contactMatch[1];
+      try {
+        const body = await request.json();
+        const data = await ghlSafe(env, "PUT", `/contacts/${contactId}`, body);
+        broadcastSSE({ type: "contact.updated", contactId });
+        return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const tagsMatch = path.match(/^\/contacts\/([^\/]+)\/tags$/);
+    if (method === "POST" && tagsMatch) {
+      const contactId = tagsMatch[1];
+      try {
+        const body = await request.json();
+        const data = await ghlSafe(env, "POST", `/contacts/${contactId}/tags`, body);
+        broadcastSSE({ type: "contact.tagged", contactId, tags: body.tags });
+        return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const notesMatch = path.match(/^\/contacts\/([^\/]+)\/notes$/);
+    if (method === "POST" && notesMatch) {
+      const contactId = notesMatch[1];
+      try {
+        const body = await request.json();
+        const data = await ghlSafe(env, "POST", `/contacts/${contactId}/notes`, body);
+        return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const tasksMatch = path.match(/^\/contacts\/([^\/]+)\/tasks$/);
+    if (method === "POST" && tasksMatch) {
+      const contactId = tasksMatch[1];
+      try {
+        const body = await request.json();
+        const data = await ghlSafe(env, "POST", `/contacts/${contactId}/tasks`, body);
+        return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const wfMatch = path.match(/^\/contacts\/([^\/]+)\/workflow\/([^\/]+)$/);
+    if (method === "POST" && wfMatch) {
+      const [, contactId, wfId] = wfMatch;
+      try {
+        const data = await ghlSafe(env, "POST", `/contacts/${contactId}/workflow/${wfId}`, {});
+        return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    const GHL_WEBHOOK_FORWARD = "https://services.leadconnectorhq.com/hooks/SeZr4YCwEZ50IcWqylkQ/webhook-trigger/f9245d8e-d706-4e0e-a125-c523a65e3fc5";
+    if (method === "POST" && path === "/ylopo-webhook") {
+      const rawBody = await request.text();
+      const responsePromise = json({ received: true, proxy: "v8", forwarded: true });
+      const processEvent = /* @__PURE__ */ __name(async () => {
+        try {
+          let payload;
+          try {
+            payload = JSON.parse(rawBody);
+          } catch {
+            return;
+          }
+          try {
+            fetch(GHL_WEBHOOK_FORWARD, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: rawBody
+            }).catch((e) => console.warn("GHL webhook forward failed:", e.message));
+            console.log("\u{1F4E4} Forwarded to GHL webhook");
+          } catch (e) {
+            console.warn("Forward error:", e);
+          }
+          const email = payload.lead?.email;
+          const eventType = payload.eventType;
+          if (!email) return;
+          console.log(`\u{1F4E5} Ylopo ${eventType} for ${email}`);
+          const contactId = await lookupByEmail(env, email);
+          if (!contactId) {
+            console.warn(`No GHL contact for ${email}`);
+            return;
+          }
+          const lead = payload.lead || {};
+          const listing = payload.listing || {};
+          const session = payload.session || payload.additionalData || {};
+          const ylopoData = {
+            views: session.viewsCount || session.listingsViewed || null,
+            saves: session.savesCount || session.listingsSaved || null,
+            searches: session.searchCount || session.searches || null,
+            showings: session.showingRequests || (eventType === "SHOWING_REQUEST" ? "1" : null),
+            avgPrice: session.avgPrice || payload.avgPrice || null,
+            starsLink: payload.starsLink || lead.starsLink || null,
+            lastVisit: payload.eventDate || null,
+            lastViewedAddr: ["VIEW_LISTING_DETAIL", "VIEW_LISTING"].includes(eventType) ? listing.address || listing.fullAddress || null : null,
+            lastSavedAddr: ["FAVORITE_LISTING", "SAVED_LISTING"].includes(eventType) ? listing.address || listing.fullAddress || null : null,
+            // v8: additional fields
+            beds: listing.beds || lead.beds || session.beds || null,
+            baths: listing.baths || lead.baths || session.baths || null,
+            minPrice: lead.minPrice || session.minPrice || null,
+            maxPrice: lead.maxPrice || session.maxPrice || null,
+            searchCity: lead.primarySearchCity || session.primarySearchCity || null,
+            searchState: lead.primarySearchState || session.primarySearchState || null,
+            searchZip: lead.primarySearchPostalCode || session.primarySearchPostalCode || null,
+            listingAddress: listing.address || listing.fullAddress || null,
+            listingPrice: listing.price || listing.listPrice || null,
+            source: payload.source || lead.source || null,
+            leadType: lead.leadType || payload.leadType || null,
+            isPriority: lead.isPriority || payload.isPriority || null
+          };
+          const updates = await buildYlopoFieldUpdates(env, ylopoData);
+          if (updates.length > 0) {
+            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, true);
+            console.log(`\u2705 Wrote ${updates.length} Ylopo fields to ${email}`);
+          }
+          const eventTags = {
+            "SHOWING_REQUEST": ["Showing Requested", "Ylopo Active"],
+            "FAVORITE_LISTING": ["Saved Listing", "Ylopo Active"],
+            "PRIORITY_LEAD_EVENT": ["Ylopo Priority", "Hot Lead"],
+            "REGISTRATION": ["Ylopo Lead"],
+            "QUESTIONNAIRE_SUBMISSION": ["Questionnaire Completed"],
+            "VIEW_LISTING_DETAIL": ["Ylopo Active"]
+          };
+          const tags = eventTags[eventType];
+          if (tags) {
+            await ghlSafe(env, "POST", `/contacts/${contactId}/tags`, { tags });
+          }
+          const YLOPO_CONTACT_ASSOCIATION_ID = "6993820513ab7068597962ae";
+          try {
+            const recordProps = {
+              ylopo_event: eventType,
+              listing_price: Number(listing.price || listing.listPrice) || 0,
+              listing_address: listing.address || listing.fullAddress || "",
+              saves: Number(session.savesCount || session.listingsSaved) || 0,
+              views: Number(session.viewsCount || session.listingsViewed) || 0,
+              raw_json: rawBody,
+              // Full event data
+              listing_id: listing.id || listing.listingId || listing.mlsId || "",
+              event_time: payload.eventDate || (/* @__PURE__ */ new Date()).toISOString(),
+              name: (lead.firstName || "") + " " + (lead.lastName || ""),
+              lead_type: lead.leadType || payload.leadType || "",
+              source: payload.source || lead.source || "",
+              is_priority: lead.isPriority || payload.isPriority || false,
+              is_showing_request: eventType === "SHOWING_REQUEST",
+              ylopo_uuid: lead.uuid || "",
+              ylopo_crm_id: lead.crmId || "",
+              lead_email: email,
+              lead_phone: lead.phone || "",
+              beds: Number(listing.beds || lead.beds) || 0,
+              baths: Number(listing.baths || lead.baths) || 0,
+              listing_city: listing.city || "",
+              listing_state: listing.state || "",
+              listing_zip: listing.zip || "",
+              listing_url: listing.url || "",
+              listing_sqft: Number(listing.sqft) || 0,
+              listing_year_built: Number(listing.yearBuilt) || 0,
+              min_price: Number(lead.minPrice || session.minPrice) || 0,
+              max_price: Number(lead.maxPrice || session.maxPrice) || 0,
+              bedrooms: Number(lead.beds || session.beds) || 0,
+              bathrooms: Number(lead.baths || session.baths) || 0,
+              primary_search_city: lead.primarySearchCity || session.primarySearchCity || "",
+              primary_search_state: lead.primarySearchState || session.primarySearchState || "",
+              primary_search_postal_code: lead.primarySearchPostalCode || session.primarySearchPostalCode || "",
+              last_session_avg_price: Number(session.avgPrice || payload.avgPrice) || 0,
+              last_session_listings_viewed: Number(session.viewsCount || session.listingsViewed) || 0,
+              last_session_searches: Number(session.searchCount || session.searches) || 0,
+              last_session_listings_saved: Number(session.savesCount || session.listingsSaved) || 0,
+              last_session_showing_requests: Number(session.showingRequests) || 0,
+              last_session_total_visits: Number(session.totalVisits) || 0,
+              message: payload.message || payload.messagePlainText || "",
+              questionnaire_response: payload.questionnaireResponse || "",
+              note: payload.notePlainText || payload.note || "",
+              assignment_type: (payload.assignment || {}).type || "",
+              assignment_name: (payload.assignment || {}).name || "",
+              assigned_website: (payload.assignment || {}).website || lead.assignedWebsite || "",
+              assigned_lender_name: (payload.assignment || {}).lenderName || "",
+              assigned_lender_email: (payload.assignment || {}).lenderEmail || "",
+              assigned_realtor_email: (payload.assignment || {}).realtorEmail || "",
+              last_showing_mls: payload.lastShowingListingMls || "",
+              last_info_message: payload.lastInfoRequestMessage || ""
+            };
+            const recordBody = {
+              locationId: locId,
+              properties: recordProps,
+              relations: [
+                { associationId: YLOPO_CONTACT_ASSOCIATION_ID, recordId: contactId }
+              ]
+            };
+            await ghlSafe(
+              env,
+              "POST",
+              `/objects/custom_objects.ylopo_event/records`,
+              recordBody,
+              true
+            );
+            console.log(`\u{1F4E6} Created ylopo_event record for ${email} (${eventType})`);
+          } catch (objErr) {
+            console.warn("Failed to create ylopo_event record:", objErr.message || objErr);
+          }
+          const SB_URL = "https://tglbjiehyfyrefxwgmzz.supabase.co";
+          const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnbGJqaWVoeWZ5cmVmeHdnbXp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTk1MTAyOCwiZXhwIjoyMDg3NTI3MDI4fQ.0SpBb_XAmbyp28hYKMmYg7TGJUk0iPAXG3sVc1vYvEU";
+          try {
+            const sbHeaders = {
+              "apikey": SB_KEY,
+              "Authorization": "Bearer " + SB_KEY,
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal"
+            };
+            const leadBody = {
+              email,
+              ylopo_uuid: lead.uuid || null,
+              first_name: lead.firstName || lead.first_name || null,
+              last_name: lead.lastName || lead.last_name || null,
+              phone: lead.phone || null,
+              source: payload.source || lead.source || null,
+              ghl_contact_id: contactId,
+              last_seen: (/* @__PURE__ */ new Date()).toISOString()
+            };
+            const leadRes = await fetch(SB_URL + "/rest/v1/leads?on_conflict=email", {
+              method: "POST",
+              headers: { ...sbHeaders, "Prefer": "return=representation,resolution=merge-duplicates" },
+              body: JSON.stringify(leadBody)
+            });
+            const leadData = await leadRes.json().catch(() => []);
+            const leadId = Array.isArray(leadData) && leadData[0] ? leadData[0].id : null;
+            if (leadId) {
+              await fetch(SB_URL + "/rest/v1/events", {
+                method: "POST",
+                headers: sbHeaders,
+                body: JSON.stringify({
+                  lead_id: leadId,
+                  event_type: eventType,
+                  listing_id: listing.id || listing.listingId || listing.mlsId || null,
+                  raw_json: payload,
+                  views: Number(session.viewsCount || session.listingsViewed) || 0,
+                  saves: Number(session.savesCount || session.listingsSaved) || 0
+                })
+              });
+              console.log(`\u{1F4CA} Stored event in Supabase for ${email} (${eventType})`);
+            }
+          } catch (sbErr) {
+            console.warn("Supabase store failed:", sbErr.message || sbErr);
+          }
+          broadcastSSE({ type: "ylopo.webhook", event: eventType, email });
+        } catch (e) {
+          console.error("Ylopo webhook processing error:", e.message || e);
+        }
+      }, "processEvent");
+      processEvent();
+      return responsePromise;
+    }
+    if (method === "POST" && path === "/ylopo-events/backfill") {
+      const YLOPO_CONTACT_ASSOCIATION_ID = "6993820513ab7068597962ae";
+      try {
+        const body = await request.json().catch(() => ({}));
+        const limit = Math.min(parseInt(body.limit || "50"), 100);
+        const dryRun = body.dryRun === true;
+        const params = new URLSearchParams({
+          locationId: locId,
+          limit: String(limit)
+        });
+        if (body.startAfterId) params.set("startAfterId", body.startAfterId);
+        if (body.tag) params.set("query", body.tag);
+        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
+        const contacts = data.contacts || [];
+        const existingEvents = await fetchAllYlopoEvents(env);
+        const eventsByContact = groupEventsByContact(existingEvents);
+        const results = [];
+        let created = 0;
+        let skipped = 0;
+        for (const contact of contacts) {
+          const cId = contact.id;
+          const cfs = contact.customField || [];
+          const getField = /* @__PURE__ */ __name((keys) => {
+            for (const k of keys) {
+              const f = cfs.find((cf) => {
+                const cfKey = (cf.key || cf.fieldKey || "").toLowerCase();
+                return cfKey === k.toLowerCase() || cfKey.endsWith("." + k.toLowerCase());
+              });
+              if (f && f.value) return f.value;
+            }
+            return null;
+          }, "getField");
+          const eventType = getField([
+            "ylopo__event_type",
+            "dashboard__event_type",
+            "ylopo_event_type",
+            "last_event_name",
+            "ylopo_event"
+          ]);
+          const tags = contact.tags || [];
+          const inferredType = !eventType ? tags.includes("Ylopo Lead") || tags.includes("ylopo_registration") ? "REGISTRATION" : tags.includes("Showing Requested") || tags.includes("ylopo_showing") ? "SHOWING_REQUEST" : tags.includes("Saved Listing") || tags.includes("ylopo_favorite") ? "FAVORITE_LISTING" : tags.includes("Ylopo Active") || tags.includes("ylopo_view") ? "VIEW_LISTING_DETAIL" : tags.includes("Ylopo Priority") || tags.includes("ylo-hot-lead") ? "PRIORITY_LEAD_EVENT" : null : null;
+          const finalEventType = eventType || inferredType;
+          if (!finalEventType) {
+            skipped++;
+            continue;
+          }
+          if (eventsByContact[cId] && eventsByContact[cId].length > 0) {
+            skipped++;
+            results.push({ contactId: cId, name: contact.contactName || contact.email, status: "already_has_records" });
+            continue;
+          }
+          const listingAddr = getField([
+            "ylopo_listing_address",
+            "address_of_last_viewed_property_on_ylopo",
+            "address_of_last_saved_property_on_ylopo",
+            "ylopo_last_view_address",
+            "ylopo_last_favorite_address",
+            "ylopo_showing_address"
+          ]);
+          const listingPrice = getField(["ylopo__listing_price", "ylopo_favorite_price"]);
+          const rawJson = getField(["ylopo_raw_json", "ylopo_last_raw_payload", "dashboard__event_json"]);
+          const views = getField(["ylopo_total_views", "ylopo_total_listing_views", "ylopo_last_session_listings_viewed"]);
+          const saves = getField(["ylopo_total_favorites", "total_saved_homes", "ylopo_last_session_listings_saved"]);
+          const recordProps = {
+            ylopo_event: finalEventType,
+            listing_price: Number(listingPrice) || 0,
+            listing_address: listingAddr || "",
+            saves: Number(saves) || 0,
+            views: Number(views) || 0,
+            raw_json: rawJson || JSON.stringify({ backfill: true, contactId: cId, eventType: finalEventType, source: eventType ? "field" : "tag", timestamp: (/* @__PURE__ */ new Date()).toISOString() })
+          };
+          if (dryRun) {
+            results.push({ contactId: cId, name: contact.contactName || contact.email, status: "would_create", properties: recordProps });
+            created++;
+            continue;
+          }
+          try {
+            const recordBody = {
+              locationId: locId,
+              properties: recordProps,
+              relations: [
+                { associationId: YLOPO_CONTACT_ASSOCIATION_ID, recordId: cId }
+              ]
+            };
+            const result = await ghlSafe(
+              env,
+              "POST",
+              `/objects/custom_objects.ylopo_event/records`,
+              recordBody,
+              true
+            );
+            created++;
+            results.push({ contactId: cId, name: contact.contactName || contact.email, status: "created", recordId: result.record?.id });
+          } catch (createErr) {
+            results.push({ contactId: cId, name: contact.contactName || contact.email, status: "error", error: createErr.message || String(createErr) });
+          }
+        }
+        return json({
+          ok: true,
+          dryRun,
+          totalContacts: contacts.length,
+          created,
+          skipped,
+          results,
+          nextStartAfterId: contacts.length > 0 ? contacts[contacts.length - 1].id : null
+        });
+      } catch (e) {
+        return err(`Backfill failed: ${e.message || e.status}`, e.status || 500);
+      }
+    }
+    if (method === "POST" && path === "/ylopo/sync") {
+      try {
+        const body = await request.json();
+        const { contactId, email, ylopoData } = body;
+        if (!ylopoData) return err("ylopoData required", 400);
+        const targetId = contactId || (email ? await lookupByEmail(env, email) : null);
+        if (!targetId) return err(`Contact not found`, 404);
+        const updates = await buildYlopoFieldUpdates(env, ylopoData);
+        if (updates.length === 0) {
+          return json({ ok: true, message: "No matching fields to update", updates: 0 });
+        }
+        await ghlSafe(env, "PUT", `/contacts/${targetId}`, { customFields: updates }, true);
+        broadcastSSE({ type: "ylopo.synced", contactId: targetId, fields: updates.length });
+        return json({ ok: true, contactId: targetId, updates: updates.length });
+      } catch (e) {
+        return err(e.message || String(e), e.status || 500);
+      }
+    }
+    if (method === "GET" && path === "/events") {
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+      const toSend = [
+        { type: "connected", proxy: "v8", ts: Date.now() },
+        ...SSE_EVENTS.slice(-10)
+      ];
+      (async () => {
+        for (const evt of toSend) {
+          await writer.write(encoder.encode(`data: ${JSON.stringify(evt)}
+
+`));
+        }
+        await new Promise((r) => setTimeout(r, 25e3));
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: "heartbeat" })}
+
+`));
+        writer.close();
+      })();
+      return new Response(readable, {
+        headers: {
+          ...CORS,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive"
+        }
+      });
+    }
+    if (method === "GET" && path === "/ylopo-events") {
+      try {
+        const allEvents = await fetchAllYlopoEvents(env);
+        const eventsByContact = groupEventsByContact(allEvents);
+        return json({
+          ok: true,
+          totalRecords: allEvents.length,
+          contactsWithEvents: Object.keys(eventsByContact).length,
+          eventsByContact: Object.fromEntries(
+            Object.entries(eventsByContact).map(([cId, recs]) => [
+              cId,
+              recs.map((r) => ({
+                id: r.id,
+                fields: r.fields || r.properties || r,
+                createdAt: r.createdAt || r.dateAdded
+              }))
+            ])
+          )
+        });
+      } catch (e) {
+        return err(`Failed to fetch Ylopo events: ${e.message || e.status}`, e.status || 500);
+      }
+    }
+    if (method === "GET" && path === "/dashboard/site-matrix") {
+      return new Response(SITE_MATRIX_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/priority-leads") {
+      return new Response(PRIORITY_LEADS_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/ylopo-contacts") {
+      return new Response(YLOPO_CONTACTS_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/ylopo-analytics") {
+      return new Response(YLOPO_ANALYTICS_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
+    }
+    return json({ error: "Not found", path, proxy: "v8" }, 404);
+  }
+};
+export {
+  index_default as default
+};
+//# sourceMappingURL=index.js.map
+
+--753ad4e191e6caf856fbec2a260b7fe4b8d5d05a2176da0c9df26ca4214e--
+
