@@ -1,6 +1,3 @@
---753ad4e191e6caf856fbec2a260b7fe4b8d5d05a2176da0c9df26ca4214e
-Content-Disposition: form-data; name="index.js"
-
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
