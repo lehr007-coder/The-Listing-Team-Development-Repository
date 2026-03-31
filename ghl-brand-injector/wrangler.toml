@@ -1,0 +1,18 @@
+name = "ghl-brand-injector"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Non-secret vars go here
+
+# Secrets (set via `wrangler secret put`):
+#   ADMIN_KEY
+#   GHL_AGENCY_KEY
+
+[[kv_namespaces]]
+binding = "BRANDS"
+id = ""  # Fill in your KV namespace ID
+
+[[r2_buckets]]
+binding = "LOGOS"
+bucket_name = "brand-logos"
