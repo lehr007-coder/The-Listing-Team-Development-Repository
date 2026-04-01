@@ -383,7 +383,7 @@ async function startFetch(){
   setProgress(10);
   setStatus('Loading all Ylopo contacts (bulk)...');
   try{
-    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=15',{headers:{Accept:'application/json'},signal:abortCtl.signal});
+    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=8',{headers:{Accept:'application/json'},signal:abortCtl.signal});
     if(!res.ok)throw new Error('HTTP '+res.status);
     setProgress(70);
     const data=await res.json();
@@ -2193,7 +2193,7 @@ body.dark-mode {
             if (!cached) {
                 tableBody.innerHTML = '<div class="loading"><p>Loading priority leads...</p></div>';
             }
-            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=15');
+            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=8');
             if (!response.ok) throw new Error('HTTP ' + response.status);
             var data = await response.json();
             var allContacts = data.contacts || [];
@@ -6579,7 +6579,7 @@ async function loadData(forceRefresh) {
     ptext.textContent = 'Loading all contacts (server-side)...';
     fill.style.width = '30%';
 
-    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=15&t=\${Date.now()}\`, { cache: "no-store" });
+    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=8&t=\${Date.now()}\`, { cache: "no-store" });
     if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
     fill.style.width = '80%';
     const data = await res.json();
@@ -11823,14 +11823,16 @@ var index_default = {
     }
     if (method === "GET" && path === "/contacts/bulk") {
       try {
-        const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "15"), 20);
+        const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "8"), 12);
         const query = url.searchParams.get("query") || "";
         const { map: fieldMap } = await getFieldDefs(env);
         let allContacts = [];
         let seenIds = new Set();
         let startAfter = "";
         let startAfterId = "";
+        const deadline = Date.now() + 25000;
         for (let pg = 0; pg < maxPages; pg++) {
+          if (Date.now() > deadline) break;
           const params = new URLSearchParams({ locationId: locId, limit: "100" });
           if (query) params.set("query", query);
           if (startAfter) { params.set("startAfter", startAfter); params.set("startAfterId", startAfterId); }
