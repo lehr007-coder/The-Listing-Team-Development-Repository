@@ -1288,7 +1288,7 @@ function getAdminHTML() {
                 className="h-16 flex items-center px-6 text-white font-bold text-xl"
                 style={{ background: gradient }}
               >
-                <span>{brand.logo && <span className="mr-3">\\u{1F4CB}</span>} {brand.name}</span>
+                <span>{brand.logo && <span className="mr-3">📋</span>} {brand.name}</span>
               </div>
 
               <div className="flex h-96">
