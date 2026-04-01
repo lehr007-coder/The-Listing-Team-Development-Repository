@@ -11609,7 +11609,7 @@ var index_default = {
       return json({
         ok: true,
         proxy: "thelistingteamproxy-v8",
-        api: { read: "v1", write: "v2 (services.leadconnectorhq.com)" },
+        api: { default: "v1 (rest.gohighlevel.com/v1)", note: "visit /debug to test both v1 and v2" },
         tokenPresent: !!env.GHL_API_KEY,
         features: [
           "pagination",
@@ -11623,6 +11623,37 @@ var index_default = {
         ],
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
+    }
+    if (method === "GET" && path === "/debug") {
+      const results = {};
+      const key = env.GHL_API_KEY || "";
+      results.keyLength = key.length;
+      results.keyPrefix = key.substring(0, 8) + "...";
+      // Test V1
+      try {
+        const v1Res = await fetch(`${GHL_V1}/contacts/?limit=1`, {
+          headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
+        });
+        const v1Text = await v1Res.text();
+        let v1Data;
+        try { v1Data = JSON.parse(v1Text); } catch { v1Data = v1Text.substring(0, 500); }
+        results.v1 = { status: v1Res.status, contactCount: v1Data.contacts ? v1Data.contacts.length : "no contacts key", keys: typeof v1Data === "object" ? Object.keys(v1Data) : "not-json" };
+      } catch (e) {
+        results.v1 = { error: e.message };
+      }
+      // Test V2
+      try {
+        const v2Res = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
+          headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Version": "2021-07-28" }
+        });
+        const v2Text = await v2Res.text();
+        let v2Data;
+        try { v2Data = JSON.parse(v2Text); } catch { v2Data = v2Text.substring(0, 500); }
+        results.v2 = { status: v2Res.status, contactCount: v2Data.contacts ? v2Data.contacts.length : "no contacts key", keys: typeof v2Data === "object" ? Object.keys(v2Data) : "not-json" };
+      } catch (e) {
+        results.v2 = { error: e.message };
+      }
+      return json(results);
     }
     if (method === "GET" && path === "/fields") {
       try {
