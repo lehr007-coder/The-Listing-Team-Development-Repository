@@ -1768,23 +1768,6 @@ body.dark-mode {
         return 'https://stars.ylopo.com/contacts';
     }
 
-        var ylopoField = contact.customField.find(function(f) {
-            if (!f.value || typeof f.value !== 'string') return false;
-            return f.value.includes('ylopo.com') || f.value.includes('stars.ylopo');
-        });
-        if (ylopoField && ylopoField.value) {
-            return ylopoField.value;
-        }
-        var uuidField = contact.customField.find(function(f) {
-            if (!f.value || typeof f.value !== 'string') return false;
-            return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.value);
-        });
-        if (uuidField && uuidField.value) {
-            return 'https://stars.ylopo.com/lead-detail/' + uuidField.value;
-        }
-        return 'https://stars.ylopo.com/contacts';
-    }
-
     // Render Functions
     function renderTable(contacts) {
         var tbody = document.getElementById('tableBody');
