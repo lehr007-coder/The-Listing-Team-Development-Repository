@@ -23,6 +23,240 @@ function err(msg, status = 500, details = null) {
   return json({ ok: false, error: msg, ...details ? { details } : {}, proxy: "v8" }, status);
 }
 __name(err, "err");
+var ADMIN_HUB_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface-2:#1a2236;--surface-hover:#1e293b;
+  --border:#1e293b;--border-hover:#334155;
+  --text:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --accent:#3b82f6;--accent-glow:rgba(59,130,246,0.15);
+  --green:#22c55e;--green-glow:rgba(34,197,94,0.15);
+  --amber:#f59e0b;--amber-glow:rgba(245,158,11,0.15);
+  --purple:#a855f7;--purple-glow:rgba(168,85,247,0.15);
+  --rose:#f43f5e;--rose-glow:rgba(244,63,94,0.15);
+  --cyan:#06b6d4;--cyan-glow:rgba(6,182,212,0.15);
+  --orange:#f97316;--orange-glow:rgba(249,115,22,0.15);
+  --radius:16px;--radius-sm:10px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.noise{position:fixed;inset:0;opacity:0.015;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.glow-orb{position:fixed;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:0.07;pointer-events:none;z-index:0}
+.glow-orb.blue{background:#3b82f6;top:-200px;right:-100px}
+.glow-orb.purple{background:#a855f7;bottom:-200px;left:-100px}
+
+.app{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:40px 24px 60px}
+
+/* Header */
+.header{text-align:center;margin-bottom:48px}
+.header-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:100px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px}
+.header-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.header h1{font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:12px;background:linear-gradient(135deg,#fff 0%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{font-size:16px;color:var(--text-secondary);max-width:500px;margin:0 auto;line-height:1.6}
+
+/* Section labels */
+.section{margin-bottom:40px}
+.section-label{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:0 4px}
+.section-label h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)}
+.section-label hr{flex:1;border:none;border-top:1px solid var(--border);opacity:0.5}
+
+/* Cards Grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+
+/* Card */
+.card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 24px;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity 0.3s}
+.card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.3)}
+.card:hover::before{opacity:1}
+.card:active{transform:translateY(0)}
+.card .icon-wrap{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;transition:transform 0.3s}
+.card:hover .icon-wrap{transform:scale(1.05)}
+.card .card-body{flex:1}
+.card .card-title{font-size:17px;font-weight:700;margin-bottom:4px;letter-spacing:-0.01em}
+.card .card-desc{font-size:13px;color:var(--text-secondary);line-height:1.5}
+.card .card-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border:1px solid var(--border);color:var(--text-muted);margin-top:4px;width:fit-content}
+.card .arrow{position:absolute;top:24px;right:20px;color:var(--text-muted);opacity:0;transition:all 0.3s;font-size:18px}
+.card:hover .arrow{opacity:1;transform:translateX(2px)}
+
+/* Color themes */
+.card.blue::before{background:linear-gradient(90deg,var(--accent),transparent)}.card.blue .icon-wrap{background:var(--accent-glow);color:var(--accent)}
+.card.green::before{background:linear-gradient(90deg,var(--green),transparent)}.card.green .icon-wrap{background:var(--green-glow);color:var(--green)}
+.card.amber::before{background:linear-gradient(90deg,var(--amber),transparent)}.card.amber .icon-wrap{background:var(--amber-glow);color:var(--amber)}
+.card.purple::before{background:linear-gradient(90deg,var(--purple),transparent)}.card.purple .icon-wrap{background:var(--purple-glow);color:var(--purple)}
+.card.rose::before{background:linear-gradient(90deg,var(--rose),transparent)}.card.rose .icon-wrap{background:var(--rose-glow);color:var(--rose)}
+.card.cyan::before{background:linear-gradient(90deg,var(--cyan),transparent)}.card.cyan .icon-wrap{background:var(--cyan-glow);color:var(--cyan)}
+.card.orange::before{background:linear-gradient(90deg,var(--orange),transparent)}.card.orange .icon-wrap{background:var(--orange-glow);color:var(--orange)}
+
+/* Status bar */
+.status-bar{margin-top:48px;display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.status-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);font-weight:500}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.live{background:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.status-dot.idle{background:var(--amber)}
+
+/* Footer */
+.footer{margin-top:32px;text-align:center;font-size:11px;color:var(--text-muted);letter-spacing:0.02em}
+
+@media(max-width:640px){
+  .app{padding:24px 16px 40px}
+  .cards{grid-template-columns:1fr}
+  .status-bar{flex-direction:column;gap:12px}
+}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="glow-orb blue"></div>
+<div class="glow-orb purple"></div>
+<div class="app">
+  <header class="header">
+    <div class="header-badge"><span class="dot"></span> Systems Online</div>
+    <h1>The Listing Team<br>Command Center</h1>
+    <p>Centralized hub for all dashboards, tools, and admin modules powering your real estate operations.</p>
+  </header>
+
+  <div class="section">
+    <div class="section-label"><h2>Dashboards</h2><hr></div>
+    <div class="cards">
+      <a href="/dashboard/ylopo-analytics" class="card blue">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4CA}</div>
+        <div class="card-body">
+          <div class="card-title">Ylopo Analytics</div>
+          <div class="card-desc">Lead scoring, engagement metrics, status distribution, and daily activity charts across all contacts.</div>
+          <div class="card-tag">2,500+ leads tracked</div>
+        </div>
+      </a>
+      <a href="/dashboard/ylopo-contacts" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4CB}</div>
+        <div class="card-body">
+          <div class="card-title">Ylopo Contacts</div>
+          <div class="card-desc">Full contact management with custom fields, tags, notes, tasks, and Ylopo event history per lead.</div>
+          <div class="card-tag">Contact CRM</div>
+        </div>
+      </a>
+      <a href="/dashboard/priority-leads" class="card rose">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F525}</div>
+        <div class="card-body">
+          <div class="card-title">Priority Leads</div>
+          <div class="card-desc">Hot leads flagged by Ylopo\u2019s priority algorithm. Showing requests, favorites, and high-intent signals.</div>
+          <div class="card-tag">Hot leads pipeline</div>
+        </div>
+      </a>
+      <a href="/dashboard/site-matrix" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F30D}</div>
+        <div class="card-body">
+          <div class="card-title">Site Matrix</div>
+          <div class="card-desc">Ylopo lead stats overview \u2014 total leads, listing views, saves, showings, searches, and Stars links.</div>
+          <div class="card-tag">Quick stats</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><h2>Admin Tools</h2><hr></div>
+    <div class="cards">
+      <a href="https://ghl-brand-injector.lehr007.workers.dev/__admin" target="_blank" class="card purple">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3A8}</div>
+        <div class="card-body">
+          <div class="card-title">Brand Injector Admin</div>
+          <div class="card-desc">Manage sub-account branding \u2014 logos, color themes, CSS injection, agency settings, and GHL sync.</div>
+          <div class="card-tag">10 sub-accounts</div>
+        </div>
+      </a>
+      <a href="https://ylopo-marketplace.lehr007.workers.dev" target="_blank" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F6D2}</div>
+        <div class="card-body">
+          <div class="card-title">Ylopo Marketplace</div>
+          <div class="card-desc">Ylopo integration marketplace for GHL \u2014 custom objects, workflows, and event processing.</div>
+          <div class="card-tag">Marketplace</div>
+        </div>
+      </a>
+      <a href="https://social-post-importer.lehr007.workers.dev" target="_blank" class="card orange">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4F1}</div>
+        <div class="card-body">
+          <div class="card-title">Social Post Importer</div>
+          <div class="card-desc">Import and manage social media content for automated posting and distribution across channels.</div>
+          <div class="card-tag">Content pipeline</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><h2>System</h2><hr></div>
+    <div class="cards">
+      <a href="/health" class="card green" target="_blank">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3E5}</div>
+        <div class="card-body">
+          <div class="card-title">Health Check</div>
+          <div class="card-desc">Proxy worker status, API connectivity, token presence, and supported features list.</div>
+          <div class="card-tag">JSON endpoint</div>
+        </div>
+      </a>
+      <a href="/debug" class="card amber" target="_blank">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F50D}</div>
+        <div class="card-body">
+          <div class="card-title">API Diagnostics</div>
+          <div class="card-desc">Test GHL V1 and V2 API connections. Shows key status, response codes, and contact counts.</div>
+          <div class="card-tag">Debug tool</div>
+        </div>
+      </a>
+      <a href="https://tlt-image-server.lehr007.workers.dev" target="_blank" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F5BC}</div>
+        <div class="card-body">
+          <div class="card-title">Image Server</div>
+          <div class="card-desc">TLT image hosting and optimization service for listing photos and brand assets.</div>
+          <div class="card-tag">CDN service</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="status-item"><span class="status-dot live"></span> Proxy Worker</div>
+    <div class="status-item"><span class="status-dot live"></span> Brand Injector</div>
+    <div class="status-item"><span class="status-dot live"></span> Image Server</div>
+    <div class="status-item"><span class="status-dot live"></span> Marketplace</div>
+    <div class="status-item" id="clockItem" style="margin-left:auto;font-variant-numeric:tabular-nums"></div>
+  </div>
+
+  <div class="footer">The Listing Team \u00B7 Cloudflare Workers Infrastructure \u00B7 13 Active Services</div>
+</div>
+<script>
+function updateClock(){
+  const now=new Date();
+  const el=document.getElementById('clockItem');
+  if(el) el.textContent=now.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+updateClock();setInterval(updateClock,1000);
+
+// Check proxy health
+fetch('/health').then(r=>r.json()).then(d=>{
+  if(!d.ok||!d.tokenPresent){
+    document.querySelector('.status-bar .status-item:first-child .status-dot').className='status-dot idle';
+  }
+}).catch(()=>{});
+<\/script>
+</body>
+</html>`;
 var SITE_MATRIX_HTML = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
@@ -12225,6 +12459,12 @@ var index_default = {
       } catch (e) {
         return err(`Failed to fetch Ylopo events: ${e.message || e.status}`, e.status || 500);
       }
+    }
+    if (method === "GET" && (path === "/" || path === "/dashboard")) {
+      return new Response(ADMIN_HUB_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
     }
     if (method === "GET" && path === "/dashboard/site-matrix") {
       return new Response(SITE_MATRIX_HTML, {
