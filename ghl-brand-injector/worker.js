@@ -684,8 +684,11 @@ function getAdminHTML() {
     function AgencySettingsPanel({ apiCall, onClose }) {
       const [settings, setSettings] = useState(null);
       const [saving, setSaving] = useState(false);
+      const [syncing, setSyncing] = useState(false);
+      const [extracting, setExtracting] = useState(false);
       const [msg, setMsg] = useState(\'\');
       const [errMsg, setErrMsg] = useState(\'\');
+      const canvasRef = useRef();
 
       useEffect(() => {
         loadSettings();
@@ -724,6 +727,76 @@ function getAdminHTML() {
         });
       };
 
+      const handleSyncFromGHL = async () => {
+        if (!settings.ghlAgencyKey) {
+          setErrMsg(\'Please enter a GHL Agency Key first\');
+          return;
+        }
+        setSyncing(true); setMsg(\'\'); setErrMsg(\'\');
+        try {
+          const result = await apiCall(\'/sync\', \'POST\');
+          setMsg(\'Synced \' + (result.synced ? Object.keys(result).length : 0) + \' brands from GHL!\');
+          setTimeout(() => setMsg(\'\'), 3000);
+        } catch (err) {
+          setErrMsg(\'Sync failed: \' + err.message);
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const handleExtractPalette = () => {
+        if (!settings.agencyLogo) {
+          setErrMsg(\'Please set an Agency Logo URL first\');
+          return;
+        }
+        setExtracting(true); setMsg(\'\'); setErrMsg(\'\');
+        const img = new Image();
+        img.crossOrigin = \'anonymous\';
+        img.onload = () => {
+          const canvas = canvasRef.current;
+          canvas.width = 100;
+          canvas.height = 100;
+          const ctx = canvas.getContext(\'2d\');
+          ctx.drawImage(img, 0, 0, 100, 100);
+          const imageData = ctx.getImageData(0, 0, 100, 100);
+          const pixels = imageData.data;
+          const colorFreq = {};
+          for (let i = 0; i < pixels.length; i += 4) {
+            const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+            const a = pixels[i + 3];
+            if (a < 128) continue;
+            const color = \'#\' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, \'0\');
+            colorFreq[color] = (colorFreq[color] || 0) + 1;
+          }
+          const sorted = Object.entries(colorFreq)
+            .filter(([c]) => c !== \'#ffffff\' && c !== \'#000000\')
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([color]) => color);
+          if (sorted.length >= 3) {
+            setSettings({
+              ...settings,
+              defaultColors: {
+                ...settings.defaultColors,
+                gradLeft: sorted[0],
+                gradMid: sorted[Math.min(1, sorted.length - 1)],
+                gradRight: sorted[Math.min(2, sorted.length - 1)],
+                gradUnderline: sorted[Math.min(3, sorted.length - 1)] || sorted[0],
+                chipGreen: sorted[Math.min(4, sorted.length - 1)] || sorted[1],
+                surfaceBlue: sorted[Math.min(5, sorted.length - 1)] || \'#E8F0FE\',
+              },
+            });
+            setMsg(\'Palette extracted from logo!\');
+            setTimeout(() => setMsg(\'\'), 3000);
+          } else {
+            setErrMsg(\'Could not extract enough colors from logo\');
+          }
+          setExtracting(false);
+        };
+        img.onerror = () => { setErrMsg(\'Failed to load logo image\'); setExtracting(false); };
+        img.src = settings.agencyLogo;
+      };
+
       if (!settings) return (
         <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex justify-end">
           <div className="w-96 bg-white h-full shadow-xl p-6">Loading...</div>
@@ -753,6 +826,13 @@ function getAdminHTML() {
                   <input type="text" value={settings.agencyLogo || \'\'} onChange={(e) => handleField(\'agencyLogo\', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   {settings.agencyLogo && <img src={settings.agencyLogo} alt="Logo" className="mt-2 h-12 object-contain" />}
+                  {settings.agencyLogo && (
+                    <button onClick={handleExtractPalette} disabled={extracting}
+                      className="mt-2 w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-3 py-2 rounded text-sm font-medium transition">
+                      {extracting ? \'Extracting...\' : \'Extract Palette from Logo\'}
+                    </button>
+                  )}
+                  <canvas ref={canvasRef} style={{ display: \'none\' }} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
@@ -790,6 +870,10 @@ function getAdminHTML() {
                 <input type="text" value={settings.ghlAgencyKey || \'\'} onChange={(e) => handleField(\'ghlAgencyKey\', e.target.value)}
                   placeholder="GHL Agency API Key"
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button onClick={handleSyncFromGHL} disabled={syncing || !settings.ghlAgencyKey}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-2 rounded text-sm font-medium transition">
+                  {syncing ? \'Syncing...\' : \'Sync All Brands from GHL\'}
+                </button>
               </div>
 
               <button onClick={saveSettings} disabled={saving}
