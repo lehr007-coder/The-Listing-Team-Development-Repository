@@ -11576,67 +11576,15 @@ async function enrichCustomFields(env, customFields) {
 }
 __name(enrichCustomFields, "enrichCustomFields");
 async function fetchYlopoEvents(env, contactId) {
-  const locId = env.GHL_LOCATION_ID || LOC_ID;
-  try {
-    const searchBody = {
-      locationId: locId,
-      searchKey: "contact",
-      searchValue: contactId,
-      page: 1,
-      pageLimit: 20,
-      sort: { field: "createdAt", direction: "desc" }
-    };
-    const data = await ghlSafe(
-      env,
-      "POST",
-      `/objects/custom_objects.ylopo_event/records/search`,
-      searchBody,
-      true
-    );
-    return data.records || data.data || [];
-  } catch (e1) {
-    console.warn(`Ylopo events fetch failed for ${contactId}:`, e1.status || e1.message);
-    return [];
-  }
+  // V2 custom objects require OAuth token; skip when using V1 Location API Key
+  return [];
 }
 __name(fetchYlopoEvents, "fetchYlopoEvents");
 var _allYlopoEventsCache = null;
 var _allYlopoEventsCachedAt = 0;
 async function fetchAllYlopoEvents(env) {
-  const now = Date.now();
-  if (_allYlopoEventsCache && now - _allYlopoEventsCachedAt < 6e4) {
-    return _allYlopoEventsCache;
-  }
-  const locId = env.GHL_LOCATION_ID || LOC_ID;
-  const allRecords = [];
-  let page = 1;
-  try {
-    while (page <= 10) {
-      const searchBody = {
-        locationId: locId,
-        page,
-        pageLimit: 20
-      };
-      const data = await ghlSafe(
-        env,
-        "POST",
-        `/objects/custom_objects.ylopo_event/records/search`,
-        searchBody,
-        true
-      );
-      const records = data.records || data.data || [];
-      allRecords.push(...records);
-      if (records.length < 20) break;
-      page++;
-    }
-    _allYlopoEventsCache = allRecords;
-    _allYlopoEventsCachedAt = now;
-    console.log(`\u{1F4E6} Fetched ${allRecords.length} total Ylopo Event records`);
-    return allRecords;
-  } catch (e) {
-    console.error("fetchAllYlopoEvents error:", e.status || e.message);
-    return [];
-  }
+  // V2 custom objects require OAuth token; skip when using V1 Location API Key
+  return [];
 }
 __name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 function groupEventsByContact(records) {
@@ -11980,25 +11928,21 @@ var index_default = {
         if (tag) params.set("query", tag);
         const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
-        let enriched = await Promise.all(
-          contacts.map(async (c) => ({
+        // Batch enrich: load field defs once, then map synchronously
+        const { map: fieldMap } = await getFieldDefs(env);
+        const enriched = contacts.map((c) => {
+          const cf = c.customField || [];
+          const needsEnrich = cf.some((f) => !f.fieldKey && f.id);
+          if (!needsEnrich) return c;
+          return {
             ...c,
-            customField: await enrichCustomFields(env, c.customField || [])
-          }))
-        );
-        if (withYlopo) {
-          try {
-            const allEvents = await fetchAllYlopoEvents(env);
-            const eventsByContact = groupEventsByContact(allEvents);
-            enriched = enriched.map((c) => {
-              const records = eventsByContact[c.id];
-              return records ? mergeYlopoEventIntoContact(c, records) : c;
-            });
-            console.log(`\u{1F517} Matched Ylopo events to ${Object.keys(eventsByContact).length} contacts`);
-          } catch (e) {
-            console.warn("Batch Ylopo merge failed:", e.message);
-          }
-        }
+            customField: cf.map((f) => {
+              if (f.fieldKey) return f;
+              const def = fieldMap[f.id?.toLowerCase()];
+              return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+            })
+          };
+        });
         broadcastSSE({ type: "contacts.fetched", count: enriched.length });
         return json({
           contacts: enriched,
@@ -12015,12 +11959,6 @@ var index_default = {
         const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
         let contact = data.contact || data;
         contact.customField = await enrichCustomFields(env, contact.customField || []);
-        try {
-          const ylopoRecords = await fetchYlopoEvents(env, contactId);
-          contact = mergeYlopoEventIntoContact(contact, ylopoRecords);
-        } catch (e) {
-          console.warn("Ylopo events fetch failed for single contact:", e.message);
-        }
         return json(contact);
       } catch (e) {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
