@@ -1412,8 +1412,12 @@ body.dark-mode {
 
 <!-- External Links -->
 <div class="external-links">
-    <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; Go to GHL</a>
-    <a href="https://ylopo.com/" target="_blank" class="external-link">&#127919; Go to Ylopo</a>
+    <a href="/dashboard" class="external-link" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:#60a5fa">&#127968; Hub</a>
+    <a href="/dashboard/ylopo-contacts" class="external-link" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:#4ade80">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-analytics" class="external-link" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.3);color:#c084fc">&#128202; Analytics</a>
+    <a href="/dashboard/site-matrix" class="external-link" style="background:rgba(6,182,212,0.15);border-color:rgba(6,182,212,0.3);color:#22d3ee">&#127760; Matrix</a>
+    <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; GHL</a>
+    <a href="https://ylopo.com/" target="_blank" class="external-link">&#127919; Ylopo</a>
 </div>
 
 <div class="app-container">
@@ -1450,7 +1454,7 @@ body.dark-mode {
     <!-- Tabs -->
     <div class="dashboard-tabs">
         <button class="tab-btn active" onclick="switchTab('leads')">&#128202; Leads View</button>
-        <button class="tab-btn" onclick="switchTab('source')">&#128200; Source Performance</button>
+        <button class="tab-btn" onclick="window.location.href='/dashboard/ylopo-analytics'">&#128200; Source Performance</button>
         <button class="tab-btn" onclick="switchTab('matrix')">&#127919; Matrix Overview</button>
     </div>
 
@@ -2745,6 +2749,14 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 </style>
 </head>
 <body>
+
+<!-- Navigation -->
+<div style="display:flex;gap:8px;padding:10px 16px;background:#0d1017;flex-wrap:wrap">
+  <a href="/dashboard" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(59,130,246,0.3);color:#60a5fa;background:rgba(59,130,246,0.1)">\u{1F3E0} Hub</a>
+  <a href="/dashboard/priority-leads" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;background:rgba(239,68,68,0.1)">\u{1F525} Priority</a>
+  <a href="/dashboard/ylopo-analytics" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(168,85,247,0.3);color:#c084fc;background:rgba(168,85,247,0.1)">\u{1F4CA} Analytics</a>
+  <a href="/dashboard/site-matrix" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(6,182,212,0.3);color:#22d3ee;background:rgba(6,182,212,0.1)">\u{1F30D} Matrix</a>
+</div>
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -4931,7 +4943,9 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       </select>
     </div>
       <div class="page-nav">
+      <a href="/dashboard">\u{1F3E0} Hub</a>
       <a href="/dashboard/ylopo-contacts">\u{1F4CB} Contacts</a>
+      <a href="/dashboard/priority-leads">\u{1F525} Priority</a>
       <a href="/dashboard/ylopo-analytics" class="active">\u{1F4CA} Analytics</a>
     </div>
   </div>
