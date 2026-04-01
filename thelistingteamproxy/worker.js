@@ -380,44 +380,29 @@ async function startFetch(){
   document.getElementById('stopBtn').style.display='';
   const agg={totalLeads:0,ylopoLeads:0,totalViews:0,totalSaves:0,totalShowings:0,totalSearches:0,withStars:0,activeWeek:0};
   let startAfter='',startAfterId='',pagesFetched=0,totalFromMeta=0,aborted=false;
-  setProgress(3);
+  setProgress(10);
+  setStatus('Loading all Ylopo contacts (bulk)...');
   try{
-    for(let page=1;page<=MAX_PAGES;page++){
-      let url=PROXY+'/contacts?limit='+PAGE_SIZE+'&ylopo=false&query=ylopo';
-      if(startAfter&&startAfterId) url+='&startAfter='+startAfter+'&startAfterId='+startAfterId;
-      const ctrl=AbortSignal.any?AbortSignal.any([abortCtl.signal,AbortSignal.timeout(12000)]):abortCtl.signal;
-      const res=await fetch(url,{headers:{Accept:'application/json'},signal:ctrl});
-      if(!res.ok)throw new Error('HTTP '+res.status);
-      const data=await res.json();
-      const contacts=data.contacts||[];
-      const meta=data.meta||{};
-      if(page===1)totalFromMeta=meta.total||0;
-      if(!contacts.length)break;
-      agg.totalLeads+=contacts.length;
-      contacts.forEach(c=>{
-        if(isYlopoLead(c))agg.ylopoLeads++;
-        agg.totalViews+=maxCF(c,F.views);
-        agg.totalSaves+=maxCF(c,F.saves);
-        agg.totalShowings+=maxCF(c,F.showings);
-        agg.totalSearches+=maxCF(c,F.searches,10000);
-        if(hasRealStarsLink(c))agg.withStars++;
-        if(isActiveThisWeek(c))agg.activeWeek++;
-      });
-      pagesFetched++;
-      vals={...agg,totalLeads:totalFromMeta||agg.totalLeads};
-      renderValues(vals);
-      const pct=totalFromMeta?Math.round(agg.totalLeads/totalFromMeta*100):page*5;
-      setProgress(Math.min(95,Math.max(pct,5)));
-      setStatus('Scanning Ylopo contacts... page '+page+' \\u00B7 '+agg.totalLeads.toLocaleString()+' of '+(totalFromMeta||'?').toLocaleString()+' matches');
-      const newSA=meta.startAfter,newSAID=meta.startAfterId;
-      if(!newSA||newSA===startAfter)break;
-      startAfter=newSA; startAfterId=newSAID;
-      await new Promise(r=>setTimeout(r,200));
-    }
-    if(totalFromMeta>0)vals.totalLeads=totalFromMeta;
+    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=15',{headers:{Accept:'application/json'},signal:abortCtl.signal});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    setProgress(70);
+    const data=await res.json();
+    const contacts=data.contacts||[];
+    totalFromMeta=contacts.length;
+    contacts.forEach(c=>{
+      agg.totalLeads++;
+      if(isYlopoLead(c))agg.ylopoLeads++;
+      agg.totalViews+=maxCF(c,F.views);
+      agg.totalSaves+=maxCF(c,F.saves);
+      agg.totalShowings+=maxCF(c,F.showings);
+      agg.totalSearches+=maxCF(c,F.searches,10000);
+      if(hasRealStarsLink(c))agg.withStars++;
+      if(isActiveThisWeek(c))agg.activeWeek++;
+    });
+    vals={...agg,totalLeads:totalFromMeta||agg.totalLeads};
     renderValues(vals); setProgress(100);
     const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    setStatus('\\u2713 Updated '+now+' \\u00B7 '+pagesFetched+' pages scanned \\u00B7 '+(totalFromMeta||agg.totalLeads).toLocaleString()+' Ylopo contacts','ok');
+    setStatus('\\u2713 Updated '+now+' \\u00B7 '+(totalFromMeta||agg.totalLeads).toLocaleString()+' Ylopo contacts','ok');
   }catch(e){
     if(e.name==='AbortError'){aborted=true;setStatus('Stopped.','warn');}
     else setStatus('Error: '+(e.message||String(e)),'error');
@@ -2203,42 +2188,18 @@ body.dark-mode {
             tableBody.insertAdjacentHTML('beforebegin', '<div id="refreshNotice" style="text-align:center;padding:8px;font-size:0.85rem;color:var(--text-muted);">Showing cached data (' + cached.length + ' leads). Refreshing in background...</div>');
         }
 
-        // Fetch fresh data (in background if cached)
-        var allContacts = [];
-        var startAfter = null;
-        var startAfterId = null;
-        var page = 0;
-
+        // Fetch all data in one bulk request (server handles pagination)
         try {
-            while (page < MAX_PAGES) {
-                page++;
-                var url = PROXY_URL + '/contacts?query=ypriority&ylopo=false&limit=100';
-                if (startAfter && startAfterId) {
-                    url += '&startAfter=' + encodeURIComponent(startAfter) + '&startAfterId=' + encodeURIComponent(startAfterId);
-                }
-                if (!cached) {
-                    tableBody.innerHTML = '<div class="loading"><p>Loading page ' + page + '... (' + allContacts.length + ' contacts so far)</p></div>';
-                }
-                var response = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined });
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                var data = await response.json();
-                var pageContacts = [];
-                if (Array.isArray(data)) pageContacts = data;
-                else if (data.contacts) pageContacts = data.contacts;
-                else if (data.data) pageContacts = data.data;
-                else throw new Error('Unexpected data structure');
-                allContacts = allContacts.concat(pageContacts);
-                var meta = data.meta;
-                if (meta && meta.startAfter && meta.startAfterId && pageContacts.length === 100) {
-                    startAfter = meta.startAfter;
-                    startAfterId = meta.startAfterId;
-                } else {
-                    break;
-                }
+            if (!cached) {
+                tableBody.innerHTML = '<div class="loading"><p>Loading priority leads...</p></div>';
             }
+            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=15');
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            var data = await response.json();
+            var allContacts = data.contacts || [];
             CONTACTS = allContacts;
             saveCache(CONTACTS);
-            console.log('Loaded', CONTACTS.length, 'ypriority contacts (' + page + ' pages)');
+            console.log('Loaded', CONTACTS.length, 'ypriority contacts (bulk)');
             FILTERED_CONTACTS = [].concat(CONTACTS);
             renderTable(CONTACTS);
             updateStats();
@@ -3384,7 +3345,7 @@ function fetchAllContacts(isBackground) {
     }
 
     var fetchOpts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
-    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) fetchOpts.signal = AbortSignal.timeout(12000);
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) fetchOpts.signal = AbortSignal.timeout(15000);
     fetch(url, fetchOpts)
       .then(function(res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -6615,78 +6576,14 @@ async function loadData(forceRefresh) {
     const ptext = el('loadText');
     progress.style.display = 'block';
 
-    const cutoffDate = new Date(Date.now() - LOAD_DAYS * 864e5);
-    let allRaw = [];
-    let seenIds = new Set();
-    let startAfter = '';
-    let startAfterId = '';
-    let page = 0;
-    const PAGE_SIZE = 100;
-    const MAX_PG = 15;
-    let keepGoing = true;
-    let hitCutoff = false;
+    ptext.textContent = 'Loading all contacts (server-side)...';
+    fill.style.width = '30%';
 
-    function timedFetch(url, ms) {
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), ms);
-      return fetch(url, { cache: "no-store", headers: { "Accept": "application/json" }, signal: ctrl.signal }).finally(() => clearTimeout(tid));
-    }
-
-    while (keepGoing) {
-      page++;
-      let url = PROXY_URL + \`/contacts?limit=\${PAGE_SIZE}&ylopo=false&t=\${Date.now()}\`;
-      if (startAfter) url += \`&startAfter=\${encodeURIComponent(startAfter)}\`;
-      if (startAfterId) url += \`&startAfterId=\${encodeURIComponent(startAfterId)}\`;
-
-      ptext.textContent = \`Page \${page}/\${MAX_PG} \xB7 \${allRaw.length} contacts loaded...\`;
-      fill.style.width = Math.min(page / MAX_PG * 90, 90) + '%';
-
-      let res;
-      try { res = await timedFetch(url, 12000); } catch(e) {
-        console.warn(\`Page \${page} timed out, stopping pagination\`);
-        keepGoing = false; break;
-      }
-      if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-      const data = await res.json();
-
-      let raw = [];
-      if (data.contacts && Array.isArray(data.contacts)) raw = data.contacts;
-      else if (data.leads && Array.isArray(data.leads)) raw = data.leads;
-      else if (Array.isArray(data)) raw = data;
-      else if (data.ok && data.leads) raw = data.leads;
-
-      const newRaw = raw.filter(c => {
-        const cid = c.id || c._id;
-        if (!cid || seenIds.has(cid)) return false;
-        seenIds.add(cid);
-        return true;
-      });
-
-      if (newRaw.length === 0) {
-        keepGoing = false;
-      } else {
-        allRaw = allRaw.concat(newRaw);
-        const lastContact = raw[raw.length - 1];
-        const lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
-        if (lastDate < cutoffDate) { hitCutoff = true; keepGoing = false; }
-        const meta = data.meta || {};
-        if (meta.startAfter && meta.startAfterId && raw.length >= PAGE_SIZE) {
-          startAfter = meta.startAfter;
-          startAfterId = meta.startAfterId;
-        } else {
-          keepGoing = false;
-        }
-      }
-
-      // Render progressively every 5 pages so UI isn't blank while loading
-      if (page % 5 === 0 && allRaw.length > 0) {
-        RAW_CONTACTS = {};
-        ALL_LEADS = transformContacts(allRaw);
-        applyFilters(); renderTable(); renderCharts();
-      }
-
-      if (page >= MAX_PG) keepGoing = false;
-    }
+    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=15&t=\${Date.now()}\`, { cache: "no-store" });
+    if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+    fill.style.width = '80%';
+    const data = await res.json();
+    const allRaw = data.contacts || [];
 
     fill.style.width = '100%';
     ptext.textContent = \`\u2705 \${allRaw.length} contacts loaded\`;
@@ -11922,6 +11819,46 @@ var index_default = {
         });
       } catch (e) {
         return err(`Failed to fetch Ylopo events: ${e.message || e.status}`, e.status || 500);
+      }
+    }
+    if (method === "GET" && path === "/contacts/bulk") {
+      try {
+        const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "15"), 20);
+        const query = url.searchParams.get("query") || "";
+        const { map: fieldMap } = await getFieldDefs(env);
+        let allContacts = [];
+        let seenIds = new Set();
+        let startAfter = "";
+        let startAfterId = "";
+        for (let pg = 0; pg < maxPages; pg++) {
+          const params = new URLSearchParams({ locationId: locId, limit: "100" });
+          if (query) params.set("query", query);
+          if (startAfter) { params.set("startAfter", startAfter); params.set("startAfterId", startAfterId); }
+          const data = await ghl(env, "GET", `/contacts/?${params.toString()}`);
+          const raw = data.contacts || [];
+          if (raw.length === 0) break;
+          for (const c of raw) {
+            if (seenIds.has(c.id)) continue;
+            seenIds.add(c.id);
+            const cf = c.customField || [];
+            if (cf.some((f) => !f.fieldKey && f.id)) {
+              c.customField = cf.map((f) => {
+                if (f.fieldKey) return f;
+                const def = fieldMap[f.id?.toLowerCase()];
+                return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+              });
+            }
+            allContacts.push(c);
+          }
+          const meta = data.meta || {};
+          if (meta.startAfter && meta.startAfterId && raw.length >= 100) {
+            startAfter = String(meta.startAfter);
+            startAfterId = String(meta.startAfterId);
+          } else { break; }
+        }
+        return json({ contacts: allContacts, meta: { total: allContacts.length, pages: Math.ceil(allContacts.length / 100) } });
+      } catch (e) {
+        return err(`Bulk fetch error: ${e.message || e.status}`, e.status || 500);
       }
     }
     if (method === "GET" && path === "/contacts") {
