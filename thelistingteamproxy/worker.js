@@ -11261,7 +11261,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 `;
-async function ghl(env, method, path, body = null, useV2 = true) {
+async function ghl(env, method, path, body = null, useV2 = false) {
   const base = useV2 ? GHL_V2 : GHL_V1;
   const url = `${base}${path}`;
   const headers = {
@@ -11285,7 +11285,7 @@ async function ghl(env, method, path, body = null, useV2 = true) {
   return data;
 }
 __name(ghl, "ghl");
-async function ghlSafe(env, method, path, body = null, useV2 = true, attempt = 1) {
+async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
   try {
     return await ghl(env, method, path, body, useV2);
   } catch (e) {
@@ -11876,7 +11876,7 @@ var index_default = {
           };
           const updates = await buildYlopoFieldUpdates(env, ylopoData);
           if (updates.length > 0) {
-            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, true);
+            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, false);
             console.log(`\u2705 Wrote ${updates.length} Ylopo fields to ${email}`);
           }
           const eventTags = {
@@ -12136,7 +12136,7 @@ var index_default = {
         if (updates.length === 0) {
           return json({ ok: true, message: "No matching fields to update", updates: 0 });
         }
-        await ghlSafe(env, "PUT", `/contacts/${targetId}`, { customFields: updates }, true);
+        await ghlSafe(env, "PUT", `/contacts/${targetId}`, { customFields: updates }, false);
         broadcastSSE({ type: "ylopo.synced", contactId: targetId, fields: updates.length });
         return json({ ok: true, contactId: targetId, updates: updates.length });
       } catch (e) {
