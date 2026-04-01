@@ -14,7 +14,7 @@ var GHL_BRAND_MAP = {
   "kleUkEt0lBuPK6YezWV8": "tejeda",
   "TV1OqxyXM7YHSLC1ekMh": "houserealty"
 };
-var LOCATION_ID_REGEX = /\\/location\\/([a-zA-Z0-9]+)/;
+var LOCATION_ID_REGEX = /\/location\/([a-zA-Z0-9]+)/;
 var brandsCache = null;
 var brandsCacheTime = 0;
 var CACHE_TTL = 3e5;
@@ -413,7 +413,7 @@ async function buildBrandScript(env) {
 
   console.log(\'[CF Brand Worker] GHL Brand Manager v4.0 injected\');
 })();
-<\\/script>`;
+<\/script>`;
 }
 __name(buildBrandScript, "buildBrandScript");
 var ScriptInjector = class {
@@ -611,10 +611,10 @@ function getAdminHTML() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GHL Brand Manager</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"><\\/script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\\/script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\\/script>
-  <script src="https://cdn.tailwindcss.com"><\\/script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+  <script src="https://cdn.tailwindcss.com"><\/script>
   <style>
     [data-testid="root"] { min-height: 100vh; }
   </style>
@@ -882,7 +882,7 @@ function getAdminHTML() {
 
       const saveBrand = async (key, brand) => {
         try {
-          await apiCall(\\`/brands\\${key ? \'/\' + key : \'\'}\\`, key ? \'PUT\' : \'POST\', { key, ...brand });
+          await apiCall(\`/brands\${key ? \'/\' + key : \'\'}\`, key ? \'PUT\' : \'POST\', { key, ...brand });
           await loadBrands();
           setEditing(null);
         } catch (err) {
@@ -893,7 +893,7 @@ function getAdminHTML() {
       const deleteBrand = async (key) => {
         if (!confirm(\'Delete this brand?\')) return;
         try {
-          await apiCall(\\`/brands/\\${key}\\`, \'DELETE\');
+          await apiCall(\`/brands/\${key}\`, \'DELETE\');
           await loadBrands();
         } catch (err) {
           alert(\'Failed to delete: \' + err.message);
@@ -903,9 +903,9 @@ function getAdminHTML() {
       const handleSyncBrand = async (key) => {
         try {
           setSyncing(key);
-          await apiCall(\\`/brands/\\${key}/sync-colors\\`, \'POST\');
+          await apiCall(\`/brands/\${key}/sync-colors\`, \'POST\');
           await loadBrands();
-          setSuccess(\\`\\${key} synced!\\`);
+          setSuccess(\`\${key} synced!\`);
           setTimeout(() => setSuccess(\'\'), 2000);
         } catch (err) {
           alert(\'Sync failed for \' + key + \': \' + err.message);
@@ -916,7 +916,7 @@ function getAdminHTML() {
 
       const handleExport = async () => {
         try {
-          const res = await fetch(\\`/__admin/api/export\\`, {
+          const res = await fetch(\`/__admin/api/export\`, {
             headers: { \'Authorization\': \'Bearer \' + apiKey },
           });
           const blob = await res.blob();
@@ -1030,7 +1030,7 @@ function getAdminHTML() {
                   <div
                     className="h-24 bg-gradient-to-r flex items-center justify-center"
                     style={{
-                      backgroundImage: \\`linear-gradient(90deg, \\${brand.colors?.gradLeft || \'#0066cc\'}, \\${brand.colors?.gradMid || \'#0066cc\'}, \\${brand.colors?.gradRight || \'#0066cc\'})\\`,
+                      backgroundImage: \`linear-gradient(90deg, \${brand.colors?.gradLeft || \'#0066cc\'}, \${brand.colors?.gradMid || \'#0066cc\'}, \${brand.colors?.gradRight || \'#0066cc\'})\`,
                     }}
                   >
                     {brand.logo && <img src={brand.logo} alt={brand.name} className="h-16 max-w-full object-contain drop-shadow-lg" />}
@@ -1146,7 +1146,7 @@ function getAdminHTML() {
 
           for (let i = 0; i < pixels.length; i += 4) {
             const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-            const color = \\`#\\${((r << 16) | (g << 8) | b).toString(16).padStart(6, \'0\')}\\`;
+            const color = \`#\${((r << 16) | (g << 8) | b).toString(16).padStart(6, \'0\')}\`;
             colorFreq[color] = (colorFreq[color] || 0) + 1;
           }
 
@@ -1249,7 +1249,7 @@ function getAdminHTML() {
             <div
               className="h-16 rounded mb-4 border border-gray-300"
               style={{
-                backgroundImage: \\`linear-gradient(90deg, \\${data.colors?.gradLeft || \'#0066cc\'}, \\${data.colors?.gradMid || \'#0066cc\'}, \\${data.colors?.gradRight || \'#0066cc\'})\\`,
+                backgroundImage: \`linear-gradient(90deg, \${data.colors?.gradLeft || \'#0066cc\'}, \${data.colors?.gradMid || \'#0066cc\'}, \${data.colors?.gradRight || \'#0066cc\'})\`,
               }}
             />
 
@@ -1276,7 +1276,7 @@ function getAdminHTML() {
 
     function BrandPreview({ brand, onClose }) {
       const colors = brand.colors || {};
-      const gradient = \\`linear-gradient(90deg, \\${colors.gradLeft || \'#0066cc\'}, \\${colors.gradMid || \'#0066cc\'}, \\${colors.gradRight || \'#0066cc\'})\\`;
+      const gradient = \`linear-gradient(90deg, \${colors.gradLeft || \'#0066cc\'}, \${colors.gradMid || \'#0066cc\'}, \${colors.gradRight || \'#0066cc\'})\`;
 
       return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1335,7 +1335,7 @@ function getAdminHTML() {
 
     const root = ReactDOM.createRoot(document.getElementById(\'root\'));
     root.render(<App />);
-  <\\/script>
+  <\/script>
 </body>
 </html>
   `;
