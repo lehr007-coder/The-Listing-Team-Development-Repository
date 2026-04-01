@@ -311,7 +311,7 @@ body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:
 </div>
 <script>
 const PROXY="https://thelistingteamproxy.reallistingteam.com";
-const PAGE_SIZE=100, MAX_PAGES=25, REFRESH_MS=120000;
+const PAGE_SIZE=100, MAX_PAGES=15, REFRESH_MS=120000;
 const F={
   views:['ylopo_last_session_listings_viewed','ylopo_total_listing_views','buyer_listing_views'],
   saves:['ylopo_last_session_listings_saved','ylopo_total_favorites','buyer_favorites'],
@@ -383,9 +383,10 @@ async function startFetch(){
   setProgress(3);
   try{
     for(let page=1;page<=MAX_PAGES;page++){
-      let url=PROXY+'/contacts?limit='+PAGE_SIZE+'&query=ylopo';
+      let url=PROXY+'/contacts?limit='+PAGE_SIZE+'&ylopo=false&query=ylopo';
       if(startAfter&&startAfterId) url+='&startAfter='+startAfter+'&startAfterId='+startAfterId;
-      const res=await fetch(url,{headers:{Accept:'application/json'},signal:abortCtl.signal});
+      const ctrl=AbortSignal.any?AbortSignal.any([abortCtl.signal,AbortSignal.timeout(12000)]):abortCtl.signal;
+      const res=await fetch(url,{headers:{Accept:'application/json'},signal:ctrl});
       if(!res.ok)throw new Error('HTTP '+res.status);
       const data=await res.json();
       const contacts=data.contacts||[];
@@ -2164,7 +2165,7 @@ body.dark-mode {
     }
 
     // Load Data - with localStorage cache + incremental refresh
-    var MAX_PAGES = 25;
+    var MAX_PAGES = 15;
     var CACHE_KEY = 'priorityLeads_cache';
     var CACHE_TS_KEY = 'priorityLeads_cacheTs';
     var CACHE_TTL = 5 * 60 * 1000; // 5 min cache
@@ -2211,14 +2212,14 @@ body.dark-mode {
         try {
             while (page < MAX_PAGES) {
                 page++;
-                var url = PROXY_URL + '/contacts?query=ypriority&limit=100';
+                var url = PROXY_URL + '/contacts?query=ypriority&ylopo=false&limit=100';
                 if (startAfter && startAfterId) {
                     url += '&startAfter=' + encodeURIComponent(startAfter) + '&startAfterId=' + encodeURIComponent(startAfterId);
                 }
                 if (!cached) {
                     tableBody.innerHTML = '<div class="loading"><p>Loading page ' + page + '... (' + allContacts.length + ' contacts so far)</p></div>';
                 }
-                var response = await fetch(url);
+                var response = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined });
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 var data = await response.json();
                 var pageContacts = [];
@@ -2950,7 +2951,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 // -------------------------------------------------------
 var PROXY_URL = 'https://thelistingteamproxy.reallistingteam.com';
 var PAGE_SIZE = 25;
-var MAX_PAGES = 25;
+var MAX_PAGES = 15;
 var CACHE_KEY = 'ylopo_contacts_cache';
 var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -3374,15 +3375,17 @@ function fetchAllContacts(isBackground) {
 
   function fetchPage() {
     page++;
-    var url = PROXY_URL + '/contacts?limit=' + FETCH_SIZE + '&t=' + Date.now();
+    var url = PROXY_URL + '/contacts?limit=' + FETCH_SIZE + '&ylopo=false&t=' + Date.now();
     if (startAfter) url += '&startAfter=' + encodeURIComponent(startAfter);
     if (startAfterId) url += '&startAfterId=' + encodeURIComponent(startAfterId);
 
     if (!isBackground) {
-      _el('loadingText').textContent = 'Page ' + page + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
+      _el('loadingText').textContent = 'Page ' + page + '/' + MAX_PAGES + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
     }
 
-    fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } })
+    var fetchOpts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) fetchOpts.signal = AbortSignal.timeout(12000);
+    fetch(url, fetchOpts)
       .then(function(res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -6619,19 +6622,30 @@ async function loadData(forceRefresh) {
     let startAfterId = '';
     let page = 0;
     const PAGE_SIZE = 100;
+    const MAX_PG = 15;
     let keepGoing = true;
     let hitCutoff = false;
 
+    function timedFetch(url, ms) {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), ms);
+      return fetch(url, { cache: "no-store", headers: { "Accept": "application/json" }, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+    }
+
     while (keepGoing) {
       page++;
-      let url = PROXY_URL + \`/contacts?limit=\${PAGE_SIZE}&t=\${Date.now()}\`;
+      let url = PROXY_URL + \`/contacts?limit=\${PAGE_SIZE}&ylopo=false&t=\${Date.now()}\`;
       if (startAfter) url += \`&startAfter=\${encodeURIComponent(startAfter)}\`;
       if (startAfterId) url += \`&startAfterId=\${encodeURIComponent(startAfterId)}\`;
 
-      ptext.textContent = \`Page \${page} \xB7 \${allRaw.length} contacts loaded...\`;
-      fill.style.width = Math.min(page * 5, 90) + '%';
+      ptext.textContent = \`Page \${page}/\${MAX_PG} \xB7 \${allRaw.length} contacts loaded...\`;
+      fill.style.width = Math.min(page / MAX_PG * 90, 90) + '%';
 
-      const res = await fetch(url, { cache: "no-store", headers: { "Accept": "application/json" } });
+      let res;
+      try { res = await timedFetch(url, 12000); } catch(e) {
+        console.warn(\`Page \${page} timed out, stopping pagination\`);
+        keepGoing = false; break;
+      }
       if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
       const data = await res.json();
 
@@ -6641,7 +6655,6 @@ async function loadData(forceRefresh) {
       else if (Array.isArray(data)) raw = data;
       else if (data.ok && data.leads) raw = data.leads;
 
-      // Dedup
       const newRaw = raw.filter(c => {
         const cid = c.id || c._id;
         if (!cid || seenIds.has(cid)) return false;
@@ -6653,14 +6666,9 @@ async function loadData(forceRefresh) {
         keepGoing = false;
       } else {
         allRaw = allRaw.concat(newRaw);
-        // Check if we've gone past the cutoff date
         const lastContact = raw[raw.length - 1];
         const lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
-        if (lastDate < cutoffDate) {
-          hitCutoff = true;
-          keepGoing = false;
-        }
-        // Use meta pagination cursors from GHL API response
+        if (lastDate < cutoffDate) { hitCutoff = true; keepGoing = false; }
         const meta = data.meta || {};
         if (meta.startAfter && meta.startAfterId && raw.length >= PAGE_SIZE) {
           startAfter = meta.startAfter;
@@ -6670,8 +6678,14 @@ async function loadData(forceRefresh) {
         }
       }
 
-      // Safety: max 100 pages (10,000 contacts)
-      if (page >= 25) keepGoing = false;
+      // Render progressively every 5 pages so UI isn't blank while loading
+      if (page % 5 === 0 && allRaw.length > 0) {
+        RAW_CONTACTS = {};
+        ALL_LEADS = transformContacts(allRaw);
+        applyFilters(); renderTable(); renderCharts();
+      }
+
+      if (page >= MAX_PG) keepGoing = false;
     }
 
     fill.style.width = '100%';
