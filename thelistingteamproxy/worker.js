@@ -313,12 +313,12 @@ body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:
 const PROXY="https://thelistingteamproxy.reallistingteam.com";
 const PAGE_SIZE=100, MAX_PAGES=15, REFRESH_MS=120000;
 const F={
-  views:['ylopo_total_listing_views','ylopo_total_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed'],
-  saves:['ylopo_total_favorites','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved'],
-  showings:['ylopo_total_showing_requests','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests'],
-  searches:['ylopo_last_session_searches'],
+  views:['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed'],
+  saves:['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved'],
+  showings:['ylopo_total_showing_requests','ylopo_session_showings','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests'],
+  searches:['ylopo_last_session_searches','ylopo_session_searches'],
   stars:['ylopo_stars_link_profile_card_link','ylopo_stars_link','ypriority','fub_ylopo_stars_link'],
-  active:['last_active_date','ylopo_last_search_site_visit'],
+  active:['last_active_date','ylopo_last_search_site_visit','ylopo_last_visit','ylopo_last_login'],
 };
 const CARDS=[
   {key:'totalLeads',title:'Total Leads',icon:'\\u{1F465}',sub:'Ylopo query matches'},
@@ -341,8 +341,11 @@ function getCF(contact,keys){
       const fk=(f.fieldKey||'').toLowerCase().replace(/^contact\\./,'');
       const fk2=(f.key||'').toLowerCase().replace(/^contact\\./,'');
       if(fk===kl||fk2===kl){
-        const v=f.value;
-        if(v!=null&&v!=='') return Array.isArray(v)?(v[0]??null):v;
+        let v=f.value;
+        if(v!=null&&v!==''){
+          if(typeof v==='string'&&(v==='[object Object]'||v.startsWith('[object '))) continue;
+          return Array.isArray(v)?(v[0]??null):v;
+        }
       }
     }
   }
@@ -1623,7 +1626,11 @@ body.dark-mode {
                 if (fieldKey.toLowerCase().includes(key.toLowerCase())) return true;
                 return false;
             });
-            if (field && field.value) return field.value;
+            if (field && field.value) {
+                var v = field.value;
+                if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
+                return v;
+            }
         }
         return null;
     }
@@ -1659,16 +1666,18 @@ body.dark-mode {
 
     function getMatrixMetrics(contact) {
         const views = Number(getCustomField(contact, [
+            'ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views',
             'ylopo__buyer_matrix_views',
             'ylopo_last_session_listings_viewed',
-            'properties_viewed_count'
+            'properties_viewed_count','buyer_listing_views','fub_total_listings_viewed'
         ])) || 0;
         const saves = Number(getCustomField(contact, [
+            'ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves',
             'ylopo__buyer_matrix_saves',
             'ylopo_last_session_listings_saved',
-            'total_saved_homes'
+            'total_saved_homes','buyer_favorites','fub_total_listings_saved'
         ])) || 0;
-        const searches = Number(getCustomField(contact, ['ylopo_last_session_searches'])) || 0;
+        const searches = Number(getCustomField(contact, ['ylopo_last_session_searches','ylopo_session_searches'])) || 0;
         const showings = Number(getCustomField(contact, ['ylopo_last_session_showinginfo_requests'])) || 0;
         const sessionDuration = Number(getCustomField(contact, ['ylopo_session_duration'])) || 0;
         const pagesPerSession = Number(getCustomField(contact, ['ylopo_pages_per_session'])) || 0;
@@ -3008,6 +3017,7 @@ function getCF(contact, keys) {
     }
     if (found && found.value!=null && found.value!=='') {
       var v = found.value;
+      if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
       if (Array.isArray(v)) return v.join(', ');
       return String(v);
     }
@@ -3033,13 +3043,13 @@ function getCFByValuePattern(contact, pattern) {
 // -------------------------------------------------------
 
 function getMatrix(c) {
-  var searches = Number(getCF(c,['ylopo_last_session_searches','idx_saved_search_count','saved_searches_count_idxaddons']))||0;
+  var searches = Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches','idx_saved_search_count','saved_searches_count_idxaddons']))||0;
   if (searches > 10000) searches = 0;
   return {
-    views:    Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0,
-    saves:    Number(getCF(c,['ylopo_total_favorites','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0,
+    views:    Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0,
+    saves:    Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0,
     searches: searches,
-    showings: Number(getCF(c,['ylopo_total_showing_requests','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests']))||0,
+    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests']))||0,
     infoReqs: Number(getCF(c,['ylopo_total_info_requests','ylopo_info_requests','buyer_info_requests']))||0
   };
 }
@@ -3098,8 +3108,8 @@ function isNewThisWeek(c) {
 // EXTENDED DATA
 // -------------------------------------------------------
 function getExtendedData(c) {
-  var beds      = getCF(c,['ylopo_registration_min_beds','ylopo__listing_beds','ylopo_favorite_beds','bedrooms','bedrooms_count','minimum_number_of_bedrooms'])||'';
-  var baths     = getCF(c,['ylopo_registration_min_baths','ylopo__listing_baths','ylopo_favorite_baths','bathrooms','bathrooms_count','minimum_number_of_bathrooms'])||'';
+  var beds      = getCF(c,['ylopo_beds','ylopo_bedrooms','ylopo_registration_min_beds','ylopo__listing_beds','ylopo_favorite_beds','bedrooms','bedrooms_count','minimum_number_of_bedrooms'])||'';
+  var baths     = getCF(c,['ylopo_baths','ylopo_bathrooms','ylopo_registration_min_baths','ylopo__listing_baths','ylopo_favorite_baths','bathrooms','bathrooms_count','minimum_number_of_bathrooms'])||'';
   var minPrice  = Number(getCF(c,['ylopo_min_price','minprice','min_price','price_min']))||0;
   var maxPrice  = Number(getCF(c,['ylopo_max_price','maxprice','max_price','price_max']))||0;
   var price     = Number(getCF(c,['ylopo_listing_price','price','listing_price','list_price']))||0;
@@ -5156,6 +5166,57 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     </div>
   </div>
 
+  <!-- LEAD TABLE WITH DELETE -->
+  <div class="analytics-section" id="section-leadtable">
+    <h2><span class="emoji">\u{1F4CB}</span> All Leads</h2>
+    <div class="filters-bar">
+      <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
+      <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
+      <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
+      <button class="filter-tab" onclick="setFilter('new',this)">New</button>
+      <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+      <div class="filter-search"><div class="search-wrap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" id="searchInput" placeholder="Search name, email, phone..." oninput="CURRENT_PAGE=1;applyFilters()"></div></div>
+      <button class="btn-export" onclick="exportCSV()">\u{1F4E5} Export</button>
+    </div>
+    <div class="bulk-bar" id="bulkBar">
+      <span><span id="bulkCount">0</span> selected</span>
+      <button class="wb-btn ghost" onclick="bulkCopyEmails()" style="font-size:11px;padding:4px 10px">\u{1F4CB} Copy Emails</button>
+      <button class="wb-btn ghost" onclick="bulkExport()" style="font-size:11px;padding:4px 10px">\u{1F4C4} Export CSV</button>
+      <button class="wb-btn danger" onclick="bulkDelete()" style="font-size:11px;padding:4px 10px">\u{1F5D1}\uFE0F Delete</button>
+      <button class="wb-btn ghost" onclick="clearSelection()" style="font-size:11px;padding:4px 10px">\u2715 Clear</button>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="td-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+              <th style="width:30px"></th>
+              <th class="sortable" onclick="sortBy('name')">Name</th>
+              <th>Contact</th>
+              <th class="sortable" onclick="sortBy('score')">Score</th>
+              <th class="sortable" onclick="sortBy('status')">Status</th>
+              <th class="sortable" onclick="sortBy('activity')">Activity</th>
+              <th>Engagement</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-secondary)" id="pageInfo">Page 1 of 1</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="wb-btn ghost" id="prevBtn" onclick="prevPage()" disabled style="font-size:11px;padding:4px 12px">\u2190 Prev</button>
+          <button class="wb-btn ghost" id="nextBtn" onclick="nextPage()" style="font-size:11px;padding:4px 12px">Next \u2192</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ANALYTICS: ROW 1 \u2014 Pipeline Funnel + Lead Velocity -->
   <div class="analytics-section">
     <h2><span class="emoji">\u{1F4CA}</span> Pipeline Analytics</h2>
@@ -5777,6 +5838,7 @@ function getCF(contact, keys) {
     // Allow "0" through \u2014 it's valid data for views/saves/showings
     if (found && found.value!=null && found.value!=='') {
       const v = found.value;
+      if (typeof v === 'string' && (v === '[object Object]' || v.startsWith('[object '))) continue;
       if (Array.isArray(v)) return v.join(', ');
       return String(v);
     }
@@ -5845,10 +5907,10 @@ function findFieldByKeywords(contact, keywords) {
 /* =============================== MATRIX =============================== */
 function getMatrix(c) {
   return {
-    views: Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0,
-    saves: Number(getCF(c,['ylopo_total_favorites','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0,
-    searches: (function(v){return v>9999?0:v;})(Number(getCF(c,['ylopo_last_session_searches']))||0),
-    showings: Number(getCF(c,['ylopo_total_showing_requests','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests']))||0,
+    views: Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0,
+    saves: Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0,
+    searches: (function(v){return v>9999?0:v;})(Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches']))||0),
+    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests']))||0,
     infoReqs: Number(getCF(c,['ylopo_total_info_requests','ylopo_info_requests','buyer_info_requests']))||0
   };
 }
@@ -5866,10 +5928,10 @@ function getExtendedData(c) {
   const state = c.state || c.locationState || getCF(c,['ylopo_registration_state','registration_state','state','search_state','ylopo_search_state','preferred_state'])||'';
   const zip = c.postalCode || c.zip || getCF(c,['ylopo_registration_zip','registration_zip','zip','postal_code','postalCode','search_zip','ylopo_search_zip'])||'';
   // Property prefs \u2014 expanded field names
-  const minPrice = Number(getCF(c,['ylopo_registration_min_price','registration_min_price','min_price','ylopo_min_price','price_min','buyer_min_price','search_min_price','ylopo_search_min_price']))||0;
-  const maxPrice = Number(getCF(c,['ylopo_registration_max_price','registration_max_price','max_price','ylopo_max_price','price_max','buyer_max_price','search_max_price','ylopo_search_max_price']))||0;
-  const beds = getCF(c,['ylopo_registration_min_beds','ylopo__listing_beds','ylopo_favorite_beds','bedrooms','bedrooms_count','minimum_number_of_bedrooms'])||'';
-  const baths = getCF(c,['ylopo_registration_min_baths','ylopo__listing_baths','ylopo_favorite_baths','bathrooms','bathrooms_count','minimum_number_of_bathrooms'])||'';
+  const minPrice = Number(getCF(c,['ylopo_min_price','ylopo_registration_min_price','registration_min_price','min_price','price_min','buyer_min_price','search_min_price','ylopo_search_min_price']))||0;
+  const maxPrice = Number(getCF(c,['ylopo_max_price','ylopo_registration_max_price','registration_max_price','max_price','price_max','buyer_max_price','search_max_price','ylopo_search_max_price']))||0;
+  const beds = getCF(c,['ylopo_beds','ylopo_bedrooms','ylopo_registration_min_beds','ylopo__listing_beds','ylopo_favorite_beds','bedrooms','bedrooms_count','minimum_number_of_bedrooms'])||'';
+  const baths = getCF(c,['ylopo_baths','ylopo_bathrooms','ylopo_registration_min_baths','ylopo__listing_baths','ylopo_favorite_baths','bathrooms','bathrooms_count','minimum_number_of_bathrooms'])||'';
   // Property type
   const propType = getCF(c,['ylopo_registration_property_type','registration_property_type','property_type','ylopo_property_type','home_type','search_property_type'])||'';
   // Seller intelligence \u2014 expanded field coverage
@@ -6283,9 +6345,18 @@ function sortBy(key) {
 /* =============================== FILTERING (with TAG SEARCH) =============================== */
 let ACTIVE_HASHTAGS = new Set();
 
+function setFilter(f, btn) {
+  CURRENT_FILTER = f;
+  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  CURRENT_PAGE = 1;
+  applyFilters();
+}
+
 function applyFilters() {
   let leads = [...ALL_LEADS];
-  const rawSearch = el('searchInput').value.trim();
+  const searchEl = el('searchInput');
+  const rawSearch = searchEl ? searchEl.value.trim() : '';
 
   // Extract hashtags from search
   const hashtagRegex = /#(\\S+)/g;
@@ -6303,6 +6374,9 @@ function applyFilters() {
   // Status filter
   if(CURRENT_FILTER==='new') leads=leads.filter(l=>l.status==='NEW');
   else if(CURRENT_FILTER==='hot') leads=leads.filter(l=>l.status==='HOT');
+  else if(CURRENT_FILTER==='warm') leads=leads.filter(l=>l.status==='WARM');
+  else if(CURRENT_FILTER==='cold') leads=leads.filter(l=>l.status==='COLD');
+  else if(CURRENT_FILTER==='showing') leads=leads.filter(l=>l.matrix.showings>0);
   else if(CURRENT_FILTER==='engaged') leads=leads.filter(l=>(l.matrix.views+l.matrix.saves+l.matrix.showings)>0);
   else if(CURRENT_FILTER==='stale') leads=leads.filter(l=>l.badge&&l.badge.cls==='badge-stale');
 
@@ -6680,7 +6754,7 @@ function loadFromCache() {
     updateStats(ALL_LEADS);
     if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
     if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
-    if (PAGE_MODE !== 'analytics') { applyFilters(); }
+    applyFilters();
     return true;
   } catch(e) { return false; }
 }
@@ -6758,7 +6832,7 @@ async function loadData(forceRefresh) {
     updateStats(ALL_LEADS);
     if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
     if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
-    if (PAGE_MODE !== 'analytics') { applyFilters(); }
+    applyFilters();
     saveToCache(ALL_LEADS, RAW_CONTACTS);
     toast(\`Loaded \${ALL_LEADS.length} leads (\${page} pages, \${LOAD_DAYS}d range\${hitCutoff?' \u2014 hit cutoff':''})\`, 'success');
 
@@ -8292,7 +8366,7 @@ async function quickRefresh() {
       updateStats(ALL_LEADS);
       if (PAGE_MODE !== 'contacts') { renderCharts(ALL_LEADS); }
       if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
-      if (PAGE_MODE !== 'analytics') { applyFilters(); }
+      applyFilters();
       toast(\`Quick refresh: \${updated} new leads found\`, 'info');
     }
   } catch(err) { console.warn('Quick refresh failed:', err); }
@@ -11763,8 +11837,12 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
     "search_sqft_max": { fieldKey: "contact.ylopo_sqft_max", name: "Ylopo SqFt Max" }
   };
   for (const [eventKey, def] of Object.entries(fieldMap)) {
-    const val = fields[eventKey];
+    let val = fields[eventKey];
     if (val !== null && val !== void 0 && val !== "") {
+      if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object "))) continue;
+      if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+        val = JSON.stringify(val);
+      }
       ylopoFields.push({
         id: `ylopo_${eventKey}`,
         value: val,
@@ -11778,8 +11856,13 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   let totalViews = 0, totalSaves = 0;
   for (const rec of ylopoRecords) {
     const f = rec.fields || rec.properties || rec;
-    totalViews += Number(f.views) || 0;
-    totalSaves += Number(f.saves) || 0;
+    let rv = f.views, rs = f.saves;
+    if (typeof rv === 'object' && rv !== null) rv = rv.count || rv.total || rv.value || 0;
+    if (typeof rs === 'object' && rs !== null) rs = rs.count || rs.total || rs.value || 0;
+    if (typeof rv === 'string' && rv.startsWith('[object')) rv = 0;
+    if (typeof rs === 'string' && rs.startsWith('[object')) rs = 0;
+    totalViews += Number(rv) || 0;
+    totalSaves += Number(rs) || 0;
   }
   if (totalViews > 0) {
     ylopoFields.push({
