@@ -11405,7 +11405,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 `;
 async function ghl(env, method, path, body = null, useV2 = false) {
   const base = useV2 ? GHL_V2 : GHL_V1;
-  const token = useV2 ? (env.GHL_V2_TOKEN || env.GHL_API_KEY) : env.GHL_API_KEY;
+  const token = env.GHL_API_KEY;
   const url = `${base}${path}`;
   const headers = {
     "Authorization": `Bearer ${token}`,
@@ -11469,7 +11469,7 @@ async function getFieldDefs(env) {
   }
   try {
     const locId = env.GHL_LOCATION_ID || LOC_ID;
-    const data = await ghlSafe(env, "GET", `/custom-fields/?locationId=${locId}`, null, !!env.GHL_V2_TOKEN);
+    const data = await ghlSafe(env, "GET", `/custom-fields/?locationId=${locId}`);
     const fields = data.customFields || data.custom_fields || [];
     const map = {};
     fields.forEach((f) => {
@@ -11926,8 +11926,7 @@ var index_default = {
           const params = new URLSearchParams({ locationId: locId, limit: "100" });
           if (query) params.set("query", query);
           if (startAfter) { params.set("startAfter", startAfter); params.set("startAfterId", startAfterId); }
-          const useV2Read = !!env.GHL_V2_TOKEN;
-          const data = await ghl(env, "GET", `/contacts/?${params.toString()}`, null, useV2Read);
+          const data = await ghl(env, "GET", `/contacts/?${params.toString()}`);
           const raw = data.contacts || [];
           if (raw.length === 0) break;
           for (const c of raw) {
@@ -11986,8 +11985,7 @@ var index_default = {
         if (startAfterId) params.set("startAfterId", startAfterId);
         if (query) params.set("query", query);
         if (tag) params.set("query", tag);
-        const useV2Read = !!env.GHL_V2_TOKEN;
-        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`, null, useV2Read);
+        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
         // Batch enrich: load field defs once, then map synchronously
         const { map: fieldMap } = await getFieldDefs(env);
@@ -12033,8 +12031,7 @@ var index_default = {
     if (method === "GET" && contactMatch) {
       const contactId = contactMatch[1];
       try {
-        const useV2Read = !!env.GHL_V2_TOKEN;
-        const data = await ghlSafe(env, "GET", `/contacts/${contactId}`, null, useV2Read);
+        const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
         let contact = data.contact || data;
         contact.customField = await enrichCustomFields(env, contact.customField || []);
         if (env.GHL_V2_TOKEN) {
@@ -12313,7 +12310,7 @@ var index_default = {
         });
         if (body.startAfterId) params.set("startAfterId", body.startAfterId);
         if (body.tag) params.set("query", body.tag);
-        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`, null, !!env.GHL_V2_TOKEN);
+        const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
         const existingEvents = await fetchAllYlopoEvents(env);
         const eventsByContact = groupEventsByContact(existingEvents);
