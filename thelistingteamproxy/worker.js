@@ -5166,57 +5166,6 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     </div>
   </div>
 
-  <!-- LEAD TABLE WITH DELETE -->
-  <div class="analytics-section" id="section-leadtable">
-    <h2><span class="emoji">\u{1F4CB}</span> All Leads</h2>
-    <div class="filters-bar">
-      <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
-      <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
-      <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
-      <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
-      <button class="filter-tab" onclick="setFilter('new',this)">New</button>
-      <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
-      <div class="filter-search"><div class="search-wrap"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" id="searchInput" placeholder="Search name, email, phone..." oninput="CURRENT_PAGE=1;applyFilters()"></div></div>
-      <button class="btn-export" onclick="exportCSV()">\u{1F4E5} Export</button>
-    </div>
-    <div class="bulk-bar" id="bulkBar">
-      <span><span id="bulkCount">0</span> selected</span>
-      <button class="wb-btn ghost" onclick="bulkCopyEmails()" style="font-size:11px;padding:4px 10px">\u{1F4CB} Copy Emails</button>
-      <button class="wb-btn ghost" onclick="bulkExport()" style="font-size:11px;padding:4px 10px">\u{1F4C4} Export CSV</button>
-      <button class="wb-btn danger" onclick="bulkDelete()" style="font-size:11px;padding:4px 10px">\u{1F5D1}\uFE0F Delete</button>
-      <button class="wb-btn ghost" onclick="clearSelection()" style="font-size:11px;padding:4px 10px">\u2715 Clear</button>
-    </div>
-    <div class="table-card">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="td-check"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-              <th style="width:30px"></th>
-              <th class="sortable" onclick="sortBy('name')">Name</th>
-              <th>Contact</th>
-              <th class="sortable" onclick="sortBy('score')">Score</th>
-              <th class="sortable" onclick="sortBy('status')">Status</th>
-              <th class="sortable" onclick="sortBy('activity')">Activity</th>
-              <th>Engagement</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="table-footer">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--text-secondary)" id="pageInfo">Page 1 of 1</span>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="wb-btn ghost" id="prevBtn" onclick="prevPage()" disabled style="font-size:11px;padding:4px 12px">\u2190 Prev</button>
-          <button class="wb-btn ghost" id="nextBtn" onclick="nextPage()" style="font-size:11px;padding:4px 12px">Next \u2192</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ANALYTICS: ROW 1 \u2014 Pipeline Funnel + Lead Velocity -->
   <div class="analytics-section">
     <h2><span class="emoji">\u{1F4CA}</span> Pipeline Analytics</h2>
@@ -6311,13 +6260,14 @@ function buildAccordion(lead) {
       <button class="qa-btn" onclick="openMsgPreview('\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F4AC} Draft Message</button>
       <button class="qa-btn" onclick="openShowingScheduler('\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F4C5} Schedule Showing</button>
       \${ext.propertyAddr || ext.estValue ? \`<button class="qa-btn" onclick="window.open('https://search.reallistingagent.com/seller','_blank')">\u{1F3E0} Run CMA</button>\` : ''}
+      <button class="qa-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteContact('\${lead.id}','\${lead.name.replace(/'/g,"\\\\'")}')">\u{1F5D1}\uFE0F Delete Contact</button>
     </div>
   </div>
 
   <!-- Links -->
   <div style="display:flex;align-items:center;flex-wrap:wrap">
     <a href="\${ghlUrl}" target="_blank" class="ghl-link">\u{1F517} Open in GoHighLevel</a>
-    \${ylopoUrl ? \`<a href="\${ylopoUrl}" target="_blank" class="ylopo-link">\u{1F7E0} Open in Ylopo</a>\` : \`<span class="ylopo-link" style="opacity:0.5;cursor:default">\u{1F7E0} Ylopo (no ID linked)</span>\`}
+    \${ylopoUrl ? \`<a href="\${ylopoUrl}" target="_blank" class="ylopo-link">\u2B50 Open in Ylopo Stars</a>\` : \`<span class="ylopo-link" style="opacity:0.5;cursor:default">\u2B50 Ylopo (no ID linked)</span>\`}
   </div>
 
 </div>\`;
