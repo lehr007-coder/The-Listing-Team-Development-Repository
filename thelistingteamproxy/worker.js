@@ -6410,6 +6410,7 @@ function applyFilters() {
 
 function renderActiveHashtags(tags) {
   const wrap = el('activeHashtags');
+  if (!wrap) return;
   if(tags.size===0){ wrap.innerHTML=''; return; }
   wrap.innerHTML = [...tags].map(t =>
     \`<span class="htag" onclick="removeHashtag('\${t}')">#\${t} <span class="htag-x">\u2715</span></span>\`
@@ -6441,6 +6442,7 @@ function clearAllHashtags() {
 
 /* =============================== RENDER TABLE =============================== */
 function renderTable() {
+  if (!el('tbody')) return;
   const total = FILTERED.length;
   const pages = Math.max(1, Math.ceil(total/PER_PAGE));
   if(CURRENT_PAGE>pages) CURRENT_PAGE=pages;
@@ -6525,9 +6527,9 @@ function renderTable() {
     }).join('');
   }
 
-  el('pageInfo').textContent = \`Page \${CURRENT_PAGE} of \${pages}\`;
-  el('prevBtn').disabled = CURRENT_PAGE<=1;
-  el('nextBtn').disabled = CURRENT_PAGE>=pages;
+  if(el('pageInfo')) el('pageInfo').textContent = \`Page \${CURRENT_PAGE} of \${pages}\`;
+  if(el('prevBtn')) el('prevBtn').disabled = CURRENT_PAGE<=1;
+  if(el('nextBtn')) el('nextBtn').disabled = CURRENT_PAGE>=pages;
   updateBulkBar();
 }
 
@@ -6562,16 +6564,18 @@ function toggleCheck(cb){
   updateBulkBar();
 }
 function toggleSelectAll(){
+  if(!el('selectAll')) return;
   const checked = el('selectAll').checked;
   const start=(CURRENT_PAGE-1)*PER_PAGE;
   const page=FILTERED.slice(start,start+PER_PAGE);
   page.forEach(l=>{if(checked)SELECTED.add(l.id);else SELECTED.delete(l.id);});
   renderTable();
 }
-function clearSelection(){SELECTED.clear();el('selectAll').checked=false;renderTable();}
+function clearSelection(){SELECTED.clear();if(el('selectAll'))el('selectAll').checked=false;renderTable();}
 function updateBulkBar(){
   const bar=el('bulkBar');
-  if(SELECTED.size>0){bar.classList.add('visible');el('bulkCount').textContent=SELECTED.size;}
+  if(!bar) return;
+  if(SELECTED.size>0){bar.classList.add('visible');if(el('bulkCount'))el('bulkCount').textContent=SELECTED.size;}
   else bar.classList.remove('visible');
 }
 function bulkCopyEmails(){
@@ -6636,14 +6640,14 @@ function updateStats(leads) {
   const engaged=leads.filter(l=>(l.matrix.views+l.matrix.saves+l.matrix.showings)>0).length;
   const engPct=total>0?Math.round(engaged/total*100):0;
 
-  el('mTotal').textContent=total;
-  el('mNew7d').textContent=new7d;
-  el('mResponseTime').textContent = staleCount>0?staleCount:'0';
-  el('mEngagement').textContent=avgScore;
-  el('subToday').querySelector('span').textContent=\`\u{1F4C8} +\${newToday} today\`;
-  el('subHot').querySelector('span').textContent=\`\u{1F525} +\${hotCount} Hot Leads\`;
-  el('subResponse').querySelector('span').textContent=\`\u26A0\uFE0F \${staleCount} need attention\`;
-  el('subEngagement').querySelector('span').textContent=\`\u{1F4CA} \${engaged} active \xB7 \${engPct}% engaged\`;
+  if(el('mTotal')) el('mTotal').textContent=total;
+  if(el('mNew7d')) el('mNew7d').textContent=new7d;
+  if(el('mResponseTime')) el('mResponseTime').textContent = staleCount>0?staleCount:'0';
+  if(el('mEngagement')) el('mEngagement').textContent=avgScore;
+  if(el('subToday')&&el('subToday').querySelector('span')) el('subToday').querySelector('span').textContent=\`\u{1F4C8} +\${newToday} today\`;
+  if(el('subHot')&&el('subHot').querySelector('span')) el('subHot').querySelector('span').textContent=\`\u{1F525} +\${hotCount} Hot Leads\`;
+  if(el('subResponse')&&el('subResponse').querySelector('span')) el('subResponse').querySelector('span').textContent=\`\u26A0\uFE0F \${staleCount} need attention\`;
+  if(el('subEngagement')&&el('subEngagement').querySelector('span')) el('subEngagement').querySelector('span').textContent=\`\u{1F4CA} \${engaged} active \xB7 \${engPct}% engaged\`;
 }
 
 /* =============================== CHARTS =============================== */
@@ -6845,7 +6849,7 @@ async function loadData(forceRefresh) {
     console.error('Load error:', err);
     toast(\`Error: \${err.message}\`, 'error');
     el('loadProgress').style.display = 'none';
-    el('tbody').innerHTML = \`<tr><td colspan="9" style="color:var(--red);padding:24px">\u26A0\uFE0F \${err.message}</td></tr>\`;
+    if(el('tbody')) el('tbody').innerHTML = \`<tr><td colspan="9" style="color:var(--red);padding:24px">\u26A0\uFE0F \${err.message}</td></tr>\`;
   }
 }
 
