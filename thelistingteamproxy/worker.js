@@ -12646,6 +12646,151 @@ var index_default = {
         return err(`Backfill failed: ${e.message || e.status}`, e.status || 500, JSON.stringify({ data: e.data, stack: e.stack }));
       }
     }
+    if (method === "POST" && path === "/ylopo-events/backfill-fields") {
+      // Reads Ylopo Event custom object records from last 48hrs
+      // and writes the real numeric values back to contact custom fields
+      // This fixes [object Object] values from broken GHL workflow serialization
+      if (!env.GHL_V2_TOKEN) return err("GHL_V2_TOKEN required for Ylopo Event access", 400);
+      try {
+        const body = await request.json().catch(() => ({}));
+        const dryRun = body.dryRun === true;
+        const hoursBack = Math.min(Number(body.hours) || 48, 168); // max 7 days
+        const cutoff = Date.now() - (hoursBack * 3600000);
+        const maxPages = Math.min(Number(body.pages) || 10, 20);
+        // 1. Fetch all Ylopo Event records (paginated)
+        const allRecords = [];
+        let page = 1;
+        while (page <= maxPages) {
+          const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
+            locationId: locId, page, pageLimit: 20
+          });
+          const records = data.records || data.data || [];
+          allRecords.push(...records);
+          if (records.length < 20) break;
+          page++;
+        }
+        // 2. Group by contact and filter to last 48hrs
+        const byContact = {};
+        for (const rec of allRecords) {
+          const createdAt = rec.createdAt || rec.created_at || rec.updatedAt;
+          if (createdAt && new Date(createdAt).getTime() < cutoff) continue;
+          const assoc = rec.associations || rec.relationships || {};
+          let contactId = null;
+          if (assoc.contact) {
+            contactId = typeof assoc.contact === "string" ? assoc.contact : assoc.contact?.id || assoc.contact?.[0]?.id || assoc.contact?.[0];
+          }
+          if (!contactId) contactId = rec.contactId || rec.contact_id;
+          if (!contactId) {
+            const f = rec.fields || rec.properties || {};
+            contactId = f.contactId || f.contact_id || f.contact;
+          }
+          if (contactId) {
+            if (!byContact[contactId]) byContact[contactId] = [];
+            byContact[contactId].push(rec);
+          }
+        }
+        // 3. Load field definitions for mapping fieldKey -> field ID
+        const { map: fieldMap } = await getFieldDefs(env);
+        // Helper to find field def by key name
+        const findFieldId = (keyName) => {
+          const def = fieldMap[keyName.toLowerCase()] || fieldMap[("contact." + keyName).toLowerCase()];
+          return def ? def.id : null;
+        };
+        // 4. For each contact, aggregate event data and write to GHL
+        const results = [];
+        let updated = 0, skippedCount = 0, errCount = 0;
+        const deadline = Date.now() + 25000;
+        for (const [contactId, records] of Object.entries(byContact)) {
+          if (Date.now() > deadline) {
+            results.push({ status: "deadline_reached", remaining: Object.keys(byContact).length - results.length });
+            break;
+          }
+          const latest = records[0];
+          const fields = latest.fields || latest.properties || latest;
+          // Build field updates from Ylopo Event data
+          const updates = [];
+          const fieldMappings = {
+            "ylopo_last_session_listings_viewed": fields.views || fields.lastsessionlistingsviewed,
+            "ylopo_last_session_listings_saved": fields.saves || fields.last_session_listings_saved,
+            "ylopo_last_session_searches": fields.lastsessionsearches || fields.searches,
+            "ylopo_last_session_showinginfo_requests": fields.showings || fields.last_session_showing_requests,
+            "ylopo_last_session_ave_price_point": fields.lastsessionavgprice || fields.avgPrice,
+            "ylopo_stars_link": fields.lead_created_atstars_link || fields.starsLink,
+            "ylopo_last_search_site_visit": fields.lastsessionlastvisitdate || fields.last_login_date || fields.lastVisit,
+            "ylopo_beds": fields.beds || fields.bedrooms,
+            "ylopo_baths": fields.baths || fields.bathrooms,
+            "ylopo_min_price": fields.minprice,
+            "ylopo_max_price": fields.maxprice,
+            "ylopo_search_city": fields.primarysearchcity,
+            "ylopo_search_state": fields.primarysearchstate,
+            "ylopo_search_zip": fields.primarysearchpostalcode,
+            "ylopo_listing_address": fields.listing_address || fields.listingaddress,
+            "ylopo_listing_price": fields.listing_price || fields.listingprice,
+            "ylopo_lead_type": fields.leadtype || fields.lead_type,
+            "ylopo_is_priority": fields.ispriority,
+            "ylopo_event_source": fields.source,
+          };
+          // Aggregate totals across all records for this contact
+          let totalViews = 0, totalSaves = 0, totalShowings = 0;
+          for (const r of records) {
+            const rf = r.fields || r.properties || r;
+            let rv = rf.views, rs = rf.saves, rsh = rf.showings;
+            if (typeof rv === 'object' && rv !== null) rv = rv.count || rv.total || rv.value || 0;
+            if (typeof rs === 'object' && rs !== null) rs = rs.count || rs.total || rs.value || 0;
+            if (typeof rsh === 'object' && rsh !== null) rsh = rsh.count || rsh.total || rsh.value || 0;
+            if (typeof rv === 'string' && rv.startsWith('[object')) rv = 0;
+            if (typeof rs === 'string' && rs.startsWith('[object')) rs = 0;
+            if (typeof rsh === 'string' && rsh.startsWith('[object')) rsh = 0;
+            totalViews += Number(rv) || 0;
+            totalSaves += Number(rs) || 0;
+            totalShowings += Number(rsh) || 0;
+          }
+          if (totalViews > 0) fieldMappings["ylopo_total_listing_views"] = String(totalViews);
+          if (totalSaves > 0) fieldMappings["ylopo_total_favorites"] = String(totalSaves);
+          if (totalShowings > 0) fieldMappings["ylopo_total_showing_requests"] = String(totalShowings);
+          for (const [ghlKey, val] of Object.entries(fieldMappings)) {
+            if (val === null || val === undefined || val === "") continue;
+            if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object "))) continue;
+            const safeVal = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
+            const fId = findFieldId(ghlKey);
+            if (fId) {
+              updates.push({ id: fId, key: ghlKey, value: safeVal });
+            }
+          }
+          if (updates.length === 0) {
+            skippedCount++;
+            results.push({ contactId, status: "no_data", eventCount: records.length });
+            continue;
+          }
+          if (dryRun) {
+            updated++;
+            results.push({ contactId, status: "would_update", fields: updates.length, eventCount: records.length, updates: updates.map(u => ({ key: u.key, value: String(u.value).substring(0, 60) })) });
+            continue;
+          }
+          try {
+            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, false);
+            updated++;
+            results.push({ contactId, status: "updated", fields: updates.length, eventCount: records.length });
+          } catch (writeErr) {
+            errCount++;
+            results.push({ contactId, status: "error", error: writeErr.message || String(writeErr) });
+          }
+        }
+        return json({
+          ok: true,
+          dryRun,
+          hoursBack,
+          totalEventsFound: allRecords.length,
+          contactsWithEvents: Object.keys(byContact).length,
+          updated,
+          skipped: skippedCount,
+          errors: errCount,
+          results
+        });
+      } catch (e) {
+        return err(`Backfill-fields failed: ${e.message || e.status}`, e.status || 500);
+      }
+    }
     if (method === "POST" && path === "/ylopo/sync") {
       try {
         const body = await request.json();
