@@ -12273,10 +12273,34 @@ var index_default = {
             "dashboard__event_type",
             "ylopo_event_type",
             "last_event_name",
-            "ylopo_event"
+            "ylopo_event",
+            "ylopo__last_raw_payload"
+          ]);
+          const starsLink = getField([
+            "ylopo_stars_link",
+            "ylopo_stars_link_profile_card_link",
+            "fub_ylopo_stars_link",
+            "ypriority"
+          ]);
+          const leadId = getField([
+            "ylopo__lead_id",
+            "ylopo_lead_id",
+            "ylopo_uuid"
           ]);
           const tags = contact.tags || [];
-          const inferredType = !eventType ? tags.includes("Ylopo Lead") || tags.includes("ylopo_registration") ? "REGISTRATION" : tags.includes("Showing Requested") || tags.includes("ylopo_showing") ? "SHOWING_REQUEST" : tags.includes("Saved Listing") || tags.includes("ylopo_favorite") ? "FAVORITE_LISTING" : tags.includes("Ylopo Active") || tags.includes("ylopo_view") ? "VIEW_LISTING_DETAIL" : tags.includes("Ylopo Priority") || tags.includes("ylo-hot-lead") ? "PRIORITY_LEAD_EVENT" : null : null;
+          const hasYlopoTag = tags.some(t => {
+            const tl = t.toLowerCase();
+            return tl.includes("ylopo") || tl.includes("ypriority") || tl === "hlapps_contact" || tl === "hlapps_sync" || tl.includes("showing request") || tl.includes("saved listing");
+          });
+          let inferredType = null;
+          if (!eventType) {
+            if (tags.includes("Ylopo Priority") || tags.includes("ylo-hot-lead") || tags.includes("ypriority")) inferredType = "PRIORITY_LEAD_EVENT";
+            else if (tags.includes("Showing Requested") || tags.includes("ylopo_showing")) inferredType = "SHOWING_REQUEST";
+            else if (tags.includes("Saved Listing") || tags.includes("ylopo_favorite")) inferredType = "FAVORITE_LISTING";
+            else if (tags.includes("Ylopo Active") || tags.includes("ylopo_view")) inferredType = "VIEW_LISTING_DETAIL";
+            else if (tags.includes("Ylopo Lead") || tags.includes("ylopo_registration")) inferredType = "REGISTRATION";
+            else if (starsLink || leadId || hasYlopoTag) inferredType = "YLOPO_CONTACT";
+          }
           const finalEventType = eventType || inferredType;
           if (!finalEventType) {
             skipped++;
@@ -12305,7 +12329,10 @@ var index_default = {
             listing_address: listingAddr || "",
             saves: Number(saves) || 0,
             views: Number(views) || 0,
-            raw_json: rawJson || JSON.stringify({ backfill: true, contactId: cId, eventType: finalEventType, source: eventType ? "field" : "tag", timestamp: (/* @__PURE__ */ new Date()).toISOString() })
+            ylopo_uuid: leadId || "",
+            lead_email: contact.email || "",
+            name: contact.contactName || ((contact.firstName || "") + " " + (contact.lastName || "")).trim(),
+            raw_json: rawJson || JSON.stringify({ backfill: true, contactId: cId, eventType: finalEventType, starsLink: starsLink || "", source: eventType ? "field" : inferredType ? "inferred" : "tag", timestamp: (/* @__PURE__ */ new Date()).toISOString() })
           };
           if (dryRun) {
             results.push({ contactId: cId, name: contact.contactName || contact.email, status: "would_create", properties: recordProps });
