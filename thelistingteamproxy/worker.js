@@ -11403,11 +11403,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 `;
-async function ghl(env, method, path, body = null, useV2 = false) {
+async function ghl(env, method, path, body = null, useV2 = true) {
   const base = useV2 ? GHL_V2 : GHL_V1;
+  const token = useV2 ? (env.GHL_V2_TOKEN || env.GHL_API_KEY) : env.GHL_API_KEY;
   const url = `${base}${path}`;
   const headers = {
-    "Authorization": `Bearer ${env.GHL_API_KEY}`,
+    "Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",
     "Version": "2021-07-28"
   };
@@ -11427,7 +11428,7 @@ async function ghl(env, method, path, body = null, useV2 = false) {
   return data;
 }
 __name(ghl, "ghl");
-async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
+async function ghlSafe(env, method, path, body = null, useV2 = true, attempt = 1) {
   try {
     return await ghl(env, method, path, body, useV2);
   } catch (e) {
@@ -11749,7 +11750,7 @@ var index_default = {
       return json({
         ok: true,
         proxy: "thelistingteamproxy-v8",
-        api: { default: "v1 (rest.gohighlevel.com/v1)", note: "visit /debug to test both v1 and v2" },
+        api: { default: "v2 (services.leadconnectorhq.com) with PIT token", note: "visit /debug to test" },
         tokenPresent: !!env.GHL_API_KEY,
         v2TokenPresent: !!env.GHL_V2_TOKEN,
         features: [
