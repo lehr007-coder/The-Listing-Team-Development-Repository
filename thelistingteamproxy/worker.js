@@ -6838,7 +6838,7 @@ async function loadData(forceRefresh) {
     if (PAGE_MODE !== 'contacts') { renderAnalytics(ALL_LEADS); }
     applyFilters();
     saveToCache(ALL_LEADS, RAW_CONTACTS);
-    toast(\`Loaded \${ALL_LEADS.length} leads (\${page} pages, \${LOAD_DAYS}d range\${hitCutoff?' \u2014 hit cutoff':''})\`, 'success');
+    toast(\`Loaded \${ALL_LEADS.length} leads\`, 'success');
 
     // Update date range display
     const rangeEl = el('dateRangeInfo');
