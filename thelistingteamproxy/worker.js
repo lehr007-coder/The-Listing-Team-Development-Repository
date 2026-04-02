@@ -12957,31 +12957,31 @@ var index_default = {
     if (method === "GET" && (path === "/" || path === "/dashboard")) {
       return new Response(ADMIN_HUB_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/site-matrix") {
       return new Response(SITE_MATRIX_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/priority-leads") {
       return new Response(PRIORITY_LEADS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
       return new Response(YLOPO_CONTACTS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
       return new Response(YLOPO_ANALYTICS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     return json({ error: "Not found", path, proxy: "v8" }, 404);
