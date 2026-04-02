@@ -2867,11 +2867,21 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Bulk Actions Bar -->
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+  <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
+  <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+  <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
+  <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
+</div>
+
 <!-- Table View -->
 <div class="table-wrap" id="tableView">
   <table id="leadsTable">
     <thead>
       <tr>
+        <th style="width:20px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
         <th style="width:28px"></th>
         <th>Contact</th>
         <th>Status</th>
@@ -2921,6 +2931,7 @@ var CURRENT_FILTER = 'all';
 var CURRENT_PAGE   = 1;
 var SORT_KEY       = 'score_desc';
 var EXPANDED       = new Set();
+var SELECTED       = new Set();
 var CURRENT_VIEW   = 'table';
 
 // -------------------------------------------------------
@@ -3486,6 +3497,77 @@ function fetchYlopoEventsForContact(contactId, callback) {
 }
 
 // -------------------------------------------------------
+// BULK ACTIONS
+// -------------------------------------------------------
+function toggleCheck(cb) {
+  if (cb.checked) SELECTED.add(cb.value); else SELECTED.delete(cb.value);
+  updateBulkBar();
+}
+function toggleSelectAll() {
+  var checked = _el('selectAll').checked;
+  var start = (CURRENT_PAGE-1)*PAGE_SIZE;
+  var page = FILTERED.slice(start, start+PAGE_SIZE);
+  page.forEach(function(l){if(checked)SELECTED.add(l.id);else SELECTED.delete(l.id);});
+  renderTable();
+}
+function clearSelection() {
+  SELECTED.clear();
+  var sa = _el('selectAll');
+  if(sa) sa.checked = false;
+  renderTable();
+}
+function updateBulkBar() {
+  var bar = _el('bulkBar');
+  var cnt = _el('bulkCount');
+  if(!bar) return;
+  if(SELECTED.size > 0){ bar.classList.add('visible'); if(cnt) cnt.textContent=SELECTED.size; }
+  else bar.classList.remove('visible');
+}
+function bulkCopyEmails() {
+  var emails = ALL_LEADS.filter(function(l){return SELECTED.has(l.id);}).map(function(l){return l.email;}).filter(Boolean);
+  navigator.clipboard.writeText(emails.join(', ')).then(function(){toast('Copied '+emails.length+' emails','success');});
+}
+function downloadCSV(content, prefix) {
+  var blob = new Blob([content], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = prefix+'-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function bulkExport() {
+  var selected = ALL_LEADS.filter(function(l){return SELECTED.has(l.id);});
+  var csv = ['Name,Email,Phone,Score,Status,Views,Saves,Showings'];
+  selected.forEach(function(l){csv.push('"'+l.name+'","'+l.email+'","'+l.phone+'",'+l.score+',"'+l.status+'",'+l.matrix.views+','+l.matrix.saves+','+l.matrix.showings);});
+  downloadCSV(csv.join('\\n'),'selected-contacts');
+  toast('Exported '+selected.length+' contacts','success');
+}
+function bulkDelete() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if(ids.length===0) return;
+  if(!confirm('Delete '+ids.length+' selected contacts from GoHighLevel?\\n\\nThis cannot be undone.')) return;
+  var deleted=0, failed=0;
+  toast('Deleting '+ids.length+' contacts...','info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id){
+    chain = chain.then(function(){
+      return fetch(PROXY_URL+'/contacts/'+id,{method:'DELETE'})
+        .then(function(r){if(r.ok)deleted++;else failed++;})
+        .catch(function(){failed++;});
+    });
+  });
+  chain.then(function(){
+    ALL_LEADS = ALL_LEADS.filter(function(l){return!ids.includes(l.id);});
+    FILTERED = FILTERED.filter(function(l){return!ids.includes(l.id);});
+    ids.forEach(function(id){delete RAW_CONTACTS[id];});
+    SELECTED.clear();
+    renderCurrentView();
+    renderPagination();
+    updateStats();
+    toast('Deleted '+deleted+(failed>0?', '+failed+' failed':''),'success');
+  });
+}
+
+// -------------------------------------------------------
 // STATS
 // -------------------------------------------------------
 function updateStats() {
@@ -3601,7 +3683,7 @@ function renderTable() {
   var tbody = _el('leadsBody');
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
     return;
   }
 
@@ -3611,8 +3693,10 @@ function renderTable() {
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var m = l.matrix;
     var loc = [l.city, l.state].filter(Boolean).join(', ') || '\\u2014';
+    var isChecked = SELECTED && SELECTED.has && SELECTED.has(l.id) ? 'checked' : '';
 
     return '<tr data-id="' + l.id + '">' +
+      '<td onclick="event.stopPropagation()"><input type="checkbox" value="' + l.id + '" ' + isChecked + ' onchange="toggleCheck(this)"></td>' +
       '<td><span class="expand-arrow" onclick="toggleExpand(\\'' + l.id + '\\')">&#9654;</span></td>' +
       '<td>' +
         '<div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div>' +
@@ -3642,11 +3726,13 @@ function renderTable() {
         '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
           (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" title="Email">Email</a>' : '') +
           (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" title="Call">Call</a>' : '') +
+          '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + l.id + '" target="_blank" class="btn btn-sm" title="Open in GHL">GHL</a>' +
+          '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" title="Delete Contact" onclick="deleteContact(\\'' + l.id + '\\',\\'' + l.name.replace(/'/g,"\\'").replace(/\\\\/g,'\\\\\\\\') + '\\')">\u{1F5D1}\uFE0F</button>' +
         '</div>' +
       '</td>' +
     '</tr>' +
     '<tr class="detail-row" id="detail-' + l.id + '">' +
-      '<td colspan="9"></td>' +
+      '<td colspan="10"></td>' +
     '</tr>';
   }).join('');
 }
@@ -3974,6 +4060,25 @@ function showDiagnostics() {
         '<tbody>' + rows + '</tbody>' +
       '</table>' +
     '</div>';
+}
+
+// -------------------------------------------------------
+// DELETE CONTACT
+// -------------------------------------------------------
+function deleteContact(id, name) {
+  if (!confirm('Delete "' + name + '" from GoHighLevel?\\n\\nThis cannot be undone.')) return;
+  fetch(PROXY_URL + '/contacts/' + id, { method: 'DELETE' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      ALL_LEADS = ALL_LEADS.filter(function(l){return l.id!==id;});
+      FILTERED = FILTERED.filter(function(l){return l.id!==id;});
+      delete RAW_CONTACTS[id];
+      renderCurrentView();
+      renderPagination();
+      updateStats();
+      toast('"' + name + '" deleted', 'success');
+    })
+    .catch(function(e) { toast('Delete failed: ' + e.message, 'error'); });
 }
 
 // -------------------------------------------------------
@@ -6337,6 +6442,7 @@ function renderTable() {
           <button class="act-btn" title="Add Tag" onclick="openWriteBack('tag','\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--amber)">\u{1F3F7}\uFE0F</button>
           <button class="act-btn" title="Create Task" onclick="openWriteBack('task','\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--green)">\u2705</button>
           <button class="act-btn" title="Message Preview" onclick="openMsgPreview('\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--purple)">\u{1F4AC}</button>
+          <button class="act-btn" title="Delete Contact from GHL" onclick="deleteContact('\${l.id}','\${l.name.replace(/'/g,"\\\\'")}')" style="color:var(--red)">\u{1F5D1}\uFE0F</button>
         </div></td>
       </tr>
       <tr class="detail-row \${expanded?'open':''}" id="detail-\${l.id}">
@@ -6404,6 +6510,42 @@ function bulkExport(){
   selected.forEach(l=>csv.push(\`"\${l.name}","\${l.email}","\${l.phone}",\${l.score},"\${l.status}",\${l.matrix.views},\${l.matrix.saves},\${l.matrix.showings}\`));
   downloadCSV(csv.join('\\n'),'selected-leads');
   toast(\`Exported \${selected.length} leads\`,'success');
+}
+
+async function deleteContact(id, name) {
+  if (!confirm(\`Delete "\${name}" from GoHighLevel?\\n\\nThis cannot be undone.\`)) return;
+  try {
+    const res = await fetch(PROXY_URL + \`/contacts/\${id}\`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    ALL_LEADS = ALL_LEADS.filter(l => l.id !== id);
+    FILTERED = FILTERED.filter(l => l.id !== id);
+    SELECTED.delete(id);
+    renderTable();
+    updateStats(ALL_LEADS);
+    toast(\`"\${name}" deleted\`, 'success');
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+async function bulkDelete() {
+  const ids = [...SELECTED];
+  if (ids.length === 0) return;
+  if (!confirm(\`Delete \${ids.length} selected contacts from GoHighLevel?\\n\\nThis cannot be undone.\`)) return;
+  let deleted = 0, failed = 0;
+  toast(\`Deleting \${ids.length} contacts...\`, 'info');
+  for (const id of ids) {
+    try {
+      const res = await fetch(PROXY_URL + \`/contacts/\${id}\`, { method: 'DELETE' });
+      if (res.ok) { deleted++; } else { failed++; }
+    } catch { failed++; }
+  }
+  ALL_LEADS = ALL_LEADS.filter(l => !ids.includes(l.id));
+  FILTERED = FILTERED.filter(l => !ids.includes(l.id));
+  SELECTED.clear();
+  renderTable();
+  updateStats(ALL_LEADS);
+  toast(\`Deleted \${deleted}\${failed > 0 ? ', ' + failed + ' failed' : ''}\`, deleted > 0 ? 'success' : 'error');
 }
 
 /* =============================== STATS =============================== */
@@ -11915,7 +12057,15 @@ var index_default = {
       try {
         const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "8"), 12);
         const query = url.searchParams.get("query") || "";
-        const { map: fieldMap } = await getFieldDefs(env);
+        const skipYlopo = url.searchParams.get("ylopo") === "false";
+        // Run field defs and Ylopo events in parallel to save time
+        const [fieldDefsResult, ylopoEventsResult] = await Promise.all([
+          getFieldDefs(env),
+          skipYlopo ? Promise.resolve([]) : fetchAllYlopoEvents(env).catch(() => [])
+        ]);
+        const { map: fieldMap } = fieldDefsResult;
+        // Build contactId -> events map for O(1) lookup
+        const ylopoByContact = groupEventsByContact(ylopoEventsResult);
         let allContacts = [];
         let seenIds = new Set();
         let startAfter = "";
@@ -11940,7 +12090,14 @@ var index_default = {
                 return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
               });
             }
-            allContacts.push(c);
+            // Merge Ylopo event data if available for this contact
+            const events = ylopoByContact[c.id];
+            if (events && events.length > 0) {
+              const enriched = mergeYlopoEventIntoContact(c, events);
+              allContacts.push(enriched);
+            } else {
+              allContacts.push(c);
+            }
           }
           const meta = data.meta || {};
           if (meta.startAfter && meta.startAfterId && raw.length >= 100) {
@@ -12014,6 +12171,16 @@ var index_default = {
         const data = await ghlSafe(env, "PUT", `/contacts/${contactId}`, body);
         broadcastSSE({ type: "contact.updated", contactId });
         return json({ ok: true, data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
+    if (method === "DELETE" && contactMatch) {
+      const contactId = contactMatch[1];
+      try {
+        await ghlSafe(env, "DELETE", `/contacts/${contactId}`);
+        broadcastSSE({ type: "contact.deleted", contactId });
+        return json({ ok: true, contactId });
       } catch (e) {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
       }
