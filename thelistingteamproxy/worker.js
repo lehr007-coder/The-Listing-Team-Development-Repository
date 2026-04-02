@@ -11440,6 +11440,25 @@ async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 
   }
 }
 __name(ghlSafe, "ghlSafe");
+async function ghlV2(env, method, path, body = null) {
+  const token = env.GHL_V2_TOKEN;
+  if (!token) throw { status: 401, data: "GHL_V2_TOKEN not set" };
+  const url = `${GHL_V2}${path}`;
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Version": "2021-07-28"
+  };
+  const init = { method, headers };
+  if (body) init.body = JSON.stringify(body);
+  const res = await fetch(url, init);
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) throw { status: res.status, data };
+  return data;
+}
+__name(ghlV2, "ghlV2");
 var _fieldDefsCache = null;
 var _fieldDefsCachedAt = 0;
 async function getFieldDefs(env) {
@@ -11484,15 +11503,46 @@ async function enrichCustomFields(env, customFields) {
 }
 __name(enrichCustomFields, "enrichCustomFields");
 async function fetchYlopoEvents(env, contactId) {
-  // V2 custom objects require OAuth token; skip when using V1 Location API Key
-  return [];
+  if (!env.GHL_V2_TOKEN) return [];
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  try {
+    const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
+      locationId: locId, searchKey: "contact", searchValue: contactId,
+      page: 1, pageLimit: 20, sort: { field: "createdAt", direction: "desc" }
+    });
+    return data.records || data.data || [];
+  } catch (e) {
+    console.warn(`Ylopo events fetch failed for ${contactId}:`, e.status || e.message);
+    return [];
+  }
 }
 __name(fetchYlopoEvents, "fetchYlopoEvents");
 var _allYlopoEventsCache = null;
 var _allYlopoEventsCachedAt = 0;
 async function fetchAllYlopoEvents(env) {
-  // V2 custom objects require OAuth token; skip when using V1 Location API Key
-  return [];
+  if (!env.GHL_V2_TOKEN) return [];
+  const now = Date.now();
+  if (_allYlopoEventsCache && now - _allYlopoEventsCachedAt < 6e4) return _allYlopoEventsCache;
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  const allRecords = [];
+  let page = 1;
+  try {
+    while (page <= 5) {
+      const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
+        locationId: locId, page, pageLimit: 20
+      });
+      const records = data.records || data.data || [];
+      allRecords.push(...records);
+      if (records.length < 20) break;
+      page++;
+    }
+    _allYlopoEventsCache = allRecords;
+    _allYlopoEventsCachedAt = now;
+    return allRecords;
+  } catch (e) {
+    console.error("fetchAllYlopoEvents error:", e.status || e.message);
+    return [];
+  }
 }
 __name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 function groupEventsByContact(records) {
@@ -11701,6 +11751,7 @@ var index_default = {
         proxy: "thelistingteamproxy-v8",
         api: { default: "v1 (rest.gohighlevel.com/v1)", note: "visit /debug to test both v1 and v2" },
         tokenPresent: !!env.GHL_API_KEY,
+        v2TokenPresent: !!env.GHL_V2_TOKEN,
         features: [
           "pagination",
           "fields",
@@ -12105,12 +12156,11 @@ var index_default = {
                 { associationId: YLOPO_CONTACT_ASSOCIATION_ID, recordId: contactId }
               ]
             };
-            await ghlSafe(
+            await ghlV2(
               env,
               "POST",
               `/objects/custom_objects.ylopo_event/records`,
-              recordBody,
-              true
+              recordBody
             );
             console.log(`\u{1F4E6} Created ylopo_event record for ${email} (${eventType})`);
           } catch (objErr) {
@@ -12252,12 +12302,11 @@ var index_default = {
                 { associationId: YLOPO_CONTACT_ASSOCIATION_ID, recordId: cId }
               ]
             };
-            const result = await ghlSafe(
+            const result = await ghlV2(
               env,
               "POST",
               `/objects/custom_objects.ylopo_event/records`,
-              recordBody,
-              true
+              recordBody
             );
             created++;
             results.push({ contactId: cId, name: contact.contactName || contact.email, status: "created", recordId: result.record?.id });
