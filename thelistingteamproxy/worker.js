@@ -11795,6 +11795,30 @@ var index_default = {
       } catch (e) {
         results.v2 = { error: e.message };
       }
+      // Compare custom fields: V1 (JWT) vs V2 (PIT)
+      const pit2 = env.GHL_V2_TOKEN || "";
+      try {
+        const v1cf = await fetch(`${GHL_V1}/contacts/?limit=1&query=ylopo`, {
+          headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
+        });
+        const v1d = await v1cf.json();
+        const v1fields = (v1d.contacts?.[0]?.customField || []).filter(f => f.value != null && f.value !== "");
+        const v2cf = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1&query=ylopo`, {
+          headers: { "Authorization": `Bearer ${pit2}`, "Content-Type": "application/json", "Version": "2021-07-28" }
+        });
+        const v2d = await v2cf.json();
+        const v2fields = (v2d.contacts?.[0]?.customField || []).filter(f => f.value != null && f.value !== "");
+        results.fieldComparison = {
+          v1FieldCount: v1fields.length,
+          v2FieldCount: v2fields.length,
+          v1Sample: v1fields.slice(0, 5).map(f => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
+          v2Sample: v2fields.slice(0, 5).map(f => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
+          v1YlopoFields: v1fields.filter(f => (f.fieldKey||f.key||f.name||"").toLowerCase().includes("ylopo")).map(f => ({ key: f.fieldKey||f.key, val: String(f.value).substring(0, 40) })),
+          v2YlopoFields: v2fields.filter(f => (f.fieldKey||f.key||f.name||"").toLowerCase().includes("ylopo")).map(f => ({ key: f.fieldKey||f.key, val: String(f.value).substring(0, 40) }))
+        };
+      } catch (e) {
+        results.fieldComparison = { error: e.message };
+      }
       // Test V2 PIT token with custom objects
       const pit = env.GHL_V2_TOKEN || "";
       results.pitLength = pit.length;
