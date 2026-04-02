@@ -12324,18 +12324,68 @@ var index_default = {
           } catch {
             return;
           }
+          const email = payload.lead?.email;
+          const eventType = payload.eventType;
+          const lead = payload.lead || {};
+          const listing = payload.listing || {};
+          const session = payload.session || payload.additionalData || {};
+          // Forward FLATTENED payload to GHL webhook so workflows get simple values, not objects
           try {
+            const flatPayload = {
+              eventType: eventType || "",
+              email: email || "",
+              firstName: lead.firstName || lead.first_name || "",
+              lastName: lead.lastName || lead.last_name || "",
+              phone: lead.phone || "",
+              leadType: lead.leadType || payload.leadType || "",
+              source: payload.source || lead.source || "",
+              isPriority: String(lead.isPriority || payload.isPriority || false),
+              starsLink: payload.starsLink || lead.starsLink || "",
+              uuid: lead.uuid || "",
+              crmId: lead.crmId || "",
+              // Session metrics as plain numbers
+              views: String(Number(session.viewsCount || session.listingsViewed) || 0),
+              saves: String(Number(session.savesCount || session.listingsSaved) || 0),
+              searches: String(Number(session.searchCount || session.searches) || 0),
+              showingRequests: String(Number(session.showingRequests) || 0),
+              avgPrice: String(Number(session.avgPrice || payload.avgPrice) || 0),
+              totalVisits: String(Number(session.totalVisits) || 0),
+              // Listing details as plain strings
+              listingAddress: listing.address || listing.fullAddress || "",
+              listingPrice: String(Number(listing.price || listing.listPrice) || 0),
+              listingId: listing.id || listing.listingId || listing.mlsId || "",
+              listingCity: listing.city || "",
+              listingState: listing.state || "",
+              listingZip: listing.zip || "",
+              listingUrl: listing.url || "",
+              listingSqft: String(Number(listing.sqft) || 0),
+              listingYearBuilt: String(Number(listing.yearBuilt) || 0),
+              // Lead preferences as plain strings
+              beds: String(Number(listing.beds || lead.beds || session.beds) || 0),
+              baths: String(Number(listing.baths || lead.baths || session.baths) || 0),
+              minPrice: String(Number(lead.minPrice || session.minPrice) || 0),
+              maxPrice: String(Number(lead.maxPrice || session.maxPrice) || 0),
+              searchCity: lead.primarySearchCity || session.primarySearchCity || "",
+              searchState: lead.primarySearchState || session.primarySearchState || "",
+              searchZip: lead.primarySearchPostalCode || session.primarySearchPostalCode || "",
+              // Messages
+              message: payload.message || payload.messagePlainText || "",
+              note: payload.notePlainText || payload.note || "",
+              eventDate: payload.eventDate || new Date().toISOString(),
+              // Assignment
+              assignedWebsite: (payload.assignment || {}).website || lead.assignedWebsite || "",
+              assignedLenderName: (payload.assignment || {}).lenderName || "",
+              assignedRealtorEmail: (payload.assignment || {}).realtorEmail || ""
+            };
             fetch(GHL_WEBHOOK_FORWARD, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: rawBody
+              body: JSON.stringify(flatPayload)
             }).catch((e) => console.warn("GHL webhook forward failed:", e.message));
-            console.log("\u{1F4E4} Forwarded to GHL webhook");
+            console.log("\u{1F4E4} Forwarded FLAT payload to GHL webhook");
           } catch (e) {
             console.warn("Forward error:", e);
           }
-          const email = payload.lead?.email;
-          const eventType = payload.eventType;
           if (!email) return;
           console.log(`\u{1F4E5} Ylopo ${eventType} for ${email}`);
           const contactId = await lookupByEmail(env, email);
@@ -12343,9 +12393,6 @@ var index_default = {
             console.warn(`No GHL contact for ${email}`);
             return;
           }
-          const lead = payload.lead || {};
-          const listing = payload.listing || {};
-          const session = payload.session || payload.additionalData || {};
           const ylopoData = {
             views: session.viewsCount || session.listingsViewed || null,
             saves: session.savesCount || session.listingsSaved || null,
