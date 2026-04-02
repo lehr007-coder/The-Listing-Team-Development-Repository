@@ -11403,7 +11403,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 `;
-async function ghl(env, method, path, body = null, useV2 = false) {
+async function ghl(env, method, path, body = null, useV2 = null) {
+  // Auto-detect: use V2 if PIT token available, otherwise V1
+  if (useV2 === null) useV2 = !!env.GHL_V2_TOKEN;
   const base = useV2 ? GHL_V2 : GHL_V1;
   const token = useV2 ? (env.GHL_V2_TOKEN || env.GHL_API_KEY) : env.GHL_API_KEY;
   const url = `${base}${path}`;
@@ -11428,7 +11430,7 @@ async function ghl(env, method, path, body = null, useV2 = false) {
   return data;
 }
 __name(ghl, "ghl");
-async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
+async function ghlSafe(env, method, path, body = null, useV2 = null, attempt = 1) {
   try {
     return await ghl(env, method, path, body, useV2);
   } catch (e) {
@@ -11750,7 +11752,7 @@ var index_default = {
       return json({
         ok: true,
         proxy: "thelistingteamproxy-v8",
-        api: { v1: "rest.gohighlevel.com/v1 (contacts)", v2: "services.leadconnectorhq.com (custom objects)" },
+        api: { mode: env.GHL_V2_TOKEN ? "v2-auto (PIT token)" : "v1-fallback (JWT)", v1: "contacts fallback", v2: "contacts + custom objects" },
         tokenPresent: !!env.GHL_API_KEY,
         v2TokenPresent: !!env.GHL_V2_TOKEN,
         features: [
