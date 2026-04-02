@@ -12669,24 +12669,65 @@ var index_default = {
           if (records.length < 20) break;
           page++;
         }
-        // 2. Group by contact and filter to last 48hrs
+        // Debug mode: return raw event records to inspect structure
+        if (body.debug) {
+          const sample = allRecords.slice(0, 5).map(r => ({
+            id: r.id,
+            keys: Object.keys(r),
+            fields: r.fields || r.properties || null,
+            associations: r.associations || r.relationships || null,
+            contactId: r.contactId || r.contact_id || null,
+            createdAt: r.createdAt || r.created_at || r.updatedAt || null
+          }));
+          return json({ ok: true, debug: true, totalRecords: allRecords.length, sample });
+        }
+        // 2. Group by contact — try association first, then match by email
+        // First, build email->contactId lookup from GHL contacts
+        const emailToContact = {};
+        if (allRecords.length > 0) {
+          // Fetch contacts to build email map (reuse bulk logic)
+          const contactParams = new URLSearchParams({ locationId: locId, limit: "100" });
+          const contactData = await ghl(env, "GET", `/contacts/?${contactParams.toString()}`);
+          for (const c of (contactData.contacts || [])) {
+            if (c.email) emailToContact[c.email.toLowerCase()] = c.id;
+            if (c.phone) emailToContact[c.phone] = c.id;
+          }
+        }
         const byContact = {};
+        let unmatchedCount = 0;
         for (const rec of allRecords) {
           const createdAt = rec.createdAt || rec.created_at || rec.updatedAt;
           if (createdAt && new Date(createdAt).getTime() < cutoff) continue;
           const assoc = rec.associations || rec.relationships || {};
           let contactId = null;
+          // Try association
           if (assoc.contact) {
             contactId = typeof assoc.contact === "string" ? assoc.contact : assoc.contact?.id || assoc.contact?.[0]?.id || assoc.contact?.[0];
           }
           if (!contactId) contactId = rec.contactId || rec.contact_id;
+          // Try fields
           if (!contactId) {
             const f = rec.fields || rec.properties || {};
             contactId = f.contactId || f.contact_id || f.contact;
           }
+          // Try matching by email from event fields
+          if (!contactId) {
+            const f = rec.fields || rec.properties || {};
+            const email = (f.lead_email || f.email || f.leadEmail || "").toLowerCase();
+            if (email && emailToContact[email]) contactId = emailToContact[email];
+            // Try by name
+            if (!contactId && f.name) {
+              const nameLC = f.name.toLowerCase();
+              for (const c of Object.entries(emailToContact)) {
+                // name match is weak, skip
+              }
+            }
+          }
           if (contactId) {
             if (!byContact[contactId]) byContact[contactId] = [];
             byContact[contactId].push(rec);
+          } else {
+            unmatchedCount++;
           }
         }
         // 3. Load field definitions for mapping fieldKey -> field ID
@@ -12782,6 +12823,7 @@ var index_default = {
           hoursBack,
           totalEventsFound: allRecords.length,
           contactsWithEvents: Object.keys(byContact).length,
+          unmatchedEvents: unmatchedCount,
           updated,
           skipped: skippedCount,
           errors: errCount,
