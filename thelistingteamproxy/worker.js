@@ -6077,33 +6077,8 @@ function buildAccordion(lead) {
   const convPct = Math.min(lead.score, 100);
   const cl = convLabel(lead.score);
   const ghlUrl = GHL_CONTACT_BASE + lead.id;
-  // Build Ylopo link \u2014 correct format: https://stars.ylopo.com/lead-detail/{UUID}
-  let ylopoUrl = '';
-  // 1. Try direct Ylopo lead ID field
-  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
-  if (ylopoLeadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ylopoLeadId)) {
-    ylopoUrl = \`https://stars.ylopo.com/lead-detail/\${ylopoLeadId}\`;
-  }
-  // 2. Try finding a field value that contains the stars.ylopo.com URL
-  if (!ylopoUrl) {
-    const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
-    if (storedUrl) {
-      ylopoUrl = storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
-    }
-  }
-  // 3. Try finding any UUID in a ylopo-named field
-  if (!ylopoUrl) {
-    const anyYlopoField = getCFByValuePattern(raw, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
-    // Check if this UUID came from a ylopo-related field
-    if (anyYlopoField) {
-      const uuidMatch = anyYlopoField.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-      if (uuidMatch) ylopoUrl = \`https://stars.ylopo.com/lead-detail/\${uuidMatch[0]}\`;
-    }
-  }
-  // 4. Fallback: search by email on Ylopo
-  if (!ylopoUrl && lead.email) {
-    ylopoUrl = \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
-  }
+  // Build Ylopo link — only show if real Ylopo data exists
+  const ylopoUrl = getYlopoUrl(lead.id);
 
   return \`<div class="detail-inner">
 
@@ -6267,7 +6242,7 @@ function buildAccordion(lead) {
   <!-- Links -->
   <div style="display:flex;align-items:center;flex-wrap:wrap">
     <a href="\${ghlUrl}" target="_blank" class="ghl-link">\u{1F517} Open in GoHighLevel</a>
-    \${ylopoUrl ? \`<a href="\${ylopoUrl}" target="_blank" class="ylopo-link">\u2B50 Open in Ylopo Stars</a>\` : \`<span class="ylopo-link" style="opacity:0.5;cursor:default">\u2B50 Ylopo (no ID linked)</span>\`}
+    \${ylopoUrl ? \`<a href="\${ylopoUrl}" target="_blank" class="ylopo-link">\u2B50 Open in Ylopo Stars</a>\` : ''}
   </div>
 
 </div>\`;
@@ -6417,23 +6392,8 @@ function renderTable() {
       const scoreCls = l.score>=70?'score-high':l.score>=40?'score-mid':'score-low';
       const ghlUrl = GHL_CONTACT_BASE + l.id;
       const contactInfo = \`<div style="font-size:12px;color:var(--text-secondary)">\${l.email?\`<a href="mailto:\${l.email}" style="color:var(--text-secondary);text-decoration:none" title="\${l.email}">\${l.email}</a>\`:''}<br>\${l.phone?\`<a href="tel:\${l.phone}" style="color:var(--text-secondary);text-decoration:none">\${l.phone}</a>\`:''}</div>\`;
-      // Ylopo URL \u2014 use stars.ylopo.com/lead-detail/{UUID} format
-      const rawC = RAW_CONTACTS[l.id];
-      let yUrl = '';
-      if (rawC) {
-        const yid = getCF(rawC,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
-        if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) {
-          yUrl = \`https://stars.ylopo.com/lead-detail/\${yid}\`;
-        } else {
-          const storedYUrl = getCFByValuePattern(rawC, 'stars\\\\.ylopo\\\\.com');
-          if (storedYUrl) yUrl = storedYUrl.startsWith('http') ? storedYUrl : \`https://\${storedYUrl}\`;
-        }
-        if (!yUrl) {
-          const uuid = getCFByValuePattern(rawC, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
-          if (uuid) { const m = uuid.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if(m) yUrl = \`https://stars.ylopo.com/lead-detail/\${m[0]}\`; }
-        }
-        if (!yUrl && l.email) yUrl = \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(l.email)}\`;
-      }
+      // Ylopo URL — only show if real Ylopo data exists
+      const yUrl = getYlopoUrl(l.id);
       // Name tooltip
       const showTooltip = l.name.length > 20;
       // Dupe detection
@@ -6664,8 +6624,7 @@ function buildYlopoStarsUrl(contact) {
             if (m) return 'https://stars.ylopo.com/lead-detail/' + m[0];
         }
     }
-    // 6. Fallback: search by email
-    if (contact.email) return 'https://stars.ylopo.com/contacts?search=' + encodeURIComponent(contact.email);
+    // No valid Ylopo link found
     return '';
 }
 
@@ -8400,14 +8359,16 @@ const PROXY_BASE = typeof PROXY_URL !== 'undefined' ? PROXY_URL.replace(/\\/cont
 function getYlopoUrl(contactId) {
   const raw = RAW_CONTACTS[contactId];
   if (!raw) return '';
-  const yid = getCF(raw,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
+  // 1. Direct Ylopo lead ID field (UUID)
+  const yid = getCF(raw,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','ylopo_crm_id']);
   if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) return \`https://stars.ylopo.com/lead-detail/\${yid}\`;
+  // 2. Stored Stars URL in a field value
   const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
   if (storedUrl) return storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
-  const uuid = getCFByValuePattern(raw, '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
-  if (uuid) { const m = uuid.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if(m) return \`https://stars.ylopo.com/lead-detail/\${m[0]}\`; }
-  const lead = ALL_LEADS.find(l => l.id === contactId);
-  if (lead && lead.email) return \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
+  // 3. Ylopo Stars link field
+  const starsLink = getCF(raw,['ylopo_stars_link_profile_card_link','ylopo_stars_link','fub_ylopo_stars_link','ypriority']);
+  if (starsLink && starsLink.startsWith('http')) return starsLink;
+  // No valid Ylopo link found — return empty (no icon shown)
   return '';
 }
 
@@ -9652,15 +9613,8 @@ function initCompanyListings() {
 
 /* =============================== LISTING ACTIVITY CARDS =============================== */
 function buildYlopoContactUrl(raw, lead) {
-  // Build Ylopo Stars URL for a contact
-  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id']);
-  if (ylopoLeadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ylopoLeadId)) {
-    return \`https://stars.ylopo.com/lead-detail/\${ylopoLeadId}\`;
-  }
-  const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
-  if (storedUrl) return storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
-  if (lead && lead.email) return \`https://stars.ylopo.com/contacts?search=\${encodeURIComponent(lead.email)}\`;
-  return '';
+  // Delegate to central getYlopoUrl — only returns URL if real Ylopo data exists
+  return getYlopoUrl(lead.id);
 }
 
 function renderListingCards(leads) {
