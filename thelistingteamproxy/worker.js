@@ -310,7 +310,7 @@ body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:
   <div class="ylopo-stats-grid" id="statsGrid"></div>
 </div>
 <script>
-const PROXY="https://thelistingteamproxy.reallistingteam.com";
+const PROXY=window.location.origin;
 const PAGE_SIZE=100, MAX_PAGES=15, REFRESH_MS=120000;
 const F={
   views:['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed'],
@@ -1602,7 +1602,7 @@ body.dark-mode {
 
 <script>
     // Config
-    const PROXY_URL = "https://thelistingteamproxy.reallistingteam.com";
+    const PROXY_URL = window.location.origin;
     const PRIORITY_TAG = "ypriority";
     const GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ";
     let CONTACTS = [];
@@ -2924,7 +2924,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 // -------------------------------------------------------
 // CONFIG
 // -------------------------------------------------------
-var PROXY_URL = 'https://thelistingteamproxy.reallistingteam.com';
+var PROXY_URL = window.location.origin;
 var PAGE_SIZE = 25;
 var MAX_PAGES = 15;
 var CACHE_KEY = 'ylopo_contacts_cache';
@@ -5790,7 +5790,7 @@ const PAGE_MODE = 'analytics'; // 'contacts' or 'analytics'
 const _origEl = id => document.getElementById(id);
 
 /* =============================== CONFIG =============================== */
-const PROXY_URL = "https://thelistingteamproxy.reallistingteam.com";
+const PROXY_URL = window.location.origin;
 const GHL_LOCATION = "SeZr4YCwEZ50IcWqylkQ";
 const GHL_CONTACT_BASE = \`https://app.gohighlevel.com/v2/location/\${GHL_LOCATION}/contacts/detail/\`;
 
@@ -6131,7 +6131,7 @@ function buildAccordion(lead) {
   // Build Ylopo link \u2014 correct format: https://stars.ylopo.com/lead-detail/{UUID}
   let ylopoUrl = '';
   // 1. Try direct Ylopo lead ID field
-  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+  const ylopoLeadId = getCF(raw, ['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
   if (ylopoLeadId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ylopoLeadId)) {
     ylopoUrl = \`https://stars.ylopo.com/lead-detail/\${ylopoLeadId}\`;
   }
@@ -6469,7 +6469,7 @@ function renderTable() {
       const rawC = RAW_CONTACTS[l.id];
       let yUrl = '';
       if (rawC) {
-        const yid = getCF(rawC,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+        const yid = getCF(rawC,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
         if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) {
           yUrl = \`https://stars.ylopo.com/lead-detail/\${yid}\`;
         } else {
@@ -8440,13 +8440,13 @@ function showDiagnostics() {
 }
 
 /* =============================== GHL WRITE-BACK ENGINE =============================== */
-const PROXY_BASE = typeof PROXY_URL !== 'undefined' ? PROXY_URL.replace(/\\/contacts\\/?$/,'') : 'https://thelistingteamproxy.reallistingteam.com';
+const PROXY_BASE = typeof PROXY_URL !== 'undefined' ? PROXY_URL.replace(/\\/contacts\\/?$/,'') : window.location.origin;
 
 /* Helper: Get Ylopo URL for any contact by ID */
 function getYlopoUrl(contactId) {
   const raw = RAW_CONTACTS[contactId];
   if (!raw) return '';
-  const yid = getCF(raw,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','lead_id']);
+  const yid = getCF(raw,['ylopo_lead_id','ylopo__lead_id','ylopo_id','ylopo_contact_id','ylopo__contact_id','ylopo_uuid','lead_id','ylopo_crm_id']);
   if (yid && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(yid)) return \`https://stars.ylopo.com/lead-detail/\${yid}\`;
   const storedUrl = getCFByValuePattern(raw, 'stars\\\\.ylopo\\\\.com');
   if (storedUrl) return storedUrl.startsWith('http') ? storedUrl : \`https://\${storedUrl}\`;
