@@ -11794,6 +11794,23 @@ var index_default = {
       } catch (e) {
         results.v2 = { error: e.message };
       }
+      // Test V2 PIT token with custom objects
+      const pit = env.GHL_V2_TOKEN || "";
+      results.pitLength = pit.length;
+      results.pitPrefix = pit.substring(0, 12) + "...";
+      try {
+        const pitRes = await fetch(`${GHL_V2}/objects/custom_objects.ylopo_event/records/search`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${pit}`, "Content-Type": "application/json", "Version": "2021-07-28" },
+          body: JSON.stringify({ locationId: locId, page: 1, pageLimit: 1 })
+        });
+        const pitText = await pitRes.text();
+        let pitData;
+        try { pitData = JSON.parse(pitText); } catch { pitData = pitText.substring(0, 500); }
+        results.v2pit = { status: pitRes.status, keys: typeof pitData === "object" ? Object.keys(pitData) : "not-json", preview: JSON.stringify(pitData).substring(0, 300) };
+      } catch (e) {
+        results.v2pit = { error: e.message };
+      }
       return json(results);
     }
     if (method === "GET" && path === "/fields") {
@@ -12324,7 +12341,7 @@ var index_default = {
           nextStartAfterId: contacts.length > 0 ? contacts[contacts.length - 1].id : null
         });
       } catch (e) {
-        return err(`Backfill failed: ${e.message || e.status}`, e.status || 500);
+        return err(`Backfill failed: ${e.message || e.status}`, e.status || 500, JSON.stringify({ data: e.data, stack: e.stack }));
       }
     }
     if (method === "POST" && path === "/ylopo/sync") {
