@@ -3331,7 +3331,7 @@ function fetchAllContacts(isBackground) {
 
   function fetchPage() {
     page++;
-    var url = PROXY_URL + '/contacts?limit=' + FETCH_SIZE + '&ylopo=false&t=' + Date.now();
+    var url = PROXY_URL + '/contacts?limit=' + FETCH_SIZE + '&t=' + Date.now();
     if (startAfter) url += '&startAfter=' + encodeURIComponent(startAfter);
     if (startAfterId) url += '&startAfterId=' + encodeURIComponent(startAfterId);
 
@@ -11924,7 +11924,23 @@ var index_default = {
             startAfterId = String(meta.startAfterId);
           } else { break; }
         }
-        return json({ contacts: allContacts, meta: { total: allContacts.length, pages: Math.ceil(allContacts.length / 100) } });
+        // Merge Ylopo Event data (beds, baths, views, saves etc.)
+        let finalContacts = allContacts;
+        if (env.GHL_V2_TOKEN && Date.now() < deadline - 5000) {
+          try {
+            const allEvents = await fetchAllYlopoEvents(env);
+            if (allEvents.length > 0) {
+              const eventsByContact = groupEventsByContact(allEvents);
+              finalContacts = allContacts.map((c) => {
+                const records = eventsByContact[c.id];
+                return records ? mergeYlopoEventIntoContact(c, records) : c;
+              });
+            }
+          } catch (e) {
+            console.warn("Bulk: Ylopo event merge skipped:", e.message);
+          }
+        }
+        return json({ contacts: finalContacts, meta: { total: finalContacts.length, pages: Math.ceil(finalContacts.length / 100) } });
       } catch (e) {
         return err(`Bulk fetch error: ${e.message || e.status}`, e.status || 500);
       }
@@ -11962,9 +11978,25 @@ var index_default = {
             })
           };
         });
-        broadcastSSE({ type: "contacts.fetched", count: enriched.length });
+        // Merge Ylopo Event data into contacts (beds, baths, views, saves etc.)
+        let finalContacts = enriched;
+        if (env.GHL_V2_TOKEN) {
+          try {
+            const allEvents = await fetchAllYlopoEvents(env);
+            if (allEvents.length > 0) {
+              const eventsByContact = groupEventsByContact(allEvents);
+              finalContacts = enriched.map((c) => {
+                const records = eventsByContact[c.id];
+                return records ? mergeYlopoEventIntoContact(c, records) : c;
+              });
+            }
+          } catch (e) {
+            console.warn("Ylopo event merge skipped:", e.message);
+          }
+        }
+        broadcastSSE({ type: "contacts.fetched", count: finalContacts.length });
         return json({
-          contacts: enriched,
+          contacts: finalContacts,
           meta: data.meta || {}
         });
       } catch (e) {
@@ -11978,6 +12010,12 @@ var index_default = {
         const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
         let contact = data.contact || data;
         contact.customField = await enrichCustomFields(env, contact.customField || []);
+        if (env.GHL_V2_TOKEN) {
+          try {
+            const ylopoRecords = await fetchYlopoEvents(env, contactId);
+            if (ylopoRecords.length > 0) contact = mergeYlopoEventIntoContact(contact, ylopoRecords);
+          } catch (e) { console.warn("Single contact Ylopo merge skipped:", e.message); }
+        }
         return json(contact);
       } catch (e) {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
