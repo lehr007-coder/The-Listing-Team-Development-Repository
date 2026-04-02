@@ -313,10 +313,10 @@ body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:
 const PROXY="https://thelistingteamproxy.reallistingteam.com";
 const PAGE_SIZE=100, MAX_PAGES=15, REFRESH_MS=120000;
 const F={
-  views:['ylopo_last_session_listings_viewed','ylopo_total_listing_views','buyer_listing_views'],
-  saves:['ylopo_last_session_listings_saved','ylopo_total_favorites','buyer_favorites'],
-  showings:['ylopo_last_session_showinginfo_requests','ylopo_total_showing_requests','buyer_showing_requests','total_showings'],
-  searches:['ylopo_last_session_searches'],
+  views:['ylopo_last_session_listings_viewed','ylopo_total_listing_views','buyer_listing_views','most_viewed_listings_idxaddons','most_viewed_listings','total_views','properties_viewed_count','listings_viewed'],
+  saves:['ylopo_last_session_listings_saved','ylopo_total_favorites','buyer_favorites','saved_listings_idxaddons','total_saved_homes','saved_properties','total_saved'],
+  showings:['ylopo_last_session_showinginfo_requests','ylopo_total_showing_requests','buyer_showing_requests','total_showings','showing_requests'],
+  searches:['ylopo_last_session_searches','last_session_searches','total_searches'],
   stars:['ylopo_stars_link_profile_card_link','ylopo_stars_link','ypriority','fub_ylopo_stars_link'],
   active:['last_active_date','ylopo_last_search_site_visit'],
 };
@@ -3022,13 +3022,13 @@ function getCFByValuePattern(contact, pattern) {
 // -------------------------------------------------------
 
 function getMatrix(c) {
-  var searches = Number(getCF(c,['ylopo_session_searches','ylopo_last_session_searches','searches','total_searches']))||0;
+  var searches = Number(getCF(c,['ylopo_session_searches','ylopo_last_session_searches','searches','total_searches','last_session_searches']))||0;
   if (searches > 10000) searches = 0;
   return {
-    views:    Number(getCF(c,['ylopo_views','ylopo_total_views','ylopo_session_views','ylopo_last_session_listings_viewed','views','total_listing_views','properties_viewed_count','listings_viewed','buyer_listing_views']))||0,
-    saves:    Number(getCF(c,['ylopo_saves','ylopo_total_saves','ylopo_session_saves','ylopo_last_session_listings_saved','saves','total_saved_homes','saved_properties','buyer_favorites','favorites','total_favorites']))||0,
+    views:    Number(getCF(c,['ylopo_views','ylopo_total_views','ylopo_session_views','ylopo_last_session_listings_viewed','views','total_listing_views','properties_viewed_count','listings_viewed','buyer_listing_views','most_viewed_listings_idxaddons','most_viewed_listings','total_views']))||0,
+    saves:    Number(getCF(c,['ylopo_saves','ylopo_total_saves','ylopo_session_saves','ylopo_last_session_listings_saved','saves','total_saved_homes','saved_properties','buyer_favorites','favorites','total_favorites','saved_listings_idxaddons','total_saved']))||0,
     searches: searches,
-    showings: Number(getCF(c,['ylopo_session_showings','ylopo_last_session_showinginfo_requests','ylopo_is_showing','showings','showing_requests','buyer_showing_requests','total_showing_requests']))||0,
+    showings: Number(getCF(c,['ylopo_session_showings','ylopo_last_session_showinginfo_requests','ylopo_is_showing','showings','showing_requests','buyer_showing_requests','total_showing_requests','total_showings']))||0,
     infoReqs: Number(getCF(c,['ylopo_total_info_requests','info_requests']))||0
   };
 }
@@ -5740,10 +5740,10 @@ function findFieldByKeywords(contact, keywords) {
 /* =============================== MATRIX =============================== */
 function getMatrix(c) {
   return {
-    views: Number(getCF(c,['ylopo__buyer_matrix_views','ylopo_total_listing_views','ylopo_last_session_listings_viewed','ylopo_properties_viewed_count','properties_viewed_count','listings_viewed','buyer_listing_views','total_listing_views','views']))||0,
-    saves: Number(getCF(c,['ylopo__buyer_matrix_saves','ylopo_total_favorites','ylopo_last_session_listings_saved','total_saved_homes','saved_properties','buyer_favorites','favorites','saves']))||0,
-    searches: (function(v){return v>9999?0:v;})(Number(getCF(c,['ylopo_last_session_searches','ylopo__total_searches','total_searches','searches']))||0),
-    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_last_session_showinginfo_requests','ylopo__showing_requests','showing_requests','showings','buyer_showing_requests']))||0,
+    views: Number(getCF(c,['ylopo__buyer_matrix_views','ylopo_total_listing_views','ylopo_last_session_listings_viewed','ylopo_properties_viewed_count','properties_viewed_count','listings_viewed','buyer_listing_views','total_listing_views','views','most_viewed_listings_idxaddons','most_viewed_listings','total_views']))||0,
+    saves: Number(getCF(c,['ylopo__buyer_matrix_saves','ylopo_total_favorites','ylopo_last_session_listings_saved','total_saved_homes','saved_properties','buyer_favorites','favorites','saves','saved_listings_idxaddons','total_saved']))||0,
+    searches: (function(v){return v>9999?0:v;})(Number(getCF(c,['ylopo_last_session_searches','ylopo__total_searches','total_searches','searches','last_session_searches']))||0),
+    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_last_session_showinginfo_requests','ylopo__showing_requests','showing_requests','showings','buyer_showing_requests','total_showings']))||0,
     infoReqs: Number(getCF(c,['ylopo_total_info_requests','ylopo__info_requests','info_requests']))||0
   };
 }
