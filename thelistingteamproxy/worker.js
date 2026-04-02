@@ -2311,6 +2311,48 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --brand-surface: #F0F8FB;
     --brand-chip: #DCF2F8;
   }
+  /* Light theme overrides */
+  body.light-mode {
+    --bg: #f1f5f9;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --card-border: #e2e8f0;
+    --text: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    --header-bg: linear-gradient(135deg, #0D3B4F 0%, #1E7A9C 50%, #4A6B7C 100%);
+  }
+  body.light-mode .topbar { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+  body.light-mode .score-bar { background: #e2e8f0; }
+  body.light-mode .btn { border-color: #cbd5e1; color: #475569; }
+  body.light-mode .btn:hover { background: #e2e8f0; }
+  body.light-mode .filter-btn { border-color: #cbd5e1; color: #475569; }
+  body.light-mode .filter-btn.active { border-color: var(--brand-accent); }
+  body.light-mode input, body.light-mode select { background: #fff; border-color: #cbd5e1; color: #1e293b; }
+  body.light-mode .page-btn { border-color: #cbd5e1; color: #475569; }
+  body.light-mode .page-btn.active { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
+
+  /* Source badge colors */
+  .source-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .source-ylopo { background:rgba(234,179,8,0.15); color:#eab308; }
+  .source-myplusleads,.source-myleads,.source-plusleads { background:rgba(139,92,246,0.15); color:#8b5cf6; }
+  .source-zillow { background:rgba(59,130,246,0.15); color:#3b82f6; }
+  .source-realtor { background:rgba(239,68,68,0.15); color:#ef4444; }
+  .source-homes { background:rgba(249,115,22,0.15); color:#f97316; }
+  .source-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
+
+  /* Card GHL/Ylopo links */
+  .card-link-ghl,.card-link-ylopo { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; transition:all 0.15s; }
+  .card-link-ghl { background:rgba(59,130,246,0.12); color:#3b82f6; }
+  .card-link-ghl:hover { background:#3b82f6; color:#fff; text-decoration:none; }
+  .card-link-ylopo { background:rgba(234,179,8,0.12); color:#eab308; }
+  .card-link-ylopo:hover { background:#eab308; color:#000; text-decoration:none; }
+
+  /* Theme toggle button */
+  .theme-toggle { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; font-family:inherit; }
+  .theme-toggle:hover { background:rgba(255,255,255,0.25); }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
@@ -2807,6 +2849,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
   </div>
 </div>
 
@@ -3244,7 +3287,6 @@ function buildYlopoStarsUrl(contact) {
       if (m) return 'https://stars.ylopo.com/lead-detail/' + m[0];
     }
   }
-  if (contact.email) return 'https://stars.ylopo.com/contacts?search=' + encodeURIComponent(contact.email);
   return '';
 }
 
@@ -3730,7 +3772,7 @@ function renderTable() {
         '</div>' +
       '</td>' +
       '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
-      '<td style="color:var(--text-secondary);font-size:12px">' + esc(l.source||'\\u2014') + '</td>' +
+      '<td>' + buildSourceBadge(l.source) + '</td>' +
       '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
       '<td>' +
         '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
@@ -3746,6 +3788,42 @@ function renderTable() {
     '</tr>';
   }).join('');
 }
+
+// -------------------------------------------------------
+// SOURCE BADGE HELPER
+// -------------------------------------------------------
+function getSourceBadgeClass(src) {
+  if (!src) return 'source-default';
+  var s = src.toLowerCase();
+  if (s.indexOf('ylopo') !== -1) return 'source-ylopo';
+  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('plusleads') !== -1 || s.indexOf('myleads') !== -1) return 'source-myplusleads';
+  if (s.indexOf('zillow') !== -1) return 'source-zillow';
+  if (s.indexOf('realtor') !== -1) return 'source-realtor';
+  if (s.indexOf('homes') !== -1) return 'source-homes';
+  return 'source-default';
+}
+
+function buildSourceBadge(src) {
+  if (!src) return '<span class="source-badge source-default">\u2014</span>';
+  return '<span class="source-badge ' + getSourceBadgeClass(src) + '">' + esc(src) + '</span>';
+}
+
+// THEME TOGGLE
+function toggleTheme() {
+  var isLight = document.body.classList.toggle('light-mode');
+  var btn = document.getElementById('themeToggle');
+  if (btn) btn.innerHTML = isLight ? '\u263D Dark' : '\u263C Light';
+  try { localStorage.setItem('tlt-contacts-theme', isLight ? 'light' : 'dark'); } catch(e) {}
+}
+(function initTheme() {
+  try {
+    if (localStorage.getItem('tlt-contacts-theme') === 'light') {
+      document.body.classList.add('light-mode');
+      var btn = document.getElementById('themeToggle');
+      if (btn) btn.innerHTML = '\u263D Dark';
+    }
+  } catch(e) {}
+})();
 
 // -------------------------------------------------------
 // RENDER CARDS
@@ -3766,6 +3844,9 @@ function renderCards() {
     var badgeHtml = l.badge ? ' <span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var m = l.matrix;
     var loc = [l.city, l.state].filter(Boolean).join(', ') || '';
+    var ghlUrl = 'https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + l.id;
+    var raw = RAW_CONTACTS[l.id];
+    var ylopoUrl = raw ? buildYlopoStarsUrl(raw) : '';
 
     return '<div class="contact-card">' +
       '<div class="contact-card-header">' +
@@ -3788,10 +3869,16 @@ function renderCards() {
       '</div>' +
       (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
       '<div class="contact-card-meta">' +
-        '<span>' + esc(l.source||'\\u2014') + '</span>' +
+        buildSourceBadge(l.source) +
         '<span>' + fmtDate(l.dateAdded) + '</span>' +
       '</div>' +
-      '<div style="display:flex;gap:6px;margin-top:10px">' +
+      '<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">' +
+        '<a href="' + ghlUrl + '" target="_blank" class="card-link-ghl" style="flex:1;justify-content:center">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>' +
+          'GHL</a>' +
+        (ylopoUrl ? '<a href="' + esc(ylopoUrl) + '" target="_blank" class="card-link-ylopo" style="flex:1;justify-content:center">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' +
+          'Ylopo</a>' : '') +
         (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" style="flex:1;justify-content:center">Email</a>' : '') +
         (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" style="flex:1;justify-content:center">Call</a>' : '') +
       '</div>' +
