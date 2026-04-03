@@ -2986,13 +2986,14 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <th>Score</th>
         <th>Activity</th>
         <th>Location</th>
+        <th>Type</th>
         <th>Source</th>
         <th>Added</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody id="leadsBody">
-      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
+      <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -3401,6 +3402,7 @@ function processRawContacts(allRaw) {
       source:      ext.source || String(c.source||''),
       city:        ext.city,
       state:       ext.state,
+      propType:    ext.propType || ext.leadType || c.type || '',
       isNew:       isNewThisWeek(c),
       hasShowing:  matrix.showings > 0
     };
@@ -3482,7 +3484,7 @@ function fetchAllContacts(isBackground) {
         console.error('loadData error:', e);
         if (!isBackground) {
           _el('loadingOverlay').style.display = 'none';
-          _el('leadsBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
+          _el('leadsBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
         }
         toast('Failed to load contacts: ' + e.message, 'error');
       });
@@ -3771,7 +3773,7 @@ function renderTable() {
   var tbody = _el('leadsBody');
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
     return;
   }
 
@@ -3808,6 +3810,7 @@ function renderTable() {
         '</div>' +
       '</td>' +
       '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
+      '<td style="color:var(--text-secondary);font-size:12px">' + esc(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
       '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
       '<td>' +
@@ -3905,6 +3908,7 @@ function renderCards() {
         (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
       '</div>' +
       (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
+      (l.propType ? '<div style="font-size:11px;color:var(--text-secondary);margin:2px 0">Type: ' + esc(l.propType) + '</div>' : '') +
       '<div class="contact-card-meta">' +
         buildSourceBadge(l.source) +
         '<span>' + fmtDate(l.dateAdded) + '</span>' +
