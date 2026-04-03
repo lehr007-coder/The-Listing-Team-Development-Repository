@@ -2388,6 +2388,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .source-homes { background:rgba(249,115,22,0.15); color:#f97316; }
   .source-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
 
+  /* Contact type badge colors */
+  .type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .type-seller { background:rgba(34,197,94,0.2); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+  .type-buyer { background:rgba(16,185,129,0.15); color:#10b981; }
+  .type-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
+
   /* Card GHL/Ylopo links */
   .card-link-ghl,.card-link-ylopo { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; transition:all 0.15s; }
   .card-link-ghl { background:rgba(59,130,246,0.12); color:#3b82f6; }
@@ -3810,7 +3816,7 @@ function renderTable() {
         '</div>' +
       '</td>' +
       '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
-      '<td style="color:var(--text-secondary);font-size:12px">' + esc(l.propType) + '</td>' +
+      '<td>' + buildTypeBadge(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
       '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
       '<td>' +
@@ -3846,6 +3852,19 @@ function getSourceBadgeClass(src) {
 function buildSourceBadge(src) {
   if (!src) return '<span class="source-badge source-default">\u2014</span>';
   return '<span class="source-badge ' + getSourceBadgeClass(src) + '">' + esc(src) + '</span>';
+}
+
+function getTypeBadgeClass(type) {
+  if (!type) return 'type-default';
+  var t = type.toLowerCase();
+  if (t.indexOf('seller') !== -1) return 'type-seller';
+  if (t.indexOf('buyer') !== -1) return 'type-buyer';
+  return 'type-default';
+}
+
+function buildTypeBadge(type) {
+  if (!type) return '<span class="type-badge type-default">\u2014</span>';
+  return '<span class="type-badge ' + getTypeBadgeClass(type) + '">' + esc(type) + '</span>';
 }
 
 // THEME TOGGLE
