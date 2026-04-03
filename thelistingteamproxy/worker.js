@@ -341,12 +341,24 @@ body { margin:0; background:var(--page-bg); color:var(--text-dark); font-family:
 .ylopo-stat-number { font-size:clamp(24px,4vw,42px); font-weight:700; letter-spacing:-.01em; color:var(--gold); text-shadow:0 0 20px rgba(190,214,47,.25); font-family:'Oswald','Impact','Arial Black',sans-serif; animation:countUp .4s ease-out; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .ylopo-stat-card.is-active .ylopo-stat-number { color:var(--gold-bright); text-shadow:0 0 30px rgba(190,214,47,.4),0 2px 4px rgba(0,0,0,.5); }
 .ylopo-stat-subtext { margin-top:10px; font-size:10px; color:#555; font-family:-apple-system,'Segoe UI',sans-serif; text-transform:uppercase; letter-spacing:.05em; }
+/* Light mode */
+body.light-mode { --page-bg:#f1f5f9; --card-bg:#ffffff; --card-border:#e2e8f0; --text-dark:#1e293b; --text-muted:#64748b; }
+body.light-mode .ylopo-stat-card { box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+body.light-mode .ylopo-stat-card.skeleton .ylopo-stat-number { background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size:200% 100%; }
+body.light-mode .ylopo-progress { background:#e2e8f0; }
+body.light-mode .ylopo-btn { border-color:#64748b; color:#475569; }
+body.light-mode .ylopo-btn:hover:not(:disabled) { background:#475569; color:#fff; }
+.theme-toggle { border:2px solid var(--gold); background:transparent; color:var(--gold); border-radius:6px; padding:10px 18px; font-size:14px; font-weight:700; cursor:pointer; transition:all .2s; text-transform:uppercase; letter-spacing:.05em; font-family:inherit; }
+.theme-toggle:hover { background:var(--gold); color:#000; }
+body.light-mode .theme-toggle { border-color:#64748b; color:#475569; }
+body.light-mode .theme-toggle:hover { background:#475569; color:#fff; }
 </style>
 </head><body>
 <div class="ylopo-page">
   <div class="ylopo-toolbar">
     <button id="refreshBtn" class="ylopo-btn" onclick="startFetch()">&#8635; Refresh</button>
     <button id="stopBtn" class="ylopo-btn" onclick="stopFetch()" style="display:none;">&#9632; Stop</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">&#9788; Light</button>
   </div>
   <div id="statusMsg" class="ylopo-status">Initializing...</div>
   <div class="ylopo-progress" id="progressBar"><div class="ylopo-progress-fill" id="progressFill"></div></div>
@@ -461,6 +473,8 @@ async function startFetch(){
 }
 function stopFetch(){if(abortCtl){abortCtl.abort();abortCtl=null;}if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}}
 function scheduleRefresh(){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=setTimeout(startFetch,REFRESH_MS);}
+function toggleTheme(){var isLight=document.body.classList.toggle('light-mode');var btn=document.getElementById('themeBtn');if(btn)btn.innerHTML=isLight?'\\u263D Dark':'\\u263C Light';try{localStorage.setItem('tlt-matrix-theme',isLight?'light':'dark')}catch(e){}}
+try{if(localStorage.getItem('tlt-matrix-theme')==='light'){document.body.classList.add('light-mode');var btn=document.getElementById('themeBtn');if(btn)btn.innerHTML='\\u263D Dark';}}catch(e){}
 renderSkeletons(); startFetch();
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
