@@ -279,13 +279,22 @@ fetch('/health').then(r=>r.json()).then(d=>{
   }
 }).catch(()=>{});
 
-// Staging-aware: show staging badge + adjust external links on staging
+// Staging-aware: show flashing red STAGING banner
 (function(){
   const h = window.location.hostname;
   const isStaging = h.includes('staging') || h.includes('workers.dev');
   if(isStaging){
     const badge = document.querySelector('.header-badge');
-    if(badge) badge.innerHTML = '<span class="dot" style="background:#eab308;box-shadow:0 0 8px rgba(234,179,8,0.5)"></span> STAGING';
+    if(badge) badge.innerHTML = '<span class="dot" style="background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,0.6);animation:flash 1s ease-in-out infinite"></span> STAGING';
+    // Add flashing red banner at top of page
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';
+    banner.textContent = '\u26A0 STAGING ENVIRONMENT \u26A0';
+    document.body.prepend(banner);
+    // Add flash animations
+    const style = document.createElement('style');
+    style.textContent = '@keyframes flash{0%,100%{opacity:1}50%{opacity:0.3}} @keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';
+    document.head.appendChild(style);
   }
 })();
 <\/script>
@@ -453,6 +462,7 @@ async function startFetch(){
 function stopFetch(){if(abortCtl){abortCtl.abort();abortCtl=null;}if(refreshTimer){clearTimeout(refreshTimer);refreshTimer=null;}}
 function scheduleRefresh(){if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=setTimeout(startFetch,REFRESH_MS);}
 renderSkeletons(); startFetch();
+(function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
 </body></html>`;
 var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
@@ -2300,6 +2310,7 @@ body.dark-mode {
         matrixSortBy = e.target.value;
         renderMatrixTab();
     });
+(function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
 </body></html>`;
 var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
@@ -4218,6 +4229,7 @@ function deleteContact(id, name) {
 document.addEventListener('DOMContentLoaded', function() {
   loadGHLTeam().then(function() { loadData(); });
 });
+(function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
 </body></html>`;
 var YLOPO_ANALYTICS_HTML = `<html lang="en">
@@ -11643,6 +11655,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   });
 });
+(function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
 
 </body>
@@ -13224,6 +13237,7 @@ function renderLeads(){
   }).join('');
 }
 loadData();
+(function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script></body></html>`;
       return new Response(IDX_HTML, {
         status: 200,
