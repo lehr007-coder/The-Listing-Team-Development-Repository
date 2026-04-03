@@ -161,6 +161,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Quick stats</div>
         </div>
       </a>
+      <a href="/dashboard/idx" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3E0}</div>
+        <div class="card-body">
+          <div class="card-title">IDX Ylopo Dashboard</div>
+          <div class="card-desc">IDX property search integration with Ylopo lead activity, listing views, and buyer intent tracking.</div>
+          <div class="card-tag">IDX + Ylopo</div>
+        </div>
+      </a>
     </div>
   </div>
 
@@ -198,6 +207,30 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   </div>
 
   <div class="section">
+    <div class="section-label"><h2>Content</h2><hr></div>
+    <div class="cards">
+      <a id="link-blog" href="https://social-post-importer.lehr007.workers.dev/blog" target="_blank" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4DD}</div>
+        <div class="card-body">
+          <div class="card-title">Blog Importer</div>
+          <div class="card-desc">Blog content management and import tool for publishing articles and real estate market insights.</div>
+          <div class="card-tag">Blog CMS</div>
+        </div>
+      </a>
+      <a id="link-images" href="https://tlt-image-server.lehr007.workers.dev" target="_blank" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F5BC}</div>
+        <div class="card-body">
+          <div class="card-title">Media Server</div>
+          <div class="card-desc">TLT image hosting and optimization service for listing photos and brand assets.</div>
+          <div class="card-tag">CDN service</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="section-label"><h2>System</h2><hr></div>
     <div class="cards">
       <a href="/health" class="card green" target="_blank">
@@ -216,15 +249,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-title">API Diagnostics</div>
           <div class="card-desc">Test GHL V1 and V2 API connections. Shows key status, response codes, and contact counts.</div>
           <div class="card-tag">Debug tool</div>
-        </div>
-      </a>
-      <a href="https://tlt-image-server.lehr007.workers.dev" target="_blank" class="card cyan">
-        <span class="arrow">\u2192</span>
-        <div class="icon-wrap">\u{1F5BC}</div>
-        <div class="card-body">
-          <div class="card-title">Image Server</div>
-          <div class="card-desc">TLT image hosting and optimization service for listing photos and brand assets.</div>
-          <div class="card-tag">CDN service</div>
         </div>
       </a>
     </div>
@@ -254,6 +278,16 @@ fetch('/health').then(r=>r.json()).then(d=>{
     document.querySelector('.status-bar .status-item:first-child .status-dot').className='status-dot idle';
   }
 }).catch(()=>{});
+
+// Staging-aware: show staging badge + adjust external links on staging
+(function(){
+  const h = window.location.hostname;
+  const isStaging = h.includes('staging') || h.includes('workers.dev');
+  if(isStaging){
+    const badge = document.querySelector('.header-badge');
+    if(badge) badge.innerHTML = '<span class="dot" style="background:#eab308;box-shadow:0 0 8px rgba(234,179,8,0.5)"></span> STAGING';
+  }
+})();
 <\/script>
 </body>
 </html>`;
@@ -12973,6 +13007,227 @@ var index_default = {
       return new Response(YLOPO_ANALYTICS_HTML, {
         status: 200,
         headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/idx") {
+      const IDX_HTML = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 IDX Ylopo Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1117;--surface:#161b27;--card:#1e2535;--card-border:#2a3348;
+  --text:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --blue:#3b82f6;--green:#22c55e;--amber:#eab308;--red:#ef4444;--purple:#8b5cf6;--orange:#f97316;
+  --radius:12px;--shadow:0 4px 24px rgba(0,0,0,0.4);
+}
+body.light-mode{--bg:#f1f5f9;--surface:#fff;--card:#fff;--card-border:#e2e8f0;--text:#1e293b;--text-secondary:#475569;--text-muted:#94a3b8;--shadow:0 4px 24px rgba(0,0,0,0.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+.topbar{background:linear-gradient(135deg,#0D3B4F,#1E7A9C,#4A6B7C);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.topbar h1{color:#fff;font-size:20px;font-weight:800}
+.topbar-nav{display:flex;gap:6px;margin-left:16px}
+.topbar-nav a{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)}
+.topbar-nav a.active{border-color:rgba(255,255,255,0.5);color:#fff;background:rgba(255,255,255,0.15)}
+.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn:hover{background:rgba(255,255,255,0.2)}
+.container{max-width:1400px;margin:0 auto;padding:24px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px}
+.stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:800}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.section{margin-bottom:24px}
+.section h2{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.lead-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:16px;transition:border-color .2s}
+.lead-card:hover{border-color:var(--blue)}
+.lead-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.lead-card-name{font-size:14px;font-weight:700}
+.lead-card-email{font-size:11px;color:var(--text-muted)}
+.score-pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.score-high{background:rgba(34,197,94,0.15);color:#22c55e}
+.score-mid{background:rgba(234,179,8,0.15);color:#eab308}
+.score-low{background:rgba(239,68,68,0.15);color:#ef4444}
+.metrics-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;font-size:12px;color:var(--text-secondary)}
+.metrics-row span{display:flex;align-items:center;gap:3px}
+.source-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.source-ylopo{background:rgba(234,179,8,0.15);color:#eab308}
+.source-myplusleads{background:rgba(139,92,246,0.15);color:#8b5cf6}
+.source-zillow{background:rgba(59,130,246,0.15);color:#3b82f6}
+.source-realtor{background:rgba(239,68,68,0.15);color:#ef4444}
+.source-homes{background:rgba(249,115,22,0.15);color:#f97316}
+.source-default{background:rgba(100,116,139,0.15);color:#94a3b8}
+.card-links{display:flex;gap:6px;margin-top:10px}
+.card-links a{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;transition:all .15s}
+.link-ghl{background:rgba(59,130,246,0.12);color:#3b82f6}
+.link-ghl:hover{background:#3b82f6;color:#fff}
+.link-ylopo{background:rgba(234,179,8,0.12);color:#eab308}
+.link-ylopo:hover{background:#eab308;color:#000}
+.loading{text-align:center;padding:60px;color:var(--text-muted)}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--card-border);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;right:24px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s}
+.toast.visible{opacity:1}
+.toast.success{background:#22c55e;color:#fff}
+.toast.error{background:#ef4444;color:#fff}
+.toast.info{background:#3b82f6;color:#fff}
+</style>
+</head><body>
+<div class="topbar">
+  <h1>\u{1F3E0} IDX Ylopo Dashboard</h1>
+  <div class="topbar-nav">
+    <a href="/dashboard">Hub</a>
+    <a href="/dashboard/ylopo-contacts">Contacts</a>
+    <a href="/dashboard/ylopo-analytics">Analytics</a>
+    <a href="/dashboard/idx" class="active">IDX</a>
+  </div>
+  <div class="topbar-right">
+    <button class="btn" onclick="toggleTheme()">\u263C Theme</button>
+    <button class="btn" onclick="loadData()" id="refreshBtn">\u21BB Refresh</button>
+  </div>
+</div>
+<div class="container">
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="stat-label">Total IDX Leads</div><div class="stat-value" id="statTotal">\u2014</div><div class="stat-sub">All contacts</div></div>
+    <div class="stat-card"><div class="stat-label">Active Searchers</div><div class="stat-value" id="statActive" style="color:var(--green)">\u2014</div><div class="stat-sub">Views > 0</div></div>
+    <div class="stat-card"><div class="stat-label">Total Views</div><div class="stat-value" id="statViews" style="color:var(--blue)">\u2014</div><div class="stat-sub">Listing views</div></div>
+    <div class="stat-card"><div class="stat-label">Total Saves</div><div class="stat-value" id="statSaves" style="color:var(--red)">\u2014</div><div class="stat-sub">Favorited</div></div>
+    <div class="stat-card"><div class="stat-label">Showing Requests</div><div class="stat-value" id="statShowings" style="color:var(--amber)">\u2014</div><div class="stat-sub">Scheduled</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value" id="statAvgScore" style="color:var(--purple)">\u2014</div><div class="stat-sub">Lead quality</div></div>
+  </div>
+
+  <div class="section">
+    <h2>\u{1F525} Top Active Leads</h2>
+    <div id="leadGrid" class="card-grid">
+      <div class="loading"><div class="loading-spinner"></div>Loading leads...</div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const PROXY_URL = window.location.origin;
+const GHL_CONTACT_BASE = 'https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/';
+let ALL_LEADS = [];
+
+function toast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' visible';setTimeout(()=>t.classList.remove('visible'),3000)}
+function toggleTheme(){document.body.classList.toggle('light-mode');try{localStorage.setItem('tlt-idx-theme',document.body.classList.contains('light-mode')?'light':'dark')}catch(e){}}
+try{if(localStorage.getItem('tlt-idx-theme')==='light')document.body.classList.add('light-mode')}catch(e){}
+
+function getSourceClass(src){
+  if(!src)return 'source-default';
+  var s=src.toLowerCase();
+  if(s.indexOf('ylopo')!==-1)return 'source-ylopo';
+  if(s.indexOf('myplus')!==-1||s.indexOf('my+')!==-1||s.indexOf('plusleads')!==-1)return 'source-myplusleads';
+  if(s.indexOf('zillow')!==-1)return 'source-zillow';
+  if(s.indexOf('realtor')!==-1)return 'source-realtor';
+  if(s.indexOf('homes')!==-1)return 'source-homes';
+  return 'source-default';
+}
+
+function getCF(c,keys){
+  var fields=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
+  for(var k=0;k<keys.length;k++){
+    var key=keys[k].toLowerCase();
+    for(var i=0;i<fields.length;i++){
+      var f=fields[i];
+      var fk=(f.fieldKey||f.key||f.name||'').toLowerCase().replace('contact.','');
+      if(fk.indexOf(key)!==-1||key.indexOf(fk)!==-1){
+        var v=f.value;
+        if(v!=null&&v!==''&&String(v)!=='[object Object]') return String(v);
+      }
+    }
+  }
+  return null;
+}
+
+function getYlopoUrl(c){
+  var fields=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
+  for(var i=0;i<fields.length;i++){
+    var fk=(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase();
+    var val=String(fields[i].value||'');
+    if((fk.indexOf('ylopo_stars')!==-1||fk.indexOf('fub_ylopo_stars')!==-1)&&val.indexOf('http')===0) return val;
+  }
+  for(var i=0;i<fields.length;i++){
+    var val=String(fields[i].value||'');
+    if(val.indexOf('stars.ylopo.com')!==-1&&val.indexOf('http')===0) return val;
+  }
+  for(var i=0;i<fields.length;i++){
+    var fk=(fields[i].fieldKey||fields[i].key||'').toLowerCase();
+    var val=String(fields[i].value||'');
+    if(fk.indexOf('ylopo')!==-1&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val))
+      return 'https://stars.ylopo.com/lead-detail/'+val;
+  }
+  return '';
+}
+
+async function loadData(){
+  document.getElementById('refreshBtn').disabled=true;
+  toast('Loading contacts...','info');
+  try{
+    var res=await fetch(PROXY_URL+'/contacts/bulk?pages=8&t='+Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data=await res.json();
+    var contacts=data.contacts||data.data||[];
+
+    ALL_LEADS=contacts.map(function(c){
+      var views=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
+      var saves=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','total_saved_homes'])||0);
+      var showings=Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings'])||0);
+      var score=Math.min(100,Math.round(views*1+saves*5+showings*15));
+      var name=((c.firstName||'')+ ' '+(c.lastName||'')).trim()||c.email||'Unknown';
+      return{id:c.id,name:name,email:c.email||'',phone:c.phone||'',source:c.source||'',views:views,saves:saves,showings:showings,score:score,raw:c};
+    });
+    ALL_LEADS.sort(function(a,b){return(b.views+b.saves*3+b.showings*5)-(a.views+a.saves*3+a.showings*5)});
+
+    var totalViews=0,totalSaves=0,totalShowings=0,active=0,totalScore=0;
+    ALL_LEADS.forEach(function(l){totalViews+=l.views;totalSaves+=l.saves;totalShowings+=l.showings;if(l.views>0)active++;totalScore+=l.score});
+    document.getElementById('statTotal').textContent=ALL_LEADS.length.toLocaleString();
+    document.getElementById('statActive').textContent=active.toLocaleString();
+    document.getElementById('statViews').textContent=totalViews.toLocaleString();
+    document.getElementById('statSaves').textContent=totalSaves.toLocaleString();
+    document.getElementById('statShowings').textContent=totalShowings.toLocaleString();
+    document.getElementById('statAvgScore').textContent=ALL_LEADS.length>0?Math.round(totalScore/ALL_LEADS.length):'0';
+
+    renderLeads();
+    toast('Loaded '+ALL_LEADS.length+' leads','success');
+  }catch(e){toast('Error: '+e.message,'error')}
+  document.getElementById('refreshBtn').disabled=false;
+}
+
+function renderLeads(){
+  var grid=document.getElementById('leadGrid');
+  var top=ALL_LEADS.filter(function(l){return l.views+l.saves+l.showings>0}).slice(0,50);
+  if(top.length===0){grid.innerHTML='<div class="loading" style="grid-column:1/-1">No active leads found</div>';return}
+  grid.innerHTML=top.map(function(l){
+    var scoreCls=l.score>=70?'score-high':l.score>=40?'score-mid':'score-low';
+    var yUrl=getYlopoUrl(l.raw);
+    return '<div class="lead-card">'+
+      '<div class="lead-card-header"><div><div class="lead-card-name">'+l.name+'</div><div class="lead-card-email">'+l.email+'</div></div>'+
+      '<span class="score-pill '+scoreCls+'">'+l.score+'</span></div>'+
+      '<div class="metrics-row">'+
+        '<span>\u{1F441}\uFE0F '+l.views+' views</span>'+
+        '<span>\u2764\uFE0F '+l.saves+' saves</span>'+
+        (l.showings?'<span>\u{1F3E0} '+l.showings+' showings</span>':'')+
+        '<span class="source-badge '+getSourceClass(l.source)+'">'+(l.source||'\u2014')+'</span>'+
+      '</div>'+
+      '<div class="card-links">'+
+        '<a href="'+GHL_CONTACT_BASE+l.id+'" target="_blank" class="link-ghl">GHL</a>'+
+        (yUrl?'<a href="'+yUrl+'" target="_blank" class="link-ylopo">\u2B50 Ylopo</a>':'')+
+        (l.email?'<a href="mailto:'+l.email+'" class="link-ghl" style="background:rgba(34,197,94,0.12);color:#22c55e">Email</a>':'')+
+        (l.phone?'<a href="tel:'+l.phone+'" class="link-ghl" style="background:rgba(139,92,246,0.12);color:#8b5cf6">Call</a>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+loadData();
+<\/script></body></html>`;
+      return new Response(IDX_HTML, {
+        status: 200,
+        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;" }
       });
     }
     return json({ error: "Not found", path, proxy: "v8" }, 404);
