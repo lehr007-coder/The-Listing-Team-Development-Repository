@@ -3098,9 +3098,9 @@ function getCF(contact, keys) {
       var fkeyStripped = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
       if (fid===k || fkey===k || ffk===k || fname===k
         || ffkStripped===k || fkeyStripped===k
-        || fname.indexOf(k)!==-1 || ffk.indexOf(k)!==-1
-        || ffkStripped.indexOf(k)!==-1 || fkeyStripped.indexOf(k)!==-1
-        || k.indexOf(ffkStripped)!==-1 || k.indexOf(fname)!==-1) {
+        || (fname && fname.indexOf(k)!==-1) || (ffk && ffk.indexOf(k)!==-1)
+        || (ffkStripped && ffkStripped.indexOf(k)!==-1) || (fkeyStripped && fkeyStripped.indexOf(k)!==-1)
+        || (ffkStripped && k.indexOf(ffkStripped)!==-1) || (fname && k.indexOf(fname)!==-1)) {
         found = f;
         break;
       }
