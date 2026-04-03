@@ -3841,10 +3841,11 @@ function getSourceBadgeClass(src) {
   if (!src) return 'source-default';
   var s = src.toLowerCase();
   if (s.indexOf('ylopo') !== -1) return 'source-ylopo';
-  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('plusleads') !== -1 || s.indexOf('myleads') !== -1) return 'source-myplusleads';
+  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('my +') !== -1 || s.indexOf('plusleads') !== -1 || s.indexOf('myleads') !== -1 || s.indexOf('plus leads') !== -1) return 'source-myplusleads';
   if (s.indexOf('zillow') !== -1) return 'source-zillow';
   if (s.indexOf('realtor') !== -1) return 'source-realtor';
   if (s.indexOf('homes') !== -1) return 'source-homes';
+  if (s.indexOf('hlapps') !== -1 || s.indexOf('hl apps') !== -1) return 'source-homes';
   return 'source-default';
 }
 
@@ -13134,10 +13135,11 @@ function getSourceClass(src){
   if(!src)return 'source-default';
   var s=src.toLowerCase();
   if(s.indexOf('ylopo')!==-1)return 'source-ylopo';
-  if(s.indexOf('myplus')!==-1||s.indexOf('my+')!==-1||s.indexOf('plusleads')!==-1)return 'source-myplusleads';
+  if(s.indexOf('myplus')!==-1||s.indexOf('my+')!==-1||s.indexOf('my +')!==-1||s.indexOf('plusleads')!==-1||s.indexOf('plus leads')!==-1)return 'source-myplusleads';
   if(s.indexOf('zillow')!==-1)return 'source-zillow';
   if(s.indexOf('realtor')!==-1)return 'source-realtor';
   if(s.indexOf('homes')!==-1)return 'source-homes';
+  if(s.indexOf('hlapps')!==-1||s.indexOf('hl apps')!==-1)return 'source-homes';
   return 'source-default';
 }
 
