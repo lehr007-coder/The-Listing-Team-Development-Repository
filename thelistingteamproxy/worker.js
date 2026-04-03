@@ -3803,10 +3803,10 @@ function renderTable() {
       '</td>' +
       '<td>' +
         '<div class="matrix-mini">' +
-          '<span class="mm">Views <span>' + m.views + '</span></span>' +
-          '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
-          '<span class="mm">Search <span>' + m.searches + '</span></span>' +
-          (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+          '<span class="mm">&#128065;&#65039; <span>' + m.views + '</span></span>' +
+          '<span class="mm">&#10084;&#65039; <span>' + m.saves + '</span></span>' +
+          '<span class="mm">&#128269; <span>' + m.searches + '</span></span>' +
+          (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
         '</div>' +
       '</td>' +
       '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
@@ -3902,10 +3902,10 @@ function renderCards() {
         '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
       '</div>' +
       '<div class="contact-card-activity">' +
-        '<span class="mm">Views <span>' + m.views + '</span></span>' +
-        '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
-        '<span class="mm">Search <span>' + m.searches + '</span></span>' +
-        (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+        '<span class="mm">&#128065;&#65039; <span>' + m.views + '</span></span>' +
+        '<span class="mm">&#10084;&#65039; <span>' + m.saves + '</span></span>' +
+        '<span class="mm">&#128269; <span>' + m.searches + '</span></span>' +
+        (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
       '</div>' +
       (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
       (l.propType ? '<div style="font-size:11px;color:var(--text-secondary);margin:2px 0">Type: ' + esc(l.propType) + '</div>' : '') +
