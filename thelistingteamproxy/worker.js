@@ -3829,7 +3829,7 @@ function renderTable() {
       '</td>' +
     '</tr>' +
     '<tr class="detail-row" id="detail-' + l.id + '">' +
-      '<td colspan="10"></td>' +
+      '<td colspan="11"></td>' +
     '</tr>';
   }).join('');
 }
@@ -3927,7 +3927,7 @@ function renderCards() {
         (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
       '</div>' +
       (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
-      (l.propType ? '<div style="font-size:11px;color:var(--text-secondary);margin:2px 0">Type: ' + esc(l.propType) + '</div>' : '') +
+      (l.propType ? '<div style="margin:2px 0">' + buildTypeBadge(l.propType) + '</div>' : '') +
       '<div class="contact-card-meta">' +
         buildSourceBadge(l.source) +
         '<span>' + fmtDate(l.dateAdded) + '</span>' +
