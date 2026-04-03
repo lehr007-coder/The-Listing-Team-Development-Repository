@@ -1,0 +1,15 @@
+{
+  "name": "the-listing-team-ghl-proxy",
+  "version": "1.0.0",
+  "description": "Proxy server for GHL custom fields to object fields workflow",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  }
+}
