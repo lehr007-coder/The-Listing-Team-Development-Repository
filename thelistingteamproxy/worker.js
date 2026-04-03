@@ -429,7 +429,7 @@ async function startFetch(){
   setProgress(10);
   setStatus('Loading all Ylopo contacts (bulk)...');
   try{
-    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=8',{headers:{Accept:'application/json'},signal:abortCtl.signal});
+    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=20',{headers:{Accept:'application/json'},signal:abortCtl.signal});
     if(!res.ok)throw new Error('HTTP '+res.status);
     setProgress(70);
     const data=await res.json();
@@ -2233,7 +2233,7 @@ body.dark-mode {
             if (!cached) {
                 tableBody.innerHTML = '<div class="loading"><p>Loading priority leads...</p></div>';
             }
-            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=8');
+            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=20');
             if (!response.ok) throw new Error('HTTP ' + response.status);
             var data = await response.json();
             var allContacts = data.contacts || [];
@@ -6838,7 +6838,7 @@ async function loadData(forceRefresh) {
     ptext.textContent = 'Loading all contacts (server-side)...';
     fill.style.width = '30%';
 
-    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=8&t=\${Date.now()}\`, { cache: "no-store" });
+    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=20&t=\${Date.now()}\`, { cache: "no-store" });
     if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
     fill.style.width = '80%';
     const data = await res.json();
@@ -11786,13 +11786,13 @@ async function fetchAllYlopoEvents(env) {
   const allRecords = [];
   let page = 1;
   try {
-    while (page <= 5) {
+    while (page <= 20) {
       const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
-        locationId: locId, page, pageLimit: 20
+        locationId: locId, page, pageLimit: 100
       });
       const records = data.records || data.data || [];
       allRecords.push(...records);
-      if (records.length < 20) break;
+      if (records.length < 100) break;
       page++;
     }
     _allYlopoEventsCache = allRecords;
@@ -12180,7 +12180,7 @@ var index_default = {
     }
     if (method === "GET" && path === "/contacts/bulk") {
       try {
-        const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "8"), 12);
+        const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "20"), 30);
         const query = url.searchParams.get("query") || "";
         const skipYlopo = url.searchParams.get("ylopo") === "false";
         // Run field defs and Ylopo events in parallel to save time
@@ -12195,7 +12195,7 @@ var index_default = {
         let seenIds = new Set();
         let startAfter = "";
         let startAfterId = "";
-        const deadline = Date.now() + 25000;
+        const deadline = Date.now() + 55000;
         for (let pg = 0; pg < maxPages; pg++) {
           if (Date.now() > deadline) break;
           const params = new URLSearchParams({ locationId: locId, limit: "100" });
@@ -12829,7 +12829,7 @@ var index_default = {
         // 4. For each contact, aggregate event data and write to GHL
         const results = [];
         let updated = 0, skippedCount = 0, errCount = 0;
-        const deadline = Date.now() + 25000;
+        const deadline = Date.now() + 55000;
         for (const [contactId, records] of Object.entries(byContact)) {
           if (Date.now() > deadline) {
             results.push({ status: "deadline_reached", remaining: Object.keys(byContact).length - results.length });
@@ -13181,7 +13181,7 @@ async function loadData(){
   document.getElementById('refreshBtn').disabled=true;
   toast('Loading contacts...','info');
   try{
-    var res=await fetch(PROXY_URL+'/contacts/bulk?pages=8&t='+Date.now());
+    var res=await fetch(PROXY_URL+'/contacts/bulk?pages=20&t='+Date.now());
     if(!res.ok) throw new Error('HTTP '+res.status);
     var data=await res.json();
     var contacts=data.contacts||data.data||[];
