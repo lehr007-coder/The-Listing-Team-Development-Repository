@@ -13043,215 +13043,378 @@ var index_default = {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Listing Team \u2014 IDX Ylopo Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
 <style>
-:root {
-  --bg:#0f1117;--surface:#161b27;--card:#1e2535;--card-border:#2a3348;
-  --text:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
-  --blue:#3b82f6;--green:#22c55e;--amber:#eab308;--red:#ef4444;--purple:#8b5cf6;--orange:#f97316;
-  --radius:12px;--shadow:0 4px 24px rgba(0,0,0,0.4);
-}
-body.light-mode{--bg:#f1f5f9;--surface:#fff;--card:#fff;--card-border:#e2e8f0;--text:#1e293b;--text-secondary:#475569;--text-muted:#94a3b8;--shadow:0 4px 24px rgba(0,0,0,0.08)}
+:root{--bg:#f0f4f8;--card:#fff;--card-border:#e2e8f0;--text:#1e293b;--text-secondary:#64748b;--text-muted:#94a3b8;--blue:#3b82f6;--green:#22c55e;--cyan:#06b6d4;--purple:#8b5cf6;--amber:#eab308;--red:#ef4444;--orange:#f97316;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06)}
+body.dark-mode{--bg:#0f172a;--card:#1e293b;--card-border:#334155;--text:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;--shadow:0 1px 3px rgba(0,0,0,0.3)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
-.topbar{background:linear-gradient(135deg,#0D3B4F,#1E7A9C,#4A6B7C);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.topbar h1{color:#fff;font-size:20px;font-weight:800}
-.topbar-nav{display:flex;gap:6px;margin-left:16px}
-.topbar-nav a{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)}
-.topbar-nav a.active{border-color:rgba(255,255,255,0.5);color:#fff;background:rgba(255,255,255,0.15)}
-.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-.btn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
-.btn:hover{background:rgba(255,255,255,0.2)}
-.container{max-width:1400px;margin:0 auto;padding:24px}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
-.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:20px}
-.stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-weight:600;margin-bottom:8px}
-.stat-value{font-size:28px;font-weight:800}
-.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
-.section{margin-bottom:24px}
-.section h2{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.lead-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:16px;transition:border-color .2s}
-.lead-card:hover{border-color:var(--blue)}
-.lead-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-.lead-card-name{font-size:14px;font-weight:700}
-.lead-card-email{font-size:11px;color:var(--text-muted)}
-.score-pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
-.score-high{background:rgba(34,197,94,0.15);color:#22c55e}
-.score-mid{background:rgba(234,179,8,0.15);color:#eab308}
-.score-low{background:rgba(239,68,68,0.15);color:#ef4444}
-.metrics-row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;font-size:12px;color:var(--text-secondary)}
-.metrics-row span{display:flex;align-items:center;gap:3px}
-.source-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
-.source-ylopo{background:rgba(234,179,8,0.15);color:#eab308}
-.source-myplusleads{background:rgba(139,92,246,0.15);color:#8b5cf6}
-.source-zillow{background:rgba(59,130,246,0.15);color:#3b82f6}
-.source-realtor{background:rgba(239,68,68,0.15);color:#ef4444}
-.source-homes{background:rgba(249,115,22,0.15);color:#f97316}
-.source-default{background:rgba(100,116,139,0.15);color:#94a3b8}
-.card-links{display:flex;gap:6px;margin-top:10px}
-.card-links a{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;transition:all .15s}
-.link-ghl{background:rgba(59,130,246,0.12);color:#3b82f6}
-.link-ghl:hover{background:#3b82f6;color:#fff}
-.link-ylopo{background:rgba(234,179,8,0.12);color:#eab308}
-.link-ylopo:hover{background:#eab308;color:#000}
-.loading{text-align:center;padding:60px;color:var(--text-muted)}
-.loading-spinner{width:32px;height:32px;border:3px solid var(--card-border);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
-@keyframes spin{to{transform:rotate(360deg)}}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.header-bar{background:linear-gradient(135deg,#1e3a5f,#2d6a9f,#4a7fb5);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.header-bar h1{color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.02em}
+.header-nav{display:flex;gap:6px;margin-left:16px}
+.header-nav a{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)}
+.header-nav a.active{border-color:rgba(255,255,255,0.5);color:#fff;background:rgba(255,255,255,0.15)}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hbtn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.hbtn:hover{background:rgba(255,255,255,0.2)}
+.container{max-width:1300px;margin:0 auto;padding:24px}
+/* Stats Row */
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:900px){.stats-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:500px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);text-align:center}
+.stat-label{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px}
+.stat-val{display:flex;align-items:center;justify-content:center;gap:8px}
+.stat-icon{font-size:20px}
+.stat-num{font-size:28px;font-weight:800;color:var(--text)}
+.stat-sub{font-size:10px;color:var(--text-muted);margin-top:6px}
+/* Search Bar */
+.search-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.search-input{flex:1;min-width:200px;padding:10px 16px;border:1px solid var(--card-border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;font-family:inherit}
+.search-input:focus{outline:none;border-color:var(--blue)}
+.view-all-link{font-size:13px;font-weight:600;color:var(--blue)}
+/* Overview Grid */
+.overview-grid{display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;margin-bottom:32px}
+@media(max-width:800px){.overview-grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+.panel-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.panel-sub{font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.toggle-group{display:inline-flex;border:1px solid var(--card-border);border-radius:6px;overflow:hidden;float:right;margin-top:-32px}
+.toggle-btn{padding:5px 14px;font-size:11px;font-weight:600;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-family:inherit}
+.toggle-btn.active{background:var(--blue);color:#fff}
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.progress-label{font-size:13px;color:var(--text-secondary);flex:1}
+.progress-pct{font-size:13px;font-weight:700;min-width:42px;text-align:right}
+.progress-track{flex:2;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;transition:width .5s}
+.analysis-box{margin-top:16px;padding:14px;border-radius:8px;background:var(--bg);font-size:13px;color:var(--text-secondary);line-height:1.6}
+.analysis-box strong{color:var(--green)}
+/* Activity Table */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.section-title{font-size:20px;font-weight:700}
+.section-sub{font-size:13px;color:var(--text-muted)}
+.filter-row{display:flex;gap:8px;align-items:center}
+.filter-select{padding:8px 12px;border:1px solid var(--card-border);border-radius:6px;background:var(--card);color:var(--text);font-size:12px;font-family:inherit}
+.activity-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.activity-table th{text-align:left;padding:12px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);border-bottom:1px solid var(--card-border)}
+.activity-table td{padding:12px 16px;border-bottom:1px solid var(--card-border);vertical-align:middle}
+.activity-table tr:last-child td{border-bottom:none}
+.lead-cell{display:flex;align-items:center;gap:12px}
+.avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.lead-name{font-size:13px;font-weight:600;color:var(--blue)}
+.lead-name:hover{text-decoration:underline}
+.lead-email{font-size:11px;color:var(--text-muted)}
+.activity-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--green);color:var(--green);background:rgba(34,197,94,0.08)}
+.time-cell{font-size:12px;color:var(--text-muted);white-space:nowrap}
+.action-icons{display:flex;gap:6px}
+.action-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);border:1px solid var(--card-border);cursor:pointer;transition:all .15s;background:var(--card);text-decoration:none}
+.action-icon:hover{background:var(--blue);color:#fff;border-color:var(--blue);text-decoration:none}
+.action-icon svg{width:16px;height:16px}
+.table-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:12px;color:var(--text-muted);background:var(--card);border:1px solid var(--card-border);border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+/* Property Cards */
+.props-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;margin-top:32px}
+.props-title{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
+.props-sub{font-size:13px;color:var(--text-muted)}
+.props-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.prop-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:transform .15s}
+.prop-card:hover{transform:translateY(-2px)}
+.prop-img{position:relative;height:180px;background:#334155;overflow:hidden}
+.prop-img img{width:100%;height:100%;object-fit:cover}
+.prop-badge{position:absolute;top:10px;left:10px;background:var(--green);color:#fff;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.prop-views{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;display:flex;align-items:center;gap:3px}
+.prop-price{position:absolute;bottom:10px;left:14px;color:#fff;font-size:22px;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,0.5)}
+.prop-body{padding:14px}
+.prop-addr{font-size:13px;font-weight:600;margin-bottom:4px}
+.prop-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);margin-bottom:10px}
+.prop-meta span{display:flex;align-items:center;gap:3px}
+.prop-cta{color:var(--green);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px;display:block}
+.prop-lead{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:12px;padding-top:10px;border-top:1px solid var(--card-border)}
+.prop-actions{display:flex;border-top:1px solid var(--card-border)}
+.prop-action{flex:1;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s;text-decoration:none}
+.prop-action:hover{background:var(--bg);color:var(--blue);text-decoration:none}
+.prop-action+.prop-action{border-left:1px solid var(--card-border)}
+.loading-box{text-align:center;padding:60px;color:var(--text-muted)}
 .toast{position:fixed;bottom:24px;right:24px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s}
-.toast.visible{opacity:1}
-.toast.success{background:#22c55e;color:#fff}
-.toast.error{background:#ef4444;color:#fff}
-.toast.info{background:#3b82f6;color:#fff}
+.toast.visible{opacity:1}.toast.success{background:var(--green);color:#fff}.toast.error{background:var(--red);color:#fff}.toast.info{background:var(--blue);color:#fff}
 </style>
 </head><body>
-<div class="topbar">
+<div class="header-bar">
   <h1>\u{1F3E0} IDX Ylopo Dashboard</h1>
-  <div class="topbar-nav">
+  <div class="header-nav">
     <a href="/dashboard">Hub</a>
     <a href="/dashboard/ylopo-contacts">Contacts</a>
     <a href="/dashboard/ylopo-analytics">Analytics</a>
     <a href="/dashboard/idx" class="active">IDX</a>
   </div>
-  <div class="topbar-right">
-    <button class="btn" onclick="toggleTheme()">\u263C Theme</button>
-    <button class="btn" onclick="loadData()" id="refreshBtn">\u21BB Refresh</button>
+  <div class="header-right">
+    <button class="hbtn" onclick="toggleTheme()" id="themeBtn">\u263D Dark</button>
+    <button class="hbtn" onclick="loadData()" id="refreshBtn">&#8635; Refresh</button>
   </div>
 </div>
 <div class="container">
-  <div class="stats-grid" id="statsGrid">
-    <div class="stat-card"><div class="stat-label">Total IDX Leads</div><div class="stat-value" id="statTotal">\u2014</div><div class="stat-sub">All contacts</div></div>
-    <div class="stat-card"><div class="stat-label">Active Searchers</div><div class="stat-value" id="statActive" style="color:var(--green)">\u2014</div><div class="stat-sub">Views > 0</div></div>
-    <div class="stat-card"><div class="stat-label">Total Views</div><div class="stat-value" id="statViews" style="color:var(--blue)">\u2014</div><div class="stat-sub">Listing views</div></div>
-    <div class="stat-card"><div class="stat-label">Total Saves</div><div class="stat-value" id="statSaves" style="color:var(--red)">\u2014</div><div class="stat-sub">Favorited</div></div>
-    <div class="stat-card"><div class="stat-label">Showing Requests</div><div class="stat-value" id="statShowings" style="color:var(--amber)">\u2014</div><div class="stat-sub">Scheduled</div></div>
-    <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value" id="statAvgScore" style="color:var(--purple)">\u2014</div><div class="stat-sub">Lead quality</div></div>
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-val"><span class="stat-icon" style="color:var(--blue)">\u26A1</span><span class="stat-num" id="sTotal">\u2014</span></div><div class="stat-sub" id="sNewSub">Loading...</div></div>
+    <div class="stat-card"><div class="stat-label">Latest Activity</div><div class="stat-val"><span class="stat-icon" style="color:var(--cyan)">\u26A1</span><span class="stat-num" id="sActivity">\u2014</span></div><div class="stat-sub">Last 30 days</div></div>
+    <div class="stat-card"><div class="stat-label">Saved Properties</div><div class="stat-val"><span class="stat-icon" style="color:var(--red)">\u2764\uFE0F</span><span class="stat-num" id="sSaved">\u2014</span></div><div class="stat-sub">Last 30 days</div></div>
+    <div class="stat-card"><div class="stat-label">Saved Searches</div><div class="stat-val"><span class="stat-icon" style="color:var(--purple)">\u{1F50D}</span><span class="stat-num" id="sSearches">\u2014</span></div><div class="stat-sub">Last 30 days</div></div>
+    <div class="stat-card"><div class="stat-label">New Leads</div><div class="stat-val"><span class="stat-icon" style="color:var(--green)">\u{1F465}</span><span class="stat-num" id="sNew">\u2014</span></div><div class="stat-sub">Last 30 days</div></div>
+    <div class="stat-card"><div class="stat-label">Anonymous</div><div class="stat-val"><span class="stat-icon" style="color:var(--text-muted)">\u{1F464}</span><span class="stat-num" id="sAnon">\u2014</span></div><div class="stat-sub">Last 30 days</div></div>
   </div>
-
-  <div class="section">
-    <h2>\u{1F525} Top Active Leads</h2>
-    <div id="leadGrid" class="card-grid">
-      <div class="loading"><div class="loading-spinner"></div>Loading leads...</div>
+  <!-- Search Bar -->
+  <div class="search-bar">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search for lead..." oninput="filterActivities()">
+    <select class="filter-select" id="activityFilter" onchange="filterActivities()">
+      <option value="all">All Activities</option>
+      <option value="viewed">Viewed Property</option>
+      <option value="saved">Saved Property</option>
+      <option value="registration">Registration</option>
+      <option value="search">Property Search</option>
+      <option value="showing">Showing Request</option>
+    </select>
+    <a href="/dashboard/ylopo-contacts" class="view-all-link">View All Leads \u2192</a>
+  </div>
+  <!-- Stats Overview -->
+  <div class="overview-grid">
+    <div class="panel">
+      <div class="panel-title">Lead Activity</div>
+      <div class="panel-sub">Track your lead generation over time</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="setChartMode('weekly',this)">Weekly</button>
+        <button class="toggle-btn" onclick="setChartMode('monthly',this)">Monthly</button>
+      </div>
+      <canvas id="activityChart" height="220"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Quick Stats</div>
+      <div class="panel-sub" id="qsSubtitle">Based on the most recent leads</div>
+      <div id="quickStatsWrap">
+        <div class="progress-row"><span class="progress-label">Verified Leads</span><div class="progress-track"><div class="progress-fill" id="pVerified" style="width:0%;background:var(--blue)"></div></div><span class="progress-pct" id="pVerifiedPct">0%</span></div>
+        <div class="progress-row"><span class="progress-label">With Activity</span><div class="progress-track"><div class="progress-fill" id="pActive" style="width:0%;background:var(--green)"></div></div><span class="progress-pct" id="pActivePct">0%</span></div>
+        <div class="progress-row"><span class="progress-label">Saved Searches</span><div class="progress-track"><div class="progress-fill" id="pSearches" style="width:0%;background:var(--purple)"></div></div><span class="progress-pct" id="pSearchesPct">0%</span></div>
+        <div class="progress-row"><span class="progress-label">Saved Properties</span><div class="progress-track"><div class="progress-fill" id="pSaved" style="width:0%;background:var(--cyan)"></div></div><span class="progress-pct" id="pSavedPct">0%</span></div>
+      </div>
+      <div class="analysis-box" id="analysisBox">\u{1F4CB} Loading analysis...</div>
     </div>
   </div>
+  <!-- Recent Lead Activity -->
+  <div class="section-header">
+    <div><div class="section-title">Recent Lead Activity</div><div class="section-sub">Monitor your latest leads and their actions</div></div>
+  </div>
+  <table class="activity-table" id="activityTable">
+    <thead><tr><th>LEAD</th><th>ACTIVITY</th><th>TIME</th><th>ACTIONS</th></tr></thead>
+    <tbody id="activityBody"><tr><td colspan="4" class="loading-box">Loading leads...</td></tr></tbody>
+  </table>
+  <div class="table-footer"><span id="activityCount">Showing 0 activities</span><a href="/dashboard/ylopo-contacts" class="view-all-link">View All Leads</a></div>
+  <!-- Saved Properties -->
+  <div class="props-header">
+    <div><div class="props-title">\u{1F3E0} Saved Properties</div><div class="props-sub">Recently saved by your leads</div></div>
+    <a href="/dashboard/ylopo-analytics" class="view-all-link">View All \u2192</a>
+  </div>
+  <div class="props-grid" id="propsGrid"><div class="loading-box" style="grid-column:1/-1">Loading properties...</div></div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
-const PROXY_URL = window.location.origin;
-const GHL_CONTACT_BASE = 'https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/';
-let ALL_LEADS = [];
+const PROXY=window.location.origin;
+const GHL_BASE='https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/';
+let ALL_CONTACTS=[],ACTIVITIES=[],PROPERTIES=[];
+let actChart=null;
 
-function toast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' visible';setTimeout(()=>t.classList.remove('visible'),3000)}
-function toggleTheme(){document.body.classList.toggle('light-mode');try{localStorage.setItem('tlt-idx-theme',document.body.classList.contains('light-mode')?'light':'dark')}catch(e){}}
-try{if(localStorage.getItem('tlt-idx-theme')==='light')document.body.classList.add('light-mode')}catch(e){}
-
-function getSourceClass(src){
-  if(!src)return 'source-default';
-  var s=src.toLowerCase();
-  if(s.indexOf('ylopo')!==-1)return 'source-ylopo';
-  if(s.indexOf('myplus')!==-1||s.indexOf('my+')!==-1||s.indexOf('my +')!==-1||s.indexOf('plusleads')!==-1||s.indexOf('plus leads')!==-1)return 'source-myplusleads';
-  if(s.indexOf('zillow')!==-1)return 'source-zillow';
-  if(s.indexOf('realtor')!==-1)return 'source-realtor';
-  if(s.indexOf('homes')!==-1)return 'source-homes';
-  if(s.indexOf('hlapps')!==-1||s.indexOf('hl apps')!==-1)return 'source-homes';
-  return 'source-default';
-}
+function toast(m,t='info'){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' visible';setTimeout(()=>e.classList.remove('visible'),3000)}
+function toggleTheme(){const d=document.body.classList.toggle('dark-mode');document.getElementById('themeBtn').innerHTML=d?'\\u263C Light':'\\u263D Dark';try{localStorage.setItem('tlt-idx-theme',d?'dark':'light')}catch(e){}}
+try{if(localStorage.getItem('tlt-idx-theme')==='dark'){document.body.classList.add('dark-mode');document.getElementById('themeBtn').innerHTML='\\u263C Light'}}catch(e){}
 
 function getCF(c,keys){
-  var fields=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
-  for(var k=0;k<keys.length;k++){
-    var key=keys[k].toLowerCase();
-    for(var i=0;i<fields.length;i++){
-      var f=fields[i];
-      var fk=(f.fieldKey||f.key||f.name||'').toLowerCase().replace('contact.','');
-      if(fk.indexOf(key)!==-1||key.indexOf(fk)!==-1){
-        var v=f.value;
-        if(v!=null&&v!==''&&String(v)!=='[object Object]') return String(v);
-      }
-    }
-  }
+  var f=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
+  for(var k=0;k<keys.length;k++){var key=keys[k].toLowerCase();for(var i=0;i<f.length;i++){var fk=(f[i].fieldKey||f[i].key||f[i].name||'').toLowerCase().replace('contact.','');if(fk.indexOf(key)!==-1){var v=f[i].value;if(v!=null&&v!==''&&String(v)!=='[object Object]')return String(v)}}}
   return null;
 }
-
 function getYlopoUrl(c){
-  var fields=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
-  for(var i=0;i<fields.length;i++){
-    var fk=(fields[i].fieldKey||fields[i].key||fields[i].name||'').toLowerCase();
-    var val=String(fields[i].value||'');
-    if((fk.indexOf('ylopo_stars')!==-1||fk.indexOf('fub_ylopo_stars')!==-1)&&val.indexOf('http')===0) return val;
-  }
-  for(var i=0;i<fields.length;i++){
-    var val=String(fields[i].value||'');
-    if(val.indexOf('stars.ylopo.com')!==-1&&val.indexOf('http')===0) return val;
-  }
-  for(var i=0;i<fields.length;i++){
-    var fk=(fields[i].fieldKey||fields[i].key||'').toLowerCase();
-    var val=String(fields[i].value||'');
-    if(fk.indexOf('ylopo')!==-1&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val))
-      return 'https://stars.ylopo.com/lead-detail/'+val;
-  }
+  var f=Array.isArray(c.customField)?c.customField:Array.isArray(c.customFields)?c.customFields:[];
+  for(var i=0;i<f.length;i++){var fk=(f[i].fieldKey||f[i].key||f[i].name||'').toLowerCase();var v=String(f[i].value||'');if((fk.indexOf('ylopo_stars')!==-1||fk.indexOf('fub_ylopo_stars')!==-1)&&v.indexOf('http')===0)return v}
+  for(var i=0;i<f.length;i++){var v=String(f[i].value||'');if(v.indexOf('stars.ylopo.com')!==-1&&v.indexOf('http')===0)return v}
+  for(var i=0;i<f.length;i++){var fk=(f[i].fieldKey||f[i].key||'').toLowerCase();var v=String(f[i].value||'');if(fk.indexOf('ylopo')!==-1&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))return'https://stars.ylopo.com/lead-detail/'+v}
   return '';
 }
+function timeAgo(d){if(!d)return'';var ms=Date.now()-new Date(d).getTime();var h=Math.floor(ms/36e5);if(h<1)return'just now';if(h<24)return h+' hour'+(h>1?'s':'')+' ago';var days=Math.floor(h/24);if(days<30)return days+' day'+(days>1?'s':'')+' ago';var mo=Math.floor(days/30);return mo+' month'+(mo>1?'s':'')+' ago'}
+function initials(name){return(name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()}
+function avatarColor(name){var colors=['#3b82f6','#8b5cf6','#06b6d4','#f97316','#ef4444','#22c55e','#ec4899'];var h=0;for(var i=0;i<(name||'').length;i++)h=name.charCodeAt(i)+((h<<5)-h);return colors[Math.abs(h)%colors.length]}
 
 async function loadData(){
   document.getElementById('refreshBtn').disabled=true;
   toast('Loading contacts...','info');
   try{
-    var res=await fetch(PROXY_URL+'/contacts/bulk?pages=20&t='+Date.now());
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    var res=await fetch(PROXY+'/contacts/bulk?pages=20&t='+Date.now());
+    if(!res.ok)throw new Error('HTTP '+res.status);
     var data=await res.json();
-    var contacts=data.contacts||data.data||[];
-
-    ALL_LEADS=contacts.map(function(c){
-      var views=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
-      var saves=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','total_saved_homes'])||0);
-      var showings=Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings'])||0);
-      var score=Math.min(100,Math.round(views*1+saves*5+showings*15));
-      var name=((c.firstName||'')+ ' '+(c.lastName||'')).trim()||c.email||'Unknown';
-      return{id:c.id,name:name,email:c.email||'',phone:c.phone||'',source:c.source||'',views:views,saves:saves,showings:showings,score:score,raw:c};
-    });
-    ALL_LEADS.sort(function(a,b){return(b.views+b.saves*3+b.showings*5)-(a.views+a.saves*3+a.showings*5)});
-
-    var totalViews=0,totalSaves=0,totalShowings=0,active=0,totalScore=0;
-    ALL_LEADS.forEach(function(l){totalViews+=l.views;totalSaves+=l.saves;totalShowings+=l.showings;if(l.views>0)active++;totalScore+=l.score});
-    document.getElementById('statTotal').textContent=ALL_LEADS.length.toLocaleString();
-    document.getElementById('statActive').textContent=active.toLocaleString();
-    document.getElementById('statViews').textContent=totalViews.toLocaleString();
-    document.getElementById('statSaves').textContent=totalSaves.toLocaleString();
-    document.getElementById('statShowings').textContent=totalShowings.toLocaleString();
-    document.getElementById('statAvgScore').textContent=ALL_LEADS.length>0?Math.round(totalScore/ALL_LEADS.length):'0';
-
-    renderLeads();
-    toast('Loaded '+ALL_LEADS.length+' leads','success');
+    ALL_CONTACTS=data.contacts||data.data||[];
+    processData();
+    renderStats();
+    renderChart('weekly');
+    renderQuickStats();
+    renderActivities();
+    renderProperties();
+    toast('Loaded '+ALL_CONTACTS.length+' contacts','success');
   }catch(e){toast('Error: '+e.message,'error')}
   document.getElementById('refreshBtn').disabled=false;
 }
 
-function renderLeads(){
-  var grid=document.getElementById('leadGrid');
-  var top=ALL_LEADS.filter(function(l){return l.views+l.saves+l.showings>0}).slice(0,50);
-  if(top.length===0){grid.innerHTML='<div class="loading" style="grid-column:1/-1">No active leads found</div>';return}
-  grid.innerHTML=top.map(function(l){
-    var scoreCls=l.score>=70?'score-high':l.score>=40?'score-mid':'score-low';
-    var yUrl=getYlopoUrl(l.raw);
-    return '<div class="lead-card">'+
-      '<div class="lead-card-header"><div><div class="lead-card-name">'+l.name+'</div><div class="lead-card-email">'+l.email+'</div></div>'+
-      '<span class="score-pill '+scoreCls+'">'+l.score+'</span></div>'+
-      '<div class="metrics-row">'+
-        '<span>\u{1F441}\uFE0F '+l.views+' views</span>'+
-        '<span>\u2764\uFE0F '+l.saves+' saves</span>'+
-        (l.showings?'<span>\u{1F3E0} '+l.showings+' showings</span>':'')+
-        '<span class="source-badge '+getSourceClass(l.source)+'">'+(l.source||'\u2014')+'</span>'+
+function processData(){
+  var now=Date.now(),d30=30*864e5;
+  ACTIVITIES=[];PROPERTIES=[];
+  ALL_CONTACTS.forEach(function(c){
+    var name=((c.firstName||'')+' '+(c.lastName||'')).trim()||c.email||'Unknown';
+    var views=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
+    var saves=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','total_saved_homes'])||0);
+    var showings=Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings'])||0);
+    var searches=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
+    var updated=c.dateUpdated||c.dateAdded;
+    var added=c.dateAdded;
+    // Generate activity entries
+    if(views>0) ACTIVITIES.push({type:'viewed',label:'Viewed Property',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
+    if(saves>0) ACTIVITIES.push({type:'saved',label:'Saved Property',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
+    if(showings>0) ACTIVITIES.push({type:'showing',label:'Showing Request',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
+    if(searches>0) ACTIVITIES.push({type:'search',label:'Recent Property Search',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
+    if(added&&(now-new Date(added).getTime())<d30) ACTIVITIES.push({type:'registration',label:'Registration',name:name,email:c.email||'',id:c.id,time:added,raw:c});
+    // Property cards from saves
+    if(saves>0){
+      var addr=getCF(c,['ylopo_last_favorite_address','last_saved_address','owner_address','property_address'])||'';
+      var price=getCF(c,['ylopo_last_favorite_price','last_saved_price','ylopo_price_max','max_price'])||'';
+      var beds=getCF(c,['ylopo_beds','bedrooms','beds'])||'';
+      var baths=getCF(c,['ylopo_baths','bathrooms','baths'])||'';
+      var img=getCF(c,['ylopo_last_favorite_image','last_saved_image'])||'';
+      if(addr||price)PROPERTIES.push({addr:addr,price:price,beds:beds,baths:baths,img:img,name:name,email:c.email||'',phone:c.phone||'',id:c.id,time:updated,views:saves});
+    }
+  });
+  ACTIVITIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
+  PROPERTIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
+}
+function renderStats(){
+  var total=ALL_CONTACTS.length,now=Date.now(),d30=30*864e5;
+  var newLeads=0,withActivity=0,totalSaves=0,totalSearches=0,anon=0;
+  ALL_CONTACTS.forEach(function(c){
+    if(c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30)newLeads++;
+    var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
+    var s=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves'])||0);
+    var sr=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
+    if(v+s>0)withActivity++;
+    totalSaves+=s;totalSearches+=sr;
+    if(!c.email&&!c.phone)anon++;
+  });
+  document.getElementById('sTotal').textContent=total.toLocaleString();
+  document.getElementById('sActivity').textContent=withActivity.toLocaleString();
+  document.getElementById('sSaved').textContent=totalSaves.toLocaleString();
+  document.getElementById('sSearches').textContent=totalSearches.toLocaleString();
+  document.getElementById('sNew').textContent=newLeads.toLocaleString();
+  document.getElementById('sAnon').textContent=anon.toLocaleString();
+  document.getElementById('sNewSub').textContent=newLeads+' new leads \\u00B7 30d';
+}
+
+function renderChart(mode){
+  var ctx=document.getElementById('activityChart').getContext('2d');
+  if(actChart)actChart.destroy();
+  var now=new Date();var labels=[],newData=[],engData=[];
+  if(mode==='weekly'){
+    for(var i=6;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);labels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
+      var dayStart=new Date(d);dayStart.setHours(0,0,0,0);var dayEnd=new Date(d);dayEnd.setHours(23,59,59,999);
+      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0).getTime();if(t>=dayStart&&t<=dayEnd)nc++;var u=new Date(c.dateUpdated||0).getTime();if(u>=dayStart&&u<=dayEnd)ec++});
+      newData.push(nc);engData.push(ec)}
+  }else{
+    for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);labels.push(d.toLocaleDateString('en-US',{month:'short'}));
+      var mEnd=new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59);
+      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0);if(t>=d&&t<=mEnd)nc++;var u=new Date(c.dateUpdated||0);if(u>=d&&u<=mEnd)ec++});
+      newData.push(nc);engData.push(ec)}
+  }
+  var isDark=document.body.classList.contains('dark-mode');
+  actChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[
+    {label:'New Leads',data:newData,borderColor:'#ec4899',backgroundColor:'rgba(236,72,153,0.1)',fill:true,tension:0.4,pointRadius:3},
+    {label:'Engagement',data:engData,borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.1)',fill:true,tension:0.4,pointRadius:3}
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'circle',padding:16,font:{size:11},color:isDark?'#94a3b8':'#64748b'}}},scales:{x:{grid:{display:false},ticks:{color:isDark?'#64748b':'#94a3b8',font:{size:11}}},y:{beginAtZero:true,grid:{color:isDark?'#1e293b':'#f1f5f9'},ticks:{color:isDark?'#64748b':'#94a3b8',font:{size:11}}}}}});
+}
+function setChartMode(mode,btn){
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');renderChart(mode);
+}
+
+function renderQuickStats(){
+  var total=ALL_CONTACTS.length||1;
+  var verified=ALL_CONTACTS.filter(function(c){return c.email}).length;
+  var active=ALL_CONTACTS.filter(function(c){var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_views'])||0);return v>0}).length;
+  var searches=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0)>0}).length;
+  var saved=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_total_favorites','ylopo_saves'])||0)>0}).length;
+  var vp=Math.round(verified/total*100),ap=Math.round(active/total*100),sp=Math.round(searches/total*100),pp=Math.round(saved/total*100);
+  document.getElementById('pVerified').style.width=vp+'%';document.getElementById('pVerifiedPct').textContent=vp+'%';
+  document.getElementById('pActive').style.width=ap+'%';document.getElementById('pActivePct').textContent=ap+'%';
+  document.getElementById('pSearches').style.width=sp+'%';document.getElementById('pSearchesPct').textContent=sp+'%';
+  document.getElementById('pSaved').style.width=pp+'%';document.getElementById('pSavedPct').textContent=pp+'%';
+  document.getElementById('qsSubtitle').textContent='Based on '+ALL_CONTACTS.length.toLocaleString()+' leads';
+  var now=Date.now(),d30=30*864e5;
+  var newLeads=ALL_CONTACTS.filter(function(c){return c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30}).length;
+  document.getElementById('analysisBox').innerHTML='\\u{1F4CB} <b>ANALYSIS</b><br>Great job! <strong>'+vp+'%</strong> of your leads are verified. This indicates '+(vp>80?'high':'moderate')+' lead quality. You have <strong>'+newLeads+'</strong> new lead(s) in the last 30 days.'+(ap>10?' Lead engagement is strong!':' Consider nurturing more leads.');
+}
+
+function renderActivities(){
+  var filter=document.getElementById('activityFilter').value;
+  var query=(document.getElementById('searchInput').value||'').toLowerCase();
+  var filtered=ACTIVITIES.filter(function(a){
+    if(filter!=='all'&&a.type!==filter)return false;
+    if(query&&a.name.toLowerCase().indexOf(query)===-1&&a.email.toLowerCase().indexOf(query)===-1)return false;
+    return true;
+  });
+  var show=filtered.slice(0,20);
+  var tbody=document.getElementById('activityBody');
+  if(show.length===0){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">No activities found</td></tr>';document.getElementById('activityCount').textContent='0 activities';return}
+  tbody.innerHTML=show.map(function(a){
+    var bg=avatarColor(a.name);
+    var ghl=GHL_BASE+a.id;
+    return '<tr>'+
+      '<td><div class="lead-cell"><div class="avatar" style="background:'+bg+'">'+initials(a.name)+'</div><div><a href="'+ghl+'" target="_blank" class="lead-name">'+a.name+'</a><div class="lead-email">'+a.email+'</div></div></div></td>'+
+      '<td><span class="activity-badge">\\u25CF '+a.label+'</span></td>'+
+      '<td class="time-cell">'+timeAgo(a.time)+'</td>'+
+      '<td><div class="action-icons">'+
+        '<a href="'+ghl+'" target="_blank" class="action-icon" title="Open in GHL"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>'+
+        (a.email?'<a href="mailto:'+a.email+'" class="action-icon" title="Email"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></a>':'')+
+        (a.raw.phone?'<a href="tel:'+a.raw.phone+'" class="action-icon" title="Call"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></a>':'')+
+        (a.raw.phone?'<a href="sms:'+a.raw.phone+'" class="action-icon" title="SMS"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg></a>':'')+
+      '</div></td></tr>'
+  }).join('');
+  document.getElementById('activityCount').textContent='Showing '+show.length+' of '+filtered.length+' activities';
+}
+function filterActivities(){renderActivities()}
+function renderProperties(){
+  var grid=document.getElementById('propsGrid');
+  var show=PROPERTIES.slice(0,8);
+  if(show.length===0){grid.innerHTML='<div class="loading-box" style="grid-column:1/-1">\u{1F3E0} No saved properties found yet</div>';return}
+  grid.innerHTML=show.map(function(p){
+    var priceStr=p.price?'$'+Number(p.price).toLocaleString():'';
+    var placeholder='<div style="width:100%;height:100%;background:linear-gradient(135deg,#334155,#475569);display:flex;align-items:center;justify-content:center;font-size:2rem">\u{1F3E0}</div>';
+    var imgHtml=p.img&&p.img.startsWith('http')?'<img src="'+p.img+'" alt="property" onerror="this.outerHTML=\\''+placeholder.replace(/'/g,"\\\\'")+'\\'">' :placeholder;
+    return '<div class="prop-card">'+
+      '<div class="prop-img">'+imgHtml+
+        '<span class="prop-badge">Saved Property</span>'+
+        '<span class="prop-views">\\u{1F441} '+p.views+'</span>'+
+        (priceStr?'<span class="prop-price">'+priceStr+'</span>':'')+
       '</div>'+
-      '<div class="card-links">'+
-        '<a href="'+GHL_CONTACT_BASE+l.id+'" target="_blank" class="link-ghl">GHL</a>'+
-        (yUrl?'<a href="'+yUrl+'" target="_blank" class="link-ylopo">\u2B50 Ylopo</a>':'')+
-        (l.email?'<a href="mailto:'+l.email+'" class="link-ghl" style="background:rgba(34,197,94,0.12);color:#22c55e">Email</a>':'')+
-        (l.phone?'<a href="tel:'+l.phone+'" class="link-ghl" style="background:rgba(139,92,246,0.12);color:#8b5cf6">Call</a>':'')+
+      '<div class="prop-body">'+
+        '<div class="prop-addr">'+(p.addr||'Address not available')+'</div>'+
+        '<div class="prop-meta">'+
+          (p.beds?'<span>\\u{1F6CF} '+p.beds+' Beds</span>':'')+
+          (p.baths?'<span>\\u{1F6C1} '+p.baths+' Baths</span>':'')+
+        '</div>'+
+        '<a class="prop-cta" href="/dashboard/ylopo-contacts">CREATE SAVED SEARCH</a>'+
+        '<div class="prop-lead">\\u{1F464} '+p.name+(p.time?' \\u00B7 '+timeAgo(p.time):'')+'</div>'+
+      '</div>'+
+      '<div class="prop-actions">'+
+        (p.email?'<a href="mailto:'+p.email+'" class="prop-action">Email</a>':'<span class="prop-action">Email</span>')+
+        (p.phone?'<a href="tel:'+p.phone+'" class="prop-action">Call</a>':'<span class="prop-action">Call</span>')+
+        (p.phone?'<a href="sms:'+p.phone+'" class="prop-action">SMS</a>':'<span class="prop-action">SMS</span>')+
       '</div>'+
     '</div>';
   }).join('');
 }
+
 loadData();
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script></body></html>`;
