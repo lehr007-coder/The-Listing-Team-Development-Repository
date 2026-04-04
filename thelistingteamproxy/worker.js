@@ -2526,6 +2526,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-value.flash-green { color: #00ff55; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
+  @keyframes pulseGreen { 0%,100% { color: #00ff55; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-sub.positive { color: #1E7A9C; }
 
@@ -2967,7 +2969,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <div class="stats-row">
   <div class="stat-card">
     <div class="stat-label">Total Contacts</div>
-    <div class="stat-value" id="statTotal">&mdash;</div>
+    <div class="stat-value flash-green" id="statTotal">&mdash;</div>
     <div class="stat-sub">in GHL</div>
   </div>
   <div class="stat-card">
@@ -6061,6 +6063,14 @@ function processRawContacts(allRaw) {
     }
     if (!name) name = 'Unknown';
 
+    // Auto-classify My+Plus Leads (and deviations) as Seller contact type
+    var rawSource = (ext.source || String(c.source || '')).toLowerCase();
+    var contactType = ext.propType || ext.leadType || c.type || '';
+    var isPlusLeads = rawSource.indexOf('plus leads') !== -1 || rawSource.indexOf('myplus') !== -1 || rawSource.indexOf('my+plus') !== -1 || rawSource.indexOf('my +plus') !== -1 || rawSource.indexOf('myplusleads') !== -1 || rawSource.indexOf('plusleads') !== -1;
+    if (isPlusLeads && (!contactType || contactType.toLowerCase() !== 'seller')) {
+      contactType = 'Seller';
+    }
+
     return {
       id:          c.id,
       name:        name,
@@ -6076,7 +6086,7 @@ function processRawContacts(allRaw) {
       source:      ext.source || String(c.source||''),
       city:        ext.city,
       state:       ext.state,
-      propType:    ext.propType || ext.leadType || c.type || '',
+      propType:    contactType,
       isNew:       isNewThisWeek(c),
       hasShowing:  matrix.showings > 0
     };
