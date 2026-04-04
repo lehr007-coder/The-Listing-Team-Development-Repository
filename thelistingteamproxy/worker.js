@@ -3064,6 +3064,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
   <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
   <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
+  <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
 </div>
@@ -3655,52 +3656,53 @@ function getMatrix(c) {
 function calcScore(c, m) {
   if (!c) return 0;
   if (!m) m = getMatrix(c);
+  var w = SCORE_WEIGHTS || { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
 
-  // --- Contact completeness (max 10) ---
+  // --- Contact completeness ---
   var contact = 0;
-  if (c.email) contact += 5;
-  if (c.phone) contact += 5;
+  if (c.email) contact += w.contact * 0.5;
+  if (c.phone) contact += w.contact * 0.5;
 
-  // --- Engagement (max 35) ---
+  // --- Engagement ---
   var engagement = 0;
-  engagement += Math.min(m.views    * 1.5, 12);
-  engagement += Math.min(m.saves    * 4,   16);
-  engagement += Math.min(m.searches * 2,   8);
-  engagement += Math.min(m.showings * 10,  30);
-  engagement += Math.min(m.infoReqs * 5,   10);
-  engagement = Math.min(engagement, 35);
+  engagement += Math.min(m.views    * 1.5, w.engagement * 0.34);
+  engagement += Math.min(m.saves    * 4,   w.engagement * 0.46);
+  engagement += Math.min(m.searches * 2,   w.engagement * 0.23);
+  engagement += Math.min(m.showings * 10,  w.engagement * 0.86);
+  engagement += Math.min(m.infoReqs * 5,   w.engagement * 0.29);
+  engagement = Math.min(engagement, w.engagement);
 
-  // --- Source quality (max 10) ---
+  // --- Source quality ---
   var srcScore = 0;
   var src = String(c.source||'').toLowerCase();
-  if (src.indexOf('ylopo')!==-1)   srcScore = 8;
-  else if (src.indexOf('zillow')!==-1)  srcScore = 6;
-  else if (src.indexOf('realtor')!==-1) srcScore = 5;
-  else if (src.indexOf('homes')!==-1)   srcScore = 4;
-  else if (src.indexOf('myplus')!==-1 || src.indexOf('my+')!==-1) srcScore = 7;
-  else if (src) srcScore = 3;
-  srcScore = Math.min(srcScore, 10);
+  if (src.indexOf('ylopo')!==-1)   srcScore = w.source * 0.8;
+  else if (src.indexOf('zillow')!==-1)  srcScore = w.source * 0.6;
+  else if (src.indexOf('realtor')!==-1) srcScore = w.source * 0.5;
+  else if (src.indexOf('homes')!==-1)   srcScore = w.source * 0.4;
+  else if (src.indexOf('myplus')!==-1 || src.indexOf('my+')!==-1) srcScore = w.source * 0.7;
+  else if (src) srcScore = w.source * 0.3;
+  srcScore = Math.min(srcScore, w.source);
 
-  // --- Recency (max 20) ---
+  // --- Recency ---
   var recency = 0;
   if (c.dateUpdated) {
     var daysSinceUpdate = (Date.now() - new Date(c.dateUpdated)) / 86400000;
-    if (daysSinceUpdate < 1)       recency = 20;
-    else if (daysSinceUpdate < 3)  recency = 15;
-    else if (daysSinceUpdate < 7)  recency = 10;
-    else if (daysSinceUpdate < 14) recency = 5;
-    else if (daysSinceUpdate < 30) recency = 2;
+    if (daysSinceUpdate < 1)       recency = w.recency;
+    else if (daysSinceUpdate < 3)  recency = w.recency * 0.75;
+    else if (daysSinceUpdate < 7)  recency = w.recency * 0.5;
+    else if (daysSinceUpdate < 14) recency = w.recency * 0.25;
+    else if (daysSinceUpdate < 30) recency = w.recency * 0.1;
   }
 
-  // --- Tags / signals (max 25) ---
+  // --- Tags / signals ---
   var tagScore = 0;
   var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
-  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) tagScore += 15;
-  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  tagScore += 10;
-  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     tagScore += 5;
-  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    tagScore += 3;
-  if (tags.some(function(t){return t.indexOf('seller')!==-1;}))   tagScore += 5;
-  tagScore = Math.min(tagScore, 25);
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) tagScore += w.tags * 0.6;
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  tagScore += w.tags * 0.4;
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     tagScore += w.tags * 0.2;
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    tagScore += w.tags * 0.12;
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;}))   tagScore += w.tags * 0.2;
+  tagScore = Math.min(tagScore, w.tags);
 
   return Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
 }
@@ -3750,52 +3752,55 @@ function activityAge(lead) {
 
 function calcScoreBreakdown(c) {
   var m = getMatrix(c);
-  // Contact completeness (max 10)
+  var w = SCORE_WEIGHTS || { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
+  // Contact completeness
   var contact = 0;
-  if (c.email) contact += 5;
-  if (c.phone) contact += 5;
-  // Engagement (max 35)
+  if (c.email) contact += w.contact * 0.5;
+  if (c.phone) contact += w.contact * 0.5;
+  // Engagement
   var engagement = 0;
   var engDetails = [];
-  var vPts = Math.min(m.views * 1.5, 12); engagement += vPts; if (m.views) engDetails.push(m.views + ' views = ' + Math.round(vPts) + 'pts');
-  var sPts = Math.min(m.saves * 4, 16); engagement += sPts; if (m.saves) engDetails.push(m.saves + ' saves = ' + Math.round(sPts) + 'pts');
-  var srPts = Math.min(m.searches * 2, 8); engagement += srPts; if (m.searches) engDetails.push(m.searches + ' searches = ' + Math.round(srPts) + 'pts');
-  var shPts = Math.min(m.showings * 10, 30); engagement += shPts; if (m.showings) engDetails.push(m.showings + ' showings = ' + Math.round(shPts) + 'pts');
-  var iPts = Math.min((m.infoReqs||0) * 5, 10); engagement += iPts; if (m.infoReqs) engDetails.push(m.infoReqs + ' info reqs = ' + Math.round(iPts) + 'pts');
-  engagement = Math.min(engagement, 35);
-  // Source (max 10)
+  var vPts = Math.min(m.views * 1.5, w.engagement * 0.34); engagement += vPts; if (m.views) engDetails.push(m.views + ' views = ' + Math.round(vPts) + 'pts');
+  var sPts = Math.min(m.saves * 4, w.engagement * 0.46); engagement += sPts; if (m.saves) engDetails.push(m.saves + ' saves = ' + Math.round(sPts) + 'pts');
+  var srPts = Math.min(m.searches * 2, w.engagement * 0.23); engagement += srPts; if (m.searches) engDetails.push(m.searches + ' searches = ' + Math.round(srPts) + 'pts');
+  var shPts = Math.min(m.showings * 10, w.engagement * 0.86); engagement += shPts; if (m.showings) engDetails.push(m.showings + ' showings = ' + Math.round(shPts) + 'pts');
+  var iPts = Math.min((m.infoReqs||0) * 5, w.engagement * 0.29); engagement += iPts; if (m.infoReqs) engDetails.push(m.infoReqs + ' info reqs = ' + Math.round(iPts) + 'pts');
+  engagement = Math.min(engagement, w.engagement);
+  // Source
   var srcScore = 0; var srcName = String(c.source||'').toLowerCase();
-  if (srcName.indexOf('ylopo')!==-1) srcScore = 8;
-  else if (srcName.indexOf('zillow')!==-1) srcScore = 6;
-  else if (srcName.indexOf('realtor')!==-1) srcScore = 5;
-  else if (srcName.indexOf('homes')!==-1) srcScore = 4;
-  else if (srcName.indexOf('myplus')!==-1||srcName.indexOf('my+')!==-1) srcScore = 7;
-  else if (srcName) srcScore = 3;
-  srcScore = Math.min(srcScore, 10);
-  // Recency (max 20)
+  if (srcName.indexOf('ylopo')!==-1) srcScore = w.source * 0.8;
+  else if (srcName.indexOf('zillow')!==-1) srcScore = w.source * 0.6;
+  else if (srcName.indexOf('realtor')!==-1) srcScore = w.source * 0.5;
+  else if (srcName.indexOf('homes')!==-1) srcScore = w.source * 0.4;
+  else if (srcName.indexOf('myplus')!==-1||srcName.indexOf('my+')!==-1) srcScore = w.source * 0.7;
+  else if (srcName) srcScore = w.source * 0.3;
+  srcScore = Math.min(srcScore, w.source);
+  // Recency
   var recency = 0; var daysSince = -1;
   if (c.dateUpdated) {
     daysSince = Math.floor((Date.now() - new Date(c.dateUpdated)) / 86400000);
-    if (daysSince < 1) recency = 20; else if (daysSince < 3) recency = 15;
-    else if (daysSince < 7) recency = 10; else if (daysSince < 14) recency = 5;
-    else if (daysSince < 30) recency = 2;
+    if (daysSince < 1) recency = w.recency;
+    else if (daysSince < 3) recency = w.recency * 0.75;
+    else if (daysSince < 7) recency = w.recency * 0.5;
+    else if (daysSince < 14) recency = w.recency * 0.25;
+    else if (daysSince < 30) recency = w.recency * 0.1;
   }
-  // Tags (max 25)
+  // Tags
   var tagScore = 0; var tagDetails = [];
   var tags = (Array.isArray(c.tags)?c.tags:[]).map(function(t){return String(t).toLowerCase();});
-  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) { tagScore += 15; tagDetails.push('hot/priority +15'); }
-  if (tags.some(function(t){return t.indexOf('showing')!==-1;})) { tagScore += 10; tagDetails.push('showing +10'); }
-  if (tags.some(function(t){return t.indexOf('warm')!==-1;})) { tagScore += 5; tagDetails.push('warm +5'); }
-  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;})) { tagScore += 3; tagDetails.push('ylopo +3'); }
-  if (tags.some(function(t){return t.indexOf('seller')!==-1;})) { tagScore += 5; tagDetails.push('seller +5'); }
-  tagScore = Math.min(tagScore, 25);
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) { tagScore += w.tags * 0.6; tagDetails.push('hot/priority +' + Math.round(w.tags * 0.6)); }
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;})) { tagScore += w.tags * 0.4; tagDetails.push('showing +' + Math.round(w.tags * 0.4)); }
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;})) { tagScore += w.tags * 0.2; tagDetails.push('warm +' + Math.round(w.tags * 0.2)); }
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;})) { tagScore += w.tags * 0.12; tagDetails.push('ylopo +' + Math.round(w.tags * 0.12)); }
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;})) { tagScore += w.tags * 0.2; tagDetails.push('seller +' + Math.round(w.tags * 0.2)); }
+  tagScore = Math.min(tagScore, w.tags);
   var total = Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
   return {
-    total: total, contact: contact, contactMax: 10,
-    engagement: Math.round(engagement), engMax: 35, engDetails: engDetails,
-    source: srcScore, srcMax: 10, srcName: c.source || 'Unknown',
-    recency: recency, recMax: 20, daysSince: daysSince,
-    tags: tagScore, tagMax: 25, tagDetails: tagDetails
+    total: total, contact: Math.round(contact), contactMax: w.contact,
+    engagement: Math.round(engagement), engMax: w.engagement, engDetails: engDetails,
+    source: Math.round(srcScore), srcMax: w.source, srcName: c.source || 'Unknown',
+    recency: Math.round(recency), recMax: w.recency, daysSince: daysSince,
+    tags: Math.round(tagScore), tagMax: w.tags, tagDetails: tagDetails
   };
 }
 
@@ -4420,6 +4425,75 @@ function bulkWorkflow() {
   });
   chain.then(function() {
     toast('Workflow triggered: ' + done + ' success' + (failed > 0 ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
+    clearSelection();
+  });
+}
+
+function bulkStatus() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('No contacts selected', 'error'); return; }
+
+  var existing = document.getElementById('statusPickerOverlay');
+  if (existing) existing.remove();
+
+  var statuses = [
+    { value: 'open', label: 'Open', color: '#22c55e' },
+    { value: 'won', label: 'Won', color: '#3b82f6' },
+    { value: 'lost', label: 'Lost', color: '#ef4444' },
+    { value: 'abandoned', label: 'Abandoned', color: '#6b7280' },
+    { value: 'new', label: 'New', color: '#a855f7' },
+    { value: 'open:Attempted Contact', label: 'Attempted Contact', color: '#f59e0b' },
+    { value: 'open:Connected', label: 'Connected', color: '#14b8a6' },
+    { value: 'open:Qualified', label: 'Qualified', color: '#06b6d4' },
+    { value: 'open:Appointment Set', label: 'Appointment Set', color: '#8b5cf6' },
+    { value: 'open:Under Contract', label: 'Under Contract', color: '#ec4899' }
+  ];
+
+  var overlay = document.createElement('div');
+  overlay.id = 'statusPickerOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:400px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0;font-size:16px">Change Status for ' + ids.length + ' contacts</h3>';
+  html += '<button onclick="document.getElementById(&#39;statusPickerOverlay&#39;).remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="display:grid;gap:8px">';
+  for (var i = 0; i < statuses.length; i++) {
+    var s = statuses[i];
+    html += '<button onclick="applyBulkStatus(&#39;' + s.value + '&#39;)" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;border:1px solid var(--card-border);background:var(--surface,var(--bg));cursor:pointer;text-align:left;font-size:14px;color:var(--text);transition:background 0.2s" onmouseover="this.style.background=&#39;var(--card-border)&#39;" onmouseout="this.style.background=&#39;var(--surface,var(--bg))&#39;">';
+    html += '<span style="width:10px;height:10px;border-radius:50%;background:' + s.color + ';flex-shrink:0"></span>';
+    html += s.label + '</button>';
+  }
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function applyBulkStatus(statusVal) {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  var overlay = document.getElementById('statusPickerOverlay');
+  if (overlay) overlay.remove();
+
+  var parts = statusVal.split(':');
+  var body = { status: parts[0] };
+  if (parts.length > 1) body.pipelineStage = parts[1];
+
+  var done = 0, failed = 0;
+  toast('Updating status on ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function(r) {
+        if (r.ok) { done++; } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Status updated: ' + done + ' success' + (failed > 0 ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
     clearSelection();
   });
 }
@@ -5446,10 +5520,22 @@ function showShortcutsHelp() {
 // SETTINGS PANEL
 // -------------------------------------------------------
 var SETTINGS_KEY = 'ylopo_settings';
+var SCORE_WEIGHTS = { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
 
 function loadSettings() {
-  var defaults = { pageSize: 25, defaultSort: 'score_desc', defaultView: 'table', autoRefresh: false, refreshInterval: 5 };
-  try { var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)); return Object.assign(defaults, saved || {}); } catch(e) { return defaults; }
+  var defaults = { pageSize: 25, defaultSort: 'score_desc', defaultView: 'table', autoRefresh: false, refreshInterval: 5, scoreWeights: { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 } };
+  try { var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)); var s = Object.assign(defaults, saved || {}); if (s.scoreWeights) SCORE_WEIGHTS = s.scoreWeights; return s; } catch(e) { return defaults; }
+}
+
+function recalcAllScores() {
+  ALL_LEADS.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (raw) {
+      l.score = calcScore(raw);
+      l.status = getStatus(l.score, raw.tags);
+    }
+  });
+  updateStats();
 }
 
 function saveSettings() {
@@ -5458,16 +5544,26 @@ function saveSettings() {
     defaultSort: document.getElementById('settDefaultSort').value || 'score_desc',
     defaultView: document.getElementById('settDefaultView').value || 'table',
     autoRefresh: document.getElementById('settAutoRefresh').checked,
-    refreshInterval: Number(document.getElementById('settRefreshMin').value) || 5
+    refreshInterval: Number(document.getElementById('settRefreshMin').value) || 5,
+    scoreWeights: {
+      contact: Number(document.getElementById('settWtContact').value) || 10,
+      engagement: Number(document.getElementById('settWtEngagement').value) || 35,
+      source: Number(document.getElementById('settWtSource').value) || 10,
+      recency: Number(document.getElementById('settWtRecency').value) || 20,
+      tags: Number(document.getElementById('settWtTags').value) || 25
+    }
   };
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch(e) {}
+  SCORE_WEIGHTS = s.scoreWeights;
   PAGE_SIZE = s.pageSize;
   SORT_KEY = s.defaultSort;
+  // Recalculate all scores with new weights
+  recalcAllScores();
   if (s.defaultView !== CURRENT_VIEW) setView(s.defaultView);
   applyFilters();
   setupAutoRefresh(s);
   closeSettingsPanel();
-  toast('Settings saved', 'success');
+  toast('Settings saved — scores recalculated', 'success');
 }
 
 function openSettingsPanel() {
@@ -5511,6 +5607,16 @@ function openSettingsPanel() {
         '</div>' +
         '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Refresh Interval (minutes)</label>' +
           '<input type="number" id="settRefreshMin" value="' + s.refreshInterval + '" min="1" max="60" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px"></div>' +
+        '<div style="border-top:1px solid var(--card-border);padding-top:16px;margin-top:4px"><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">&#127919; Score Weights</label>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin:4px 0 12px">Adjust how much each factor contributes to the lead score.</div>' +
+          '<div style="display:grid;gap:10px">' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Contact Info</span><input type="range" id="settWtContact" min="0" max="20" value="' + (s.scoreWeights ? s.scoreWeights.contact : 10) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.contact : 10) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Engagement</span><input type="range" id="settWtEngagement" min="0" max="50" value="' + (s.scoreWeights ? s.scoreWeights.engagement : 35) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.engagement : 35) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Source</span><input type="range" id="settWtSource" min="0" max="20" value="' + (s.scoreWeights ? s.scoreWeights.source : 10) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.source : 10) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Recency</span><input type="range" id="settWtRecency" min="0" max="30" value="' + (s.scoreWeights ? s.scoreWeights.recency : 20) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.recency : 20) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Tags</span><input type="range" id="settWtTags" min="0" max="40" value="' + (s.scoreWeights ? s.scoreWeights.tags : 25) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.tags : 25) + '</span></div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end">' +
         '<button onclick="closeSettingsPanel()" style="padding:10px 20px;border:1px solid var(--card-border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>' +
