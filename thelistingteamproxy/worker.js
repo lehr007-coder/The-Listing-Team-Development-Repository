@@ -3395,11 +3395,23 @@ var GEO_SORT = { key: 'count', dir: -1 };
 
 function renderGeoView() {
   try {
-  if (!ALL_LEADS || !ALL_LEADS.length) { var gkpi = document.getElementById('geoKPIs'); if (gkpi) gkpi.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data</div>'; return; }
+  if (!ALL_LEADS || !ALL_LEADS.length) { var gkpi = document.getElementById('geoKPIs'); if (gkpi) gkpi.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data loaded yet. Go back to Contacts and wait for data to load first.</div>'; return; }
   var cityMap = {};
   var stateMap = {};
   var withLoc = 0;
+  // Try to enrich leads with geo data from raw contacts if missing
   ALL_LEADS.forEach(function(l) {
+    if (!l.city && !l.state && RAW_CONTACTS[l.id]) {
+      var raw = RAW_CONTACTS[l.id];
+      l.city = raw.city || raw.locationCity || '';
+      l.state = raw.state || raw.locationState || '';
+      if (!l.city && !l.state && raw.address1) {
+        var parts = (raw.address1 || '').split(',');
+        if (parts.length >= 2) {
+          l.city = parts[parts.length - 2].trim();
+        }
+      }
+    }
     var city = (l.city || '').trim();
     var state = (l.state || '').trim();
     if (city || state) withLoc++;
@@ -3418,6 +3430,16 @@ function renderGeoView() {
   });
   GEO_DATA = Object.keys(cityMap).map(function(k) { var d = cityMap[k]; d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0; return d; });
   var stateArr = Object.keys(stateMap).map(function(k) { return stateMap[k]; }).sort(function(a,b) { return b.count - a.count; });
+
+  if (!withLoc) {
+    document.getElementById('geoKPIs').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">' +
+      '<div style="font-size:36px;margin-bottom:12px">&#127758;</div>' +
+      '<h3 style="margin:0 0 8px">No Location Data Found</h3>' +
+      '<p style="margin:0;font-size:13px">' + ALL_LEADS.length + ' leads loaded but none have city/state fields populated in GHL.</p>' +
+      '<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">To populate: add city/state to contacts in GoHighLevel, or ensure Ylopo passes registration location data.</p></div>';
+    return;
+  }
+
   var topCity = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
   var hotCity = GEO_DATA.slice().sort(function(a,b) { return b.hot - a.hot; })[0];
 
@@ -3559,10 +3581,14 @@ function getSellerLeads() {
     if (!raw) return;
     var ext = getExtendedData(raw);
     var tags = (Array.isArray(raw.tags) ? raw.tags : []).map(function(t) { return String(t).toLowerCase(); });
+    var src = (l.source || '').toLowerCase();
     var isSeller = tags.some(function(t) { return t.indexOf('seller') !== -1; }) ||
-      ext.estValue > 0 || ext.equity > 0 || ext.propertyAddr ||
-      tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1; }) ||
-      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1);
+      ext.estValue > 0 || ext.equity > 0 ||
+      (ext.propertyAddr && ext.propertyAddr !== (l.email || '')) ||
+      tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1 || t.indexOf('listing') !== -1 || t.indexOf('cma') !== -1 || t.indexOf('home val') !== -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1) ||
+      src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 || src.indexOf('plus leads') !== -1 ||
+      tags.some(function(t) { return t.indexOf('seller pipeline') !== -1 || t.indexOf('home owner') !== -1 || t.indexOf('homeowner') !== -1; });
     if (!isSeller) return;
 
     var mot = calcSellerMotivation(raw, ext);
@@ -3597,10 +3623,30 @@ function renderSellerTab() {
   if (!container) return;
 
   if (!sellers.length) {
-    container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)">' +
+    // Show diagnostic info
+    var totalLeads = (ALL_LEADS || []).length;
+    var sampleTags = [];
+    var sampleSources = [];
+    (ALL_LEADS || []).slice(0, 20).forEach(function(l) {
+      if (l.tags && l.tags.length) l.tags.forEach(function(t) { if (sampleTags.indexOf(t) === -1 && sampleTags.length < 15) sampleTags.push(t); });
+      if (l.source && sampleSources.indexOf(l.source) === -1 && sampleSources.length < 10) sampleSources.push(l.source);
+    });
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">' +
       '<div style="font-size:48px;margin-bottom:16px">&#127968;</div>' +
       '<h3 style="margin:0 0 8px">No Seller Leads Found</h3>' +
-      '<p style="margin:0;font-size:13px">Tag contacts as "Seller" or add property data to see them here</p></div>';
+      '<p style="margin:0 0 16px;font-size:13px">' + totalLeads + ' total leads loaded, but none match seller criteria.</p>' +
+      '<div style="text-align:left;max-width:500px;margin:0 auto;font-size:12px;background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:8px;padding:16px">' +
+      '<p style="margin:0 0 8px;font-weight:600;color:var(--text)">How leads are identified as sellers:</p>' +
+      '<ul style="margin:0 0 12px;padding-left:20px;color:var(--text-secondary)">' +
+      '<li>Tagged: seller, fsbo, expired, withdrawn, listing, cma, home val</li>' +
+      '<li>Source: My+Plus Leads / MyPlus / Plus Leads</li>' +
+      '<li>Has property value, equity, or property address data</li>' +
+      '</ul>' +
+      '<p style="margin:0 0 4px;font-weight:600;color:var(--text)">Sample tags in your data:</p>' +
+      '<p style="margin:0 0 12px;word-break:break-all">' + (sampleTags.length ? sampleTags.map(function(t) { return '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;background:var(--card);font-size:11px">' + esc(t) + '</span>'; }).join('') : '<em>No tags found</em>') + '</p>' +
+      '<p style="margin:0 0 4px;font-weight:600;color:var(--text)">Sources in your data:</p>' +
+      '<p style="margin:0;word-break:break-all">' + (sampleSources.length ? sampleSources.map(function(t) { return '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;background:var(--card);font-size:11px">' + esc(t) + '</span>'; }).join('') : '<em>No sources found</em>') + '</p>' +
+      '</div></div>';
     return;
   }
 
