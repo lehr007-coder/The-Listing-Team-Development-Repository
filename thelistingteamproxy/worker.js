@@ -2998,6 +2998,11 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
     <div class="stat-sub">since last visit</div>
   </div>
+  <div class="stat-card" style="cursor:pointer" onclick="setFilter('stale',this)">
+    <div class="stat-label">Needs Follow-up</div>
+    <div class="stat-value" id="statStale" style="color:var(--accent,#f97316)">&mdash;</div>
+    <div class="stat-sub">no activity &gt; 7 days</div>
+  </div>
 </div>
 
 <!-- View Tabs -->
@@ -3017,6 +3022,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
   <button class="filter-tab" onclick="setFilter('new',this)">New</button>
   <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+  <button class="filter-tab" onclick="setFilter('stale',this)" style="color:var(--accent,#f97316)">&#9888; Needs Follow-up</button>
   <select class="filter-tab" id="sourceFilter" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;cursor:pointer;-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center">
     <option value="all">All Sources</option>
     <option value="ylopo">Ylopo Leads</option>
@@ -3521,6 +3527,27 @@ function isNewThisWeek(c) {
   if (!c.dateAdded) return false;
   var diff = (Date.now() - new Date(c.dateAdded)) / 86400000;
   return diff <= 7;
+}
+
+function daysSinceActivity(lead) {
+  var d = lead.dateUpdated || lead.dateAdded || '';
+  if (!d) return 999;
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+}
+
+function isStale(lead) {
+  // "Stale" = score >= 30 (not worthless) AND no activity > 7 days
+  return lead.score >= 30 && daysSinceActivity(lead) > 7;
+}
+
+function activityAge(lead) {
+  var days = daysSinceActivity(lead);
+  if (days <= 1)  return { label: 'Today', color: 'var(--green)', cls: 'fresh' };
+  if (days <= 3)  return { label: days + 'd ago', color: 'var(--green)', cls: 'fresh' };
+  if (days <= 7)  return { label: days + 'd ago', color: 'var(--blue)', cls: 'recent' };
+  if (days <= 14) return { label: days + 'd ago', color: 'var(--yellow)', cls: 'aging' };
+  if (days <= 30) return { label: days + 'd ago', color: 'var(--accent,#f97316)', cls: 'stale' };
+  return { label: days > 900 ? 'Unknown' : days + 'd ago', color: 'var(--red)', cls: 'overdue' };
 }
 
 // -------------------------------------------------------
@@ -4058,6 +4085,8 @@ function updateStats() {
   _el('statCold').textContent     = ALL_LEADS.filter(function(l){return l.status==='cold';}).length;
   _el('statShowings').textContent = ALL_LEADS.filter(function(l){return l.hasShowing;}).length;
   _el('statNew').textContent      = ALL_LEADS.filter(function(l){return l.isNew;}).length;
+  var staleEl = _el('statStale');
+  if (staleEl) staleEl.textContent = ALL_LEADS.filter(function(l){return isStale(l);}).length;
 
   // Trend summary
   var up = 0, down = 0, stable = 0;
@@ -4125,6 +4154,7 @@ function applyFilters() {
   else if (CURRENT_FILTER === 'cold')    leads = leads.filter(function(l){return l.status==='cold';});
   else if (CURRENT_FILTER === 'new')     leads = leads.filter(function(l){return l.isNew;});
   else if (CURRENT_FILTER === 'showing') leads = leads.filter(function(l){return l.hasShowing;});
+  else if (CURRENT_FILTER === 'stale')   leads = leads.filter(function(l){return isStale(l);});
 
   var sourceFilter = (_el('sourceFilter')||{value:'ylopo'}).value;
   if (sourceFilter !== 'all') {
@@ -4218,7 +4248,10 @@ function renderTable() {
       '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
       '<td>' + buildTypeBadge(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
-      '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
+      '<td style="font-size:12px">' +
+        '<div style="color:var(--text-muted)">' + fmtDate(l.dateAdded) + '</div>' +
+        '<div style="font-size:10px;font-weight:600;color:' + activityAge(l).color + '">' + activityAge(l).label + '</div>' +
+      '</td>' +
       '<td>' +
         '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
           (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" title="Email">Email</a>' : '') +
