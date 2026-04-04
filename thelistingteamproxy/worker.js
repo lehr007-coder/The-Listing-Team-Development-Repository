@@ -15364,18 +15364,21 @@ var index_default = {
         const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
         if (!token) return err("No GHL API token configured", 500);
 
-        // First, list existing webhooks to avoid duplicates
+        const results = { webhookUrl, tokenPrefix: token.substring(0, 10) + "...", steps: [] };
+
+        // Step 1: List existing webhooks to avoid duplicates
         let existing = [];
         try {
-          const listRes = await fetch(`${GHL_V2}/webhooks/`, {
+          const listRes = await fetch(`${GHL_V2}/webhooks/?locationId=${locId}`, {
             method: "GET",
             headers: { "Authorization": `Bearer ${token}`, "Version": "2021-07-28", "Content-Type": "application/json" },
             signal: AbortSignal.timeout(10000)
           });
-          const listData = await listRes.json();
-          existing = listData.webhooks || listData || [];
+          const listText = await listRes.text();
+          results.steps.push({ step: "list", status: listRes.status, body: listText.substring(0, 500) });
+          try { const listData = JSON.parse(listText); existing = listData.webhooks || listData || []; } catch(e) {}
         } catch (e) {
-          console.warn("Could not list existing webhooks:", e.message);
+          results.steps.push({ step: "list", error: e.message });
         }
 
         // Check if our webhook already exists
@@ -15386,12 +15389,12 @@ var index_default = {
           return json({
             ok: true,
             message: "GHL webhook already configured",
-            webhookUrl: webhookUrl,
+            webhookUrl,
             existing: existing.filter(function(w) { return w.url && w.url.includes("/ghl-webhook"); })
           });
         }
 
-        // Create the webhook with all contact-related events
+        // Step 2: Create the webhook with all contact-related events
         const webhookEvents = [
           "ContactCreate",
           "ContactUpdate",
@@ -15410,6 +15413,7 @@ var index_default = {
           "OutboundMessage"
         ];
 
+        const createBody = { url: webhookUrl, events: webhookEvents, locationId: locId };
         const createRes = await fetch(`${GHL_V2}/webhooks/`, {
           method: "POST",
           headers: {
@@ -15417,27 +15421,28 @@ var index_default = {
             "Version": "2021-07-28",
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            url: webhookUrl,
-            events: webhookEvents
-          }),
+          body: JSON.stringify(createBody),
           signal: AbortSignal.timeout(15000)
         });
-        const createData = await createRes.json();
+        const createText = await createRes.text();
+        results.steps.push({ step: "create", status: createRes.status, body: createText.substring(0, 500) });
+
+        let createData;
+        try { createData = JSON.parse(createText); } catch(e) { createData = { raw: createText.substring(0, 300) }; }
 
         if (!createRes.ok) {
-          return err("GHL webhook creation failed: " + JSON.stringify(createData), createRes.status);
+          return json({ ok: false, message: "GHL webhook creation failed", debug: results, response: createData });
         }
 
         return json({
           ok: true,
           message: "GHL webhook created successfully! 2-way sync is now active.",
-          webhookUrl: webhookUrl,
+          webhookUrl,
           events: webhookEvents,
           response: createData
         });
       } catch (e) {
-        return err("Setup failed: " + (e.message || String(e)), 500);
+        return json({ ok: false, error: "Setup failed: " + (e.message || String(e)), stack: e.stack ? e.stack.substring(0, 300) : null });
       }
     }
 
