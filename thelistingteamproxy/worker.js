@@ -2526,8 +2526,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
-  .stat-value.flash-green { color: #00ff55; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
-  @keyframes pulseGreen { 0%,100% { color: #00ff55; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
+  .stat-value.flash-green, .flash-green { color: #00ff55 !important; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
+  @keyframes pulseGreen { 0%,100% { color: #00ff55 !important; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88 !important; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-sub.positive { color: #1E7A9C; }
 
@@ -2974,17 +2974,17 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
   <div class="stat-card">
     <div class="stat-label">Hot Leads</div>
-    <div class="stat-value" id="statHot" style="color:var(--red)">&mdash;</div>
+    <div class="stat-value flash-green" id="statHot">&mdash;</div>
     <div class="stat-sub">score &ge; 75</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Warm Leads</div>
-    <div class="stat-value" id="statWarm" style="color:var(--yellow)">&mdash;</div>
+    <div class="stat-value" id="statWarm" style="color:var(--brand-accent)">&mdash;</div>
     <div class="stat-sub">score 40&ndash;74</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Cold Leads</div>
-    <div class="stat-value" id="statCold" style="color:var(--blue)">&mdash;</div>
+    <div class="stat-value" id="statCold" style="color:var(--brand-secondary)">&mdash;</div>
     <div class="stat-sub">score &lt; 40</div>
   </div>
   <div class="stat-card">
@@ -3345,10 +3345,10 @@ function renderSrcPerf() {
   var best = SRC_DATA.slice().sort(function(a,b) { return b.avgScore - a.avgScore; })[0];
   var mostShow = SRC_DATA.slice().sort(function(a,b) { return b.showings - a.showings; })[0];
   document.getElementById('srcKPIs').innerHTML =
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--accent)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--blue)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--yellow)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
   renderSrcTblBody();
   renderSrcCharts();
 }
@@ -3368,9 +3368,9 @@ function renderSrcTblBody() {
     return '<tr style="border-bottom:1px solid var(--card-border)">' +
       '<td style="padding:10px 12px"><span style="display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;background:' + c.bg + ';color:' + c.fg + '">' + esc(d.name) + '</span></td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">' + d.count + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--red)">' + d.hot + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;color:var(--yellow)">' + d.warm + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;color:var(--blue)">' + d.cold + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:#00ff55">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.warm + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-secondary)">' + d.cold + '</td>' +
       '<td style="padding:10px 12px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + qc + '22;color:' + qc + '">' + d.avgScore + '</span></td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text)">' + d.showings + '</td>' +
       '<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;font-weight:600;color:' + qc + '">' + ql + '</span></td>' +
@@ -3462,10 +3462,10 @@ function renderGeoView() {
 
   // KPIs
   document.getElementById('geoKPIs').innerHTML =
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--accent)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--blue)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
     '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--red)">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:#00ff55">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
 
   // City bars
   var cityTop = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 12);
@@ -3507,8 +3507,8 @@ function renderGeoTbl() {
       '<td style="padding:10px 12px;font-weight:600;color:var(--text)">' + esc(d.name) + '</td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.count + '</td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.avgScore + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;color:var(--red);font-weight:700">' + d.hot + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;color:var(--accent2)">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.showings + '</td>' +
       '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
     '</tr>';
   }).join('');
@@ -3706,17 +3706,18 @@ function renderBuyerTab() {
   // KPI cards
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">';
   var kpis = [
-    { val: buyers.length, label: 'Active Buyers', color: 'var(--blue)' },
-    { val: totalViews.toLocaleString(), label: 'Total Views', color: 'var(--accent)' },
+    { val: buyers.length, label: 'Active Buyers', color: 'var(--brand-secondary)' },
+    { val: totalViews.toLocaleString(), label: 'Total Views', color: 'var(--brand-accent)' },
     { val: totalSaves, label: 'Total Saves', color: 'var(--green)' },
-    { val: totalShowings, label: 'Showings', color: 'var(--accent2)' },
-    { val: avgReadiness, label: 'Avg Readiness', color: 'var(--yellow)' },
-    { val: highReady, label: 'Hot Buyers', color: 'var(--red)' },
-    { val: avgSaveRate + '%', label: 'Avg Save Rate', color: 'var(--brand-accent)' }
+    { val: totalShowings, label: 'Showings', color: 'var(--brand-accent)' },
+    { val: avgReadiness, label: 'Avg Readiness', color: 'var(--brand-accent)' },
+    { val: highReady, label: 'Hot Buyers', color: '#00ff55', flash: true },
+    { val: avgSaveRate + '%', label: 'Avg Save Rate', color: 'var(--brand-secondary)' }
   ];
   kpis.forEach(function(k) {
+    var flashCls = k.flash ? ' flash-green' : '';
     html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
-      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
       '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">' + k.label + '</div></div>';
   });
   html += '</div>';
@@ -4367,17 +4368,18 @@ function renderSellerTab() {
   // KPI cards row
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">';
   var kpis = [
-    { val: sellers.length, label: 'Seller Leads', color: 'var(--green)' },
-    { val: tagCounts.expired, label: 'Expired', color: 'var(--red)' },
-    { val: tagCounts.canceled, label: 'Canceled', color: 'var(--accent,#f97316)' },
-    { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--blue)' },
+    { val: sellers.length, label: 'Seller Leads', color: 'var(--brand-secondary)' },
+    { val: tagCounts.expired, label: 'Expired', color: 'var(--brand-accent)' },
+    { val: tagCounts.canceled, label: 'Canceled', color: 'var(--brand-accent)' },
+    { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--brand-secondary)' },
     { val: tagCounts.freeAndClear, label: 'Free & Clear', color: 'var(--brand-accent)' },
-    { val: avgMotivation, label: 'Avg Motivation', color: 'var(--yellow)' },
-    { val: highMotivation, label: 'High Motivation', color: 'var(--red)' }
+    { val: avgMotivation, label: 'Avg Motivation', color: 'var(--brand-accent)' },
+    { val: highMotivation, label: 'High Motivation', color: '#00ff55', flash: true }
   ];
   kpis.forEach(function(k) {
+    var flashCls = k.flash ? ' flash-green' : '';
     html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
-      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
       '<div style="font-size:11px;color:var(--text-secondary,var(--muted));margin-top:4px">' + k.label + '</div></div>';
   });
   html += '</div>';
@@ -5799,7 +5801,7 @@ function showScoreBreakdown(id) {
   popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
 
-  var scoreColor = b.total >= 75 ? 'var(--red)' : b.total >= 40 ? 'var(--yellow)' : 'var(--blue)';
+  var scoreColor = b.total >= 75 ? '#00ff55' : b.total >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
 
   var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
     '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
@@ -6699,7 +6701,8 @@ function renderTable() {
   }
 
   tbody.innerHTML = page.map(function(l) {
-    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var badgeHtml = l.badge ? '<span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var m = l.matrix;
@@ -6719,7 +6722,7 @@ function renderTable() {
       '<td>' +
         '<div class="score-bar-wrap">' +
           '<div class="score-bar"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
-          '<span class="score-num" style="color:' + scoreColor + ';cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();showScoreBreakdown(&#39;' + l.id + '&#39;)" title="Click for score breakdown">' + l.score + '</span>' +
+          '<span class="score-num' + scoreFlash + '" style="color:' + scoreColor + ';cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();showScoreBreakdown(&#39;' + l.id + '&#39;)" title="Click for score breakdown">' + l.score + '</span>' +
           trendArrow(l.id) +
         '</div>' +
       '</td>' +
@@ -6817,7 +6820,8 @@ function renderCards() {
   }
 
   container.innerHTML = page.map(function(l) {
-    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var badgeHtml = l.badge ? ' <span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var m = l.matrix;
@@ -6837,7 +6841,7 @@ function renderCards() {
       '</div>' +
       '<div class="contact-card-score">' +
         '<div class="score-bar" style="flex:1"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
-        '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+        '<span class="score-num' + scoreFlash + '" style="color:' + scoreColor + '">' + l.score + '</span>' +
         trendArrow(l.id) +
       '</div>' +
       '<div class="contact-card-activity">' +
@@ -7023,7 +7027,7 @@ function buildAccordion(lead) {
   var ext = getExtendedData(raw);
   var m   = lead.matrix;
 
-  var scoreColor = lead.score >= 75 ? 'var(--red)' : lead.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+  var scoreColor = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
 
   var ylopoUrl = '';
   if (ext.ylopoStarsLink) {
