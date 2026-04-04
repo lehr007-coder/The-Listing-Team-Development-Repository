@@ -2713,8 +2713,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 
   /* Pagination */
   .pagination {
-    display: flex; align-items: center; justify-content: center;
-    gap: 6px; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 16px 24px; flex-wrap: wrap;
   }
   .page-btn {
     min-width: 32px; height: 32px;
@@ -3443,31 +3443,56 @@ function getMatrix(c) {
 }
 
 function calcScore(c, m) {
-  var score = 0;
-  if (!c) return score;
-  if (c.email)  score += 5;
-  if (c.phone)  score += 5;
+  if (!c) return 0;
   if (!m) m = getMatrix(c);
-  score += Math.min(m.views    * 2,  20);
-  score += Math.min(m.saves    * 4,  20);
-  score += Math.min(m.searches * 3,  15);
-  score += Math.min(m.showings * 10, 30);
-  score += Math.min(m.infoReqs * 5,  15);
-  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
-  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) score += 15;
-  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  score += 10;
-  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     score += 5;
-  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    score += 5;
+
+  // --- Contact completeness (max 10) ---
+  var contact = 0;
+  if (c.email) contact += 5;
+  if (c.phone) contact += 5;
+
+  // --- Engagement (max 35) ---
+  var engagement = 0;
+  engagement += Math.min(m.views    * 1.5, 12);
+  engagement += Math.min(m.saves    * 4,   16);
+  engagement += Math.min(m.searches * 2,   8);
+  engagement += Math.min(m.showings * 10,  30);
+  engagement += Math.min(m.infoReqs * 5,   10);
+  engagement = Math.min(engagement, 35);
+
+  // --- Source quality (max 10) ---
+  var srcScore = 0;
   var src = String(c.source||'').toLowerCase();
-  if (src.indexOf('ylopo')!==-1)   score += 5;
-  if (src.indexOf('zillow')!==-1)  score += 3;
+  if (src.indexOf('ylopo')!==-1)   srcScore = 8;
+  else if (src.indexOf('zillow')!==-1)  srcScore = 6;
+  else if (src.indexOf('realtor')!==-1) srcScore = 5;
+  else if (src.indexOf('homes')!==-1)   srcScore = 4;
+  else if (src.indexOf('myplus')!==-1 || src.indexOf('my+')!==-1) srcScore = 7;
+  else if (src) srcScore = 3;
+  srcScore = Math.min(srcScore, 10);
+
+  // --- Recency (max 20) ---
+  var recency = 0;
   if (c.dateUpdated) {
-    var diff = (Date.now() - new Date(c.dateUpdated)) / 86400000;
-    if (diff < 1)  score += 15;
-    else if (diff < 3)  score += 10;
-    else if (diff < 7)  score += 5;
+    var daysSinceUpdate = (Date.now() - new Date(c.dateUpdated)) / 86400000;
+    if (daysSinceUpdate < 1)       recency = 20;
+    else if (daysSinceUpdate < 3)  recency = 15;
+    else if (daysSinceUpdate < 7)  recency = 10;
+    else if (daysSinceUpdate < 14) recency = 5;
+    else if (daysSinceUpdate < 30) recency = 2;
   }
-  return Math.min(Math.round(score), 100);
+
+  // --- Tags / signals (max 25) ---
+  var tagScore = 0;
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) tagScore += 15;
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  tagScore += 10;
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     tagScore += 5;
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    tagScore += 3;
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;}))   tagScore += 5;
+  tagScore = Math.min(tagScore, 25);
+
+  return Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
 }
 
 function getStatus(score, tags) {
@@ -4275,7 +4300,14 @@ function badgeLabel(b) {
 function renderPagination() {
   var totalPages = Math.ceil(FILTERED.length / PAGE_SIZE);
   var el = _el('paginationEl');
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  var start = (CURRENT_PAGE - 1) * PAGE_SIZE + 1;
+  var end = Math.min(CURRENT_PAGE * PAGE_SIZE, FILTERED.length);
+  var countHtml = '<span style="font-size:12px;color:var(--text-secondary);font-weight:600">' +
+    (FILTERED.length === ALL_LEADS.length
+      ? 'Showing ' + start + '\\u2013' + end + ' of ' + FILTERED.length + ' contacts'
+      : 'Showing ' + start + '\\u2013' + end + ' of ' + FILTERED.length + ' filtered (from ' + ALL_LEADS.length + ' total)') +
+    '</span>';
+  if (totalPages <= 1) { el.innerHTML = countHtml; return; }
 
   var html = '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE-1) + ')" ' + (CURRENT_PAGE===1?'disabled':'') + '>&#8249;</button>';
 
@@ -4289,7 +4321,7 @@ function renderPagination() {
   }
 
   html += '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE+1) + ')" ' + (CURRENT_PAGE===totalPages?'disabled':'') + '>&#8250;</button>';
-  el.innerHTML = html;
+  el.innerHTML = countHtml + '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' + html + '</div>';
 }
 
 function pagRange(cur, total) {
