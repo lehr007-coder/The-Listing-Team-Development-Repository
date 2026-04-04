@@ -11670,8 +11670,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 </html>
 `;
 async function ghl(env, method, path, body = null, useV2 = false) {
-  const base = useV2 ? GHL_V2 : GHL_V1;
-  const token = env.GHL_API_KEY;
+  const base = GHL_V2;
+  const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
   const url = `${base}${path}`;
   const headers = {
     "Authorization": `Bearer ${token}`,
