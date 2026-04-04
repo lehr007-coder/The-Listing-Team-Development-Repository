@@ -4296,7 +4296,15 @@ function getSellerLeads() {
       equityPct: ext.equityPct,
       mortgageBalance: ext.mortgageBalance,
       ownerSince: ext.ownerSince,
-      propertyAddr: ext.propertyAddr,
+      propertyAddr: ext.propertyAddr || ext.address || '',
+      beds: ext.beds || '',
+      baths: ext.baths || '',
+      sqft: ext.sqft || '',
+      yearBuilt: ext.yearBuilt || '',
+      price: ext.price || 0,
+      city: ext.city || '',
+      state: ext.state || '',
+      zip: ext.zip || '',
       motivation: mot.score,
       motFactors: mot.factors,
       propType: ext.propType
@@ -4811,6 +4819,12 @@ function renderSellerTab() {
       html += '<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%">' + esc(s.name) + '</span>';
       html += '<span style="color:' + mc + ';font-weight:700;font-size:11px">' + s.motivation + '</span>';
       html += '</div>';
+      if (s.propertyAddr) html += '<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#127968; ' + esc(s.propertyAddr) + '</div>';
+      var propLine = [];
+      if (s.beds) propLine.push(s.beds + 'bd');
+      if (s.baths) propLine.push(s.baths + 'ba');
+      if (s.price || s.estValue) propLine.push('$' + Number(s.price || s.estValue).toLocaleString());
+      if (propLine.length) html += '<div style="font-size:10px;color:var(--brand-accent);margin-top:1px;font-weight:600">' + propLine.join(' &middot; ') + '</div>';
       if (s.phone) html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">&#128222; ' + s.phone + '</div>';
       html += '</div>';
     });
@@ -4875,11 +4889,12 @@ function renderSellerTab() {
   var cols = [
     { key: 'name', label: 'Name' },
     { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
+    { key: 'propertyAddr', label: 'Address' },
+    { key: 'bedsBaths', label: 'Bed/Bath' },
+    { key: 'price', label: 'Price/Value' },
     { key: 'source', label: 'Source' },
     { key: 'tagCount', label: 'Tags' },
     { key: 'dateUpdated', label: 'Last Updated' },
-    { key: 'dateAdded', label: 'Date Added' },
     { key: 'motivation', label: 'Motivation' },
     { key: 'score', label: 'Lead Score' }
   ];
@@ -4891,8 +4906,11 @@ function renderSellerTab() {
 
   // Sort sellers
   var sorted = sellers.slice().sort(function(a, b) {
-    var aVal = a[SELLER_SORT.key] || 0;
-    var bVal = b[SELLER_SORT.key] || 0;
+    var sk = SELLER_SORT.key;
+    var aVal, bVal;
+    if (sk === 'bedsBaths') { aVal = Number(a.beds) || 0; bVal = Number(b.beds) || 0; }
+    else if (sk === 'price') { aVal = Number(a.price || a.estValue) || 0; bVal = Number(b.price || b.estValue) || 0; }
+    else { aVal = a[sk] || 0; bVal = b[sk] || 0; }
     if (typeof aVal === 'string') aVal = aVal.toLowerCase();
     if (typeof bVal === 'string') bVal = bVal.toLowerCase();
     if (aVal < bVal) return SELLER_SORT.dir;
@@ -4902,18 +4920,25 @@ function renderSellerTab() {
 
   sorted.forEach(function(s) {
     var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280';
+    var addrDisplay = s.propertyAddr || '';
+    var cityState = [s.city, s.state].filter(Boolean).join(', ');
+    var bedBath = '';
+    if (s.beds || s.baths) bedBath = (s.beds || '?') + 'bd / ' + (s.baths || '?') + 'ba';
+    if (s.sqft) bedBath += (bedBath ? '<br>' : '') + '<span style="font-size:10px;color:var(--text-secondary)">' + Number(s.sqft).toLocaleString() + ' sqft</span>';
+    var priceVal = s.price || s.estValue || 0;
+    var priceDisplay = priceVal ? '$' + Number(priceVal).toLocaleString() : '';
     html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
     html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
     html += '<td style="padding:10px 12px;white-space:nowrap">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none" onclick="event.stopPropagation()">' + s.phone + '</a>' : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">' + (s.email ? esc(s.email) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (addrDisplay ? esc(addrDisplay) + (cityState ? '<br><span style="font-size:10px;color:var(--text-secondary)">' + esc(cityState) + '</span>' : '') : (cityState ? esc(cityState) : '&#8212;')) + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + (bedBath || '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-weight:600;white-space:nowrap;color:var(--brand-accent)">' + (priceDisplay || '&#8212;') + '</td>';
     html += '<td style="padding:10px 12px;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.source) + '</td>';
     s.tagCount = (s.tags || []).length;
     var topTags = (s.tags || []).slice(0, 3).map(function(t) { return '<span style="display:inline-block;font-size:10px;padding:1px 5px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(t) + '</span>'; }).join('');
     html += '<td style="padding:10px 12px">' + (topTags || '&#8212;') + (s.tagCount > 3 ? '<span style="font-size:10px;color:var(--text-secondary)"> +' + (s.tagCount - 3) + '</span>' : '') + '</td>';
     var updFmt = s.dateUpdated ? new Date(s.dateUpdated).toLocaleDateString() : '&#8212;';
     html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + updFmt + '</td>';
-    var addFmt = s.dateAdded ? new Date(s.dateAdded).toLocaleDateString() : '&#8212;';
-    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + addFmt + '</td>';
     html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + motColor + ';color:#fff">' + s.motivation + '</span></td>';
     html += '<td style="padding:10px 12px;font-weight:600">' + s.score + '</td>';
     html += '</tr>';
@@ -4938,13 +4963,21 @@ function sortSellerTable(key) {
 function exportSellerCSV() {
   var sellers = getSellerLeads();
   if (!sellers.length) { toast('No seller data to export', 'error'); return; }
-  var headers = ['Name','Email','Phone','Source','Motivation Score','Lead Score','Tags','Date Added','Last Updated'];
+  var headers = ['Name','Email','Phone','Address','City','State','Zip','Beds','Baths','SqFt','Price/Value','Source','Motivation Score','Lead Score','Tags','Date Added','Last Updated'];
   var rows = [headers.join(',')];
   sellers.sort(function(a, b) { return b.motivation - a.motivation; }).forEach(function(s) {
     rows.push([
       '"' + (s.name || '').replace(/"/g, '""') + '"',
       '"' + (s.email || '') + '"',
       '"' + (s.phone || '') + '"',
+      '"' + (s.propertyAddr || '').replace(/"/g, '""') + '"',
+      '"' + (s.city || '') + '"',
+      '"' + (s.state || '') + '"',
+      '"' + (s.zip || '') + '"',
+      s.beds || '',
+      s.baths || '',
+      s.sqft || '',
+      s.price || s.estValue || '',
       '"' + (s.source || '').replace(/"/g, '""') + '"',
       s.motivation,
       s.score,
