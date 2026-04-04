@@ -3011,6 +3011,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px">
   <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
   <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
+  <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
 </div>
 
 <!-- Contacts View -->
@@ -3061,6 +3062,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
   <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
   <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+  <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
   <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
@@ -3142,6 +3144,37 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Geography View -->
+<div id="geoViewPanel" style="display:none">
+  <div id="geoKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127963; Top Cities</h3>
+      <div id="geoCityBars" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127758; Top States</h3>
+      <div id="geoStateBars" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128202; City Breakdown Table</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--card-border)">
+          <th style="padding:10px 12px;text-align:left;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('name')">City</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('count')">Leads</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('avgScore')">Avg Score</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('hot')">Hot</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('showings')">Showings</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">Quality</th>
+        </tr></thead>
+        <tbody id="geoTblBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
 <input id="listingsInput" value="" class="hidden" aria-hidden="true">
 <canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
@@ -3219,15 +3252,20 @@ function trendArrow(id) {
 function switchContactsView(v) {
   var cp = document.getElementById('contactsViewPanel');
   var sp = document.getElementById('sourceViewPanel');
+  var gp = document.getElementById('geoViewPanel');
   var tb = document.getElementById('viewTabContacts');
   var ts = document.getElementById('viewTabSource');
+  var tg = document.getElementById('viewTabGeo');
+  cp.style.display = 'none'; sp.style.display = 'none'; gp.style.display = 'none';
+  tb.classList.remove('active'); ts.classList.remove('active'); tg.classList.remove('active');
   if (v === 'source') {
-    cp.style.display = 'none'; sp.style.display = 'block';
-    tb.classList.remove('active'); ts.classList.add('active');
+    sp.style.display = 'block'; ts.classList.add('active');
     renderSrcPerf();
+  } else if (v === 'geo') {
+    gp.style.display = 'block'; tg.classList.add('active');
+    renderGeoView();
   } else {
-    cp.style.display = 'block'; sp.style.display = 'none';
-    tb.classList.add('active'); ts.classList.remove('active');
+    cp.style.display = 'block'; tb.classList.add('active');
   }
 }
 
@@ -3325,6 +3363,158 @@ function renderSrcCharts() {
   var recSorted = data.slice().sort(function(a,b) { return b.recent - a.recent; });
   var mxR = Math.max.apply(null, recSorted.map(function(d) { return d.recent; }).concat([1]));
   document.getElementById('srcRecentBars').innerHTML = recSorted.map(function(d) { return bar(d.name, d.recent, mxR, getSrcColor(d.name).fg); }).join('');
+}
+
+// -------------------------------------------------------
+// GEOGRAPHY VIEW
+// -------------------------------------------------------
+var GEO_DATA = [];
+var GEO_SORT = { key: 'count', dir: -1 };
+
+function renderGeoView() {
+  if (!ALL_LEADS.length) { document.getElementById('geoKPIs').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data</div>'; return; }
+  var cityMap = {};
+  var stateMap = {};
+  var withLoc = 0;
+  ALL_LEADS.forEach(function(l) {
+    var city = (l.city || '').trim();
+    var state = (l.state || '').trim();
+    if (city || state) withLoc++;
+    if (city) {
+      var ck = city.toLowerCase();
+      if (!cityMap[ck]) cityMap[ck] = { name: city, count: 0, totalScore: 0, hot: 0, showings: 0, views: 0 };
+      var cd = cityMap[ck]; cd.count++; cd.totalScore += l.score;
+      if (l.status === 'hot') cd.hot++;
+      var m = l.matrix || {}; cd.showings += (m.showings||0); cd.views += (m.views||0);
+    }
+    if (state) {
+      var sk = state.toLowerCase();
+      if (!stateMap[sk]) stateMap[sk] = { name: state, count: 0 };
+      stateMap[sk].count++;
+    }
+  });
+  GEO_DATA = Object.keys(cityMap).map(function(k) { var d = cityMap[k]; d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0; return d; });
+  var stateArr = Object.keys(stateMap).map(function(k) { return stateMap[k]; }).sort(function(a,b) { return b.count - a.count; });
+  var topCity = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
+  var hotCity = GEO_DATA.slice().sort(function(a,b) { return b.hot - a.hot; })[0];
+
+  // KPIs
+  document.getElementById('geoKPIs').innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--accent)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--blue)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--red)">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
+
+  // City bars
+  var cityTop = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 12);
+  var mxC = Math.max.apply(null, cityTop.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoCityBars').innerHTML = cityTop.map(function(d) {
+    var p = Math.round(d.count / mxC * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:110px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:var(--accent,#f97316);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.count + '</div></div></div>';
+  }).join('');
+
+  // State bars
+  var stateTop = stateArr.slice(0, 10);
+  var mxS = Math.max.apply(null, stateTop.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoStateBars').innerHTML = stateTop.map(function(d) {
+    var p = Math.round(d.count / mxS * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:110px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:var(--blue);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.count + '</div></div></div>';
+  }).join('');
+
+  renderGeoTbl();
+}
+
+function sortGeoTbl(key) {
+  if (GEO_SORT.key === key) GEO_SORT.dir *= -1;
+  else { GEO_SORT.key = key; GEO_SORT.dir = -1; }
+  renderGeoTbl();
+}
+
+function renderGeoTbl() {
+  var data = GEO_DATA.slice().sort(function(a,b) {
+    var av = a[GEO_SORT.key], bv = b[GEO_SORT.key];
+    if (typeof av === 'string') return GEO_SORT.dir * av.localeCompare(bv);
+    return GEO_SORT.dir * (av - bv);
+  });
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoTblBody').innerHTML = data.map(function(d) {
+    var ql = d.avgScore >= 70 ? 'Excellent' : d.avgScore >= 50 ? 'Good' : d.avgScore >= 30 ? 'Fair' : 'Low';
+    var qc = d.avgScore >= 70 ? '#22c55e' : d.avgScore >= 50 ? '#3b82f6' : d.avgScore >= 30 ? '#f59e0b' : '#ef4444';
+    return '<tr style="border-bottom:1px solid var(--card-border)">' +
+      '<td style="padding:10px 12px;font-weight:600;color:var(--text)">' + esc(d.name) + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.count + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.avgScore + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--red);font-weight:700">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--accent2)">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// -------------------------------------------------------
+// CONTACT COMPARISON
+// -------------------------------------------------------
+function compareContacts() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (ids.length < 2) { toast('Select at least 2 contacts to compare', 'error'); return; }
+  if (ids.length > 4) { toast('Select up to 4 contacts for comparison', 'error'); return; }
+  var leads = ids.map(function(id) { return ALL_LEADS.find(function(l) { return l.id === id; }); }).filter(Boolean);
+  if (leads.length < 2) { toast('Could not find selected contacts', 'error'); return; }
+
+  var existing = document.getElementById('compareOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'compareOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+    '<h2 style="margin:0;font-size:18px;color:var(--text)">&#9878; Contact Comparison</h2>' +
+    '<button onclick="document.getElementById(&#39;compareOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+  '</div>';
+
+  // Header row with names
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="border-bottom:2px solid var(--card-border)"><th style="padding:12px;text-align:left;color:var(--text-secondary);font-size:12px;min-width:120px">Metric</th>';
+  leads.forEach(function(l) {
+    html += '<th style="padding:12px;text-align:center;min-width:140px"><div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div><div style="font-size:11px;color:var(--text-muted)">' + esc(l.source||'') + '</div></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  function row(label, vals, highlight) {
+    var best = -Infinity; var bestIdx = -1;
+    if (highlight) { vals.forEach(function(v,i) { var n = parseFloat(v); if (!isNaN(n) && n > best) { best = n; bestIdx = i; } }); }
+    var r = '<tr style="border-bottom:1px solid var(--card-border)"><td style="padding:10px 12px;font-weight:600;color:var(--text-secondary);font-size:12px">' + label + '</td>';
+    vals.forEach(function(v, i) {
+      var style = i === bestIdx ? 'font-weight:800;color:var(--green)' : 'color:var(--text)';
+      r += '<td style="padding:10px 12px;text-align:center;' + style + '">' + v + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  html += row('Score', leads.map(function(l) { return l.score; }), true);
+  html += row('Status', leads.map(function(l) { return '<span class="badge badge-' + l.status + '">' + l.status + '</span>'; }));
+  html += row('Email', leads.map(function(l) { return esc(l.email || 'None'); }));
+  html += row('Phone', leads.map(function(l) { return esc(l.phone || 'None'); }));
+  html += row('Views', leads.map(function(l) { return (l.matrix||{}).views||0; }), true);
+  html += row('Saves', leads.map(function(l) { return (l.matrix||{}).saves||0; }), true);
+  html += row('Searches', leads.map(function(l) { return (l.matrix||{}).searches||0; }), true);
+  html += row('Showings', leads.map(function(l) { return (l.matrix||{}).showings||0; }), true);
+  html += row('City', leads.map(function(l) { return esc(l.city || '—'); }));
+  html += row('Type', leads.map(function(l) { return esc(l.propType || '—'); }));
+  html += row('Source', leads.map(function(l) { return esc(l.source || '—'); }));
+  html += row('Activity', leads.map(function(l) { var a = activityAge(l); return '<span style="color:' + a.color + '">' + a.label + '</span>'; }));
+  html += row('Tags', leads.map(function(l) { return (l.tags||[]).slice(0,3).map(function(t){return esc(t);}).join(', ') || '—'; }));
+  html += row('Added', leads.map(function(l) { return fmtDate(l.dateAdded); }));
+
+  html += '</tbody></table></div>';
+  html += '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center;font-size:11px;color:var(--text-muted)">&#9989; Green = best in category</div>';
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 
 // -------------------------------------------------------
