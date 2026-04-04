@@ -3008,7 +3008,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 </div>
 
 <!-- View Tabs -->
-<div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px">
+<div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px;flex-wrap:wrap">
   <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
   <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
   <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
