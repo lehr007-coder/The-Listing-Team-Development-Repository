@@ -2953,6 +2953,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
     <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
+    <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
@@ -4647,6 +4648,141 @@ function deleteContact(id, name) {
 
 // -------------------------------------------------------
 // -------------------------------------------------------
+// LIVE ACTIVITY FEED (SSE)
+// -------------------------------------------------------
+var ACTIVITY_LOG = [];
+var ACTIVITY_UNSEEN = 0;
+var _sseConn = null;
+
+function connectSSE() {
+  if (_sseConn) { try { _sseConn.close(); } catch(e) {} }
+  try {
+    _sseConn = new EventSource(PROXY_URL + '/events');
+    _sseConn.onmessage = function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (data.type === 'connected') return;
+        ACTIVITY_LOG.unshift(data);
+        if (ACTIVITY_LOG.length > 50) ACTIVITY_LOG.pop();
+        ACTIVITY_UNSEEN++;
+        updateActivityBadge();
+        if (data.type === 'ylopo.webhook') {
+          toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
+        }
+      } catch(ex) {}
+    };
+    _sseConn.onerror = function() {
+      try { _sseConn.close(); } catch(e) {}
+      setTimeout(connectSSE, 30000);
+    };
+  } catch(e) {}
+}
+
+function updateActivityBadge() {
+  var badge = document.getElementById('actBadge');
+  if (!badge) return;
+  if (ACTIVITY_UNSEEN > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = ACTIVITY_UNSEEN > 9 ? '9+' : ACTIVITY_UNSEEN;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleActivityPanel() {
+  var panel = document.getElementById('activityPanel');
+  if (panel) { panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; ACTIVITY_UNSEEN = 0; updateActivityBadge(); renderActivityPanel(); return; }
+  panel = document.createElement('div');
+  panel.id = 'activityPanel';
+  panel.style.cssText = 'position:fixed;top:60px;right:20px;width:380px;max-height:500px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.3);z-index:9998;overflow:hidden';
+  panel.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;color:var(--text)">&#128276; Live Activity</h3><button onclick="document.getElementById(\'activityPanel\').style.display=\'none\'" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer">&#10005;</button></div><div id="activityList" style="max-height:440px;overflow-y:auto;padding:8px"></div>';
+  document.body.appendChild(panel);
+  ACTIVITY_UNSEEN = 0;
+  updateActivityBadge();
+  renderActivityPanel();
+}
+
+function renderActivityPanel() {
+  var list = document.getElementById('activityList');
+  if (!list) return;
+  if (ACTIVITY_LOG.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:13px">No activity yet. Events will appear here in real-time as Ylopo webhooks arrive.</div>';
+    return;
+  }
+  list.innerHTML = ACTIVITY_LOG.map(function(a) {
+    var icon = '&#9679;';
+    var color = 'var(--text-secondary)';
+    if (a.type === 'ylopo.webhook') { icon = '&#128640;'; color = 'var(--yellow)'; }
+    else if (a.type === 'contact.updated') { icon = '&#9998;'; color = 'var(--blue)'; }
+    else if (a.type === 'contact.tagged') { icon = '&#127991;'; color = 'var(--green)'; }
+    else if (a.type === 'contact.deleted') { icon = '&#128465;'; color = 'var(--red)'; }
+    else if (a.type === 'contacts.fetched') { icon = '&#128203;'; color = 'var(--accent)'; }
+    var time = a.ts ? new Date(a.ts).toLocaleTimeString() : '';
+    var detail = a.email ? esc(a.email) : (a.event || a.type || '');
+    return '<div style="padding:8px 10px;border-bottom:1px solid var(--card-border);display:flex;gap:10px;align-items:flex-start">' +
+      '<span style="font-size:14px;color:' + color + ';flex-shrink:0;margin-top:2px">' + icon + '</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--text)">' + esc(a.type || 'event') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + detail + '</div>' +
+      '</div>' +
+      '<span style="font-size:10px;color:var(--text-muted);white-space:nowrap">' + time + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// -------------------------------------------------------
+// KEYBOARD SHORTCUTS
+// -------------------------------------------------------
+document.addEventListener('keydown', function(e) {
+  // Don't trigger if typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  // R = refresh
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { loadData(); e.preventDefault(); }
+  // S = switch to source tab
+  if (e.key === 's' && !e.ctrlKey && !e.metaKey) { switchContactsView('source'); e.preventDefault(); }
+  // C = switch to contacts tab
+  if (e.key === 'c' && !e.ctrlKey && !e.metaKey) { switchContactsView('contacts'); e.preventDefault(); }
+  // T = toggle table/cards view
+  if (e.key === 't' && !e.ctrlKey && !e.metaKey) { setView(CURRENT_VIEW === 'table' ? 'cards' : 'table'); e.preventDefault(); }
+  // / = focus search
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey) { var si = _el('searchInput'); if (si) { si.focus(); e.preventDefault(); } }
+  // Escape = close panels
+  if (e.key === 'Escape') {
+    closeSettingsPanel();
+    var ap = document.getElementById('activityPanel'); if (ap) ap.style.display = 'none';
+  }
+  // ? = show shortcuts help
+  if (e.key === '?' && e.shiftKey) { showShortcutsHelp(); e.preventDefault(); }
+});
+
+function showShortcutsHelp() {
+  var existing = document.getElementById('shortcutsHelp');
+  if (existing) { existing.style.display = existing.style.display === 'none' ? 'flex' : 'none'; return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'shortcutsHelp';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
+  var shortcuts = [
+    ['R', 'Refresh data'],
+    ['S', 'Source Performance tab'],
+    ['C', 'Contacts tab'],
+    ['T', 'Toggle Table/Cards view'],
+    ['/', 'Focus search'],
+    ['Esc', 'Close panels'],
+    ['?', 'This help']
+  ];
+  overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px;width:360px">' +
+    '<h2 style="margin:0 0 16px 0;font-size:18px;color:var(--text)">&#9000; Keyboard Shortcuts</h2>' +
+    shortcuts.map(function(s) {
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border)">' +
+        '<kbd style="display:inline-block;padding:3px 8px;border-radius:4px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-family:monospace;font-size:12px;font-weight:700;color:var(--text)">' + s[0] + '</kbd>' +
+        '<span style="font-size:13px;color:var(--text-secondary)">' + s[1] + '</span></div>';
+    }).join('') +
+    '<div style="text-align:center;margin-top:16px"><button onclick="document.getElementById(\'shortcutsHelp\').style.display=\'none\'" style="padding:8px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Got it</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
 // SETTINGS PANEL
 // -------------------------------------------------------
 var SETTINGS_KEY = 'ylopo_settings';
@@ -4745,6 +4881,7 @@ document.addEventListener('DOMContentLoaded', function() {
   SORT_KEY = s.defaultSort || 'score_desc';
   if (s.defaultView === 'cards') setTimeout(function() { setView('cards'); }, 100);
   setupAutoRefresh(s);
+  connectSSE();
   loadGHLTeam().then(function() { loadData(); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
