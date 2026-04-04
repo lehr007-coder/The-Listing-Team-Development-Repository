@@ -3556,6 +3556,153 @@ function activityAge(lead) {
   return { label: days > 900 ? 'Unknown' : days + 'd ago', color: 'var(--red)', cls: 'overdue' };
 }
 
+function calcScoreBreakdown(c) {
+  var m = getMatrix(c);
+  // Contact completeness (max 10)
+  var contact = 0;
+  if (c.email) contact += 5;
+  if (c.phone) contact += 5;
+  // Engagement (max 35)
+  var engagement = 0;
+  var engDetails = [];
+  var vPts = Math.min(m.views * 1.5, 12); engagement += vPts; if (m.views) engDetails.push(m.views + ' views = ' + Math.round(vPts) + 'pts');
+  var sPts = Math.min(m.saves * 4, 16); engagement += sPts; if (m.saves) engDetails.push(m.saves + ' saves = ' + Math.round(sPts) + 'pts');
+  var srPts = Math.min(m.searches * 2, 8); engagement += srPts; if (m.searches) engDetails.push(m.searches + ' searches = ' + Math.round(srPts) + 'pts');
+  var shPts = Math.min(m.showings * 10, 30); engagement += shPts; if (m.showings) engDetails.push(m.showings + ' showings = ' + Math.round(shPts) + 'pts');
+  var iPts = Math.min((m.infoReqs||0) * 5, 10); engagement += iPts; if (m.infoReqs) engDetails.push(m.infoReqs + ' info reqs = ' + Math.round(iPts) + 'pts');
+  engagement = Math.min(engagement, 35);
+  // Source (max 10)
+  var srcScore = 0; var srcName = String(c.source||'').toLowerCase();
+  if (srcName.indexOf('ylopo')!==-1) srcScore = 8;
+  else if (srcName.indexOf('zillow')!==-1) srcScore = 6;
+  else if (srcName.indexOf('realtor')!==-1) srcScore = 5;
+  else if (srcName.indexOf('homes')!==-1) srcScore = 4;
+  else if (srcName.indexOf('myplus')!==-1||srcName.indexOf('my+')!==-1) srcScore = 7;
+  else if (srcName) srcScore = 3;
+  srcScore = Math.min(srcScore, 10);
+  // Recency (max 20)
+  var recency = 0; var daysSince = -1;
+  if (c.dateUpdated) {
+    daysSince = Math.floor((Date.now() - new Date(c.dateUpdated)) / 86400000);
+    if (daysSince < 1) recency = 20; else if (daysSince < 3) recency = 15;
+    else if (daysSince < 7) recency = 10; else if (daysSince < 14) recency = 5;
+    else if (daysSince < 30) recency = 2;
+  }
+  // Tags (max 25)
+  var tagScore = 0; var tagDetails = [];
+  var tags = (Array.isArray(c.tags)?c.tags:[]).map(function(t){return String(t).toLowerCase();});
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) { tagScore += 15; tagDetails.push('hot/priority +15'); }
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;})) { tagScore += 10; tagDetails.push('showing +10'); }
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;})) { tagScore += 5; tagDetails.push('warm +5'); }
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;})) { tagScore += 3; tagDetails.push('ylopo +3'); }
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;})) { tagScore += 5; tagDetails.push('seller +5'); }
+  tagScore = Math.min(tagScore, 25);
+  var total = Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
+  return {
+    total: total, contact: contact, contactMax: 10,
+    engagement: Math.round(engagement), engMax: 35, engDetails: engDetails,
+    source: srcScore, srcMax: 10, srcName: c.source || 'Unknown',
+    recency: recency, recMax: 20, daysSince: daysSince,
+    tags: tagScore, tagMax: 25, tagDetails: tagDetails
+  };
+}
+
+function showScoreBreakdown(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('Contact data not found', 'error'); return; }
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  var b = calcScoreBreakdown(raw);
+  var existing = document.getElementById('scoreBreakdownPopup');
+  if (existing) existing.remove();
+
+  function bar(val, max, color) {
+    var pct = max > 0 ? Math.round(val / max * 100) : 0;
+    return '<div style="flex:1;height:8px;border-radius:4px;background:var(--surface,var(--bg))">' +
+      '<div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + color + ';transition:width 0.3s"></div></div>';
+  }
+
+  function tip(val, max) {
+    if (val >= max * 0.8) return '<span style="color:var(--green)">&#10003; Great</span>';
+    if (val >= max * 0.4) return '<span style="color:var(--yellow)">&#8599; Room to grow</span>';
+    return '<span style="color:var(--red)">&#9888; Needs work</span>';
+  }
+
+  var popup = document.createElement('div');
+  popup.id = 'scoreBreakdownPopup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
+
+  var scoreColor = b.total >= 75 ? 'var(--red)' : b.total >= 40 ? 'var(--yellow)' : 'var(--blue)';
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
+    '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+      '<div>' +
+        '<h2 style="margin:0;font-size:16px;color:var(--text)">Score Breakdown</h2>' +
+        (lead ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">' + esc(lead.name) + '</div>' : '') +
+      '</div>' +
+      '<div style="font-size:36px;font-weight:800;color:' + scoreColor + '">' + b.total + '</div>' +
+    '</div>' +
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">';
+
+  // Contact completeness
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128100; Contact Info</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.contact + '/' + b.contactMax + ' ' + tip(b.contact, b.contactMax) + '</span>' +
+    '</div>' +
+    bar(b.contact, b.contactMax, 'var(--blue)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (raw.email ? '&#10003; Email' : '&#10007; No email') + ' &bull; ' + (raw.phone ? '&#10003; Phone' : '&#10007; No phone') + '</div>' +
+  '</div>';
+
+  // Engagement
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128200; Engagement</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.engagement + '/' + b.engMax + ' ' + tip(b.engagement, b.engMax) + '</span>' +
+    '</div>' +
+    bar(b.engagement, b.engMax, 'var(--green)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.engDetails.length ? b.engDetails.join(' &bull; ') : 'No engagement data') + '</div>' +
+  '</div>';
+
+  // Source
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#127760; Source Quality</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.source + '/' + b.srcMax + '</span>' +
+    '</div>' +
+    bar(b.source, b.srcMax, 'var(--accent2,#8b5cf6)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">Source: ' + esc(b.srcName) + '</div>' +
+  '</div>';
+
+  // Recency
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128337; Recency</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.recency + '/' + b.recMax + ' ' + tip(b.recency, b.recMax) + '</span>' +
+    '</div>' +
+    bar(b.recency, b.recMax, 'var(--yellow)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.daysSince >= 0 ? 'Last activity: ' + b.daysSince + ' days ago' : 'No activity date') + '</div>' +
+  '</div>';
+
+  // Tags
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#127991; Tags &amp; Signals</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.tags + '/' + b.tagMax + '</span>' +
+    '</div>' +
+    bar(b.tags, b.tagMax, 'var(--accent,#f97316)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.tagDetails.length ? b.tagDetails.join(' &bull; ') : 'No scoring tags found') + '</div>' +
+  '</div>';
+
+  html += '</div>' +
+    '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+      '<button onclick="document.getElementById(&#39;scoreBreakdownPopup&#39;).remove()" style="padding:8px 24px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Close</button>' +
+    '</div></div>';
+
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
+}
+
 // -------------------------------------------------------
 // EXTENDED DATA
 // -------------------------------------------------------
@@ -4297,7 +4444,7 @@ function renderTable() {
       '<td>' +
         '<div class="score-bar-wrap">' +
           '<div class="score-bar"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
-          '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+          '<span class="score-num" style="color:' + scoreColor + ';cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();showScoreBreakdown(&#39;' + l.id + '&#39;)" title="Click for score breakdown">' + l.score + '</span>' +
           trendArrow(l.id) +
         '</div>' +
       '</td>' +
