@@ -3826,7 +3826,7 @@ function renderBuyerTab() {
   html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#9889; Recommended Actions</div>';
   var byerActions = [];
   var noShowBuyers = buyers.filter(function(b) { return b.readiness >= 60 && b.shows === 0; }).length;
-  if (noShowBuyers > 0) byerActions.push({ icon: '&#127968;', text: noShowBuyers + ' high-readiness buyers haven\'t requested showings yet', priority: 'high' });
+  if (noShowBuyers > 0) byerActions.push({ icon: '&#127968;', text: noShowBuyers + " high-readiness buyers haven't requested showings yet", priority: 'high' });
   if (contactRate < 80) byerActions.push({ icon: '&#128222;', text: 'Only ' + contactRate + '% of buyers contactable \u2014 missing phone/email data', priority: 'high' });
   if (hotRate < 25) byerActions.push({ icon: '&#128293;', text: 'Low hot buyer rate (' + hotRate + '%) \u2014 increase nurture outreach', priority: 'medium' });
   if (activityRate < 60) byerActions.push({ icon: '&#128200;', text: 'Only ' + activityRate + '% showing activity \u2014 low pipeline engagement', priority: 'high' });
