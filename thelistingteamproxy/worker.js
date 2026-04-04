@@ -2948,10 +2948,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
   <div class="topbar-right">
     <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" style="color:#111">30 Days</option>
-      <option value="60" style="color:#111">60 Days</option>
       <option value="30" selected style="color:#111">30 Days</option>
-      <option value="180" style="color:#111">180 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="90" style="color:#111">90 Days</option>
+      <option value="180" style="color:#111">6 Months</option>
+      <option value="365" style="color:#111">1 Year</option>
+      <option value="0" style="color:#111">All Time</option>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
     <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
@@ -6100,7 +6102,7 @@ function processRawContacts(allRaw) {
 
 function loadData() {
   _el('loadingOverlay').style.display = 'flex';
-  _el('loadingText').textContent = 'Fetching last ' + LOAD_DAYS + ' days of contacts...';
+  _el('loadingText').textContent = LOAD_DAYS > 0 ? 'Fetching last ' + LOAD_DAYS + ' days of contacts...' : 'Fetching all contacts...';
 
   // Always fetch fresh data from GHL/Ylopo on every page load
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
@@ -6108,7 +6110,7 @@ function loadData() {
 }
 
 function fetchAllContacts(isBackground) {
-  var cutoffDate = new Date(Date.now() - LOAD_DAYS * 864e5);
+  var cutoffDate = LOAD_DAYS > 0 ? new Date(Date.now() - LOAD_DAYS * 864e5) : null;
   var allRaw    = [];
   var seenIds   = {};
   var startAfter = '';
@@ -6116,6 +6118,7 @@ function fetchAllContacts(isBackground) {
   var page      = 0;
   var FETCH_SIZE = 100;
   var hitCutoff = false;
+  var maxPages = LOAD_DAYS === 0 ? 100 : LOAD_DAYS <= 30 ? 15 : LOAD_DAYS <= 90 ? 30 : LOAD_DAYS <= 365 ? 50 : 100;
 
   function fetchPage() {
     page++;
@@ -6124,7 +6127,7 @@ function fetchAllContacts(isBackground) {
     if (startAfterId) url += '&startAfterId=' + encodeURIComponent(startAfterId);
 
     if (!isBackground) {
-      _el('loadingText').textContent = 'Page ' + page + '/' + MAX_PAGES + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
+      _el('loadingText').textContent = 'Page ' + page + '/' + maxPages + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
     }
 
     var fetchOpts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
@@ -6156,10 +6159,10 @@ function fetchAllContacts(isBackground) {
         allRaw = allRaw.concat(newRaw);
         var lastContact = raw[raw.length - 1];
         var lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
-        if (lastDate < cutoffDate) { hitCutoff = true; finishLoad(); return; }
+        if (cutoffDate && lastDate < cutoffDate) { hitCutoff = true; finishLoad(); return; }
         // Use meta pagination cursors from GHL API response
         var meta = data.meta || {};
-        if (meta.startAfter && meta.startAfterId && raw.length >= FETCH_SIZE && page < MAX_PAGES) {
+        if (meta.startAfter && meta.startAfterId && raw.length >= FETCH_SIZE && page < maxPages) {
           startAfter = meta.startAfter;
           startAfterId = meta.startAfterId;
         } else {
@@ -6195,7 +6198,7 @@ function fetchAllContacts(isBackground) {
       if (ll) ll.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
       // Auto-switch to source tab if URL has #source
       if (window.location.hash === '#source') { switchContactsView('source'); }
-      toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + LOAD_DAYS + 'd range' + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
+      toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + (LOAD_DAYS > 0 ? LOAD_DAYS + 'd range' : 'all time') + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
       // autoTagSellers disabled \u2014 was writing tags/notes on every page load
     }
   }
@@ -9128,11 +9131,12 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
     </button>
     <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" style="color:#111">30 Days</option>
-      <option value="60" style="color:#111">60 Days</option>
       <option value="30" selected style="color:#111">30 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="90" style="color:#111">90 Days</option>
       <option value="180" style="color:#111">6 Months</option>
       <option value="365" style="color:#111">1 Year</option>
+      <option value="0" style="color:#111">All Time</option>
     </select>
     <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600">60d</span>
     <button class="hdr-btn" title="Refresh Data" onclick="loadData()" style="font-size:16px;background:rgba(34,197,94,0.2)">\u{1F504}</button>
@@ -10736,7 +10740,7 @@ async function loadData(forceRefresh) {
   // Always clear stale cache and fetch fresh data from Ylopo/GHL
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   try {
-    toast(\`Fetching last \${LOAD_DAYS} days of leads...\`,'info');
+    toast(LOAD_DAYS > 0 ? \`Fetching last \${LOAD_DAYS} days of leads...\` : 'Fetching all leads...','info');
     const progress = el('loadProgress');
     const fill = el('loadFill');
     const ptext = el('loadText');
@@ -10791,7 +10795,7 @@ async function loadData(forceRefresh) {
 
     // Update date range display
     const rangeEl = el('dateRangeInfo');
-    if(rangeEl) rangeEl.textContent = \`\${LOAD_DAYS}d \xB7 \${ALL_LEADS.length} contacts\`;
+    if(rangeEl) rangeEl.textContent = (LOAD_DAYS > 0 ? \`\${LOAD_DAYS}d\` : 'All') + \` \xB7 \${ALL_LEADS.length} contacts\`;
 
     setTimeout(() => { progress.style.display = 'none'; }, 3000);
   } catch (err) {
