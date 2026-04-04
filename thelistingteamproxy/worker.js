@@ -3523,84 +3523,95 @@ function calcBuyerReadiness(c, ext, m) {
   var score = 0;
   var factors = [];
 
-  // Search activity (0-25)
+  // Search activity (0-20) — if Ylopo data exists
   var actPts = 0;
   actPts += Math.min(m.views * 0.5, 8);
   actPts += Math.min(m.saves * 2, 8);
-  actPts += Math.min(m.searches * 1, 5);
-  actPts += Math.min(m.showings * 5, 15);
-  actPts = Math.min(Math.round(actPts), 25);
+  actPts += Math.min(m.searches * 1, 4);
+  actPts += Math.min(m.showings * 5, 10);
+  actPts = Math.min(Math.round(actPts), 20);
   if (actPts > 0) {
     score += actPts;
-    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: 25 });
+    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: 20 });
   }
 
-  // Price range defined (0-15)
+  // Recency (0-25) — most important when no activity data
+  var recPts = 0;
+  var recDate = c.dateUpdated || c.dateAdded;
+  if (recDate) {
+    var days = (Date.now() - new Date(recDate).getTime()) / 86400000;
+    if (days < 1) recPts = 25;
+    else if (days < 3) recPts = 20;
+    else if (days < 7) recPts = 15;
+    else if (days < 14) recPts = 10;
+    else if (days < 30) recPts = 5;
+    else if (days < 60) recPts = 2;
+    if (recPts > 0) factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: recPts, max: 25 });
+  }
+  score += recPts;
+
+  // Contact completeness (0-15) — email + phone = more reachable
+  var compPts = 0;
+  if (c.email) compPts += 5;
+  if (c.phone) compPts += 5;
+  if (c.firstName || c.first_name) compPts += 3;
+  if (c.address1 || ext.city) compPts += 2;
+  compPts = Math.min(compPts, 15);
+  if (compPts > 0) {
+    score += compPts;
+    var compLabel = (c.email ? 'email' : '') + (c.email && c.phone ? '+' : '') + (c.phone ? 'phone' : '');
+    factors.push({ name: compLabel || 'contact info', pts: compPts, max: 15 });
+  }
+
+  // Source quality (0-15)
+  var srcPts = 0;
+  var src = String(c.source || ext.source || '').toLowerCase();
+  if (src.indexOf('ylopo') !== -1) { srcPts = 12; }
+  else if (src.indexOf('zillow') !== -1) { srcPts = 10; }
+  else if (src.indexOf('realtor') !== -1) { srcPts = 8; }
+  else if (src.indexOf('homes') !== -1) { srcPts = 6; }
+  else if (src) { srcPts = 3; }
+  srcPts = Math.min(srcPts, 15);
+  if (srcPts > 0) {
+    score += srcPts;
+    factors.push({ name: (c.source || ext.source || 'Unknown').substring(0, 15), pts: srcPts, max: 15 });
+  }
+
+  // Price range defined (0-10)
   var pricePts = 0;
-  if (ext.minPrice > 0 || ext.maxPrice > 0) { pricePts = 10; }
-  if (ext.minPrice > 0 && ext.maxPrice > 0) { pricePts = 15; }
+  if (ext.minPrice > 0 || ext.maxPrice > 0) { pricePts = 6; }
+  if (ext.minPrice > 0 && ext.maxPrice > 0) { pricePts = 10; }
   if (pricePts > 0) {
     score += pricePts;
     var priceLabel = '';
     if (ext.minPrice && ext.maxPrice) priceLabel = fmtPrice(ext.minPrice) + '-' + fmtPrice(ext.maxPrice);
     else if (ext.maxPrice) priceLabel = 'up to ' + fmtPrice(ext.maxPrice);
     else priceLabel = fmtPrice(ext.minPrice) + '+';
-    factors.push({ name: priceLabel, pts: pricePts, max: 15 });
+    factors.push({ name: priceLabel, pts: pricePts, max: 10 });
   }
 
-  // Recency (0-20)
-  var recPts = 0;
-  if (c.dateUpdated) {
-    var days = (Date.now() - new Date(c.dateUpdated).getTime()) / 86400000;
-    if (days < 1) recPts = 20;
-    else if (days < 3) recPts = 16;
-    else if (days < 7) recPts = 12;
-    else if (days < 14) recPts = 6;
-    else if (days < 30) recPts = 3;
-    if (recPts > 0) factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: recPts, max: 20 });
-  }
-  score += recPts;
-
-  // Property preferences defined (0-10)
+  // Property preferences (0-5)
   var prefPts = 0;
-  if (ext.beds) prefPts += 3;
-  if (ext.baths) prefPts += 3;
-  if (ext.propType) prefPts += 4;
-  prefPts = Math.min(prefPts, 10);
+  if (ext.beds) prefPts += 2;
+  if (ext.baths) prefPts += 2;
+  if (ext.propType) prefPts += 1;
+  prefPts = Math.min(prefPts, 5);
   if (prefPts > 0) {
     score += prefPts;
-    var prefLabel = '';
-    if (ext.beds || ext.baths) prefLabel = (ext.beds || '?') + 'bd/' + (ext.baths || '?') + 'ba';
-    else prefLabel = ext.propType;
-    factors.push({ name: prefLabel, pts: prefPts, max: 10 });
+    factors.push({ name: (ext.beds || '?') + 'bd/' + (ext.baths || '?') + 'ba', pts: prefPts, max: 5 });
   }
 
-  // Showing requests (0-15)
-  if (m.showings > 0) {
-    var shPts = Math.min(m.showings * 5, 15);
-    score += shPts;
-    factors.push({ name: m.showings + ' showings', pts: shPts, max: 15 });
-  }
-
-  // Save-to-view ratio (0-10) — high ratio = serious buyer
-  if (m.views > 5) {
-    var ratio = m.saves / m.views;
-    var rPts = Math.min(Math.round(ratio * 20), 10);
-    if (rPts > 0) {
-      score += rPts;
-      factors.push({ name: Math.round(ratio * 100) + '% save rate', pts: rPts, max: 10 });
-    }
-  }
-
-  // Tag signals (0-5)
+  // Tag signals (0-10)
   var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
   var tagPts = 0;
-  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) tagPts += 3;
-  if (tags.some(function(t) { return t.indexOf('buyer') !== -1 || t.indexOf('pre-approved') !== -1 || t.indexOf('preapproved') !== -1; })) tagPts += 2;
-  tagPts = Math.min(tagPts, 5);
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) tagPts += 5;
+  if (tags.some(function(t) { return t.indexOf('buyer') !== -1 || t.indexOf('pre-approved') !== -1 || t.indexOf('preapproved') !== -1; })) tagPts += 3;
+  if (tags.some(function(t) { return t.indexOf('showing') !== -1; })) tagPts += 3;
+  if (tags.some(function(t) { return t.indexOf('warm') !== -1; })) tagPts += 2;
+  tagPts = Math.min(tagPts, 10);
   if (tagPts > 0) {
     score += tagPts;
-    factors.push({ name: 'Tag signals', pts: tagPts, max: 5 });
+    factors.push({ name: 'Tag signals', pts: tagPts, max: 10 });
   }
 
   return { score: Math.min(score, 100), factors: factors };
@@ -3616,18 +3627,12 @@ function getBuyerLeads() {
     var m = l.matrix || getMatrix(raw);
     var tags = (l.tags || []).map(function(t) { return String(t).toLowerCase(); });
 
-    // Identify as buyer: has search activity, buyer tags, price prefs, OR is not a seller
-    var isSeller = tags.some(function(t) { return t.indexOf('seller') !== -1; }) ||
-      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1);
-    var isBuyer = m.views > 0 || m.saves > 0 || m.searches > 0 || m.showings > 0 ||
-      ext.minPrice > 0 || ext.maxPrice > 0 ||
-      tags.some(function(t) { return t.indexOf('buyer') !== -1; }) ||
-      (ext.propType && ext.propType.toLowerCase().indexOf('buyer') !== -1);
-
-    // If explicitly a seller and not explicitly a buyer, skip
-    if (isSeller && !isBuyer) return;
-    // Must have at least some buyer signal
-    if (!isBuyer) return;
+    // Exclude contacts that are explicitly sellers (and not also buyers)
+    var isExplicitSeller = tags.some(function(t) { return t.indexOf('seller') !== -1 && t.indexOf('buyer') === -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1 && ext.propType.toLowerCase().indexOf('buyer') === -1);
+    var src = (l.source || '').toLowerCase();
+    var isSellerSource = src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 || src.indexOf('plus leads') !== -1;
+    if (isExplicitSeller && !m.views && !m.saves && isSellerSource) return;
 
     var rd = calcBuyerReadiness(raw, ext, m);
     buyers.push({
@@ -6074,9 +6079,30 @@ function showDiagnostics() {
   var ids = Object.keys(RAW_CONTACTS);
   for (var i=0;i<ids.length;i++) { if(RAW_CONTACTS[ids[i]]._ylopoEventsLoaded) ylopoLoaded++; }
 
+  // Auto-scan custom fields from first raw contact if none stored
+  if (fields.length === 0 && ids.length > 0) {
+    var sample = RAW_CONTACTS[ids[0]];
+    var cfs = Array.isArray(sample.customField) ? sample.customField : Array.isArray(sample.customFields) ? sample.customFields : [];
+    cfs.forEach(function(cf) {
+      fields.push({ id: cf.id||'', key: cf.key||'', fieldKey: cf.field_key||cf.fieldKey||'', name: cf.name||cf.label||'', value: cf.value||'' });
+    });
+    window._FIELD_DIAGNOSTICS = fields;
+  }
+
+  // Collect all unique tags and sources
+  var allTags = {}; var allSources = {};
+  (ALL_LEADS || []).forEach(function(l) {
+    (l.tags || []).forEach(function(t) { allTags[t] = (allTags[t]||0) + 1; });
+    var s = l.source || 'Unknown'; allSources[s] = (allSources[s]||0) + 1;
+  });
+
   if (fields.length === 0) {
-    content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
-      '<p style="color:var(--text-muted)">No field diagnostics available. Load contacts first.</p>';
+    content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts</p>' +
+      '<p style="color:var(--text-muted);margin-bottom:12px">No custom fields found on contacts.</p>' +
+      '<h4 style="margin:12px 0 8px;font-size:13px">Tags (' + Object.keys(allTags).length + ')</h4>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px">' + Object.keys(allTags).sort(function(a,b){return allTags[b]-allTags[a];}).map(function(t){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(t) + ' <strong>' + allTags[t] + '</strong></span>';}).join('') + '</div>' +
+      '<h4 style="margin:12px 0 8px;font-size:13px">Sources (' + Object.keys(allSources).length + ')</h4>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px">' + Object.keys(allSources).sort(function(a,b){return allSources[b]-allSources[a];}).map(function(s){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(s) + ' <strong>' + allSources[s] + '</strong></span>';}).join('') + '</div>';
     return;
   }
 
@@ -6090,7 +6116,11 @@ function showDiagnostics() {
     '</tr>';
   }).join('');
 
-  content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
+  content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts</p>' +
+    '<h4 style="margin:12px 0 8px;font-size:13px">Tags (' + Object.keys(allTags).length + ')</h4>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">' + Object.keys(allTags).sort(function(a,b){return allTags[b]-allTags[a];}).map(function(t){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(t) + ' <strong>' + allTags[t] + '</strong></span>';}).join('') + '</div>' +
+    '<h4 style="margin:12px 0 8px;font-size:13px">Sources (' + Object.keys(allSources).length + ')</h4>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">' + Object.keys(allSources).sort(function(a,b){return allSources[b]-allSources[a];}).map(function(s){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(s) + ' <strong>' + allSources[s] + '</strong></span>';}).join('') + '</div>' +
     '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Showing <strong>' + fields.length + '</strong> custom fields from first contact:</p>' +
     '<div style="overflow-x:auto">' +
       '<table class="diag-table">' +
