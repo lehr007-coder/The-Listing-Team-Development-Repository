@@ -4904,6 +4904,8 @@ function buildAccordion(lead) {
       (lead.email ? '<a href="mailto:' + esc(lead.email) + '" class="acc-link">Email</a>' : '') +
       (lead.phone ? '<a href="tel:' + esc(lead.phone) + '" class="acc-link">Call</a>' : '') +
       (lead.phone ? '<a href="sms:' + esc(lead.phone) + '" class="acc-link">SMS</a>' : '') +
+      '<a href="#" onclick="event.preventDefault();showScoreBreakdown(&#39;' + lead.id + '&#39;)" class="acc-link">Score Breakdown</a>' +
+      '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
     '</div>' +
   '</div>';
 }
@@ -5434,6 +5436,117 @@ function clearAllPresets() {
   try { localStorage.removeItem(PRESETS_KEY); } catch(e) {}
   renderPresetMenu();
   toast('All presets cleared', 'info');
+}
+
+// -------------------------------------------------------
+// QUICK MESSAGE TEMPLATES
+// -------------------------------------------------------
+var MSG_TEMPLATES = [
+  { name: 'Initial Follow-up', subject: 'Thanks for your interest!', body: 'Hi {name},\\n\\nThank you for reaching out! I noticed you\\'ve been looking at properties and I\\'d love to help you find the perfect home.\\n\\nWhen would be a good time to chat about what you\\'re looking for?\\n\\nBest regards' },
+  { name: 'Showing Follow-up', subject: 'How was the showing?', body: 'Hi {name},\\n\\nI hope you enjoyed viewing the property! I\\'d love to hear your thoughts.\\n\\nWould you like to schedule another showing or explore similar listings?\\n\\nLet me know!' },
+  { name: 'Re-engagement', subject: 'Still looking for your dream home?', body: 'Hi {name},\\n\\nIt\\'s been a little while since we connected. I wanted to check in and see if you\\'re still in the market.\\n\\nThere are some great new listings that might interest you. Would you like me to send some over?\\n\\nHope to hear from you soon!' },
+  { name: 'Hot Lead Priority', subject: 'Great news about properties in your area!', body: 'Hi {name},\\n\\nI\\'ve been keeping an eye on the market for you and some exciting properties just came up that match what you\\'re looking for.\\n\\nCan we set up a time this week to go over them?\\n\\nLooking forward to connecting!' },
+  { name: 'Seller Outreach', subject: 'Your home value update', body: 'Hi {name},\\n\\nThe market in your area has been moving! I wanted to reach out and let you know your property may be worth more than you think.\\n\\nWould you be interested in a free, no-obligation market analysis?\\n\\nBest regards' },
+  { name: 'New Listing Alert', subject: 'New listing you might love!', body: 'Hi {name},\\n\\nA new property just hit the market that I think could be a great fit for you. Want me to send you the details or schedule a showing?\\n\\nDon\\'t wait — great properties move fast!\\n\\nCheers' }
+];
+
+function openQuickMessage(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+
+  var existing = document.getElementById('msgOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'msgOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var firstName = lead.name.split(' ')[0] || lead.name;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border)">' +
+    '<h2 style="margin:0;font-size:16px;color:var(--text)">&#9993; Quick Message to ' + esc(firstName) + '</h2>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + esc(lead.email || 'No email') + ' &bull; ' + esc(lead.phone || 'No phone') + '</div>' +
+  '</div>';
+
+  // Template selector
+  html += '<div style="padding:16px">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">Choose a template:</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">';
+  MSG_TEMPLATES.forEach(function(t, i) {
+    html += '<button onclick="applyMsgTemplate(' + i + ')" style="padding:6px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-size:11px;font-weight:600;cursor:pointer">' + esc(t.name) + '</button>';
+  });
+  html += '</div>';
+
+  // Subject
+  html += '<div style="margin-bottom:12px">' +
+    '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Subject</label>' +
+    '<input type="text" id="msgSubject" style="width:100%;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box">' +
+  '</div>';
+
+  // Body
+  html += '<div style="margin-bottom:12px">' +
+    '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Message</label>' +
+    '<textarea id="msgBody" rows="8" style="width:100%;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box"></textarea>' +
+  '</div>';
+
+  // Action buttons
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  if (lead.email) {
+    html += '<button onclick="sendMsgEmail(&#39;' + esc(lead.email) + '&#39;)" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128231; Send Email</button>';
+  }
+  if (lead.phone) {
+    html += '<button onclick="sendMsgSMS(&#39;' + esc(lead.phone) + '&#39;)" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128172; Send SMS</button>';
+  }
+  html += '<button onclick="copyMsgToClipboard()" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128203; Copy</button>';
+  html += '</div></div>';
+
+  html += '<div style="padding:10px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+    '<button onclick="document.getElementById(&#39;msgOverlay&#39;).remove()" style="padding:6px 16px;border:none;border-radius:6px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer">Close</button>' +
+  '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  // Store contact info for template filling
+  overlay.dataset.firstName = firstName;
+  overlay.dataset.fullName = lead.name;
+}
+
+function applyMsgTemplate(idx) {
+  var t = MSG_TEMPLATES[idx];
+  if (!t) return;
+  var overlay = document.getElementById('msgOverlay');
+  var firstName = overlay ? overlay.dataset.firstName : '';
+  var subEl = document.getElementById('msgSubject');
+  var bodyEl = document.getElementById('msgBody');
+  if (subEl) subEl.value = t.subject;
+  if (bodyEl) bodyEl.value = t.body.replace(/\{name\}/g, firstName);
+}
+
+function sendMsgEmail(email) {
+  var subject = (document.getElementById('msgSubject') || {}).value || '';
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  window.location.href = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  toast('Opening email client...', 'success');
+}
+
+function sendMsgSMS(phone) {
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  window.location.href = 'sms:' + encodeURIComponent(phone) + '?body=' + encodeURIComponent(body);
+  toast('Opening SMS...', 'success');
+}
+
+function copyMsgToClipboard() {
+  var subject = (document.getElementById('msgSubject') || {}).value || '';
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  var text = (subject ? 'Subject: ' + subject + '\\n\\n' : '') + body;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Message copied to clipboard!', 'success');
+  }).catch(function() {
+    toast('Failed to copy', 'error');
+  });
 }
 
 // -------------------------------------------------------
