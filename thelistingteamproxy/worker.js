@@ -3353,35 +3353,59 @@ function toast(msg, type, duration) {
 // CUSTOM FIELD HELPERS
 // -------------------------------------------------------
 
-function getCF(contact, keys) {
-  if (!contact) return null;
+// Build a field index for O(1) lookups instead of O(n*m) linear scans
+function buildFieldIndex(contact) {
+  if (contact._cfIdx) return contact._cfIdx;
   var fields = Array.isArray(contact.customField) ? contact.customField
     : Array.isArray(contact.customFields) ? contact.customFields
     : [];
-  if (fields.length === 0) return null;
+  var exact = {};  // exact key matches
+  var parts = [];  // for substring matching (fallback)
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i];
+    if (f.value == null || f.value === '') continue;
+    var v = f.value;
+    if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
+    var fid   = (f.id||'').toLowerCase();
+    var fkey  = (f.key||'').toLowerCase();
+    var ffk   = (f.fieldKey||'').toLowerCase();
+    var fname = (f.name||'').toLowerCase();
+    var ffkS  = ffk.startsWith('contact.') ? ffk.slice(8) : ffk;
+    var fkeyS = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
+    if (fid)   exact[fid] = f;
+    if (fkey)  exact[fkey] = f;
+    if (ffk)   exact[ffk] = f;
+    if (fname) exact[fname] = f;
+    if (ffkS && ffkS !== ffk)   exact[ffkS] = f;
+    if (fkeyS && fkeyS !== fkey) exact[fkeyS] = f;
+    parts.push({ f: f, ffkS: ffkS, fkeyS: fkeyS, fname: fname, ffk: ffk });
+  }
+  contact._cfIdx = { exact: exact, parts: parts };
+  return contact._cfIdx;
+}
+
+function getCF(contact, keys) {
+  if (!contact) return null;
+  var idx = buildFieldIndex(contact);
+  if (!idx.exact && !idx.parts) return null;
   for (var ki = 0; ki < keys.length; ki++) {
     var k = keys[ki].toLowerCase();
-    var found = null;
-    for (var fi = 0; fi < fields.length; fi++) {
-      var f = fields[fi];
-      var fid   = (f.id||'').toLowerCase();
-      var fkey  = (f.key||'').toLowerCase();
-      var ffk   = (f.fieldKey||'').toLowerCase();
-      var fname = (f.name||'').toLowerCase();
-      var ffkStripped  = ffk.startsWith('contact.')  ? ffk.slice(8)  : ffk;
-      var fkeyStripped = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
-      if (fid===k || fkey===k || ffk===k || fname===k
-        || ffkStripped===k || fkeyStripped===k
-        || (fname && fname.indexOf(k)!==-1) || (ffk && ffk.indexOf(k)!==-1)
-        || (ffkStripped && ffkStripped.indexOf(k)!==-1) || (fkeyStripped && fkeyStripped.indexOf(k)!==-1)
-        || (ffkStripped && k.indexOf(ffkStripped)!==-1) || (fname && k.indexOf(fname)!==-1)) {
-        found = f;
-        break;
+    // Fast exact match
+    var found = idx.exact[k];
+    // Fallback: substring matching
+    if (!found) {
+      for (var pi = 0; pi < idx.parts.length; pi++) {
+        var p = idx.parts[pi];
+        if ((p.fname && p.fname.indexOf(k) !== -1) || (p.ffk && p.ffk.indexOf(k) !== -1)
+          || (p.ffkS && p.ffkS.indexOf(k) !== -1) || (p.fkeyS && p.fkeyS.indexOf(k) !== -1)
+          || (p.ffkS && k.indexOf(p.ffkS) !== -1) || (p.fname && k.indexOf(p.fname) !== -1)) {
+          found = p.f;
+          break;
+        }
       }
     }
-    if (found && found.value!=null && found.value!=='') {
+    if (found && found.value != null && found.value !== '') {
       var v = found.value;
-      if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
       if (Array.isArray(v)) return v.join(', ');
       return String(v);
     }
@@ -3418,12 +3442,12 @@ function getMatrix(c) {
   };
 }
 
-function calcScore(c) {
+function calcScore(c, m) {
   var score = 0;
   if (!c) return score;
   if (c.email)  score += 5;
   if (c.phone)  score += 5;
-  var m = getMatrix(c);
+  if (!m) m = getMatrix(c);
   score += Math.min(m.views    * 2,  20);
   score += Math.min(m.saves    * 4,  20);
   score += Math.min(m.searches * 3,  15);
@@ -3645,8 +3669,8 @@ function processRawContacts(allRaw) {
     return true;
   }).map(function(c) {
     RAW_CONTACTS[c.id] = c;
-    var score  = calcScore(c);
     var matrix = getMatrix(c);
+    var score  = calcScore(c, matrix);
     var ext    = getExtendedData(c);
 
     var fn = capName(c.firstName || c.first_name || '');
@@ -12136,7 +12160,7 @@ async function ghl(env, method, path, body = null, useV2 = false) {
     "Content-Type": "application/json",
     "Version": "2021-07-28"
   };
-  const init = { method, headers };
+  const init = { method, headers, signal: AbortSignal.timeout(15000) };
   if (body) init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
@@ -12174,7 +12198,7 @@ async function ghlV2(env, method, path, body = null) {
     "Content-Type": "application/json",
     "Version": "2021-07-28"
   };
-  const init = { method, headers };
+  const init = { method, headers, signal: AbortSignal.timeout(15000) };
   if (body) init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
