@@ -2955,6 +2955,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
     <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
+    <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
     <button class="btn btn-sm" onclick="findDuplicates()" style="position:relative">&#128279; Duplicates <span id="dupBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
@@ -5339,6 +5340,154 @@ function clearAllPresets() {
   try { localStorage.removeItem(PRESETS_KEY); } catch(e) {}
   renderPresetMenu();
   toast('All presets cleared', 'info');
+}
+
+// -------------------------------------------------------
+// DAILY DIGEST
+// -------------------------------------------------------
+function showDailyDigest() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+
+  var now = Date.now();
+  var day1 = 86400000;
+  var today = new Date().toLocaleDateString();
+
+  // New contacts today & this week
+  var newToday = ALL_LEADS.filter(function(l) { return l.dateAdded && new Date(l.dateAdded).toLocaleDateString() === today; });
+  var newWeek = ALL_LEADS.filter(function(l) { return l.isNew; });
+
+  // Hot leads
+  var hotLeads = ALL_LEADS.filter(function(l) { return l.status === 'hot'; });
+
+  // Stale high-value (score >= 50, no activity > 7 days)
+  var staleHighValue = ALL_LEADS.filter(function(l) { return l.score >= 50 && daysSinceActivity(l) > 7; })
+    .sort(function(a,b) { return b.score - a.score; }).slice(0, 5);
+
+  // Biggest score risers & fallers
+  var risers = [];
+  var fallers = [];
+  Object.keys(SCORE_TRENDS).forEach(function(id) {
+    var t = SCORE_TRENDS[id];
+    var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+    if (!lead) return;
+    if (t.dir === 'up') risers.push({ lead: lead, change: t.prev ? lead.score - t.prev : 0 });
+    else if (t.dir === 'down') fallers.push({ lead: lead, change: t.prev ? lead.score - t.prev : 0 });
+  });
+  risers.sort(function(a,b) { return b.change - a.change; });
+  fallers.sort(function(a,b) { return a.change - b.change; });
+
+  // Showing requests
+  var showingLeads = ALL_LEADS.filter(function(l) { return l.hasShowing; });
+
+  // Average score
+  var avgScore = ALL_LEADS.length ? Math.round(ALL_LEADS.reduce(function(s,l) { return s + l.score; }, 0) / ALL_LEADS.length) : 0;
+
+  // Build modal
+  var existing = document.getElementById('digestOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'digestOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+
+  // Header
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border)">' +
+    '<h2 style="margin:0;font-size:20px;color:var(--text)">&#128240; Daily Digest</h2>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) + '</div>' +
+  '</div>';
+
+  // KPI Row
+  html += '<div style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  var kpis = [
+    { label: 'Total Leads', val: ALL_LEADS.length, color: 'var(--text)' },
+    { label: 'Hot Leads', val: hotLeads.length, color: 'var(--red)' },
+    { label: 'Avg Score', val: avgScore, color: 'var(--blue)' },
+    { label: 'Showings', val: showingLeads.length, color: 'var(--accent2,#8b5cf6)' }
+  ];
+  kpis.forEach(function(k) {
+    html += '<div style="text-align:center;padding:10px;background:var(--surface,var(--bg));border-radius:10px">' +
+      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:10px;color:var(--text-secondary);margin-top:2px">' + k.label + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+
+  // New Today
+  html += '<div style="padding:0 16px 12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#127381; New Today (' + newToday.length + ')' + (newWeek.length > newToday.length ? ' &bull; ' + newWeek.length + ' this week' : '') + '</div>';
+  if (newToday.length > 0) {
+    newToday.slice(0, 5).forEach(function(l) {
+      html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--card-border);font-size:12px">' +
+        '<span style="color:var(--text);font-weight:600">' + esc(l.name) + '</span>' +
+        '<span style="color:var(--text-muted)">' + esc(l.source || '') + ' &bull; Score ' + l.score + '</span></div>';
+    });
+    if (newToday.length > 5) html += '<div style="font-size:11px;color:var(--text-muted);padding:4px 0">+ ' + (newToday.length - 5) + ' more</div>';
+  } else {
+    html += '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">No new contacts today</div>';
+  }
+  html += '</div>';
+
+  // Priority Follow-ups
+  html += '<div style="padding:0 16px 12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--accent,#f97316);margin-bottom:8px">&#9888; Priority Follow-ups (' + staleHighValue.length + ')</div>';
+  if (staleHighValue.length > 0) {
+    staleHighValue.forEach(function(l) {
+      var age = activityAge(l);
+      html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--card-border);font-size:12px">' +
+        '<span style="color:var(--text);font-weight:600">' + esc(l.name) + ' <span style="color:' + age.color + '">(' + age.label + ')</span></span>' +
+        '<span style="color:var(--text-muted)">Score ' + l.score + '</span></div>';
+    });
+  } else {
+    html += '<div style="font-size:12px;color:var(--green);padding:4px 0">&#10003; All high-value contacts are engaged!</div>';
+  }
+  html += '</div>';
+
+  // Score Movers
+  if (risers.length > 0 || fallers.length > 0) {
+    html += '<div style="padding:0 16px 12px">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#128200; Score Movers</div>';
+    if (risers.length > 0) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:4px">&#9650; Rising</div>';
+      risers.slice(0, 3).forEach(function(r) {
+        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">' +
+          '<span style="color:var(--text)">' + esc(r.lead.name) + '</span>' +
+          '<span style="color:var(--green);font-weight:700">+' + r.change + ' &#8594; ' + r.lead.score + '</span></div>';
+      });
+    }
+    if (fallers.length > 0) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--red);margin:6px 0 4px">&#9660; Falling</div>';
+      fallers.slice(0, 3).forEach(function(r) {
+        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">' +
+          '<span style="color:var(--text)">' + esc(r.lead.name) + '</span>' +
+          '<span style="color:var(--red);font-weight:700">' + r.change + ' &#8594; ' + r.lead.score + '</span></div>';
+      });
+    }
+    html += '</div>';
+  }
+
+  // Source breakdown summary
+  html += '<div style="padding:0 16px 16px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#127760; Source Breakdown</div>';
+  var srcCounts = {};
+  ALL_LEADS.forEach(function(l) { var s = l.source || 'Unknown'; srcCounts[s] = (srcCounts[s]||0) + 1; });
+  var srcArr = Object.keys(srcCounts).map(function(k) { return { name: k, count: srcCounts[k] }; })
+    .sort(function(a,b) { return b.count - a.count; }).slice(0, 6);
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  srcArr.forEach(function(s) {
+    html += '<span style="padding:4px 10px;border-radius:8px;background:var(--surface,var(--bg));font-size:11px;font-weight:600;color:var(--text)">' + esc(s.name) + ' <span style="color:var(--text-muted)">(' + s.count + ')</span></span>';
+  });
+  html += '</div></div>';
+
+  // Close button
+  html += '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+    '<button onclick="document.getElementById(&#39;digestOverlay&#39;).remove()" style="padding:8px 24px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Close</button>' +
+  '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 
 // -------------------------------------------------------
