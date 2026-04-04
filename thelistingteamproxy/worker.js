@@ -4542,20 +4542,20 @@ function buildAccordion(lead) {
       '<div class="acc-section-title">Quick Note</div>' +
       '<div style="display:flex;gap:8px">' +
         '<input type="text" id="quickNote-' + lead.id + '" placeholder="Add a note..." style="flex:1;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px">' +
-        '<button onclick="addQuickNote(\\'' + lead.id + '\\')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Note</button>' +
+        '<button onclick="addQuickNote(&#39;' + lead.id + '&#39;)" style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Note</button>' +
       '</div>' +
-      '<div id="notesList-' + lead.id + '" style="margin-top:8px;max-height:120px;overflow-y:auto"></div>' +
+      '<div id="notesList-' + lead.id + '" style="margin-top:8px;max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>' +
     '</div>' +
     // Quick Add Tag
     '<div class="acc-section" style="grid-column:1/-1">' +
       '<div class="acc-section-title">Quick Add Tag</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===\\'Enter\\')addQuickTag(\\'' + lead.id + '\\')">' +
-        '<button onclick="addQuickTag(\\'' + lead.id + '\\')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Tag</button>' +
-        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\\'hot\\')" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:11px;font-weight:700;cursor:pointer">Hot</button>' +
-        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\\'warm\\')" style="padding:6px 12px;border:1px solid var(--yellow);border-radius:6px;background:transparent;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">Warm</button>' +
-        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\\'showing requested\\')" style="padding:6px 12px;border:1px solid var(--accent2);border-radius:6px;background:transparent;color:var(--accent2);font-size:11px;font-weight:700;cursor:pointer">Showing</button>' +
-        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\\'seller\\')" style="padding:6px 12px;border:1px solid var(--green);border-radius:6px;background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">Seller</button>' +
+        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===&#39;Enter&#39;)addQuickTag(&#39;' + lead.id + '&#39;)">' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;)" style="padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Tag</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;hot&#39;)" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:11px;font-weight:700;cursor:pointer">Hot</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;warm&#39;)" style="padding:6px 12px;border:1px solid var(--yellow);border-radius:6px;background:transparent;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">Warm</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;showing requested&#39;)" style="padding:6px 12px;border:1px solid var(--accent2);border-radius:6px;background:transparent;color:var(--accent2);font-size:11px;font-weight:700;cursor:pointer">Showing</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;seller&#39;)" style="padding:6px 12px;border:1px solid var(--green);border-radius:6px;background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">Seller</button>' +
       '</div>' +
     '</div>' +
     '</div>' +
