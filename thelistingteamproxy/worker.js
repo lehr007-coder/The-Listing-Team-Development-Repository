@@ -143,6 +143,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Contact CRM</div>
         </div>
       </a>
+      <a href="/dashboard/ylopo-contacts#source" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4C8}</div>
+        <div class="card-body">
+          <div class="card-title">Source Performance</div>
+          <div class="card-desc">Analyze lead sources: volume, quality, hot rate, buyer/seller split, and recent activity by source.</div>
+          <div class="card-tag">Lead Intelligence</div>
+        </div>
+      </a>
       <a href="/dashboard/priority-leads" class="card rose">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F525}</div>
@@ -1475,6 +1484,7 @@ body.dark-mode {
 <div class="external-links">
     <a href="/dashboard" class="external-link" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:#60a5fa">&#127968; Hub</a>
     <a href="/dashboard/ylopo-contacts" class="external-link" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:#4ade80">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-contacts#source" class="external-link" style="background:rgba(234,179,8,0.15);border-color:rgba(234,179,8,0.3);color:#eab308">&#128200; Sources</a>
     <a href="/dashboard/ylopo-analytics" class="external-link" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.3);color:#c084fc">&#128202; Analytics</a>
     <a href="/dashboard/site-matrix" class="external-link" style="background:rgba(6,182,212,0.15);border-color:rgba(6,182,212,0.3);color:#22d3ee">&#127760; Matrix</a>
     <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; GHL</a>
@@ -2899,6 +2909,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <a href="/dashboard" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(59,130,246,0.3);color:#60a5fa;background:rgba(59,130,246,0.1)">\u{1F3E0} Hub</a>
   <a href="/dashboard/priority-leads" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;background:rgba(239,68,68,0.1)">\u{1F525} Priority</a>
   <a href="/dashboard/ylopo-analytics" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(168,85,247,0.3);color:#c084fc;background:rgba(168,85,247,0.1)">\u{1F4CA} Analytics</a>
+  <a href="/dashboard/ylopo-contacts#source" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(234,179,8,0.3);color:#eab308;background:rgba(234,179,8,0.1)">\u{1F4C8} Sources</a>
   <a href="/dashboard/site-matrix" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(6,182,212,0.3);color:#22d3ee;background:rgba(6,182,212,0.1)">\u{1F30D} Matrix</a>
 </div>
 
@@ -3718,6 +3729,8 @@ function fetchAllContacts(isBackground) {
       if (!isBackground) {
         _el('loadingOverlay').style.display = 'none';
       }
+      // Auto-switch to source tab if URL has #source
+      if (window.location.hash === '#source') { switchContactsView('source'); }
       toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + LOAD_DAYS + 'd range' + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
       // autoTagSellers disabled \u2014 was writing tags/notes on every page load
     }
@@ -5417,6 +5430,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <div class="page-nav">
       <a href="/dashboard">\u{1F3E0} Hub</a>
       <a href="/dashboard/ylopo-contacts">\u{1F4CB} Contacts</a>
+      <a href="/dashboard/ylopo-contacts#source">\u{1F4C8} Sources</a>
       <a href="/dashboard/priority-leads">\u{1F525} Priority</a>
       <a href="/dashboard/ylopo-analytics" class="active">\u{1F4CA} Analytics</a>
     </div>
@@ -13518,6 +13532,7 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
   <div class="header-nav">
     <a href="/dashboard">Hub</a>
     <a href="/dashboard/ylopo-contacts">Contacts</a>
+    <a href="/dashboard/ylopo-contacts#source">Sources</a>
     <a href="/dashboard/ylopo-analytics">Analytics</a>
     <a href="/dashboard/idx" class="active">IDX</a>
   </div>
