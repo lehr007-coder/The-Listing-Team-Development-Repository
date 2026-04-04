@@ -3061,6 +3061,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
   <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
   <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+  <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
 </div>
@@ -4202,6 +4203,37 @@ function bulkTag() {
   });
 }
 
+function bulkWorkflow() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('No contacts selected', 'error'); return; }
+
+  // Common GHL workflow IDs — user enters or picks
+  var wfId = prompt('Enter the GHL Workflow ID to trigger for ' + ids.length + ' contacts:\\n\\n(Find this in GHL > Automation > Workflows > click workflow > copy ID from URL)');
+  if (!wfId || !wfId.trim()) return;
+  wfId = wfId.trim();
+
+  if (!confirm('Trigger workflow on ' + ids.length + ' contacts?\\nWorkflow ID: ' + wfId)) return;
+
+  var done = 0, failed = 0;
+  toast('Triggering workflow on ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id + '/workflow/' + wfId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function(r) {
+        if (r.ok) { done++; } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Workflow triggered: ' + done + ' success' + (failed > 0 ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
+    clearSelection();
+  });
+}
+
 function bulkEmail() {
   var emails = ALL_LEADS.filter(function(l) { return SELECTED.has(l.id); }).map(function(l) { return l.email; }).filter(Boolean);
   if (emails.length === 0) { toast('No email addresses found in selection', 'error'); return; }
@@ -4592,6 +4624,61 @@ function renderCards() {
   }).join('');
 }
 
+function buildTimeline(lead, raw, ext) {
+  var events = [];
+  // Contact created
+  if (lead.dateAdded) {
+    events.push({ date: new Date(lead.dateAdded), icon: '&#128204;', label: 'Contact created', detail: 'Source: ' + esc(lead.source || 'Unknown') });
+  }
+  // Tags added (we know current tags but not when — show as a milestone)
+  if (lead.tags && lead.tags.length > 0) {
+    var tagDate = lead.dateUpdated ? new Date(lead.dateUpdated) : (lead.dateAdded ? new Date(lead.dateAdded) : null);
+    events.push({ date: tagDate || new Date(), icon: '&#127991;', label: 'Tags: ' + lead.tags.slice(0, 5).map(function(t) { return esc(t); }).join(', '), detail: lead.tags.length + ' total tags' });
+  }
+  // Engagement milestones
+  var m = lead.matrix || {};
+  if (m.views > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#128065;', label: m.views + ' listing views', detail: 'Property browsing activity' });
+  }
+  if (m.saves > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#10084;&#65039;', label: m.saves + ' properties saved', detail: 'Showing buying intent' });
+  }
+  if (m.searches > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#128269;', label: m.searches + ' saved searches', detail: 'Active search criteria' });
+  }
+  if (m.showings > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#127968;', label: m.showings + ' showing requests', detail: 'High-intent activity', highlight: true });
+  }
+  // Ylopo events from raw data
+  if (raw && raw._ylopoEvents && raw._ylopoEvents.length > 0) {
+    raw._ylopoEvents.slice(0, 5).forEach(function(ev) {
+      var evDate = ev.fields && ev.fields.event_date ? new Date(ev.fields.event_date) : new Date();
+      var evType = (ev.fields && ev.fields.event_type) || 'Ylopo Event';
+      events.push({ date: evDate, icon: '&#11088;', label: esc(evType), detail: ev.fields && ev.fields.listing_address ? esc(ev.fields.listing_address) : '' });
+    });
+  }
+  // Last updated
+  if (lead.dateUpdated && lead.dateUpdated !== lead.dateAdded) {
+    events.push({ date: new Date(lead.dateUpdated), icon: '&#128260;', label: 'Last updated', detail: activityAge(lead).label });
+  }
+  // Score
+  events.push({ date: new Date(), icon: '&#127919;', label: 'Current score: ' + lead.score, detail: lead.status.charAt(0).toUpperCase() + lead.status.slice(1) + ' lead' });
+
+  // Sort by date descending (newest first)
+  events.sort(function(a, b) { return b.date - a.date; });
+
+  if (events.length === 0) return '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">No timeline data available</div>';
+
+  return events.map(function(ev) {
+    return '<div style="position:relative;padding:8px 0">' +
+      '<div style="position:absolute;left:-21px;top:12px;width:10px;height:10px;border-radius:50%;background:' + (ev.highlight ? 'var(--red)' : 'var(--accent,#f97316)') + ';border:2px solid var(--card)"></div>' +
+      '<div style="font-size:10px;color:var(--text-muted)">' + ev.date.toLocaleDateString() + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text)">' + ev.icon + ' ' + ev.label + '</div>' +
+      (ev.detail ? '<div style="font-size:11px;color:var(--text-secondary)">' + ev.detail + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
 function badgeLabel(b) {
   switch(b) {
     case 'hot':     return 'Hot';
@@ -4781,6 +4868,13 @@ function buildAccordion(lead) {
         '<div class="acc-section-title">AI Summary</div>' +
         '<div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap">' + esc(ext.aiNotes) + '</div>' +
       '</div>' : '') +
+    '</div>' +
+    // Contact Timeline
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">&#128197; Timeline</div>' +
+      '<div id="timeline-' + lead.id + '" style="display:flex;flex-direction:column;gap:0;border-left:2px solid var(--card-border);margin-left:8px;padding-left:16px">' +
+        buildTimeline(lead, raw, ext) +
+      '</div>' +
     '</div>' +
     // Quick Notes
     '<div class="acc-section" style="grid-column:1/-1">' +
