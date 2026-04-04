@@ -4368,7 +4368,9 @@ function renderSellerTab() {
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
   html += '<h4 style="margin:0;font-size:14px">&#128209; All Seller Leads (' + sellers.length + ')</h4>';
   html += '<div style="display:flex;gap:8px">';
-  html += '<button onclick="generateCallList()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128222; Smart Call List</button>';
+  html += '<button onclick="generateCallList()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128222; Call List</button>';
+  html += '<button onclick="showFollowUpQueue()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128197; Follow-Ups</button>';
+  html += '<button onclick="showDuplicates()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128269; Duplicates</button>';
   html += '<button onclick="showTagCrossRef()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128279; Tag Cross-Ref</button>';
   html += '<button onclick="exportSellerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
   html += '</div></div>';
@@ -4632,6 +4634,172 @@ function showTagCrossRef() {
   }
   html += '</div>';
 
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// FOLLOW-UP QUEUE — sellers overdue for contact
+// -------------------------------------------------------
+function showFollowUpQueue() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var now = Date.now();
+  var overdue = sellers.filter(function(s) {
+    if (!s.phone && !s.email) return false;
+    var lastTouch = s.dateUpdated || s.dateAdded || '';
+    if (!lastTouch) return true;
+    var days = (now - new Date(lastTouch).getTime()) / 86400000;
+    return days > 14;
+  }).map(function(s) {
+    var lastTouch = s.dateUpdated || s.dateAdded || '';
+    var days = lastTouch ? Math.floor((now - new Date(lastTouch).getTime()) / 86400000) : 999;
+    s._daysSince = days;
+    s._urgency = days > 90 ? 'critical' : days > 30 ? 'high' : 'medium';
+    return s;
+  });
+  overdue.sort(function(a, b) {
+    var urgA = a._urgency === 'critical' ? 3 : a._urgency === 'high' ? 2 : 1;
+    var urgB = b._urgency === 'critical' ? 3 : b._urgency === 'high' ? 2 : 1;
+    if (urgA !== urgB) return urgB - urgA;
+    return b.motivation - a.motivation;
+  });
+
+  var existing = document.getElementById('followUpOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'followUpOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var critical = overdue.filter(function(s) { return s._urgency === 'critical'; }).length;
+  var high = overdue.filter(function(s) { return s._urgency === 'high'; }).length;
+  var medium = overdue.filter(function(s) { return s._urgency === 'medium'; }).length;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:750px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128197; Follow-Up Queue</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + overdue.length + ' sellers need follow-up (no contact in 14+ days)</p></div>';
+  html += '<button onclick="document.getElementById(&#39;followUpOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="display:flex;gap:12px;margin-top:12px">';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#ef444422;color:#ef4444;font-weight:600">&#128308; Critical (90d+): ' + critical + '</span>';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#f59e0b22;color:#f59e0b;font-weight:600">&#128992; High (30-90d): ' + high + '</span>';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#3b82f622;color:#3b82f6;font-weight:600">&#128309; Medium (14-30d): ' + medium + '</span>';
+  html += '</div></div>';
+
+  if (!overdue.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">All sellers have been contacted within the last 14 days!</div>';
+  } else {
+    html += '<div style="padding:0">';
+    overdue.slice(0, 30).forEach(function(s, i) {
+      var urgColor = s._urgency === 'critical' ? '#ef4444' : s._urgency === 'high' ? '#f59e0b' : '#3b82f6';
+      html += '<div style="padding:12px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:12px">';
+      html += '<div style="width:8px;height:8px;border-radius:50%;background:' + urgColor + ';flex-shrink:0"></div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<span style="font-weight:700;font-size:14px">' + esc(s.name) + '</span>';
+      html += '<span style="font-size:12px;color:' + urgColor + ';font-weight:600">' + s._daysSince + ' days ago</span></div>';
+      html += '<div style="display:flex;gap:10px;font-size:12px;color:var(--text-secondary);margin-top:3px">';
+      if (s.phone) html += '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">&#128222; ' + s.phone + '</a>';
+      if (s.email) html += '<span>' + esc(s.email) + '</span>';
+      html += '<span style="color:' + urgColor + '">motivation: ' + s.motivation + '</span>';
+      html += '</div>';
+      var topTags = (s.tags || []).slice(0, 4);
+      if (topTags.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">';
+        topTags.forEach(function(t) { html += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(t) + '</span>'; });
+        html += '</div>';
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// DUPLICATE DETECTION — find potential duplicate contacts
+// -------------------------------------------------------
+function showDuplicates() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+
+  var dupes = [];
+  var emailMap = {};
+  var phoneMap = {};
+  var nameMap = {};
+
+  sellers.forEach(function(s) {
+    if (s.email) {
+      var em = s.email.toLowerCase().trim();
+      if (!emailMap[em]) emailMap[em] = [];
+      emailMap[em].push(s);
+    }
+    if (s.phone) {
+      var ph = s.phone.replace(/\D/g, '').slice(-10);
+      if (ph.length >= 7) {
+        if (!phoneMap[ph]) phoneMap[ph] = [];
+        phoneMap[ph].push(s);
+      }
+    }
+    if (s.name && s.name.trim().length > 3) {
+      var nm = s.name.toLowerCase().trim();
+      if (!nameMap[nm]) nameMap[nm] = [];
+      nameMap[nm].push(s);
+    }
+  });
+
+  var seen = {};
+  function addGroup(type, key, group) {
+    var ids = group.map(function(s) { return s.id; }).sort().join(',');
+    if (seen[ids]) return;
+    seen[ids] = true;
+    dupes.push({ type: type, key: key, contacts: group });
+  }
+
+  Object.keys(emailMap).forEach(function(em) { if (emailMap[em].length > 1) addGroup('Email', em, emailMap[em]); });
+  Object.keys(phoneMap).forEach(function(ph) { if (phoneMap[ph].length > 1) addGroup('Phone', ph, phoneMap[ph]); });
+  Object.keys(nameMap).forEach(function(nm) { if (nameMap[nm].length > 1) addGroup('Name', nm, nameMap[nm]); });
+
+  var existing = document.getElementById('dupesOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'dupesOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128269; Duplicate Detection</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + dupes.length + ' potential duplicate groups found</p></div>';
+  html += '<button onclick="document.getElementById(&#39;dupesOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  if (!dupes.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">&#9989; No duplicate contacts detected!</div>';
+  } else {
+    html += '<div style="padding:12px 20px">';
+    dupes.forEach(function(d) {
+      var typeColor = d.type === 'Email' ? '#3b82f6' : d.type === 'Phone' ? '#22c55e' : '#f59e0b';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;margin-bottom:10px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:' + typeColor + '22;color:' + typeColor + ';font-weight:600">' + d.type + ' match</span>';
+      html += '<span style="font-size:12px;color:var(--text-secondary)">' + esc(d.key) + '</span></div>';
+      d.contacts.forEach(function(c) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--card-border)">';
+        html += '<div><span style="font-weight:600;font-size:13px">' + esc(c.name) + '</span>';
+        if (c.email) html += '<span style="font-size:11px;color:var(--text-secondary);margin-left:8px">' + esc(c.email) + '</span>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:8px;align-items:center">';
+        if (c.phone) html += '<span style="font-size:11px;color:var(--text-secondary)">' + c.phone + '</span>';
+        html += '<span style="font-size:11px;color:var(--text-secondary)">Score: ' + c.motivation + '</span>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
 }
