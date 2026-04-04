@@ -2952,8 +2952,10 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
       <option value="180" style="color:#111">180 Days</option>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
+    <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
+    <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
   </div>
 </div>
 
@@ -3040,6 +3042,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <!-- Bulk Actions Bar -->
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+  <button class="bulk-action" onclick="bulkTag()">&#127991;&#65039; Add Tag</button>
+  <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
   <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
   <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
@@ -3827,6 +3831,9 @@ function fetchAllContacts(isBackground) {
       if (!isBackground) {
         _el('loadingOverlay').style.display = 'none';
       }
+      // Update last loaded timestamp
+      var ll = _el('lastLoaded');
+      if (ll) ll.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
       // Auto-switch to source tab if URL has #source
       if (window.location.hash === '#source') { switchContactsView('source'); }
       toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + LOAD_DAYS + 'd range' + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
@@ -3981,6 +3988,62 @@ function bulkDelete() {
     updateStats();
     toast('Deleted '+deleted+(failed>0?', '+failed+' failed':''),'success');
   });
+}
+
+function bulkTag() {
+  var tag = prompt('Enter tag to add to ' + SELECTED.size + ' selected contacts:');
+  if (!tag || !tag.trim()) return;
+  tag = tag.trim();
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  var done = 0, failed = 0;
+  toast('Adding tag "' + tag + '" to ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function(r) {
+        if (r.ok) {
+          done++;
+          var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+          if (lead && lead.tags && lead.tags.indexOf(tag) === -1) lead.tags.push(tag);
+        } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + ' contacts with "' + tag + '"' + (failed > 0 ? ', ' + failed + ' failed' : ''), 'success');
+    clearSelection();
+  });
+}
+
+function bulkEmail() {
+  var emails = ALL_LEADS.filter(function(l) { return SELECTED.has(l.id); }).map(function(l) { return l.email; }).filter(Boolean);
+  if (emails.length === 0) { toast('No email addresses found in selection', 'error'); return; }
+  if (emails.length > 50) {
+    navigator.clipboard.writeText(emails.join(', ')).then(function() {
+      toast('Too many for mailto link. Copied ' + emails.length + ' emails to clipboard.', 'info');
+    });
+    return;
+  }
+  window.location.href = 'mailto:?bcc=' + emails.map(function(e) { return encodeURIComponent(e); }).join(',');
+  toast('Opening email client with ' + emails.length + ' recipients', 'success');
+}
+
+function exportAllCSV() {
+  var leads = FILTERED.length ? FILTERED : ALL_LEADS;
+  var csv = ['Name,Email,Phone,Score,Status,Source,Type,City,State,Views,Saves,Searches,Showings,Date Added'];
+  leads.forEach(function(l) {
+    var m = l.matrix || {};
+    csv.push('"' + (l.name||'').replace(/"/g,'""') + '","' + (l.email||'') + '","' + (l.phone||'') + '",' +
+      l.score + ',"' + (l.status||'') + '","' + (l.source||'').replace(/"/g,'""') + '","' + (l.propType||'') + '","' +
+      (l.city||'') + '","' + (l.state||'') + '",' +
+      (m.views||0) + ',' + (m.saves||0) + ',' + (m.searches||0) + ',' + (m.showings||0) + ',"' + (l.dateAdded||'') + '"');
+  });
+  downloadCSV(csv.join('\\n'), FILTERED.length < ALL_LEADS.length ? 'filtered-contacts' : 'all-contacts');
+  toast('Exported ' + leads.length + ' contacts to CSV', 'success');
 }
 
 // -------------------------------------------------------
