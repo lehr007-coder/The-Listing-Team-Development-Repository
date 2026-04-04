@@ -2953,6 +2953,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
     <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
+    <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
     <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
@@ -4645,9 +4646,105 @@ function deleteContact(id, name) {
 }
 
 // -------------------------------------------------------
+// -------------------------------------------------------
+// SETTINGS PANEL
+// -------------------------------------------------------
+var SETTINGS_KEY = 'ylopo_settings';
+
+function loadSettings() {
+  var defaults = { pageSize: 25, defaultSort: 'score_desc', defaultView: 'table', autoRefresh: false, refreshInterval: 5 };
+  try { var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)); return Object.assign(defaults, saved || {}); } catch(e) { return defaults; }
+}
+
+function saveSettings() {
+  var s = {
+    pageSize: Number(document.getElementById('settPageSize').value) || 25,
+    defaultSort: document.getElementById('settDefaultSort').value || 'score_desc',
+    defaultView: document.getElementById('settDefaultView').value || 'table',
+    autoRefresh: document.getElementById('settAutoRefresh').checked,
+    refreshInterval: Number(document.getElementById('settRefreshMin').value) || 5
+  };
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch(e) {}
+  PAGE_SIZE = s.pageSize;
+  SORT_KEY = s.defaultSort;
+  if (s.defaultView !== CURRENT_VIEW) setView(s.defaultView);
+  applyFilters();
+  setupAutoRefresh(s);
+  closeSettingsPanel();
+  toast('Settings saved', 'success');
+}
+
+function openSettingsPanel() {
+  var s = loadSettings();
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) { overlay.style.display = 'flex'; return; }
+  overlay = document.createElement('div');
+  overlay.id = 'settingsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) closeSettingsPanel(); };
+  overlay.innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px;width:420px;max-width:90vw;max-height:80vh;overflow-y:auto">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<h2 style="margin:0;font-size:18px;color:var(--text)">&#9881;&#65039; Settings</h2>' +
+        '<button onclick="closeSettingsPanel()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+      '</div>' +
+      '<div style="display:grid;gap:16px">' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Contacts Per Page</label>' +
+          '<select id="settPageSize" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="10"' + (s.pageSize===10?' selected':'') + '>10</option>' +
+            '<option value="25"' + (s.pageSize===25?' selected':'') + '>25</option>' +
+            '<option value="50"' + (s.pageSize===50?' selected':'') + '>50</option>' +
+            '<option value="100"' + (s.pageSize===100?' selected':'') + '>100</option>' +
+          '</select></div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Default Sort</label>' +
+          '<select id="settDefaultSort" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="score_desc"' + (s.defaultSort==='score_desc'?' selected':'') + '>Score (High to Low)</option>' +
+            '<option value="score_asc"' + (s.defaultSort==='score_asc'?' selected':'') + '>Score (Low to High)</option>' +
+            '<option value="name_asc"' + (s.defaultSort==='name_asc'?' selected':'') + '>Name (A-Z)</option>' +
+            '<option value="date_desc"' + (s.defaultSort==='date_desc'?' selected':'') + '>Newest First</option>' +
+            '<option value="date_asc"' + (s.defaultSort==='date_asc'?' selected':'') + '>Oldest First</option>' +
+          '</select></div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Default View</label>' +
+          '<select id="settDefaultView" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="table"' + (s.defaultView==='table'?' selected':'') + '>Table</option>' +
+            '<option value="cards"' + (s.defaultView==='cards'?' selected':'') + '>Cards</option>' +
+          '</select></div>' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;flex:1">Auto-Refresh</label>' +
+          '<input type="checkbox" id="settAutoRefresh"' + (s.autoRefresh?' checked':'') + ' style="width:18px;height:18px;cursor:pointer">' +
+        '</div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Refresh Interval (minutes)</label>' +
+          '<input type="number" id="settRefreshMin" value="' + s.refreshInterval + '" min="1" max="60" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end">' +
+        '<button onclick="closeSettingsPanel()" style="padding:10px 20px;border:1px solid var(--card-border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>' +
+        '<button onclick="saveSettings()" style="padding:10px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Save Settings</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function closeSettingsPanel() {
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+var _autoRefreshTimer = null;
+function setupAutoRefresh(s) {
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
+  if (s && s.autoRefresh && s.refreshInterval > 0) {
+    _autoRefreshTimer = setInterval(function() { loadData(); }, s.refreshInterval * 60000);
+  }
+}
+
 // INIT
 // -------------------------------------------------------
 document.addEventListener('DOMContentLoaded', function() {
+  var s = loadSettings();
+  PAGE_SIZE = s.pageSize || 25;
+  SORT_KEY = s.defaultSort || 'score_desc';
+  if (s.defaultView === 'cards') setTimeout(function() { setView('cards'); }, 100);
+  setupAutoRefresh(s);
   loadGHLTeam().then(function() { loadData(); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
