@@ -3719,6 +3719,224 @@ function renderBuyerTab() {
   });
   html += '</div>';
 
+  // ---- BUYER AI INTELLIGENCE DASHBOARD ----
+  var now = Date.now();
+  // Buyer Portfolio Health = contactability + readiness quality + freshness + activity intensity
+  var contactableByrs = buyers.filter(function(b) { return b.phone || b.email; }).length;
+  var contactRate = buyers.length ? Math.round(contactableByrs / buyers.length * 100) : 0;
+  var hotByrs = buyers.filter(function(b) { return b.readiness >= 60; }).length;
+  var hotRate = buyers.length ? Math.round(hotByrs / buyers.length * 100) : 0;
+  var avgReadiness = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.readiness; }, 0) / buyers.length) : 0;
+  var activeBuyers = buyers.filter(function(b) { return b.views > 0 || b.saves > 0 || b.searches > 0; }).length;
+  var activityRate = buyers.length ? Math.round(activeBuyers / buyers.length * 100) : 0;
+  var freshByrs = buyers.filter(function(b) {
+    var d = b.dateUpdated || b.dateAdded || '';
+    return d && (now - new Date(d).getTime()) < 30 * 86400000;
+  }).length;
+  var freshRate = buyers.length ? Math.round(freshByrs / buyers.length * 100) : 0;
+  var healthScore = Math.min(100, Math.round(contactRate * 0.2 + hotRate * 0.3 + activityRate * 0.25 + avgReadiness * 0.15 + freshRate * 0.1));
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
+  var healthLabel = healthScore >= 70 ? 'Strong' : healthScore >= 45 ? 'Moderate' : 'Weak';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
+
+  // Health gauge
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128681; Buyer Pipeline Health</h4>';
+  html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
+  html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
+  var circumference = 2 * Math.PI * 50;
+  var dashOffset = circumference - (healthScore / 100) * circumference;
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '</svg>';
+  html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
+  html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
+  html += '<span style="font-size:11px;color:var(--text-secondary)">' + healthLabel + '</span>';
+  html += '</div></div>';
+  html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);text-align:left">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Contactable</span><strong style="color:var(--text)">' + contactRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Hot (60+)</span><strong style="color:var(--text)">' + hotRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Active</span><strong style="color:var(--text)">' + activityRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between"><span>Avg Readiness</span><strong style="color:var(--text)">' + avgReadiness + '</strong></div>';
+  html += '</div></div>';
+
+  // AI Insights Panel
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; Buyer AI Insights</h4>';
+
+  // Predictive patterns - which source/price/bed combos have highest readiness
+  var sourceReadiness = {};
+  buyers.forEach(function(b) {
+    var src = b.source || 'Unknown';
+    if (!sourceReadiness[src]) sourceReadiness[src] = { total: 0, count: 0, hot: 0 };
+    sourceReadiness[src].total += b.readiness;
+    sourceReadiness[src].count++;
+    if (b.readiness >= 60) sourceReadiness[src].hot++;
+  });
+  var srcPred = Object.keys(sourceReadiness).map(function(s) {
+    var d = sourceReadiness[s];
+    return { source: s, avg: Math.round(d.total / d.count), count: d.count, hotRate: Math.round(d.hot / d.count * 100) };
+  }).filter(function(p) { return p.count >= 3; }).sort(function(a, b) { return b.hotRate - a.hotRate; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#127919; Top Conversion Sources</div>';
+  if (srcPred.length) {
+    srcPred.slice(0, 5).forEach(function(p) {
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px">';
+      html += '<span style="width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.source) + '</span>';
+      html += '<div style="flex:1;height:6px;background:var(--surface,var(--bg));border-radius:3px;overflow:hidden"><div style="width:' + p.hotRate + '%;height:100%;background:' + (p.hotRate >= 50 ? '#22c55e' : p.hotRate >= 30 ? '#f59e0b' : '#6b7280') + ';border-radius:3px"></div></div>';
+      html += '<span style="width:50px;text-align:right;font-weight:600;color:' + (p.hotRate >= 50 ? '#22c55e' : '#f59e0b') + '">' + p.hotRate + '% hot</span>';
+      html += '</div>';
+    });
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">Need more data</div>'; }
+  html += '</div>';
+
+  // Behavior Alerts - newly active, high readiness, going cold
+  var byerAlerts = [];
+  buyers.forEach(function(b) {
+    var du = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
+    var daysSinceUpdate = du ? (now - du) / 86400000 : 999;
+    if (daysSinceUpdate < 2 && b.readiness >= 50) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Hot & Fresh', msg: 'Updated ' + Math.floor(daysSinceUpdate) + 'd ago, ' + b.saves + ' saves', color: '#ef4444', icon: '&#128293;' });
+    } else if (b.readiness >= 70 && b.shows > 0) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Show Ready', msg: 'Requested ' + b.shows + ' showing(s)', color: '#f59e0b', icon: '&#127968;' });
+    } else if (daysSinceUpdate > 60 && daysSinceUpdate < 90 && b.readiness >= 40) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Cooling Off', msg: 'Inactive ' + Math.floor(daysSinceUpdate) + 'd, readiness ' + b.readiness, color: '#8b5cf6', icon: '&#9888;' });
+    }
+  });
+  byerAlerts.sort(function(a, b) { return a.type === 'Hot & Fresh' ? -1 : 1; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#128276; Buyer Alerts <span style="font-weight:400;color:var(--text-secondary)">(' + byerAlerts.length + ')</span></div>';
+  if (byerAlerts.length) {
+    byerAlerts.slice(0, 4).forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:' + a.color + '11;border-radius:6px;font-size:12px">';
+      html += '<span>' + a.icon + '</span>';
+      html += '<div style="flex:1;min-width:0"><strong>' + esc(a.name) + '</strong> <span style="color:var(--text-secondary)">' + a.msg + '</span></div>';
+      if (a.phone) html += '<a href="tel:' + a.phone + '" style="color:var(--green);text-decoration:none;font-size:11px" onclick="event.stopPropagation()">Call</a>';
+      html += '</div>';
+    });
+    if (byerAlerts.length > 4) html += '<div style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:4px">+ ' + (byerAlerts.length - 4) + ' more</div>';
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">No alerts</div>'; }
+  html += '</div>';
+
+  // Recommended Actions
+  html += '<div>';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#9889; Recommended Actions</div>';
+  var byerActions = [];
+  var noShowBuyers = buyers.filter(function(b) { return b.readiness >= 60 && b.shows === 0; }).length;
+  if (noShowBuyers > 0) byerActions.push({ icon: '&#127968;', text: noShowBuyers + ' high-readiness buyers haven\'t requested showings yet', priority: 'high' });
+  if (contactRate < 80) byerActions.push({ icon: '&#128222;', text: 'Only ' + contactRate + '% of buyers contactable \u2014 missing phone/email data', priority: 'high' });
+  if (hotRate < 25) byerActions.push({ icon: '&#128293;', text: 'Low hot buyer rate (' + hotRate + '%) \u2014 increase nurture outreach', priority: 'medium' });
+  if (activityRate < 60) byerActions.push({ icon: '&#128200;', text: 'Only ' + activityRate + '% showing activity \u2014 low pipeline engagement', priority: 'high' });
+  if (freshRate < 40) byerActions.push({ icon: '&#128640;', text: 'Only ' + freshRate + '% fresh buyers (30d) \u2014 increase new lead sources', priority: 'high' });
+  var lowPriceBuyers = buyers.filter(function(b) { return b.maxPrice > 0 && b.maxPrice < 200000; }).length;
+  if (lowPriceBuyers > buyers.length * 0.3) byerActions.push({ icon: '&#128181;', text: lowPriceBuyers + ' buyers in budget <$200K \u2014 segment separately', priority: 'medium' });
+  if (!byerActions.length) byerActions.push({ icon: '&#9989;', text: 'Buyer pipeline looks healthy! Keep the showings flowing.', priority: 'low' });
+  byerActions.forEach(function(a) {
+    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e';
+    html += '<div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px">';
+    html += '<span>' + a.icon + '</span>';
+    html += '<span style="flex:1">' + a.text + '</span>';
+    html += '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:' + prColor + '22;color:' + prColor + ';font-weight:600;white-space:nowrap">' + a.priority + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Market timing insights
+  var hourBkts = new Array(24).fill(0);
+  var dayBkts = [0, 0, 0, 0, 0, 0, 0];
+  buyers.forEach(function(b) {
+    var d = b.dateUpdated || b.dateAdded;
+    if (!d) return;
+    var dt = new Date(d);
+    hourBkts[dt.getHours()]++;
+    dayBkts[dt.getDay()]++;
+  });
+  var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var bestDay = 0; dayBkts.forEach(function(v, i) { if (v > dayBkts[bestDay]) bestDay = i; });
+  var bestHour = 0; var bestHourVal = 0;
+  for (var hi = 0; hi < 22; hi++) {
+    var blk = hourBkts[hi] + hourBkts[hi + 1] + (hourBkts[hi + 2] || 0);
+    if (blk > bestHourVal) { bestHourVal = blk; bestHour = hi; }
+  }
+  var fmtHr = function(h) { return h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm'; };
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Best times
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Buyers</h4>';
+  html += '<div style="text-align:center;margin-bottom:12px">';
+  html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
+  html += '<div style="font-size:14px;color:var(--text-secondary)">' + fmtHr(bestHour) + ' \u2013 ' + fmtHr(bestHour + 3) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Based on buyer activity patterns</div>';
+  html += '</div>';
+  var maxDay = Math.max.apply(null, dayBkts.concat([1]));
+  html += '<div style="display:flex;gap:4px;align-items:end;height:50px;justify-content:center">';
+  dayBkts.forEach(function(v, i) {
+    var h = Math.max(4, Math.round(v / maxDay * 50));
+    var c = i === bestDay ? '#22c55e' : 'var(--surface,var(--bg))';
+    html += '<div style="text-align:center;flex:1"><div style="height:' + h + 'px;background:' + c + ';border-radius:3px 3px 0 0;margin:0 auto;max-width:20px"></div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px">' + dayNames[i] + '</div></div>';
+  });
+  html += '</div></div>';
+
+  // Buyer segments
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Segments</h4>';
+  var byerSegs = [
+    { label: 'First-Time Buyers', desc: 'No price range history', count: buyers.filter(function(b) { return !b.maxPrice || b.maxPrice === 0; }).length, color: '#3b82f6', action: 'Educate on market' },
+    { label: 'Active Showings', desc: 'Requested 2+ showings', count: buyers.filter(function(b) { return b.shows >= 2; }).length, color: '#22c55e', action: 'Follow up asap' },
+    { label: 'Price-Sensitive', desc: 'Budget <$150K', count: buyers.filter(function(b) { return b.maxPrice > 0 && b.maxPrice < 150000; }).length, color: '#f59e0b', action: 'Show value properties' },
+    { label: 'Investment Buyers', desc: 'High-price range (500K+)', count: buyers.filter(function(b) { return b.maxPrice >= 500000; }).length, color: '#8b5cf6', action: 'Premium service' },
+    { label: 'Upgrade Seekers', desc: 'Actively searching (>5 searches)', count: buyers.filter(function(b) { return b.searches >= 5; }).length, color: '#f97316', action: 'Send new listings' }
+  ].filter(function(n) { return n.count > 0; });
+  byerSegs.forEach(function(n) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="width:8px;height:8px;border-radius:50%;background:' + n.color + ';flex-shrink:0"></div>';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + n.label + ' <span style="font-weight:400;color:var(--text-secondary);font-size:11px">(' + n.count + ')</span></div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + n.desc + '</div></div>';
+    html += '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:' + n.color + '22;color:' + n.color + ';font-weight:600;white-space:nowrap">' + n.action + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // Conversion funnel
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  html += '<h4 style="margin:0;font-size:14px">&#128200; Buyer Conversion Funnel</h4>';
+  html += '<button onclick="showBuyerFunnelDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
+  html += '</div>';
+  // Funnel: total -> contactable -> active -> high-readiness -> showing-requested -> conversion-ready
+  var funnelStgs = [
+    { label: 'Total Buyers', count: buyers.length, color: '#6b7280' },
+    { label: 'Contactable', count: contactableByrs, color: '#3b82f6' },
+    { label: 'Active (any activity)', count: activeBuyers, color: '#f59e0b' },
+    { label: 'Hot Readiness (60+)', count: hotByrs, color: '#f97316' },
+    { label: 'Showing Requested', count: buyers.filter(function(b) { return b.shows > 0; }).length, color: '#22c55e' },
+    { label: 'Near Closing', count: buyers.filter(function(b) { return b.shows >= 2 && b.readiness >= 60 && (b.phone || b.email); }).length, color: '#10b981' }
+  ];
+  var maxFn = funnelStgs[0].count || 1;
+  funnelStgs.forEach(function(stg, idx) {
+    var wPct = Math.max(8, Math.round(stg.count / maxFn * 100));
+    var cvPct = idx > 0 ? Math.round(stg.count / funnelStgs[idx - 1].count * 100) || 0 : 100;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    html += '<div style="width:120px;font-size:12px;text-align:right;white-space:nowrap;color:var(--text-secondary)">' + stg.label + '</div>';
+    html += '<div style="flex:1;position:relative">';
+    html += '<div style="height:28px;background:var(--surface,var(--bg));border-radius:6px;overflow:hidden">';
+    html += '<div style="width:' + wPct + '%;height:100%;background:' + stg.color + ';border-radius:6px;display:flex;align-items:center;justify-content:center;transition:width 0.3s">';
+    html += '<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.3)">' + stg.count + '</span>';
+    html += '</div></div></div>';
+    if (idx > 0) html += '<div style="width:50px;font-size:11px;color:' + (cvPct >= 50 ? '#22c55e' : cvPct >= 25 ? '#f59e0b' : '#ef4444') + ';font-weight:600">' + cvPct + '%</div>';
+    else html += '<div style="width:50px"></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
   // ---- Charts row ----
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
@@ -3911,6 +4129,56 @@ function exportBuyerCSV() {
   a.download = 'buyer-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   toast('Exported ' + buyers.length + ' buyer leads', 'success');
+}
+
+function showBuyerFunnelDetail() {
+  var buyers = getBuyerLeads();
+  if (!buyers.length) { toast('No buyer leads', 'error'); return; }
+  var now = Date.now();
+
+  var stages = {
+    total: { label: 'All Buyers', leads: buyers.slice(), color: '#6b7280' },
+    contactable: { label: 'Contactable', leads: buyers.filter(function(b) { return b.phone || b.email; }), color: '#3b82f6' },
+    active: { label: 'Active', leads: buyers.filter(function(b) { return b.views > 0 || b.saves > 0 || b.searches > 0; }), color: '#f59e0b' },
+    hot: { label: 'Hot (60+ readiness)', leads: buyers.filter(function(b) { return b.readiness >= 60; }), color: '#f97316' },
+    showing: { label: 'Showed Properties', leads: buyers.filter(function(b) { return b.shows > 0; }), color: '#22c55e' },
+    closing: { label: 'Near Closing', leads: buyers.filter(function(b) { return b.shows >= 2 && b.readiness >= 60 && (b.phone || b.email); }), color: '#10b981' }
+  };
+
+  var existing = document.getElementById('buyerFunnelOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'buyerFunnelOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128200; Buyer Conversion Funnel</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Where buyers stand in the purchase journey</p></div>';
+  html += '<button onclick="document.getElementById(&#39;buyerFunnelOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  Object.keys(stages).forEach(function(key) {
+    var st = stages[key];
+    if (!st.leads.length) return;
+    st.leads.sort(function(a, b) { return b.readiness - a.readiness; });
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:50%;background:' + st.color + '"></div>';
+    html += '<span style="font-size:14px;font-weight:700">' + st.label + '</span><span style="font-size:12px;color:var(--text-secondary)">(' + st.leads.length + ')</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    st.leads.slice(0, 8).forEach(function(b) {
+      var rc = b.readiness >= 60 ? '#ef4444' : b.readiness >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--surface,var(--bg));border-radius:8px;padding:10px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between"><strong>' + esc(b.name) + '</strong><span style="color:' + rc + ';font-weight:700">' + b.readiness + '</span></div>';
+      html += '<div style="font-size:11px;margin-top:3px;color:var(--text-secondary)">Views: ' + b.views + ' | Saves: ' + b.saves + ' | Shows: ' + b.shows + '</div>';
+      if (b.phone) html += '<div style="margin-top:3px"><a href="tel:' + b.phone + '" style="color:var(--green);text-decoration:none;font-size:11px">&#128222; Call</a></div>';
+      html += '</div>';
+    });
+    if (st.leads.length > 8) html += '<div style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-secondary)">+ ' + (st.leads.length - 8) + ' more</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 
 // -------------------------------------------------------
