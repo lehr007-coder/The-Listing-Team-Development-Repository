@@ -4112,6 +4112,228 @@ function renderSellerTab() {
   });
   html += '</div>';
 
+  // ---- AI INTELLIGENCE DASHBOARD ----
+  // Portfolio Health Score
+  var totalWithPhone = sellers.filter(function(s) { return s.phone; }).length;
+  var totalWithEmail = sellers.filter(function(s) { return s.email; }).length;
+  var contactable = sellers.filter(function(s) { return s.phone || s.email; }).length;
+  var contactRate = sellers.length ? Math.round(contactable / sellers.length * 100) : 0;
+  var avgMot = sellers.length ? Math.round(sellers.reduce(function(a, s) { return a + s.motivation; }, 0) / sellers.length) : 0;
+  var hotPct = sellers.length ? Math.round(sellers.filter(function(s) { return s.motivation >= 60; }).length / sellers.length * 100) : 0;
+  var freshLeads = sellers.filter(function(s) {
+    var d = s.dateUpdated || s.dateAdded || '';
+    return d && (now - new Date(d).getTime()) < 30 * 86400000;
+  }).length;
+  var freshPct = sellers.length ? Math.round(freshLeads / sellers.length * 100) : 0;
+  // Portfolio Health = weighted combo
+  var healthScore = Math.min(100, Math.round(contactRate * 0.25 + hotPct * 0.3 + freshPct * 0.25 + avgMot * 0.2));
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
+  var healthLabel = healthScore >= 70 ? 'Healthy' : healthScore >= 45 ? 'Needs Attention' : 'Critical';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
+
+  // Health gauge
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#129504; Portfolio Health</h4>';
+  html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
+  html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
+  var circumference = 2 * Math.PI * 50;
+  var dashOffset = circumference - (healthScore / 100) * circumference;
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '</svg>';
+  html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
+  html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
+  html += '<span style="font-size:11px;color:var(--text-secondary)">' + healthLabel + '</span>';
+  html += '</div></div>';
+  html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);text-align:left">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Contactable</span><strong style="color:var(--text)">' + contactRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Hot Leads</span><strong style="color:var(--text)">' + hotPct + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Fresh (30d)</span><strong style="color:var(--text)">' + freshPct + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between"><span>Avg Motivation</span><strong style="color:var(--text)">' + avgMot + '</strong></div>';
+  html += '</div></div>';
+
+  // AI Insights Panel — Predictive scoring + recommended actions + alerts
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; AI Insights</h4>';
+
+  // Predictive patterns — find which tag combos correlate with highest motivation
+  var tagMotMap = {};
+  sellers.forEach(function(s) {
+    (s.tags || []).forEach(function(t) {
+      var tl = String(t).toLowerCase();
+      if (!tagMotMap[tl]) tagMotMap[tl] = { total: 0, count: 0, hot: 0 };
+      tagMotMap[tl].total += s.motivation;
+      tagMotMap[tl].count++;
+      if (s.motivation >= 60) tagMotMap[tl].hot++;
+    });
+  });
+  var predictors = Object.keys(tagMotMap).map(function(t) {
+    var d = tagMotMap[t];
+    return { tag: t, avg: Math.round(d.total / d.count), count: d.count, hotRate: Math.round(d.hot / d.count * 100) };
+  }).filter(function(p) { return p.count >= 5; }).sort(function(a, b) { return b.hotRate - a.hotRate; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#127919; Top Conversion Predictors</div>';
+  if (predictors.length) {
+    predictors.slice(0, 5).forEach(function(p) {
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px">';
+      html += '<span style="width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.tag) + '</span>';
+      html += '<div style="flex:1;height:6px;background:var(--surface,var(--bg));border-radius:3px;overflow:hidden"><div style="width:' + p.hotRate + '%;height:100%;background:' + (p.hotRate >= 50 ? '#22c55e' : p.hotRate >= 30 ? '#f59e0b' : '#6b7280') + ';border-radius:3px"></div></div>';
+      html += '<span style="width:55px;text-align:right;font-weight:600;color:' + (p.hotRate >= 50 ? '#22c55e' : '#f59e0b') + '">' + p.hotRate + '% hot</span>';
+      html += '</div>';
+    });
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">Need more data for predictions</div>'; }
+  html += '</div>';
+
+  // Behavior Alerts — leads with recent spikes
+  var alerts = [];
+  sellers.forEach(function(s) {
+    var du = s.dateUpdated ? new Date(s.dateUpdated).getTime() : 0;
+    var da = s.dateAdded ? new Date(s.dateAdded).getTime() : 0;
+    var daysSinceUpdate = du ? (now - du) / 86400000 : 999;
+    var daysSinceAdd = da ? (now - da) / 86400000 : 999;
+    if (daysSinceUpdate < 3 && s.motivation >= 50) {
+      alerts.push({ name: s.name, phone: s.phone, type: 'Hot & Active', msg: 'Updated ' + Math.floor(daysSinceUpdate) + 'd ago with motivation ' + s.motivation, color: '#ef4444', icon: '&#128293;' });
+    } else if (daysSinceAdd < 7 && s.motivation >= 40) {
+      alerts.push({ name: s.name, phone: s.phone, type: 'New High-Value', msg: 'Added ' + Math.floor(daysSinceAdd) + 'd ago, motivation ' + s.motivation, color: '#f59e0b', icon: '&#11088;' });
+    } else if (s.motivation >= 70 && !s.phone && !s.email) {
+      alerts.push({ name: s.name, phone: '', type: 'Missing Contact', msg: 'Motivation ' + s.motivation + ' but no phone/email', color: '#8b5cf6', icon: '&#9888;' });
+    }
+  });
+  alerts.sort(function(a, b) { return a.type === 'Hot & Active' ? -1 : 1; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#128276; Behavior Alerts <span style="font-weight:400;color:var(--text-secondary)">(' + alerts.length + ')</span></div>';
+  if (alerts.length) {
+    alerts.slice(0, 4).forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:' + a.color + '11;border-radius:6px;font-size:12px">';
+      html += '<span>' + a.icon + '</span>';
+      html += '<div style="flex:1;min-width:0"><strong>' + esc(a.name) + '</strong> <span style="color:var(--text-secondary)">' + a.msg + '</span></div>';
+      if (a.phone) html += '<a href="tel:' + a.phone + '" style="color:var(--green);text-decoration:none;font-size:11px" onclick="event.stopPropagation()">Call</a>';
+      html += '</div>';
+    });
+    if (alerts.length > 4) html += '<div style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:4px">+ ' + (alerts.length - 4) + ' more alerts</div>';
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">No alerts right now</div>'; }
+  html += '</div>';
+
+  // Recommended Next Actions
+  html += '<div>';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#9889; Recommended Actions</div>';
+  var actions = [];
+  if (staleCount > sellers.length * 0.3) actions.push({ icon: '&#128197;', text: staleCount + ' stale leads (90d+) need re-engagement campaign', priority: 'high' });
+  if (contactRate < 70) actions.push({ icon: '&#128222;', text: 'Only ' + contactRate + '% contactable \u2014 enrich missing phone/email data', priority: 'high' });
+  if (hotPct < 15) actions.push({ icon: '&#128293;', text: 'Low hot lead rate (' + hotPct + '%) \u2014 increase outreach to warm leads', priority: 'medium' });
+  if (freshPct < 30) actions.push({ icon: '&#128640;', text: 'Only ' + freshPct + '% fresh leads \u2014 pipeline needs new lead sources', priority: 'high' });
+  var noTagSellers = sellers.filter(function(s) { return !s.tags || s.tags.length <= 1; }).length;
+  if (noTagSellers > sellers.length * 0.2) actions.push({ icon: '&#127991;', text: noTagSellers + ' leads have minimal tags \u2014 run auto-tagging', priority: 'medium' });
+  var highMotNoPhone = sellers.filter(function(s) { return s.motivation >= 50 && !s.phone; }).length;
+  if (highMotNoPhone > 5) actions.push({ icon: '&#9888;', text: highMotNoPhone + ' high-motivation leads missing phone numbers', priority: 'high' });
+  if (!actions.length) actions.push({ icon: '&#9989;', text: 'Pipeline looks healthy! Keep up the outreach.', priority: 'low' });
+  actions.forEach(function(a) {
+    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e';
+    html += '<div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px">';
+    html += '<span>' + a.icon + '</span>';
+    html += '<span style="flex:1">' + a.text + '</span>';
+    html += '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:' + prColor + '22;color:' + prColor + ';font-weight:600;white-space:nowrap">' + a.priority + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Market Timing Insights ----
+  var hourBuckets = new Array(24).fill(0);
+  var dayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+  sellers.forEach(function(s) {
+    var d = s.dateUpdated || s.dateAdded;
+    if (!d) return;
+    var dt = new Date(d);
+    hourBuckets[dt.getHours()]++;
+    dayBuckets[dt.getDay()]++;
+  });
+  var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var bestDay = 0; dayBuckets.forEach(function(v, i) { if (v > dayBuckets[bestDay]) bestDay = i; });
+  var bestHourStart = 0; var bestHourVal = 0;
+  for (var hi = 0; hi < 22; hi++) {
+    var block = hourBuckets[hi] + hourBuckets[hi + 1] + (hourBuckets[hi + 2] || 0);
+    if (block > bestHourVal) { bestHourVal = block; bestHourStart = hi; }
+  }
+  var fmtHour = function(h) { return h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm'; };
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Best time to call
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Leads</h4>';
+  html += '<div style="text-align:center;margin-bottom:12px">';
+  html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
+  html += '<div style="font-size:14px;color:var(--text-secondary)">' + fmtHour(bestHourStart) + ' \u2013 ' + fmtHour(bestHourStart + 3) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Based on lead activity patterns</div>';
+  html += '</div>';
+  // Day-of-week mini chart
+  var maxDay = Math.max.apply(null, dayBuckets.concat([1]));
+  html += '<div style="display:flex;gap:4px;align-items:end;height:50px;justify-content:center">';
+  dayBuckets.forEach(function(v, i) {
+    var h = Math.max(4, Math.round(v / maxDay * 50));
+    var c = i === bestDay ? '#22c55e' : 'var(--surface,var(--bg))';
+    html += '<div style="text-align:center;flex:1"><div style="height:' + h + 'px;background:' + c + ';border-radius:3px 3px 0 0;margin:0 auto;max-width:20px"></div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px">' + dayNames[i] + '</div></div>';
+  });
+  html += '</div></div>';
+
+  // Lead Nurture Suggestions
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128231; Nurture Sequence Suggestions</h4>';
+  var nurtureSegs = [
+    { label: 'Immediate Call', desc: 'Motivation 70+ with phone', count: sellers.filter(function(s) { return s.motivation >= 70 && s.phone; }).length, color: '#ef4444', action: 'Call within 24hrs' },
+    { label: 'CMA Outreach', desc: 'Expired/Canceled with email', count: sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return (t.indexOf('expired') !== -1 || t.indexOf('canceled') !== -1) && s.email; }).length, color: '#f59e0b', action: 'Send CMA email' },
+    { label: 'Drip Campaign', desc: 'Motivation 30-60, contactable', count: sellers.filter(function(s) { return s.motivation >= 30 && s.motivation < 60 && (s.phone || s.email); }).length, color: '#3b82f6', action: 'Add to email drip' },
+    { label: 'Re-engagement', desc: '90+ days stale, any contact', count: sellers.filter(function(s) { var d = s.dateUpdated || s.dateAdded; return d && (now - new Date(d).getTime()) > 90 * 86400000 && (s.phone || s.email); }).length, color: '#8b5cf6', action: 'Send check-in' },
+    { label: 'Data Enrichment', desc: 'No phone or email', count: sellers.filter(function(s) { return !s.phone && !s.email; }).length, color: '#6b7280', action: 'Skip trace / enrich' }
+  ].filter(function(n) { return n.count > 0; });
+  nurtureSegs.forEach(function(n) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="width:8px;height:8px;border-radius:50%;background:' + n.color + ';flex-shrink:0"></div>';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + n.label + ' <span style="font-weight:400;color:var(--text-secondary);font-size:11px">(' + n.count + ')</span></div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + n.desc + '</div></div>';
+    html += '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:' + n.color + '22;color:' + n.color + ';font-weight:600;white-space:nowrap">' + n.action + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Win/Loss Tracker ----
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  html += '<h4 style="margin:0;font-size:14px">&#128200; Pipeline Conversion Funnel</h4>';
+  html += '<button onclick="showWinLossDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
+  html += '</div>';
+  // Funnel stages based on tags and motivation
+  var funnelStages = [
+    { label: 'Total Sellers', count: sellers.length, color: '#6b7280' },
+    { label: 'Contactable', count: contactable, color: '#3b82f6' },
+    { label: 'Motivated (40+)', count: sellers.filter(function(s) { return s.motivation >= 40; }).length, color: '#f59e0b' },
+    { label: 'Hot Prospect (60+)', count: sellers.filter(function(s) { return s.motivation >= 60; }).length, color: '#f97316' },
+    { label: 'Listing Ready (70+)', count: sellers.filter(function(s) { return s.motivation >= 70 && s.phone; }).length, color: '#ef4444' },
+    { label: 'Pipeline Tagged', count: sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1; }).length, color: '#22c55e' }
+  ];
+  var maxFunnel = funnelStages[0].count || 1;
+  funnelStages.forEach(function(stage, idx) {
+    var widthPct = Math.max(8, Math.round(stage.count / maxFunnel * 100));
+    var convPct = idx > 0 ? Math.round(stage.count / funnelStages[idx - 1].count * 100) || 0 : 100;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    html += '<div style="width:120px;font-size:12px;text-align:right;white-space:nowrap;color:var(--text-secondary)">' + stage.label + '</div>';
+    html += '<div style="flex:1;position:relative">';
+    html += '<div style="height:28px;background:var(--surface,var(--bg));border-radius:6px;overflow:hidden">';
+    html += '<div style="width:' + widthPct + '%;height:100%;background:' + stage.color + ';border-radius:6px;display:flex;align-items:center;justify-content:center;transition:width 0.3s">';
+    html += '<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.3)">' + stage.count + '</span>';
+    html += '</div></div></div>';
+    if (idx > 0) html += '<div style="width:50px;font-size:11px;color:' + (convPct >= 50 ? '#22c55e' : convPct >= 25 ? '#f59e0b' : '#ef4444') + ';font-weight:600">' + convPct + '%</div>';
+    else html += '<div style="width:50px"></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
   // ---- Motivation Distribution ----
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
@@ -4634,6 +4856,69 @@ function showTagCrossRef() {
   }
   html += '</div>';
 
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// WIN/LOSS DETAIL
+// -------------------------------------------------------
+function showWinLossDetail() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var now = Date.now();
+
+  // Categorize leads by pipeline stage
+  var stages = {
+    pipeline: { label: 'In Pipeline', leads: [], color: '#22c55e' },
+    hot: { label: 'Hot Prospects', leads: [], color: '#ef4444' },
+    warm: { label: 'Warm / Nurturing', leads: [], color: '#f59e0b' },
+    stale: { label: 'Gone Cold (90d+)', leads: [], color: '#6b7280' },
+    noContact: { label: 'No Contact Info', leads: [], color: '#8b5cf6' }
+  };
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var hasPipeline = t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1;
+    var d = s.dateUpdated || s.dateAdded || '';
+    var days = d ? (now - new Date(d).getTime()) / 86400000 : 999;
+    if (hasPipeline) stages.pipeline.leads.push(s);
+    else if (!s.phone && !s.email) stages.noContact.leads.push(s);
+    else if (days > 90) stages.stale.leads.push(s);
+    else if (s.motivation >= 60) stages.hot.leads.push(s);
+    else stages.warm.leads.push(s);
+  });
+
+  var existing = document.getElementById('winLossOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'winLossOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128200; Pipeline Conversion Detail</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Where your seller leads stand in the pipeline</p></div>';
+  html += '<button onclick="document.getElementById(&#39;winLossOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  Object.keys(stages).forEach(function(key) {
+    var st = stages[key];
+    if (!st.leads.length) return;
+    st.leads.sort(function(a, b) { return b.motivation - a.motivation; });
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:50%;background:' + st.color + '"></div>';
+    html += '<span style="font-size:14px;font-weight:700">' + st.label + '</span><span style="font-size:12px;color:var(--text-secondary)">(' + st.leads.length + ')</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    st.leads.slice(0, 8).forEach(function(s) {
+      var mc = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--surface,var(--bg));border-radius:8px;padding:10px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between"><strong>' + esc(s.name) + '</strong><span style="color:' + mc + ';font-weight:700">' + s.motivation + '</span></div>';
+      if (s.phone) html += '<div style="margin-top:3px"><a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">&#128222; ' + s.phone + '</a></div>';
+      html += '</div>';
+    });
+    if (st.leads.length > 8) html += '<div style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-secondary)">+ ' + (st.leads.length - 8) + ' more</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
 }
