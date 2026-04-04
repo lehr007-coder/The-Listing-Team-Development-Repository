@@ -3012,6 +3012,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
   <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
   <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
+  <button class="filter-tab" id="viewTabSeller" onclick="switchContactsView('seller')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127968; Seller Intel</button>
 </div>
 
 <!-- Contacts View -->
@@ -3176,6 +3177,13 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Seller Intelligence View -->
+<div id="sellerViewPanel" style="display:none">
+  <div id="sellerTabContent" style="padding:4px 0">
+    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading seller intelligence...</div>
+  </div>
+</div>
+
 <!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
 <input id="listingsInput" value="" class="hidden" aria-hidden="true">
 <canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
@@ -3254,17 +3262,22 @@ function switchContactsView(v) {
   var cp = document.getElementById('contactsViewPanel');
   var sp = document.getElementById('sourceViewPanel');
   var gp = document.getElementById('geoViewPanel');
+  var slp = document.getElementById('sellerViewPanel');
   var tb = document.getElementById('viewTabContacts');
   var ts = document.getElementById('viewTabSource');
   var tg = document.getElementById('viewTabGeo');
-  cp.style.display = 'none'; sp.style.display = 'none'; gp.style.display = 'none';
-  tb.classList.remove('active'); ts.classList.remove('active'); tg.classList.remove('active');
+  var tsl = document.getElementById('viewTabSeller');
+  cp.style.display = 'none'; sp.style.display = 'none'; gp.style.display = 'none'; if (slp) slp.style.display = 'none';
+  tb.classList.remove('active'); ts.classList.remove('active'); tg.classList.remove('active'); if (tsl) tsl.classList.remove('active');
   if (v === 'source') {
     sp.style.display = 'block'; ts.classList.add('active');
     renderSrcPerf();
   } else if (v === 'geo') {
     gp.style.display = 'block'; tg.classList.add('active');
     renderGeoView();
+  } else if (v === 'seller') {
+    if (slp) slp.style.display = 'block'; if (tsl) tsl.classList.add('active');
+    renderSellerTab();
   } else {
     cp.style.display = 'block'; tb.classList.add('active');
   }
@@ -3450,6 +3463,368 @@ function renderGeoTbl() {
       '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
     '</tr>';
   }).join('');
+}
+
+// -------------------------------------------------------
+// SELLER INTELLIGENCE SYSTEM
+// -------------------------------------------------------
+var SELLER_SORT = { key: 'motivation', dir: -1 };
+
+function calcSellerMotivation(c, ext) {
+  if (!ext) ext = getExtendedData(c);
+  var score = 0;
+  var factors = [];
+
+  // Equity factor (0-25) — high equity = more motivated/able to sell
+  if (ext.equityPct > 0) {
+    var eqPts = Math.min(Math.round(ext.equityPct / 4), 25);
+    score += eqPts;
+    factors.push({ name: 'Equity ' + ext.equityPct + '%', pts: eqPts, max: 25 });
+  } else if (ext.equity > 0 && ext.estValue > 0) {
+    var calcPct = Math.round(ext.equity / ext.estValue * 100);
+    var eqPts2 = Math.min(Math.round(calcPct / 4), 25);
+    score += eqPts2;
+    factors.push({ name: 'Equity ~' + calcPct + '%', pts: eqPts2, max: 25 });
+  }
+
+  // Ownership tenure (0-20) — longer = more equity typically, also life changes
+  if (ext.ownerSince) {
+    var yrs = Math.max(0, (Date.now() - new Date(ext.ownerSince).getTime()) / (365.25 * 86400000));
+    var tenPts = 0;
+    if (yrs >= 10) tenPts = 20;
+    else if (yrs >= 7) tenPts = 16;
+    else if (yrs >= 5) tenPts = 12;
+    else if (yrs >= 3) tenPts = 8;
+    else if (yrs >= 1) tenPts = 4;
+    score += tenPts;
+    factors.push({ name: 'Owner ' + Math.round(yrs) + 'yr', pts: tenPts, max: 20 });
+  }
+
+  // Activity recency (0-20) — recent engagement = actively considering
+  if (c.dateUpdated) {
+    var days = (Date.now() - new Date(c.dateUpdated).getTime()) / 86400000;
+    var actPts = 0;
+    if (days < 1) actPts = 20;
+    else if (days < 3) actPts = 16;
+    else if (days < 7) actPts = 12;
+    else if (days < 14) actPts = 6;
+    else if (days < 30) actPts = 3;
+    score += actPts;
+    factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: actPts, max: 20 });
+  }
+
+  // Tag signals (0-20) — seller-specific tags
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
+  var tagPts = 0;
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) { tagPts += 10; }
+  if (tags.some(function(t) { return t.indexOf('seller') !== -1; })) { tagPts += 5; }
+  if (tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1; })) { tagPts += 8; }
+  if (tags.some(function(t) { return t.indexOf('cma') !== -1 || t.indexOf('valuation') !== -1; })) { tagPts += 5; }
+  tagPts = Math.min(tagPts, 20);
+  if (tagPts > 0) {
+    score += tagPts;
+    factors.push({ name: 'Tag signals', pts: tagPts, max: 20 });
+  }
+
+  // Property value known (0-15) — having data is itself a signal
+  var dataPts = 0;
+  if (ext.estValue > 0) dataPts += 5;
+  if (ext.propertyAddr) dataPts += 3;
+  if (ext.mortgageBalance > 0) dataPts += 4;
+  if (ext.equity > 0 || ext.equityPct > 0) dataPts += 3;
+  dataPts = Math.min(dataPts, 15);
+  if (dataPts > 0) {
+    score += dataPts;
+    factors.push({ name: 'Data richness', pts: dataPts, max: 15 });
+  }
+
+  return { score: Math.min(score, 100), factors: factors };
+}
+
+function getSellerLeads() {
+  var leads = ALL_LEADS || [];
+  var sellers = [];
+  leads.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    var ext = getExtendedData(raw);
+    var tags = (Array.isArray(raw.tags) ? raw.tags : []).map(function(t) { return String(t).toLowerCase(); });
+    var isSeller = tags.some(function(t) { return t.indexOf('seller') !== -1; }) ||
+      ext.estValue > 0 || ext.equity > 0 || ext.propertyAddr ||
+      tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1);
+    if (!isSeller) return;
+
+    var mot = calcSellerMotivation(raw, ext);
+    sellers.push({
+      id: l.id,
+      name: l.name || 'Unknown',
+      email: l.email || '',
+      phone: l.phone || '',
+      source: l.source || 'Unknown',
+      score: l.score || 0,
+      tags: l.tags || [],
+      dateAdded: l.dateAdded || '',
+      dateUpdated: l.dateUpdated || '',
+      estValue: ext.estValue,
+      equity: ext.equity,
+      equityPct: ext.equityPct,
+      mortgageBalance: ext.mortgageBalance,
+      ownerSince: ext.ownerSince,
+      propertyAddr: ext.propertyAddr,
+      motivation: mot.score,
+      motFactors: mot.factors,
+      propType: ext.propType
+    });
+  });
+  return sellers;
+}
+
+function renderSellerTab() {
+  var sellers = getSellerLeads();
+  var container = _el('sellerTabContent');
+  if (!container) return;
+
+  if (!sellers.length) {
+    container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)">' +
+      '<div style="font-size:48px;margin-bottom:16px">&#127968;</div>' +
+      '<h3 style="margin:0 0 8px">No Seller Leads Found</h3>' +
+      '<p style="margin:0;font-size:13px">Tag contacts as "Seller" or add property data to see them here</p></div>';
+    return;
+  }
+
+  // ---- KPIs ----
+  var totalPortfolio = 0, totalEquity = 0, totalTenure = 0, tenureCount = 0;
+  var highMotivation = 0, withProperty = 0;
+  sellers.forEach(function(s) {
+    totalPortfolio += s.estValue;
+    totalEquity += s.equity;
+    if (s.motivation >= 60) highMotivation++;
+    if (s.propertyAddr) withProperty++;
+    if (s.ownerSince) {
+      var yrs = (Date.now() - new Date(s.ownerSince).getTime()) / (365.25 * 86400000);
+      totalTenure += yrs;
+      tenureCount++;
+    }
+  });
+  var avgEquity = sellers.length ? Math.round(totalEquity / sellers.length) : 0;
+  var avgTenure = tenureCount ? Math.round(totalTenure / tenureCount * 10) / 10 : 0;
+  var avgMotivation = sellers.length ? Math.round(sellers.reduce(function(a, s) { return a + s.motivation; }, 0) / sellers.length) : 0;
+
+  function fmtK(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n;
+  }
+
+  var html = '';
+
+  // KPI cards row
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">';
+  var kpis = [
+    { val: sellers.length, label: 'Seller Leads', color: 'var(--green)' },
+    { val: fmtK(totalPortfolio), label: 'Portfolio Value', color: 'var(--blue)' },
+    { val: fmtK(avgEquity), label: 'Avg Equity', color: 'var(--brand-accent)' },
+    { val: avgTenure + 'yr', label: 'Avg Tenure', color: 'var(--orange)' },
+    { val: avgMotivation, label: 'Avg Motivation', color: 'var(--yellow)' },
+    { val: highMotivation, label: 'High Motivation', color: 'var(--red)' }
+  ];
+  kpis.forEach(function(k) {
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary,var(--muted));margin-top:4px">' + k.label + '</div></div>';
+  });
+  html += '</div>';
+
+  // ---- Motivation Distribution ----
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Motivation bar chart
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Motivation Distribution</h4>';
+  var motBuckets = [
+    { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
+    { label: '60-79 &#128992;', min: 60, max: 79, color: '#f59e0b' },
+    { label: '40-59 &#128993;', min: 40, max: 59, color: '#eab308' },
+    { label: '20-39 &#128309;', min: 20, max: 39, color: '#3b82f6' },
+    { label: '0-19 &#9898;', min: 0, max: 19, color: '#6b7280' }
+  ];
+  var maxBucket = 1;
+  motBuckets.forEach(function(b) {
+    b.count = sellers.filter(function(s) { return s.motivation >= b.min && s.motivation <= b.max; }).length;
+    if (b.count > maxBucket) maxBucket = b.count;
+  });
+  motBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+
+  // Equity distribution
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Equity Breakdown</h4>';
+  var eqBuckets = [
+    { label: '$500K+', min: 500000, max: Infinity, color: '#22c55e' },
+    { label: '$250-500K', min: 250000, max: 499999, color: '#10b981' },
+    { label: '$100-250K', min: 100000, max: 249999, color: '#3b82f6' },
+    { label: '$50-100K', min: 50000, max: 99999, color: '#f59e0b' },
+    { label: '<$50K', min: 0, max: 49999, color: '#6b7280' },
+    { label: 'Unknown', min: -1, max: -1, color: '#374151' }
+  ];
+  var maxEqBucket = 1;
+  eqBuckets.forEach(function(b) {
+    if (b.min === -1) {
+      b.count = sellers.filter(function(s) { return !s.equity; }).length;
+    } else {
+      b.count = sellers.filter(function(s) { return s.equity >= b.min && s.equity <= b.max; }).length;
+    }
+    if (b.count > maxEqBucket) maxEqBucket = b.count;
+  });
+  eqBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxEqBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Priority Pipeline ----
+  var hotSellers = sellers.filter(function(s) { return s.motivation >= 60; }).sort(function(a, b) { return b.motivation - a.motivation; }).slice(0, 10);
+  if (hotSellers.length) {
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Priority Seller Pipeline <span style="font-weight:400;color:var(--text-secondary,var(--muted));font-size:12px">(top motivation)</span></h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    hotSellers.forEach(function(s) {
+      var motColor = s.motivation >= 80 ? '#ef4444' : '#f59e0b';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<strong style="font-size:14px">' + s.name + '</strong>';
+      html += '<span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></div>';
+      if (s.propertyAddr) html += '<div style="font-size:12px;color:var(--text-secondary,var(--muted));margin-bottom:4px">&#128205; ' + s.propertyAddr + '</div>';
+      html += '<div style="display:flex;gap:12px;font-size:12px;margin-top:6px">';
+      if (s.estValue) html += '<span>&#127968; ' + fmtK(s.estValue) + '</span>';
+      if (s.equity) html += '<span>&#128176; ' + fmtK(s.equity) + '</span>';
+      if (s.ownerSince) {
+        var yrs = Math.round((Date.now() - new Date(s.ownerSince).getTime()) / (365.25 * 86400000) * 10) / 10;
+        html += '<span>&#128197; ' + yrs + 'yr</span>';
+      }
+      html += '</div>';
+      // Motivation factor chips
+      if (s.motFactors.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">';
+        s.motFactors.forEach(function(f) {
+          var opacity = Math.max(0.3, f.pts / f.max);
+          html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,' + opacity + ');color:#fff">' + f.name + ' +' + f.pts + '</span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ---- Full Seller Table ----
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h4 style="margin:0;font-size:14px">&#128209; All Seller Leads (' + sellers.length + ')</h4>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="exportSellerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
+  html += '</div></div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  var cols = [
+    { key: 'name', label: 'Name' },
+    { key: 'propertyAddr', label: 'Property' },
+    { key: 'estValue', label: 'Est. Value' },
+    { key: 'equity', label: 'Equity' },
+    { key: 'equityPct', label: 'Equity %' },
+    { key: 'mortgageBalance', label: 'Mortgage' },
+    { key: 'ownerSince', label: 'Owner Since' },
+    { key: 'motivation', label: 'Motivation' },
+    { key: 'score', label: 'Lead Score' }
+  ];
+  cols.forEach(function(col) {
+    var arrow = SELLER_SORT.key === col.key ? (SELLER_SORT.dir === -1 ? ' &#9660;' : ' &#9650;') : '';
+    html += '<th onclick="sortSellerTable(&#39;' + col.key + '&#39;)" style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-secondary,var(--muted));border-bottom:1px solid var(--card-border)">' + col.label + arrow + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // Sort sellers
+  var sorted = sellers.slice().sort(function(a, b) {
+    var aVal = a[SELLER_SORT.key] || 0;
+    var bVal = b[SELLER_SORT.key] || 0;
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (aVal < bVal) return SELLER_SORT.dir;
+    if (aVal > bVal) return -SELLER_SORT.dir;
+    return 0;
+  });
+
+  sorted.forEach(function(s) {
+    var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280';
+    html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + s.name + '</td>';
+    html += '<td style="padding:10px 12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.propertyAddr || '<span style="color:var(--text-secondary,var(--muted))">&#8212;</span>') + '</td>';
+    html += '<td style="padding:10px 12px">' + (s.estValue ? fmtK(s.estValue) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;color:var(--green)">' + (s.equity ? fmtK(s.equity) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px">' + (s.equityPct ? s.equityPct + '%' : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px">' + (s.mortgageBalance ? fmtK(s.mortgageBalance) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px">' + (s.ownerSince || '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + motColor + ';color:#fff">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 12px;font-weight:600">' + s.score + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+
+  container.innerHTML = html;
+}
+
+function sortSellerTable(key) {
+  if (SELLER_SORT.key === key) {
+    SELLER_SORT.dir = SELLER_SORT.dir === -1 ? 1 : -1;
+  } else {
+    SELLER_SORT.key = key;
+    SELLER_SORT.dir = -1;
+  }
+  renderSellerTab();
+}
+
+function exportSellerCSV() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller data to export', 'error'); return; }
+  var headers = ['Name','Email','Phone','Property Address','Est. Value','Equity','Equity %','Mortgage Balance','Owner Since','Motivation Score','Lead Score','Source','Tags'];
+  var rows = [headers.join(',')];
+  sellers.sort(function(a, b) { return b.motivation - a.motivation; }).forEach(function(s) {
+    rows.push([
+      '"' + (s.name || '').replace(/"/g, '""') + '"',
+      '"' + (s.email || '') + '"',
+      '"' + (s.phone || '') + '"',
+      '"' + (s.propertyAddr || '').replace(/"/g, '""') + '"',
+      s.estValue || '',
+      s.equity || '',
+      s.equityPct || '',
+      s.mortgageBalance || '',
+      '"' + (s.ownerSince || '') + '"',
+      s.motivation,
+      s.score,
+      '"' + (s.source || '') + '"',
+      '"' + (s.tags || []).join('; ') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seller-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported ' + sellers.length + ' seller leads', 'success');
 }
 
 // -------------------------------------------------------
