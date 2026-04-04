@@ -4208,6 +4208,8 @@ function renderSellerTab() {
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
   html += '<h4 style="margin:0;font-size:14px">&#128209; All Seller Leads (' + sellers.length + ')</h4>';
   html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="generateCallList()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128222; Smart Call List</button>';
+  html += '<button onclick="showTagCrossRef()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128279; Tag Cross-Ref</button>';
   html += '<button onclick="exportSellerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
   html += '</div></div>';
   html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
@@ -4299,6 +4301,179 @@ function exportSellerCSV() {
   a.download = 'seller-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   toast('Exported ' + sellers.length + ' seller leads', 'success');
+}
+
+// -------------------------------------------------------
+// SMART CALL LIST
+// -------------------------------------------------------
+function generateCallList() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads to build call list', 'error'); return; }
+
+  // Score contacts for call priority: motivation + recency + phone availability + tag combos
+  var callable = sellers.filter(function(s) { return s.phone; }).map(function(s) {
+    var tags = (s.tags || []).map(function(t) { return String(t).toLowerCase(); });
+    var priority = s.motivation;
+    // Bonus for high-value tag combos
+    var hasExpired = tags.indexOf('expired') !== -1;
+    var hasHighEq = tags.indexOf('high equity') !== -1;
+    var hasAbsentee = tags.indexOf('absentee') !== -1;
+    var hasFSBO = tags.indexOf('fsbo') !== -1;
+    var hasFreeClr = tags.indexOf('free and clear') !== -1;
+    if (hasExpired && hasHighEq) priority += 15;
+    if (hasFSBO) priority += 10;
+    if (hasAbsentee && hasHighEq) priority += 10;
+    if (hasFreeClr) priority += 8;
+    if (tags.indexOf('out of state owners') !== -1) priority += 5;
+    // Recency boost already in motivation, but double-weight for calls
+    var d = s.dateUpdated ? (Date.now() - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    if (d < 1) priority += 10;
+    else if (d < 7) priority += 5;
+    s.callPriority = Math.min(priority, 100);
+    s.callReason = [];
+    if (hasExpired) s.callReason.push('Expired');
+    if (hasFSBO) s.callReason.push('FSBO');
+    if (hasHighEq) s.callReason.push('High Equity');
+    if (hasFreeClr) s.callReason.push('Free & Clear');
+    if (hasAbsentee) s.callReason.push('Absentee');
+    if (tags.indexOf('canceled') !== -1 || tags.indexOf('cancelled') !== -1) s.callReason.push('Canceled');
+    if (tags.indexOf('withdrawn') !== -1) s.callReason.push('Withdrawn');
+    if (tags.indexOf('out of state owners') !== -1) s.callReason.push('Out of State');
+    if (!s.callReason.length) s.callReason.push('Seller Lead');
+    return s;
+  });
+
+  callable.sort(function(a, b) { return b.callPriority - a.callPriority; });
+  var top = callable.slice(0, 25);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'callListOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128222; Smart Call List</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Top ' + top.length + ' of ' + callable.length + ' callable seller leads</p></div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="exportCallListCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export</button>';
+  html += '<button onclick="document.getElementById(&#39;callListOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div></div>';
+
+  html += '<div style="padding:0">';
+  top.forEach(function(s, i) {
+    var prColor = s.callPriority >= 70 ? '#ef4444' : s.callPriority >= 50 ? '#f59e0b' : '#3b82f6';
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:14px">';
+    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + prColor + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">' + (i + 1) + '</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-weight:700;font-size:14px">' + esc(s.name) + '</div>';
+    html += '<div style="display:flex;gap:8px;font-size:12px;color:var(--text-secondary);margin-top:2px">';
+    html += '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none;font-weight:600">&#128222; ' + s.phone + '</a>';
+    if (s.email) html += '<span>' + s.email + '</span>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">';
+    s.callReason.forEach(function(r) {
+      var rc = r === 'Expired' ? '#ef4444' : r === 'FSBO' ? '#eab308' : r === 'High Equity' ? '#22c55e' : r === 'Free & Clear' ? '#10b981' : r === 'Absentee' ? '#3b82f6' : '#6b7280';
+      html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + rc + '22;color:' + rc + ';font-weight:600">' + r + '</span>';
+    });
+    html += '</div></div>';
+    html += '<div style="text-align:center;flex-shrink:0"><div style="font-size:20px;font-weight:800;color:' + prColor + '">' + s.callPriority + '</div><div style="font-size:9px;color:var(--text-secondary)">priority</div></div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function exportCallListCSV() {
+  var sellers = getSellerLeads().filter(function(s) { return s.phone; });
+  sellers.sort(function(a, b) { return b.motivation - a.motivation; });
+  var headers = ['Priority','Name','Phone','Email','Motivation','Tags','Source','Date Added'];
+  var rows = [headers.join(',')];
+  sellers.slice(0, 50).forEach(function(s, i) {
+    rows.push([
+      i + 1,
+      '"' + (s.name || '').replace(/"/g, '""') + '"',
+      '"' + (s.phone || '') + '"',
+      '"' + (s.email || '') + '"',
+      s.motivation,
+      '"' + (s.tags || []).join('; ') + '"',
+      '"' + (s.source || '') + '"',
+      '"' + (s.dateAdded || '') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'smart-call-list-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported top 50 call list', 'success');
+}
+
+// -------------------------------------------------------
+// TAG CROSS-REFERENCE ANALYSIS
+// -------------------------------------------------------
+function showTagCrossRef() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+
+  // Count tag combinations
+  var sellerTags = ['expired', 'canceled', 'withdrawn', 'fsbo', 'high equity', 'low equity', 'free and clear', 'absentee', 'out of state owners', 'empty nester', 'agent owned', 'seller pipeline', 'under contract'];
+  var combos = {};
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var matched = sellerTags.filter(function(st) { return t.indexOf(st) !== -1; });
+    // Count pairs
+    for (var i = 0; i < matched.length; i++) {
+      for (var j = i + 1; j < matched.length; j++) {
+        var key = matched[i] + ' + ' + matched[j];
+        if (!combos[key]) combos[key] = { label: matched[i] + ' + ' + matched[j], count: 0, avgMot: 0, totalMot: 0 };
+        combos[key].count++;
+        combos[key].totalMot += s.motivation;
+      }
+    }
+  });
+
+  var comboArr = Object.keys(combos).map(function(k) {
+    var c = combos[k];
+    c.avgMot = c.count ? Math.round(c.totalMot / c.count) : 0;
+    return c;
+  }).sort(function(a, b) { return b.count - a.count; }).slice(0, 20);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'tagCrossRefOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128279; Tag Cross-Reference</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Most common tag combinations among seller leads</p></div>';
+  html += '<button onclick="document.getElementById(&#39;tagCrossRefOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  if (!comboArr.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">No tag combinations found</div>';
+  } else {
+    var maxCombo = comboArr[0].count;
+    html += '<div style="padding:16px 20px">';
+    comboArr.forEach(function(c) {
+      var pct = Math.round(c.count / maxCombo * 100);
+      var motColor = c.avgMot >= 60 ? '#ef4444' : c.avgMot >= 40 ? '#f59e0b' : '#3b82f6';
+      html += '<div style="margin-bottom:10px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">';
+      html += '<span style="font-size:13px;font-weight:600">' + c.label + '</span>';
+      html += '<span style="font-size:12px"><strong>' + c.count + '</strong> leads &middot; <span style="color:' + motColor + '">avg ' + c.avgMot + ' motivation</span></span>';
+      html += '</div>';
+      html += '<div style="height:8px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">';
+      html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,' + motColor + ',' + motColor + '88);border-radius:4px;transition:width 0.3s"></div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 
 // -------------------------------------------------------
