@@ -4203,6 +4203,77 @@ function renderSellerTab() {
     html += '</div></div>';
   }
 
+  // ---- Lead Aging Analysis ----
+  var now = Date.now();
+  var ageBuckets = [
+    { label: 'Last 7 days', min: 0, max: 7, color: '#22c55e', leads: [] },
+    { label: '8-30 days', min: 8, max: 30, color: '#3b82f6', leads: [] },
+    { label: '31-90 days', min: 31, max: 90, color: '#f59e0b', leads: [] },
+    { label: '91-180 days', min: 91, max: 180, color: '#f97316', leads: [] },
+    { label: '180+ days', min: 181, max: 99999, color: '#ef4444', leads: [] }
+  ];
+  sellers.forEach(function(s) {
+    var dateStr = s.dateUpdated || s.dateAdded || '';
+    if (!dateStr) { ageBuckets[4].leads.push(s); return; }
+    var days = Math.floor((now - new Date(dateStr).getTime()) / 86400000);
+    for (var bi = 0; bi < ageBuckets.length; bi++) {
+      if (days >= ageBuckets[bi].min && days <= ageBuckets[bi].max) { ageBuckets[bi].leads.push(s); break; }
+    }
+  });
+  var maxAgeBucket = Math.max.apply(null, ageBuckets.map(function(b) { return b.leads.length; }).concat([1]));
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Aging chart
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#9200; Lead Aging (by last update)</h4>';
+  ageBuckets.forEach(function(b) {
+    var pct = Math.round(b.leads.length / maxAgeBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:40px;font-size:12px;font-weight:600">' + b.leads.length + '</div></div>';
+  });
+  var staleCount = ageBuckets[3].leads.length + ageBuckets[4].leads.length;
+  var freshCount = ageBuckets[0].leads.length + ageBuckets[1].leads.length;
+  html += '<div style="margin-top:10px;display:flex;gap:12px;font-size:12px">';
+  html += '<span style="color:#22c55e;font-weight:600">&#9989; ' + freshCount + ' fresh (< 30d)</span>';
+  html += '<span style="color:#ef4444;font-weight:600">&#9888; ' + staleCount + ' stale (> 90d)</span>';
+  html += '</div></div>';
+
+  // ---- Seller Segments ----
+  var segments = [
+    { name: 'Hot Expired + High Equity', icon: '&#128293;', desc: 'Expired listings with high equity - highest conversion potential', color: '#ef4444',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('expired') !== -1 && t.indexOf('high equity') !== -1; } },
+    { name: 'Absentee Owners', icon: '&#127968;', desc: 'Out-of-area owners who may want to sell', color: '#3b82f6',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('absentee') !== -1; } },
+    { name: 'Free & Clear', icon: '&#128176;', desc: 'No mortgage - maximum flexibility on price', color: '#10b981',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('free and clear') !== -1; } },
+    { name: 'Canceled + Withdrawn', icon: '&#128260;', desc: 'Failed listings that may relist with right agent', color: '#f59e0b',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('canceled') !== -1 || t.indexOf('withdrawn') !== -1; } },
+    { name: 'Out of State + High Equity', icon: '&#9992;', desc: 'Remote owners with significant equity', color: '#8b5cf6',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('out of state owners') !== -1 && t.indexOf('high equity') !== -1; } },
+    { name: 'FSBO Opportunities', icon: '&#128204;', desc: 'For-sale-by-owner leads open to agent help', color: '#eab308',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('fsbo') !== -1; } }
+  ];
+  segments.forEach(function(seg) { seg.count = sellers.filter(seg.filter).length; });
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Actionable Segments</h4>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  segments.filter(function(seg) { return seg.count > 0; }).forEach(function(seg) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface,var(--bg));border-radius:8px;cursor:pointer" onclick="filterSellerSegment(&#39;' + seg.name.replace(/'/g, '') + '&#39;)">';
+    html += '<span style="font-size:18px">' + seg.icon + '</span>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:13px;font-weight:600">' + seg.name + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + seg.desc + '</div></div>';
+    html += '<div style="background:' + seg.color + ';color:#fff;padding:4px 10px;border-radius:12px;font-size:13px;font-weight:700;flex-shrink:0">' + seg.count + '</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  html += '</div>';
+
   // ---- Full Seller Table ----
   html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
@@ -4472,6 +4543,69 @@ function showTagCrossRef() {
   }
   html += '</div>';
 
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SELLER SEGMENT FILTER
+// -------------------------------------------------------
+function filterSellerSegment(segName) {
+  var segDefs = {
+    'Hot Expired + High Equity': function(t) { return t.indexOf('expired') !== -1 && t.indexOf('high equity') !== -1; },
+    'Absentee Owners': function(t) { return t.indexOf('absentee') !== -1; },
+    'Free & Clear': function(t) { return t.indexOf('free and clear') !== -1; },
+    'Canceled + Withdrawn': function(t) { return t.indexOf('canceled') !== -1 || t.indexOf('withdrawn') !== -1; },
+    'Out of State + High Equity': function(t) { return t.indexOf('out of state owners') !== -1 && t.indexOf('high equity') !== -1; },
+    'FSBO Opportunities': function(t) { return t.indexOf('fsbo') !== -1; }
+  };
+  var fn = segDefs[segName];
+  if (!fn) return;
+  var sellers = getSellerLeads();
+  var filtered = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return fn(t);
+  });
+  if (!filtered.length) { toast('No leads in segment: ' + segName, 'error'); return; }
+
+  filtered.sort(function(a, b) { return b.motivation - a.motivation; });
+
+  var overlay = document.createElement('div');
+  overlay.id = 'segmentOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:750px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#127919; ' + esc(segName) + '</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + filtered.length + ' leads in this segment</p></div>';
+  html += '<button onclick="document.getElementById(&#39;segmentOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  html += '<th style="padding:10px 12px;text-align:left;font-weight:600;font-size:12px">Name</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Phone</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Email</th>';
+  html += '<th style="padding:10px 8px;text-align:center;font-weight:600;font-size:12px">Motivation</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Tags</th>';
+  html += '</tr></thead><tbody>';
+  filtered.forEach(function(s) {
+    var motColor = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#3b82f6';
+    html += '<tr style="border-bottom:1px solid var(--card-border)">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
+    html += '<td style="padding:10px 8px">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">' + s.phone + '</a>' : '-') + '</td>';
+    html += '<td style="padding:10px 8px;font-size:12px">' + (s.email ? esc(s.email) : '-') + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center"><span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 8px">';
+    (s.tags || []).slice(0, 5).forEach(function(tg) {
+      html += '<span style="display:inline-block;font-size:10px;padding:2px 6px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(tg) + '</span>';
+    });
+    html += '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  var existing = document.getElementById('segmentOverlay');
+  if (existing) existing.remove();
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
 }
