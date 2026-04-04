@@ -4550,7 +4550,7 @@ function buildAccordion(lead) {
     '<div class="acc-section" style="grid-column:1/-1">' +
       '<div class="acc-section-title">Quick Add Tag</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===\'Enter\')addQuickTag(\\'' + lead.id + '\\')">' +
+        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===\\'Enter\\')addQuickTag(\\'' + lead.id + '\\')">' +
         '<button onclick="addQuickTag(\\'' + lead.id + '\\')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Tag</button>' +
         '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'hot\')" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:11px;font-weight:700;cursor:pointer">Hot</button>' +
         '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'warm\')" style="padding:6px 12px;border:1px solid var(--yellow);border-radius:6px;background:transparent;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">Warm</button>' +
