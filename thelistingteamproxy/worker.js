@@ -2989,6 +2989,11 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
     <div class="stat-sub">last 7 days</div>
   </div>
+  <div class="stat-card">
+    <div class="stat-label">Score Trends</div>
+    <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
+    <div class="stat-sub">since last visit</div>
+  </div>
 </div>
 
 <!-- View Tabs -->
@@ -3145,8 +3150,51 @@ var SORT_KEY       = 'score_desc';
 var EXPANDED       = new Set();
 var SELECTED       = new Set();
 var CURRENT_VIEW   = 'table';
+var SCORE_TRENDS   = {}; // { contactId: { prev, curr, dir } }
 var SRC_DATA = [];
 var SRC_SORT = { key: 'count', dir: -1 };
+
+// -------------------------------------------------------
+// SCORE TREND TRACKING
+// -------------------------------------------------------
+var SCORE_HISTORY_KEY = 'ylopo_score_history';
+
+function updateScoreTrends(leads) {
+  var history = {};
+  try { history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY) || '{}'); } catch(e) {}
+  var now = Date.now();
+  var dayMs = 86400000;
+  SCORE_TRENDS = {};
+
+  leads.forEach(function(l) {
+    var prev = history[l.id];
+    if (prev && prev.s !== undefined) {
+      var diff = l.score - prev.s;
+      var dir = diff > 2 ? 'up' : diff < -2 ? 'down' : 'stable';
+      SCORE_TRENDS[l.id] = { prev: prev.s, curr: l.score, diff: diff, dir: dir, lastTs: prev.t };
+    } else {
+      SCORE_TRENDS[l.id] = { prev: null, curr: l.score, diff: 0, dir: 'new', lastTs: null };
+    }
+    // Save current score (only update if >4h since last save to track real changes)
+    if (!prev || !prev.t || (now - prev.t > 4 * 3600000)) {
+      history[l.id] = { s: l.score, t: now };
+    }
+  });
+
+  // Prune entries older than 30 days
+  var cutoff = now - 30 * dayMs;
+  Object.keys(history).forEach(function(k) { if (history[k].t < cutoff) delete history[k]; });
+
+  try { localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
+}
+
+function trendArrow(id) {
+  var t = SCORE_TRENDS[id];
+  if (!t || t.dir === 'new') return '<span style="font-size:10px;color:var(--text-muted)" title="New lead">&#9679;</span>';
+  if (t.dir === 'up') return '<span style="font-size:12px;color:var(--green)" title="Score up ' + t.diff + ' (was ' + t.prev + ')">&#9650;</span>';
+  if (t.dir === 'down') return '<span style="font-size:12px;color:var(--red)" title="Score down ' + t.diff + ' (was ' + t.prev + ')">&#9660;</span>';
+  return '<span style="font-size:10px;color:var(--text-muted)" title="Stable (was ' + t.prev + ')">&#9644;</span>';
+}
 
 function switchContactsView(v) {
   var cp = document.getElementById('contactsViewPanel');
@@ -3633,6 +3681,7 @@ function processRawContacts(allRaw) {
       hasShowing:  matrix.showings > 0
     };
   });
+  updateScoreTrends(ALL_LEADS);
   updateStats();
   applyFilters();
 }
@@ -3895,6 +3944,20 @@ function updateStats() {
   _el('statCold').textContent     = ALL_LEADS.filter(function(l){return l.status==='cold';}).length;
   _el('statShowings').textContent = ALL_LEADS.filter(function(l){return l.hasShowing;}).length;
   _el('statNew').textContent      = ALL_LEADS.filter(function(l){return l.isNew;}).length;
+
+  // Trend summary
+  var up = 0, down = 0, stable = 0;
+  Object.keys(SCORE_TRENDS).forEach(function(k) {
+    var t = SCORE_TRENDS[k];
+    if (t.dir === 'up') up++;
+    else if (t.dir === 'down') down++;
+    else if (t.dir === 'stable') stable++;
+  });
+  var trendEl = _el('statTrend');
+  if (trendEl) {
+    if (up + down + stable === 0) { trendEl.innerHTML = '&mdash;'; }
+    else { trendEl.innerHTML = '<span style="color:var(--green)">&#9650;' + up + '</span> <span style="color:var(--text-muted)">&#9644;' + stable + '</span> <span style="color:var(--red)">&#9660;' + down + '</span>'; }
+  }
 }
 
 // -------------------------------------------------------
@@ -4027,6 +4090,7 @@ function renderTable() {
         '<div class="score-bar-wrap">' +
           '<div class="score-bar"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
           '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+          trendArrow(l.id) +
         '</div>' +
       '</td>' +
       '<td>' +
@@ -4141,6 +4205,7 @@ function renderCards() {
       '<div class="contact-card-score">' +
         '<div class="score-bar" style="flex:1"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
         '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+        trendArrow(l.id) +
       '</div>' +
       '<div class="contact-card-activity">' +
         '<span class="mm">&#128065;&#65039; <span>' + m.views + '</span></span>' +
