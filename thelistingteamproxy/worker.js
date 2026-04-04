@@ -3031,7 +3031,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <option value="realtor">Realtor.com</option>
   </select>
   <div style="flex:1;min-width:200px">
-    <input type="text" class="filter-search" id="searchInput" placeholder="Search name, email, phone, city..." oninput="CURRENT_PAGE=1;applyFilters()">
+    <input type="text" class="filter-search" id="searchInput" placeholder="Search... (try score:>80 source:ylopo tag:hot stale:true age:<7)" oninput="CURRENT_PAGE=1;applyFilters()">
   </div>
   <select class="filter-tab" id="sortSelect" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer">
     <option value="score_desc">Score Down</option>
@@ -4143,6 +4143,40 @@ function setFilter(f, el) {
   applyFilters();
 }
 
+function parseSearchQuery(q) {
+  var filters = [];
+  var textParts = [];
+  var tokens = q.split(/\s+/);
+  var validKeys = ['score','source','tag','status','stale','age','city','type','has'];
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i];
+    var colonIdx = t.indexOf(':');
+    if (colonIdx > 0) {
+      var key = t.substring(0, colonIdx).toLowerCase();
+      var val = t.substring(colonIdx + 1).toLowerCase();
+      if (validKeys.indexOf(key) !== -1 && val) {
+        var op = '=';
+        if (val.charAt(0) === '>' || val.charAt(0) === '<') {
+          op = val.charAt(0);
+          val = val.substring(1);
+        }
+        filters.push({ key: key, op: op, val: val });
+        continue;
+      }
+    }
+    textParts.push(t);
+  }
+  return { filters: filters, text: textParts.join(' ').trim() };
+}
+
+function compareNum(actual, op, val) {
+  var n = parseFloat(val);
+  if (isNaN(n)) return false;
+  if (op === '>') return actual > n;
+  if (op === '<') return actual < n;
+  return actual === n;
+}
+
 function applyFilters() {
   var q = (_el('searchInput')||{value:''}).value.trim().toLowerCase();
   SORT_KEY = (_el('sortSelect')||{value:'score_desc'}).value;
@@ -4173,14 +4207,38 @@ function applyFilters() {
   }
 
   if (q) {
-    leads = leads.filter(function(l) {
-      return l.name.toLowerCase().indexOf(q)!==-1 ||
-        l.email.toLowerCase().indexOf(q)!==-1 ||
-        l.phone.indexOf(q)!==-1 ||
-        (l.city||'').toLowerCase().indexOf(q)!==-1 ||
-        String(l.source||'').toLowerCase().indexOf(q)!==-1 ||
-        (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
-    });
+    var parsed = parseSearchQuery(q);
+    if (parsed.filters.length > 0) {
+      leads = leads.filter(function(l) {
+        return parsed.filters.every(function(f) {
+          if (f.key === 'score') return compareNum(l.score, f.op, f.val);
+          if (f.key === 'source') return String(l.source||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'tag') return (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(f.val)!==-1;});
+          if (f.key === 'status') return l.status === f.val;
+          if (f.key === 'stale') return f.val === 'true' ? isStale(l) : !isStale(l);
+          if (f.key === 'age') return compareNum(daysSinceActivity(l), f.op, f.val);
+          if (f.key === 'city') return (l.city||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'type') return (l.propType||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'has') {
+            if (f.val === 'email') return !!l.email;
+            if (f.val === 'phone') return !!l.phone;
+            if (f.val === 'showing') return l.hasShowing;
+          }
+          return true;
+        });
+      });
+    }
+    if (parsed.text) {
+      var txt = parsed.text;
+      leads = leads.filter(function(l) {
+        return l.name.toLowerCase().indexOf(txt)!==-1 ||
+          l.email.toLowerCase().indexOf(txt)!==-1 ||
+          l.phone.indexOf(txt)!==-1 ||
+          (l.city||'').toLowerCase().indexOf(txt)!==-1 ||
+          String(l.source||'').toLowerCase().indexOf(txt)!==-1 ||
+          (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(txt)!==-1;});
+      });
+    }
   }
 
   leads.sort(function(a,b) {
