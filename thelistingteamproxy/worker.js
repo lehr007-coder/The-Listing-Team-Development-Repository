@@ -15355,6 +15355,92 @@ var index_default = {
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
+    // -------------------------------------------------------
+    // ADMIN: Auto-setup GHL outbound webhook for 2-way sync
+    // -------------------------------------------------------
+    if (method === "POST" && path === "/admin/setup-ghl-webhook") {
+      try {
+        const webhookUrl = `${url.protocol}//${url.host}/ghl-webhook`;
+        const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
+        if (!token) return err("No GHL API token configured", 500);
+
+        // First, list existing webhooks to avoid duplicates
+        let existing = [];
+        try {
+          const listRes = await fetch(`${GHL_V2}/webhooks/`, {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${token}`, "Version": "2021-07-28", "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(10000)
+          });
+          const listData = await listRes.json();
+          existing = listData.webhooks || listData || [];
+        } catch (e) {
+          console.warn("Could not list existing webhooks:", e.message);
+        }
+
+        // Check if our webhook already exists
+        const alreadyExists = Array.isArray(existing) && existing.some(function(w) {
+          return w.url && w.url.includes("/ghl-webhook");
+        });
+        if (alreadyExists) {
+          return json({
+            ok: true,
+            message: "GHL webhook already configured",
+            webhookUrl: webhookUrl,
+            existing: existing.filter(function(w) { return w.url && w.url.includes("/ghl-webhook"); })
+          });
+        }
+
+        // Create the webhook with all contact-related events
+        const webhookEvents = [
+          "ContactCreate",
+          "ContactUpdate",
+          "ContactDelete",
+          "ContactDndUpdate",
+          "ContactTagUpdate",
+          "NoteCreate",
+          "NoteUpdate",
+          "NoteDelete",
+          "TaskCreate",
+          "TaskUpdate",
+          "OpportunityCreate",
+          "OpportunityUpdate",
+          "OpportunityStageUpdate",
+          "InboundMessage",
+          "OutboundMessage"
+        ];
+
+        const createRes = await fetch(`${GHL_V2}/webhooks/`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Version": "2021-07-28",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            url: webhookUrl,
+            events: webhookEvents
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const createData = await createRes.json();
+
+        if (!createRes.ok) {
+          return err("GHL webhook creation failed: " + JSON.stringify(createData), createRes.status);
+        }
+
+        return json({
+          ok: true,
+          message: "GHL webhook created successfully! 2-way sync is now active.",
+          webhookUrl: webhookUrl,
+          events: webhookEvents,
+          response: createData
+        });
+      } catch (e) {
+        return err("Setup failed: " + (e.message || String(e)), 500);
+      }
+    }
+
     if (method === "GET" && path === "/health") {
       return json({
         ok: true,
