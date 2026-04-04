@@ -4274,6 +4274,95 @@ function renderSellerTab() {
   html += '</div></div>';
   html += '</div>';
 
+  // ---- Seller Pipeline Kanban ----
+  var pipeStages = [
+    { key: 'new', label: 'New / Unworked', color: '#6b7280', icon: '&#128300;', leads: [] },
+    { key: 'nurture', label: 'Nurture', color: '#3b82f6', icon: '&#128231;', leads: [] },
+    { key: 'hot', label: 'Hot Prospect', color: '#f59e0b', icon: '&#128293;', leads: [] },
+    { key: 'listing', label: 'Listing Ready', color: '#22c55e', icon: '&#127968;', leads: [] }
+  ];
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var hasContact = s.phone || s.email;
+    var hasPipeline = t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1;
+    var isExpired = t.indexOf('expired') !== -1 || t.indexOf('fsbo') !== -1;
+    if (hasPipeline || (s.motivation >= 70 && isExpired)) {
+      pipeStages[3].leads.push(s);
+    } else if (s.motivation >= 50 || (isExpired && hasContact)) {
+      pipeStages[2].leads.push(s);
+    } else if (s.motivation >= 25 && hasContact) {
+      pipeStages[1].leads.push(s);
+    } else {
+      pipeStages[0].leads.push(s);
+    }
+  });
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<h4 style="margin:0 0 14px;font-size:14px">&#128203; Seller Pipeline</h4>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
+  pipeStages.forEach(function(stage) {
+    html += '<div style="background:var(--surface,var(--bg));border-radius:10px;padding:14px;min-height:120px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html += '<span style="font-size:13px;font-weight:700">' + stage.icon + ' ' + stage.label + '</span>';
+    html += '<span style="background:' + stage.color + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + stage.leads.length + '</span>';
+    html += '</div>';
+    // Show top 3 leads in each stage
+    stage.leads.sort(function(a, b) { return b.motivation - a.motivation; });
+    stage.leads.slice(0, 3).forEach(function(s) {
+      var mc = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%">' + esc(s.name) + '</span>';
+      html += '<span style="color:' + mc + ';font-weight:700;font-size:11px">' + s.motivation + '</span>';
+      html += '</div>';
+      if (s.phone) html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">&#128222; ' + s.phone + '</div>';
+      html += '</div>';
+    });
+    if (stage.leads.length > 3) {
+      html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px">+ ' + (stage.leads.length - 3) + ' more</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // ---- Activity Trends (last 4 weeks) ----
+  var weeks = [];
+  for (var wi = 0; wi < 4; wi++) {
+    var weekStart = now - (wi + 1) * 7 * 86400000;
+    var weekEnd = now - wi * 7 * 86400000;
+    var weekLabel = wi === 0 ? 'This Week' : wi === 1 ? 'Last Week' : wi + ' Weeks Ago';
+    var added = 0;
+    var updated = 0;
+    sellers.forEach(function(s) {
+      var da = s.dateAdded ? new Date(s.dateAdded).getTime() : 0;
+      var du = s.dateUpdated ? new Date(s.dateUpdated).getTime() : 0;
+      if (da >= weekStart && da < weekEnd) added++;
+      if (du >= weekStart && du < weekEnd) updated++;
+    });
+    weeks.push({ label: weekLabel, added: added, updated: updated });
+  }
+  weeks.reverse();
+  var maxWeekVal = Math.max.apply(null, weeks.map(function(w) { return Math.max(w.added, w.updated); }).concat([1]));
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<h4 style="margin:0 0 14px;font-size:14px">&#128200; Weekly Activity Trends</h4>';
+  html += '<div style="display:flex;gap:4px;margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:2px"></span><span style="font-size:11px;color:var(--text-secondary)">New Leads</span>';
+  html += '<span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;margin-left:12px"></span><span style="font-size:11px;color:var(--text-secondary)">Updated</span></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end;min-height:100px">';
+  weeks.forEach(function(w) {
+    var addH = Math.max(4, Math.round(w.added / maxWeekVal * 80));
+    var updH = Math.max(4, Math.round(w.updated / maxWeekVal * 80));
+    html += '<div style="text-align:center">';
+    html += '<div style="display:flex;gap:4px;justify-content:center;align-items:end;height:90px">';
+    html += '<div style="width:20px;height:' + addH + 'px;background:#22c55e;border-radius:4px 4px 0 0" title="Added: ' + w.added + '"></div>';
+    html += '<div style="width:20px;height:' + updH + 'px;background:#3b82f6;border-radius:4px 4px 0 0" title="Updated: ' + w.updated + '"></div>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:6px">' + w.label + '</div>';
+    html += '<div style="font-size:10px;color:var(--text-secondary)">' + w.added + ' / ' + w.updated + '</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
   // ---- Full Seller Table ----
   html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
