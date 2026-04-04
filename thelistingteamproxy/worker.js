@@ -3031,8 +3031,13 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <option value="zillow">Zillow</option>
     <option value="realtor">Realtor.com</option>
   </select>
-  <div style="flex:1;min-width:200px">
-    <input type="text" class="filter-search" id="searchInput" placeholder="Search... (try score:>80 source:ylopo tag:hot stale:true age:<7)" oninput="CURRENT_PAGE=1;applyFilters()">
+  <div style="flex:1;min-width:200px;position:relative">
+    <input type="text" class="filter-search" id="searchInput" placeholder="Search... (try score:>80 source:ylopo tag:hot stale:true age:<7)" oninput="CURRENT_PAGE=1;applyFilters()" style="padding-right:70px">
+    <div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;gap:4px">
+      <button onclick="saveSearchPreset()" title="Save current search" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)">&#128190;</button>
+      <button onclick="togglePresetMenu()" title="Saved searches" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)" id="presetBtn">&#9733;</button>
+    </div>
+    <div id="presetMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--card-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);min-width:260px;max-height:300px;overflow-y:auto;z-index:500"></div>
   </div>
   <select class="filter-tab" id="sortSelect" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer">
     <option value="score_desc">Score Down</option>
@@ -5092,6 +5097,101 @@ function setupAutoRefresh(s) {
   if (s && s.autoRefresh && s.refreshInterval > 0) {
     _autoRefreshTimer = setInterval(function() { loadData(); }, s.refreshInterval * 60000);
   }
+}
+
+// -------------------------------------------------------
+// SAVED SEARCH PRESETS
+// -------------------------------------------------------
+var PRESETS_KEY = 'ylopo_search_presets';
+
+function getSavedPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveSearchPreset() {
+  var inp = _el('searchInput');
+  var q = inp ? inp.value.trim() : '';
+  if (!q) { toast('Enter a search query first', 'error'); return; }
+  var name = prompt('Name this saved search:', q.substring(0, 40));
+  if (!name || !name.trim()) return;
+  var presets = getSavedPresets();
+  presets.push({ name: name.trim(), query: q, filter: CURRENT_FILTER, created: Date.now() });
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(presets)); } catch(e) {}
+  toast('Search saved: "' + name.trim() + '"', 'success');
+}
+
+function togglePresetMenu() {
+  var menu = _el('presetMenu');
+  if (!menu) return;
+  if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+  renderPresetMenu();
+  menu.style.display = 'block';
+  // Close on outside click
+  setTimeout(function() {
+    var handler = function(e) {
+      if (!menu.contains(e.target) && e.target.id !== 'presetBtn') {
+        menu.style.display = 'none';
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 10);
+}
+
+function renderPresetMenu() {
+  var menu = _el('presetMenu');
+  if (!menu) return;
+  var presets = getSavedPresets();
+  if (presets.length === 0) {
+    menu.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px">No saved searches yet.<br><span style="font-size:11px;color:var(--text-muted)">Type a search, then click &#128190; to save it.</span></div>';
+    return;
+  }
+  var html = '<div style="padding:10px 14px;border-bottom:1px solid var(--card-border);font-size:12px;font-weight:700;color:var(--text-secondary)">Saved Searches (' + presets.length + ')</div>';
+  presets.forEach(function(p, i) {
+    html += '<div style="padding:10px 14px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;&#39;">' +
+      '<div style="flex:1;min-width:0" onclick="applyPreset(' + i + ')">' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.query) + '</div>' +
+      '</div>' +
+      '<button onclick="event.stopPropagation();deletePreset(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:4px" title="Delete">&#10005;</button>' +
+    '</div>';
+  });
+  html += '<div style="padding:8px 14px;text-align:center"><button onclick="clearAllPresets()" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;text-decoration:underline">Clear All</button></div>';
+  menu.innerHTML = html;
+}
+
+function applyPreset(idx) {
+  var presets = getSavedPresets();
+  var p = presets[idx];
+  if (!p) return;
+  var inp = _el('searchInput');
+  if (inp) { inp.value = p.query; }
+  if (p.filter) {
+    CURRENT_FILTER = p.filter;
+    var tabs = document.querySelectorAll('.filter-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  }
+  CURRENT_PAGE = 1;
+  applyFilters();
+  var menu = _el('presetMenu');
+  if (menu) menu.style.display = 'none';
+  toast('Applied: "' + p.name + '"', 'success');
+}
+
+function deletePreset(idx) {
+  var presets = getSavedPresets();
+  var name = presets[idx] ? presets[idx].name : '';
+  presets.splice(idx, 1);
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(presets)); } catch(e) {}
+  renderPresetMenu();
+  toast('Deleted preset: "' + name + '"', 'info');
+}
+
+function clearAllPresets() {
+  if (!confirm('Delete all saved searches?')) return;
+  try { localStorage.removeItem(PRESETS_KEY); } catch(e) {}
+  renderPresetMenu();
+  toast('All presets cleared', 'info');
 }
 
 // -------------------------------------------------------
