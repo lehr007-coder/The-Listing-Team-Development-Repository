@@ -2980,6 +2980,15 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
+<!-- View Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px">
+  <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
+  <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
+</div>
+
+<!-- Contacts View -->
+<div id="contactsViewPanel">
+
 <!-- Filters Bar -->
 <div class="filters-bar">
   <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
@@ -3051,6 +3060,52 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <!-- Pagination -->
 <div class="pagination" id="paginationEl"></div>
 
+</div><!-- /contactsViewPanel -->
+
+<!-- Source Performance Panel -->
+<div id="sourceViewPanel" style="display:none">
+  <div id="srcKPIs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
+    <h3 style="margin:0 0 16px 0;font-size:16px;color:var(--text)">&#128202; Source Breakdown</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--card-border);text-align:left">
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer" onclick="sortSrcTbl('name')">Source</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('count')">Leads</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('hot')">Hot</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('warm')">Warm</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('cold')">Cold</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('avgScore')">Avg Score</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('showings')">Showings</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Quality</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Volume</th>
+        </tr></thead>
+        <tbody id="srcTblBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127919; Lead Distribution</h3>
+      <div id="srcDistBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128293; Hot Lead Rate</h3>
+      <div id="srcHotBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127968; Buyer vs Seller</h3>
+      <div id="srcTypeBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128197; New This Week</h3>
+      <div id="srcRecentBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
 <input id="listingsInput" value="" class="hidden" aria-hidden="true">
 <canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
@@ -3079,6 +3134,119 @@ var SORT_KEY       = 'score_desc';
 var EXPANDED       = new Set();
 var SELECTED       = new Set();
 var CURRENT_VIEW   = 'table';
+var SRC_DATA = [];
+var SRC_SORT = { key: 'count', dir: -1 };
+
+function switchContactsView(v) {
+  var cp = document.getElementById('contactsViewPanel');
+  var sp = document.getElementById('sourceViewPanel');
+  var tb = document.getElementById('viewTabContacts');
+  var ts = document.getElementById('viewTabSource');
+  if (v === 'source') {
+    cp.style.display = 'none'; sp.style.display = 'block';
+    tb.classList.remove('active'); ts.classList.add('active');
+    renderSrcPerf();
+  } else {
+    cp.style.display = 'block'; sp.style.display = 'none';
+    tb.classList.add('active'); ts.classList.remove('active');
+  }
+}
+
+function getSrcColor(name) {
+  var s = (name || '').toLowerCase();
+  if (s.indexOf('ylopo') !== -1) return { bg: 'rgba(234,179,8,0.15)', fg: '#eab308' };
+  if (s.indexOf('zillow') !== -1) return { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' };
+  if (s.indexOf('realtor') !== -1) return { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' };
+  if (s.indexOf('homes') !== -1) return { bg: 'rgba(249,115,22,0.15)', fg: '#f97316' };
+  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('plus leads') !== -1) return { bg: 'rgba(139,92,246,0.15)', fg: '#8b5cf6' };
+  return { bg: 'rgba(100,116,139,0.15)', fg: '#94a3b8' };
+}
+
+function sortSrcTbl(key) {
+  if (SRC_SORT.key === key) SRC_SORT.dir *= -1;
+  else { SRC_SORT.key = key; SRC_SORT.dir = -1; }
+  renderSrcTblBody();
+}
+
+function renderSrcPerf() {
+  var leads = ALL_LEADS;
+  if (!leads.length) { document.getElementById('srcKPIs').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary)">No lead data available</div>'; return; }
+  var srcMap = {};
+  var weekAgo = Date.now() - 7 * 86400000;
+  leads.forEach(function(l) {
+    var s = l.source || 'Unknown';
+    if (!srcMap[s]) srcMap[s] = { name: s, count: 0, totalScore: 0, hot: 0, warm: 0, cold: 0, showings: 0, views: 0, saves: 0, buyers: 0, sellers: 0, recent: 0 };
+    var d = srcMap[s]; d.count++; d.totalScore += (l.score || 0);
+    if (l.status === 'HOT') d.hot++; else if (l.status === 'WARM') d.warm++; else d.cold++;
+    var m = l.matrix || {};
+    d.showings += (m.showings || 0); d.views += (m.views || 0); d.saves += (m.saves || 0);
+    var pt = (l.propType || '').toLowerCase();
+    if (pt.indexOf('seller') !== -1) d.sellers++; else if (pt.indexOf('buyer') !== -1) d.buyers++;
+    if (l.dateAdded && new Date(l.dateAdded).getTime() > weekAgo) d.recent++;
+  });
+  SRC_DATA = Object.keys(srcMap).map(function(k) { var d = srcMap[k]; d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0; d.hotRate = d.count ? Math.round(d.hot / d.count * 100) : 0; return d; });
+  var top = SRC_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
+  var best = SRC_DATA.slice().sort(function(a,b) { return b.avgScore - a.avgScore; })[0];
+  var mostShow = SRC_DATA.slice().sort(function(a,b) { return b.showings - a.showings; })[0];
+  document.getElementById('srcKPIs').innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--accent)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--blue)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--yellow)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
+  renderSrcTblBody();
+  renderSrcCharts();
+}
+
+function renderSrcTblBody() {
+  var data = SRC_DATA.slice().sort(function(a,b) {
+    var av = a[SRC_SORT.key], bv = b[SRC_SORT.key];
+    if (typeof av === 'string') return SRC_SORT.dir * av.localeCompare(bv);
+    return SRC_SORT.dir * (av - bv);
+  });
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('srcTblBody').innerHTML = data.map(function(d) {
+    var c = getSrcColor(d.name);
+    var ql = d.avgScore >= 70 ? 'Excellent' : d.avgScore >= 50 ? 'Good' : d.avgScore >= 30 ? 'Fair' : 'Low';
+    var qc = d.avgScore >= 70 ? '#22c55e' : d.avgScore >= 50 ? '#3b82f6' : d.avgScore >= 30 ? '#f59e0b' : '#ef4444';
+    var pct = Math.round(d.count / mx * 100);
+    return '<tr style="border-bottom:1px solid var(--card-border)">' +
+      '<td style="padding:10px 12px"><span style="display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;background:' + c.bg + ';color:' + c.fg + '">' + esc(d.name) + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">' + d.count + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--red)">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--yellow)">' + d.warm + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--blue)">' + d.cold + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + qc + '22;color:' + qc + '">' + d.avgScore + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text)">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;font-weight:600;color:' + qc + '">' + ql + '</span></td>' +
+      '<td style="padding:10px 12px;width:150px"><div style="background:var(--card-border);border-radius:4px;height:8px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + c.fg + '"></div></div></td></tr>';
+  }).join('');
+}
+
+function renderSrcCharts() {
+  var data = SRC_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 10);
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  function bar(label, val, maxV, color) {
+    var p = Math.round(val / maxV * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:' + color + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + val + '</div></div></div>';
+  }
+  document.getElementById('srcDistBars').innerHTML = data.map(function(d) { return bar(d.name, d.count, mx, getSrcColor(d.name).fg); }).join('');
+  var hotSorted = data.slice().sort(function(a,b) { return b.hotRate - a.hotRate; });
+  document.getElementById('srcHotBars').innerHTML = hotSorted.map(function(d) {
+    var bc = d.hotRate >= 30 ? '#ef4444' : d.hotRate >= 15 ? '#f59e0b' : '#3b82f6';
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(d.hotRate, 3) + '%;height:100%;border-radius:4px;background:' + bc + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.hotRate + '%</div></div><span style="font-size:11px;color:var(--text-secondary);min-width:30px">' + d.hot + '/' + d.count + '</span></div>';
+  }).join('');
+  var typeData = data.filter(function(d) { return d.buyers + d.sellers > 0; });
+  document.getElementById('srcTypeBars').innerHTML = typeData.length ? typeData.map(function(d) {
+    var total = d.buyers + d.sellers; var bPct = total ? Math.round(d.buyers / total * 100) : 0; var sPct = 100 - bPct;
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;display:flex;border-radius:4px;height:20px;overflow:hidden">' +
+      (d.buyers ? '<div style="width:' + bPct + '%;height:100%;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (bPct > 15 ? d.buyers + ' B' : '') + '</div>' : '') +
+      (d.sellers ? '<div style="width:' + sPct + '%;height:100%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (sPct > 15 ? d.sellers + ' S' : '') + '</div>' : '') +
+      '</div><span style="font-size:11px;color:var(--text-secondary);min-width:50px">' + d.buyers + 'B/' + d.sellers + 'S</span></div>';
+  }).join('') : '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px">No buyer/seller data yet</div>';
+  var recSorted = data.slice().sort(function(a,b) { return b.recent - a.recent; });
+  var mxR = Math.max.apply(null, recSorted.map(function(d) { return d.recent; }).concat([1]));
+  document.getElementById('srcRecentBars').innerHTML = recSorted.map(function(d) { return bar(d.name, d.recent, mxR, getSrcColor(d.name).fg); }).join('');
+}
 
 // -------------------------------------------------------
 // UTIL
