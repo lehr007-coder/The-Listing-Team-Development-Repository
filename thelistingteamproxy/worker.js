@@ -6675,6 +6675,18 @@ function connectSSE() {
         if (data.type === 'ylopo.webhook') {
           toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
         }
+        // GHL webhook events — auto-refresh contacts when changes happen in GHL
+        if (data.type && data.type.indexOf('ghl.') === 0) {
+          var ghlMsg = (data.ghlEvent || data.type) + ': ' + (data.name || data.email || data.contactId || 'contact');
+          toast('GHL sync: ' + ghlMsg, 'info');
+          // Debounce auto-refresh — wait 2s for batch updates then reload
+          if (window._ghlRefreshTimer) clearTimeout(window._ghlRefreshTimer);
+          window._ghlRefreshTimer = setTimeout(function() {
+            console.log('[GHL Sync] Auto-refreshing contacts after GHL webhook event');
+            if (typeof loadData === 'function') loadData(true);
+            else if (typeof startFetch === 'function') startFetch();
+          }, 2000);
+        }
       } catch(ex) {}
     };
     _sseConn.onerror = function() {
@@ -6712,19 +6724,28 @@ function renderActivityPanel() {
   var list = document.getElementById('activityList');
   if (!list) return;
   if (ACTIVITY_LOG.length === 0) {
-    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:13px">No activity yet. Events will appear here in real-time as Ylopo webhooks arrive.</div>';
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:13px">No activity yet. Events will appear here in real-time as GHL and Ylopo webhooks arrive.</div>';
     return;
   }
   list.innerHTML = ACTIVITY_LOG.map(function(a) {
     var icon = '&#9679;';
     var color = 'var(--text-secondary)';
     if (a.type === 'ylopo.webhook') { icon = '&#128640;'; color = 'var(--yellow)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.created') === 0) { icon = '&#10133;'; color = 'var(--green)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.updated') === 0) { icon = '&#128260;'; color = 'var(--blue)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.deleted') === 0) { icon = '&#128465;'; color = 'var(--red)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.tagged') === 0) { icon = '&#127991;'; color = 'var(--brand-accent)'; }
+    else if (a.type && a.type.indexOf('ghl.note') === 0) { icon = '&#128221;'; color = 'var(--yellow)'; }
+    else if (a.type && a.type.indexOf('ghl.task') === 0) { icon = '&#9745;'; color = 'var(--accent,#f97316)'; }
+    else if (a.type && a.type.indexOf('ghl.message') === 0) { icon = '&#128172;'; color = 'var(--blue)'; }
+    else if (a.type && a.type.indexOf('ghl.opportunity') === 0) { icon = '&#128176;'; color = 'var(--green)'; }
+    else if (a.type && a.type.indexOf('ghl.') === 0) { icon = '&#128260;'; color = 'var(--blue)'; }
     else if (a.type === 'contact.updated') { icon = '&#9998;'; color = 'var(--blue)'; }
     else if (a.type === 'contact.tagged') { icon = '&#127991;'; color = 'var(--green)'; }
     else if (a.type === 'contact.deleted') { icon = '&#128465;'; color = 'var(--red)'; }
     else if (a.type === 'contacts.fetched') { icon = '&#128203;'; color = 'var(--accent)'; }
     var time = a.ts ? new Date(a.ts).toLocaleTimeString() : '';
-    var detail = a.email ? esc(a.email) : (a.event || a.type || '');
+    var detail = a.summary ? esc(a.summary) : (a.email ? esc(a.email) : (a.event || a.type || ''));
     return '<div style="padding:8px 10px;border-bottom:1px solid var(--card-border);display:flex;gap:10px;align-items:flex-start">' +
       '<span style="font-size:14px;color:' + color + ';flex-shrink:0;margin-top:2px">' + icon + '</span>' +
       '<div style="flex:1;min-width:0">' +
@@ -15930,6 +15951,64 @@ var index_default = {
       processEvent();
       return responsePromise;
     }
+    // -------------------------------------------------------
+    // GHL INBOUND WEBHOOK — receives GHL outbound webhook events
+    // so the dashboard stays in sync when contacts change in GHL
+    // -------------------------------------------------------
+    if (method === "POST" && path === "/ghl-webhook") {
+      try {
+        const rawBody = await request.text();
+        let payload;
+        try { payload = JSON.parse(rawBody); } catch { return json({ received: true, error: "invalid JSON" }); }
+
+        const eventType = payload.type || payload.event || payload.eventType || "unknown";
+        const contactId = payload.contactId || payload.id || (payload.contact && payload.contact.id) || null;
+        const contactEmail = payload.email || (payload.contact && payload.contact.email) || null;
+        const contactName = payload.name || payload.contactName ||
+          ((payload.firstName || payload.contact?.firstName || "") + " " + (payload.lastName || payload.contact?.lastName || "")).trim() || null;
+
+        console.log(`📥 GHL webhook: ${eventType} contact=${contactId || contactEmail || "unknown"}`);
+
+        // Map GHL event types to our SSE event types
+        const eventMap = {
+          "ContactCreate": "ghl.contact.created",
+          "ContactUpdate": "ghl.contact.updated",
+          "ContactDelete": "ghl.contact.deleted",
+          "ContactDndUpdate": "ghl.contact.updated",
+          "ContactTagUpdate": "ghl.contact.tagged",
+          "NoteCreate": "ghl.note.created",
+          "NoteUpdate": "ghl.note.updated",
+          "NoteDelete": "ghl.note.deleted",
+          "TaskCreate": "ghl.task.created",
+          "TaskComplete": "ghl.task.completed",
+          "OpportunityCreate": "ghl.opportunity.created",
+          "OpportunityUpdate": "ghl.opportunity.updated",
+          "OpportunityStageUpdate": "ghl.opportunity.stage",
+          "InboundMessage": "ghl.message.inbound",
+          "OutboundMessage": "ghl.message.outbound",
+          "ContactTag": "ghl.contact.tagged",
+          "ContactUntag": "ghl.contact.untagged"
+        };
+
+        const sseType = eventMap[eventType] || "ghl.event";
+
+        // Broadcast to all connected dashboard SSE clients
+        broadcastSSE({
+          type: sseType,
+          ghlEvent: eventType,
+          contactId: contactId,
+          email: contactEmail,
+          name: contactName,
+          summary: `${eventType}: ${contactName || contactEmail || contactId || "unknown"}`
+        });
+
+        return json({ received: true, event: eventType, contactId, mapped: sseType });
+      } catch (e) {
+        console.error("GHL webhook error:", e);
+        return json({ received: true, error: e.message });
+      }
+    }
+
     if (method === "POST" && path === "/ylopo-events/backfill") {
       const YLOPO_CONTACT_ASSOCIATION_ID = "6993820513ab7068597962ae";
       try {
