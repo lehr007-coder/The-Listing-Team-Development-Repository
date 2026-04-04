@@ -4426,6 +4426,7 @@ function toggleExpand(id) {
     if (!lead) { for (var i=0;i<ALL_LEADS.length;i++) { if(ALL_LEADS[i].id===id){lead=ALL_LEADS[i];break;} } }
     if(lead) {
       detailRow.querySelector('td').innerHTML = buildAccordion(lead);
+      loadNotes(id);
       var raw = RAW_CONTACTS[id];
       if (raw && !raw._ylopoEventsLoaded) {
         fetchYlopoEventsForContact(id, function(count) {
@@ -4434,6 +4435,7 @@ function toggleExpand(id) {
             updatedLead.status = getStatus(updatedLead.score, raw.tags);
             updatedLead.badge  = getBadge(raw);
             detailRow.querySelector('td').innerHTML = buildAccordion(updatedLead);
+            loadNotes(id);
             toast('Loaded ' + count + ' Ylopo events for ' + lead.name, 'info');
           }
         });
@@ -4523,7 +4525,7 @@ function buildAccordion(lead) {
       '</div>' +
       '<div class="acc-section">' +
         '<div class="acc-section-title">Tags</div>' +
-        '<div class="tags-wrap">' + tagsHtml + '</div>' +
+        '<div class="tags-wrap" id="detailTags-' + lead.id + '">' + tagsHtml + '</div>' +
         (ext.ylopoPriority ? '<div style="margin-top:10px"><span class="badge badge-hot">Priority</span></div>' : '') +
       '</div>' +
       (ext.ylopoMessage ? '<div class="acc-section" style="grid-column:1/-1">' +
@@ -4534,6 +4536,28 @@ function buildAccordion(lead) {
         '<div class="acc-section-title">AI Summary</div>' +
         '<div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap">' + esc(ext.aiNotes) + '</div>' +
       '</div>' : '') +
+    '</div>' +
+    // Quick Notes
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">Quick Note</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<input type="text" id="quickNote-' + lead.id + '" placeholder="Add a note..." style="flex:1;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px">' +
+        '<button onclick="addQuickNote(\\'' + lead.id + '\\')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Note</button>' +
+      '</div>' +
+      '<div id="notesList-' + lead.id + '" style="margin-top:8px;max-height:120px;overflow-y:auto"></div>' +
+    '</div>' +
+    // Quick Add Tag
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">Quick Add Tag</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===\'Enter\')addQuickTag(\\'' + lead.id + '\\')">' +
+        '<button onclick="addQuickTag(\\'' + lead.id + '\\')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Tag</button>' +
+        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'hot\')" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:11px;font-weight:700;cursor:pointer">Hot</button>' +
+        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'warm\')" style="padding:6px 12px;border:1px solid var(--yellow);border-radius:6px;background:transparent;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">Warm</button>' +
+        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'showing requested\')" style="padding:6px 12px;border:1px solid var(--accent2);border-radius:6px;background:transparent;color:var(--accent2);font-size:11px;font-weight:700;cursor:pointer">Showing</button>' +
+        '<button onclick="addQuickTag(\\'' + lead.id + '\\',\'seller\')" style="padding:6px 12px;border:1px solid var(--green);border-radius:6px;background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">Seller</button>' +
+      '</div>' +
+    '</div>' +
     '</div>' +
     '<div class="acc-links">' +
       '<a href="' + ghlUrl + '" target="_blank" rel="noopener" class="acc-link">Open in GHL</a>' +
@@ -4644,6 +4668,111 @@ function deleteContact(id, name) {
       toast('"' + name + '" deleted', 'success');
     })
     .catch(function(e) { toast('Delete failed: ' + e.message, 'error'); });
+}
+
+// -------------------------------------------------------
+// QUICK NOTES & QUICK TAGS
+// -------------------------------------------------------
+function addQuickNote(contactId) {
+  var inp = document.getElementById('quickNote-' + contactId);
+  if (!inp) return;
+  var text = inp.value.trim();
+  if (!text) { toast('Enter a note first', 'error'); return; }
+  inp.disabled = true;
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: text })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function() {
+    inp.value = '';
+    inp.disabled = false;
+    toast('Note added!', 'success');
+    // Prepend note to the list immediately
+    var list = document.getElementById('notesList-' + contactId);
+    if (list) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-radius:8px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-size:12px;color:var(--text)';
+      div.innerHTML = '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">' + new Date().toLocaleString() + '</div>' + text.replace(/</g, '&lt;');
+      list.insertBefore(div, list.firstChild);
+      list.style.display = 'flex';
+    }
+  }).catch(function(e) {
+    inp.disabled = false;
+    toast('Failed to add note: ' + e.message, 'error');
+  });
+}
+
+function loadNotes(contactId) {
+  var list = document.getElementById('notesList-' + contactId);
+  if (!list) return;
+  if (list.dataset.loaded === '1') return; // already loaded
+  list.dataset.loaded = '1';
+  list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">Loading notes...</div>';
+  list.style.display = 'flex';
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes?t=' + Date.now()).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    var notes = (data.notes || data.data || []);
+    if (!notes.length) {
+      list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">No notes yet</div>';
+      return;
+    }
+    list.innerHTML = '';
+    notes.slice(0, 20).forEach(function(n) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-radius:8px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-size:12px;color:var(--text)';
+      var date = n.dateAdded ? new Date(n.dateAdded).toLocaleString() : '';
+      div.innerHTML = (date ? '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">' + date + '</div>' : '') + (n.body || '').replace(/</g, '&lt;');
+      list.appendChild(div);
+    });
+  }).catch(function() {
+    list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">Could not load notes</div>';
+  });
+}
+
+function addQuickTag(contactId, preset) {
+  var tag;
+  if (preset) {
+    tag = preset;
+  } else {
+    var inp = document.getElementById('quickTag-' + contactId);
+    if (!inp) return;
+    tag = inp.value.trim();
+    if (!tag) { toast('Enter a tag name', 'error'); return; }
+  }
+  toast('Adding tag "' + tag + '"...', 'info');
+  fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: [tag] })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function() {
+    // Update local lead data
+    var lead = ALL_LEADS.find(function(l) { return l.id === contactId; });
+    if (lead) {
+      if (!lead.tags) lead.tags = [];
+      if (lead.tags.indexOf(tag) === -1) lead.tags.push(tag);
+      // Update tag display in the detail panel
+      var tagContainer = document.getElementById('detailTags-' + contactId);
+      if (tagContainer) {
+        tagContainer.innerHTML = lead.tags.map(function(t) {
+          return '<span style="padding:3px 10px;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:11px;font-weight:600">' + t.replace(/</g, '&lt;') + '</span>';
+        }).join(' ');
+      }
+    }
+    // Clear input if it was a manual entry
+    var inp = document.getElementById('quickTag-' + contactId);
+    if (inp && !preset) inp.value = '';
+    toast('Tag "' + tag + '" added!', 'success');
+  }).catch(function(e) {
+    toast('Failed to add tag: ' + e.message, 'error');
+  });
 }
 
 // -------------------------------------------------------
@@ -13142,6 +13271,15 @@ var index_default = {
       }
     }
     const notesMatch = path.match(/^\/contacts\/([^\/]+)\/notes$/);
+    if (method === "GET" && notesMatch) {
+      const contactId = notesMatch[1];
+      try {
+        const data = await ghlSafe(env, "GET", `/contacts/${contactId}/notes`);
+        return json({ ok: true, notes: data.notes || data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
     if (method === "POST" && notesMatch) {
       const contactId = notesMatch[1];
       try {
