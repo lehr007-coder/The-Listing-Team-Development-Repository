@@ -3012,6 +3012,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
   <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
   <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
+  <button class="filter-tab" id="viewTabBuyer" onclick="switchContactsView('buyer')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128269; Buyer Intel</button>
   <button class="filter-tab" id="viewTabSeller" onclick="switchContactsView('seller')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127968; Seller Intel</button>
 </div>
 
@@ -3177,6 +3178,13 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
+<!-- Buyer Intelligence View -->
+<div id="buyerViewPanel" style="display:none">
+  <div id="buyerTabContent" style="padding:4px 0">
+    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading buyer intelligence...</div>
+  </div>
+</div>
+
 <!-- Seller Intelligence View -->
 <div id="sellerViewPanel" style="display:none">
   <div id="sellerTabContent" style="padding:4px 0">
@@ -3263,18 +3271,22 @@ function switchContactsView(v) {
   var cp = document.getElementById('contactsViewPanel');
   var sp = document.getElementById('sourceViewPanel');
   var gp = document.getElementById('geoViewPanel');
+  var bp = document.getElementById('buyerViewPanel');
   var slp = document.getElementById('sellerViewPanel');
   var tb = document.getElementById('viewTabContacts');
   var ts = document.getElementById('viewTabSource');
   var tg = document.getElementById('viewTabGeo');
+  var tby = document.getElementById('viewTabBuyer');
   var tsl = document.getElementById('viewTabSeller');
   if (cp) cp.style.display = 'none';
   if (sp) sp.style.display = 'none';
   if (gp) gp.style.display = 'none';
+  if (bp) bp.style.display = 'none';
   if (slp) slp.style.display = 'none';
   if (tb) tb.classList.remove('active');
   if (ts) ts.classList.remove('active');
   if (tg) tg.classList.remove('active');
+  if (tby) tby.classList.remove('active');
   if (tsl) tsl.classList.remove('active');
   if (v === 'source') {
     if (sp) sp.style.display = 'block'; if (ts) ts.classList.add('active');
@@ -3282,6 +3294,9 @@ function switchContactsView(v) {
   } else if (v === 'geo') {
     if (gp) gp.style.display = 'block'; if (tg) tg.classList.add('active');
     renderGeoView();
+  } else if (v === 'buyer') {
+    if (bp) bp.style.display = 'block'; if (tby) tby.classList.add('active');
+    renderBuyerTab();
   } else if (v === 'seller') {
     if (slp) slp.style.display = 'block'; if (tsl) tsl.classList.add('active');
     renderSellerTab();
@@ -3495,6 +3510,402 @@ function renderGeoTbl() {
       '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
     '</tr>';
   }).join('');
+}
+
+// -------------------------------------------------------
+// BUYER INTELLIGENCE SYSTEM
+// -------------------------------------------------------
+var BUYER_SORT = { key: 'readiness', dir: -1 };
+
+function calcBuyerReadiness(c, ext, m) {
+  if (!ext) ext = getExtendedData(c);
+  if (!m) m = getMatrix(c);
+  var score = 0;
+  var factors = [];
+
+  // Search activity (0-25)
+  var actPts = 0;
+  actPts += Math.min(m.views * 0.5, 8);
+  actPts += Math.min(m.saves * 2, 8);
+  actPts += Math.min(m.searches * 1, 5);
+  actPts += Math.min(m.showings * 5, 15);
+  actPts = Math.min(Math.round(actPts), 25);
+  if (actPts > 0) {
+    score += actPts;
+    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: 25 });
+  }
+
+  // Price range defined (0-15)
+  var pricePts = 0;
+  if (ext.minPrice > 0 || ext.maxPrice > 0) { pricePts = 10; }
+  if (ext.minPrice > 0 && ext.maxPrice > 0) { pricePts = 15; }
+  if (pricePts > 0) {
+    score += pricePts;
+    var priceLabel = '';
+    if (ext.minPrice && ext.maxPrice) priceLabel = fmtPrice(ext.minPrice) + '-' + fmtPrice(ext.maxPrice);
+    else if (ext.maxPrice) priceLabel = 'up to ' + fmtPrice(ext.maxPrice);
+    else priceLabel = fmtPrice(ext.minPrice) + '+';
+    factors.push({ name: priceLabel, pts: pricePts, max: 15 });
+  }
+
+  // Recency (0-20)
+  var recPts = 0;
+  if (c.dateUpdated) {
+    var days = (Date.now() - new Date(c.dateUpdated).getTime()) / 86400000;
+    if (days < 1) recPts = 20;
+    else if (days < 3) recPts = 16;
+    else if (days < 7) recPts = 12;
+    else if (days < 14) recPts = 6;
+    else if (days < 30) recPts = 3;
+    if (recPts > 0) factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: recPts, max: 20 });
+  }
+  score += recPts;
+
+  // Property preferences defined (0-10)
+  var prefPts = 0;
+  if (ext.beds) prefPts += 3;
+  if (ext.baths) prefPts += 3;
+  if (ext.propType) prefPts += 4;
+  prefPts = Math.min(prefPts, 10);
+  if (prefPts > 0) {
+    score += prefPts;
+    var prefLabel = '';
+    if (ext.beds || ext.baths) prefLabel = (ext.beds || '?') + 'bd/' + (ext.baths || '?') + 'ba';
+    else prefLabel = ext.propType;
+    factors.push({ name: prefLabel, pts: prefPts, max: 10 });
+  }
+
+  // Showing requests (0-15)
+  if (m.showings > 0) {
+    var shPts = Math.min(m.showings * 5, 15);
+    score += shPts;
+    factors.push({ name: m.showings + ' showings', pts: shPts, max: 15 });
+  }
+
+  // Save-to-view ratio (0-10) — high ratio = serious buyer
+  if (m.views > 5) {
+    var ratio = m.saves / m.views;
+    var rPts = Math.min(Math.round(ratio * 20), 10);
+    if (rPts > 0) {
+      score += rPts;
+      factors.push({ name: Math.round(ratio * 100) + '% save rate', pts: rPts, max: 10 });
+    }
+  }
+
+  // Tag signals (0-5)
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
+  var tagPts = 0;
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) tagPts += 3;
+  if (tags.some(function(t) { return t.indexOf('buyer') !== -1 || t.indexOf('pre-approved') !== -1 || t.indexOf('preapproved') !== -1; })) tagPts += 2;
+  tagPts = Math.min(tagPts, 5);
+  if (tagPts > 0) {
+    score += tagPts;
+    factors.push({ name: 'Tag signals', pts: tagPts, max: 5 });
+  }
+
+  return { score: Math.min(score, 100), factors: factors };
+}
+
+function getBuyerLeads() {
+  var leads = ALL_LEADS || [];
+  var buyers = [];
+  leads.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    var ext = getExtendedData(raw);
+    var m = l.matrix || getMatrix(raw);
+    var tags = (l.tags || []).map(function(t) { return String(t).toLowerCase(); });
+
+    // Identify as buyer: has search activity, buyer tags, price prefs, OR is not a seller
+    var isSeller = tags.some(function(t) { return t.indexOf('seller') !== -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1);
+    var isBuyer = m.views > 0 || m.saves > 0 || m.searches > 0 || m.showings > 0 ||
+      ext.minPrice > 0 || ext.maxPrice > 0 ||
+      tags.some(function(t) { return t.indexOf('buyer') !== -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('buyer') !== -1);
+
+    // If explicitly a seller and not explicitly a buyer, skip
+    if (isSeller && !isBuyer) return;
+    // Must have at least some buyer signal
+    if (!isBuyer) return;
+
+    var rd = calcBuyerReadiness(raw, ext, m);
+    buyers.push({
+      id: l.id,
+      name: l.name || 'Unknown',
+      email: l.email || '',
+      phone: l.phone || '',
+      source: l.source || 'Unknown',
+      score: l.score || 0,
+      tags: l.tags || [],
+      dateAdded: l.dateAdded || '',
+      dateUpdated: l.dateUpdated || '',
+      views: m.views || 0,
+      saves: m.saves || 0,
+      searches: m.searches || 0,
+      showings: m.showings || 0,
+      infoReqs: m.infoReqs || 0,
+      minPrice: ext.minPrice,
+      maxPrice: ext.maxPrice,
+      beds: ext.beds,
+      baths: ext.baths,
+      city: l.city || ext.city || '',
+      propType: ext.propType || '',
+      readiness: rd.score,
+      rdFactors: rd.factors,
+      saveRate: m.views > 0 ? Math.round(m.saves / m.views * 100) : 0
+    });
+  });
+  return buyers;
+}
+
+function renderBuyerTab() {
+  try {
+  var buyers = getBuyerLeads();
+  var container = _el('buyerTabContent');
+  if (!container) return;
+
+  if (!buyers.length) {
+    var totalLeads = (ALL_LEADS || []).length;
+    container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)">' +
+      '<div style="font-size:48px;margin-bottom:16px">&#128269;</div>' +
+      '<h3 style="margin:0 0 8px">No Buyer Leads Found</h3>' +
+      '<p style="margin:0;font-size:13px">' + totalLeads + ' leads loaded but none have search activity (views, saves, searches, showings).</p>' +
+      '<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">Buyer leads need at least one Ylopo activity event to appear here.</p></div>';
+    return;
+  }
+
+  function fmtK(n) {
+    if (!n) return '\\u2014';
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n;
+  }
+
+  // ---- KPIs ----
+  var totalViews = 0, totalSaves = 0, totalShowings = 0, withPrice = 0, highReady = 0;
+  buyers.forEach(function(b) {
+    totalViews += b.views;
+    totalSaves += b.saves;
+    totalShowings += b.showings;
+    if (b.minPrice || b.maxPrice) withPrice++;
+    if (b.readiness >= 60) highReady++;
+  });
+  var avgReadiness = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.readiness; }, 0) / buyers.length) : 0;
+  var avgSaveRate = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.saveRate; }, 0) / buyers.length) : 0;
+
+  var html = '';
+
+  // KPI cards
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">';
+  var kpis = [
+    { val: buyers.length, label: 'Active Buyers', color: 'var(--blue)' },
+    { val: totalViews.toLocaleString(), label: 'Total Views', color: 'var(--accent)' },
+    { val: totalSaves, label: 'Total Saves', color: 'var(--green)' },
+    { val: totalShowings, label: 'Showings', color: 'var(--accent2)' },
+    { val: avgReadiness, label: 'Avg Readiness', color: 'var(--yellow)' },
+    { val: highReady, label: 'Hot Buyers', color: 'var(--red)' },
+    { val: avgSaveRate + '%', label: 'Avg Save Rate', color: 'var(--brand-accent)' }
+  ];
+  kpis.forEach(function(k) {
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">' + k.label + '</div></div>';
+  });
+  html += '</div>';
+
+  // ---- Charts row ----
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Readiness distribution
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Readiness Distribution</h4>';
+  var rdBuckets = [
+    { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
+    { label: '60-79 &#128992;', min: 60, max: 79, color: '#f59e0b' },
+    { label: '40-59 &#128993;', min: 40, max: 59, color: '#eab308' },
+    { label: '20-39 &#128309;', min: 20, max: 39, color: '#3b82f6' },
+    { label: '0-19 &#9898;', min: 0, max: 19, color: '#6b7280' }
+  ];
+  var maxRdBucket = 1;
+  rdBuckets.forEach(function(b) {
+    b.count = buyers.filter(function(s) { return s.readiness >= b.min && s.readiness <= b.max; }).length;
+    if (b.count > maxRdBucket) maxRdBucket = b.count;
+  });
+  rdBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxRdBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+
+  // Price range distribution
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Price Range Interest</h4>';
+  var priceBuckets = [
+    { label: '$1M+', min: 1000000, max: Infinity, color: '#a855f7' },
+    { label: '$500K-1M', min: 500000, max: 999999, color: '#8b5cf6' },
+    { label: '$300-500K', min: 300000, max: 499999, color: '#3b82f6' },
+    { label: '$200-300K', min: 200000, max: 299999, color: '#06b6d4' },
+    { label: '$100-200K', min: 100000, max: 199999, color: '#10b981' },
+    { label: '<$100K', min: 0, max: 99999, color: '#6b7280' },
+    { label: 'Unknown', min: -1, max: -1, color: '#374151' }
+  ];
+  var maxPrBucket = 1;
+  priceBuckets.forEach(function(b) {
+    if (b.min === -1) {
+      b.count = buyers.filter(function(s) { return !s.maxPrice && !s.minPrice; }).length;
+    } else {
+      b.count = buyers.filter(function(s) {
+        var p = s.maxPrice || s.minPrice || 0;
+        return p >= b.min && p <= b.max;
+      }).length;
+    }
+    if (b.count > maxPrBucket) maxPrBucket = b.count;
+  });
+  priceBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxPrBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Hottest Buyers Pipeline ----
+  var hotBuyers = buyers.filter(function(b) { return b.readiness >= 40; }).sort(function(a, b) { return b.readiness - a.readiness; }).slice(0, 12);
+  if (hotBuyers.length) {
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Hottest Buyers <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(highest readiness)</span></h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    hotBuyers.forEach(function(b) {
+      var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : '#eab308';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<strong style="font-size:14px">' + esc(b.name) + '</strong>';
+      html += '<span style="background:' + rdColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + b.readiness + '</span></div>';
+      html += '<div style="display:flex;gap:10px;font-size:12px;color:var(--text-secondary);margin-bottom:6px">';
+      html += '<span>&#128065; ' + b.views + ' views</span>';
+      html += '<span>&#10084;&#65039; ' + b.saves + ' saves</span>';
+      if (b.showings) html += '<span>&#127968; ' + b.showings + ' showings</span>';
+      html += '</div>';
+      if (b.minPrice || b.maxPrice) {
+        html += '<div style="font-size:12px;margin-bottom:4px">&#128176; ';
+        if (b.minPrice && b.maxPrice) html += fmtK(b.minPrice) + ' - ' + fmtK(b.maxPrice);
+        else if (b.maxPrice) html += 'Up to ' + fmtK(b.maxPrice);
+        else html += fmtK(b.minPrice) + '+';
+        if (b.beds || b.baths) html += ' &middot; ' + (b.beds || '?') + 'bd/' + (b.baths || '?') + 'ba';
+        html += '</div>';
+      }
+      if (b.rdFactors.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">';
+        b.rdFactors.forEach(function(f) {
+          var opacity = Math.max(0.3, f.pts / f.max);
+          html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,' + opacity + ');color:#fff">' + f.name + ' +' + f.pts + '</span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ---- Full Buyer Table ----
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h4 style="margin:0;font-size:14px">&#128209; All Buyer Leads (' + buyers.length + ')</h4>';
+  html += '<button onclick="exportBuyerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
+  html += '</div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  var cols = [
+    { key: 'name', label: 'Name' },
+    { key: 'views', label: 'Views' },
+    { key: 'saves', label: 'Saves' },
+    { key: 'searches', label: 'Searches' },
+    { key: 'showings', label: 'Showings' },
+    { key: 'saveRate', label: 'Save Rate' },
+    { key: 'maxPrice', label: 'Max Price' },
+    { key: 'readiness', label: 'Readiness' },
+    { key: 'score', label: 'Lead Score' }
+  ];
+  cols.forEach(function(col) {
+    var arrow = BUYER_SORT.key === col.key ? (BUYER_SORT.dir === -1 ? ' &#9660;' : ' &#9650;') : '';
+    html += '<th onclick="sortBuyerTable(&#39;' + col.key + '&#39;)" style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">' + col.label + arrow + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  var sorted = buyers.slice().sort(function(a, b) {
+    var aVal = a[BUYER_SORT.key] || 0;
+    var bVal = b[BUYER_SORT.key] || 0;
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (aVal < bVal) return BUYER_SORT.dir;
+    if (aVal > bVal) return -BUYER_SORT.dir;
+    return 0;
+  });
+
+  sorted.forEach(function(b) {
+    var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : b.readiness >= 40 ? '#eab308' : '#6b7280';
+    var srColor = b.saveRate >= 30 ? 'var(--green)' : b.saveRate >= 15 ? 'var(--yellow)' : 'var(--text-secondary)';
+    html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(b.name) + '</td>';
+    html += '<td style="padding:10px 12px">' + b.views + '</td>';
+    html += '<td style="padding:10px 12px;color:var(--green)">' + b.saves + '</td>';
+    html += '<td style="padding:10px 12px">' + b.searches + '</td>';
+    html += '<td style="padding:10px 12px;color:var(--accent2)">' + b.showings + '</td>';
+    html += '<td style="padding:10px 12px;color:' + srColor + ';font-weight:600">' + b.saveRate + '%</td>';
+    html += '<td style="padding:10px 12px">' + (b.maxPrice ? fmtK(b.maxPrice) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + rdColor + ';color:#fff">' + b.readiness + '</span></td>';
+    html += '<td style="padding:10px 12px;font-weight:600">' + b.score + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+  } catch(err) { console.error('renderBuyerTab error:', err); alert('Buyer Intel error: ' + err.message); }
+}
+
+function sortBuyerTable(key) {
+  if (BUYER_SORT.key === key) {
+    BUYER_SORT.dir = BUYER_SORT.dir === -1 ? 1 : -1;
+  } else {
+    BUYER_SORT.key = key;
+    BUYER_SORT.dir = -1;
+  }
+  renderBuyerTab();
+}
+
+function exportBuyerCSV() {
+  var buyers = getBuyerLeads();
+  if (!buyers.length) { toast('No buyer data to export', 'error'); return; }
+  var headers = ['Name','Email','Phone','Views','Saves','Searches','Showings','Save Rate %','Min Price','Max Price','Beds','Baths','City','Readiness','Lead Score','Source','Tags'];
+  var rows = [headers.join(',')];
+  buyers.sort(function(a, b) { return b.readiness - a.readiness; }).forEach(function(b) {
+    rows.push([
+      '"' + (b.name || '').replace(/"/g, '""') + '"',
+      '"' + (b.email || '') + '"',
+      '"' + (b.phone || '') + '"',
+      b.views, b.saves, b.searches, b.showings, b.saveRate,
+      b.minPrice || '', b.maxPrice || '',
+      '"' + (b.beds || '') + '"', '"' + (b.baths || '') + '"',
+      '"' + (b.city || '') + '"',
+      b.readiness, b.score,
+      '"' + (b.source || '') + '"',
+      '"' + (b.tags || []).join('; ') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'buyer-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported ' + buyers.length + ' buyer leads', 'success');
 }
 
 // -------------------------------------------------------
