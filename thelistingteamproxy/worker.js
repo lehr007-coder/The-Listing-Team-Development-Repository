@@ -4378,12 +4378,12 @@ function renderSellerTab() {
   html += '<thead><tr style="background:var(--surface,var(--bg))">';
   var cols = [
     { key: 'name', label: 'Name' },
-    { key: 'propertyAddr', label: 'Property' },
-    { key: 'estValue', label: 'Est. Value' },
-    { key: 'equity', label: 'Equity' },
-    { key: 'equityPct', label: 'Equity %' },
-    { key: 'mortgageBalance', label: 'Mortgage' },
-    { key: 'ownerSince', label: 'Owner Since' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'email', label: 'Email' },
+    { key: 'source', label: 'Source' },
+    { key: 'tagCount', label: 'Tags' },
+    { key: 'dateUpdated', label: 'Last Updated' },
+    { key: 'dateAdded', label: 'Date Added' },
     { key: 'motivation', label: 'Motivation' },
     { key: 'score', label: 'Lead Score' }
   ];
@@ -4407,13 +4407,17 @@ function renderSellerTab() {
   sorted.forEach(function(s) {
     var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280';
     html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
-    html += '<td style="padding:10px 12px;font-weight:600">' + s.name + '</td>';
-    html += '<td style="padding:10px 12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (s.propertyAddr || '<span style="color:var(--text-secondary,var(--muted))">&#8212;</span>') + '</td>';
-    html += '<td style="padding:10px 12px">' + (s.estValue ? fmtK(s.estValue) : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px;color:var(--green)">' + (s.equity ? fmtK(s.equity) : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px">' + (s.equityPct ? s.equityPct + '%' : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px">' + (s.mortgageBalance ? fmtK(s.mortgageBalance) : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px">' + (s.ownerSince || '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
+    html += '<td style="padding:10px 12px;white-space:nowrap">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none" onclick="event.stopPropagation()">' + s.phone + '</a>' : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">' + (s.email ? esc(s.email) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.source) + '</td>';
+    s.tagCount = (s.tags || []).length;
+    var topTags = (s.tags || []).slice(0, 3).map(function(t) { return '<span style="display:inline-block;font-size:10px;padding:1px 5px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(t) + '</span>'; }).join('');
+    html += '<td style="padding:10px 12px">' + (topTags || '&#8212;') + (s.tagCount > 3 ? '<span style="font-size:10px;color:var(--text-secondary)"> +' + (s.tagCount - 3) + '</span>' : '') + '</td>';
+    var updFmt = s.dateUpdated ? new Date(s.dateUpdated).toLocaleDateString() : '&#8212;';
+    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + updFmt + '</td>';
+    var addFmt = s.dateAdded ? new Date(s.dateAdded).toLocaleDateString() : '&#8212;';
+    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + addFmt + '</td>';
     html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + motColor + ';color:#fff">' + s.motivation + '</span></td>';
     html += '<td style="padding:10px 12px;font-weight:600">' + s.score + '</td>';
     html += '</tr>';
@@ -4438,23 +4442,19 @@ function sortSellerTable(key) {
 function exportSellerCSV() {
   var sellers = getSellerLeads();
   if (!sellers.length) { toast('No seller data to export', 'error'); return; }
-  var headers = ['Name','Email','Phone','Property Address','Est. Value','Equity','Equity %','Mortgage Balance','Owner Since','Motivation Score','Lead Score','Source','Tags'];
+  var headers = ['Name','Email','Phone','Source','Motivation Score','Lead Score','Tags','Date Added','Last Updated'];
   var rows = [headers.join(',')];
   sellers.sort(function(a, b) { return b.motivation - a.motivation; }).forEach(function(s) {
     rows.push([
       '"' + (s.name || '').replace(/"/g, '""') + '"',
       '"' + (s.email || '') + '"',
       '"' + (s.phone || '') + '"',
-      '"' + (s.propertyAddr || '').replace(/"/g, '""') + '"',
-      s.estValue || '',
-      s.equity || '',
-      s.equityPct || '',
-      s.mortgageBalance || '',
-      '"' + (s.ownerSince || '') + '"',
+      '"' + (s.source || '').replace(/"/g, '""') + '"',
       s.motivation,
       s.score,
-      '"' + (s.source || '') + '"',
-      '"' + (s.tags || []).join('; ') + '"'
+      '"' + (s.tags || []).join('; ') + '"',
+      '"' + (s.dateAdded || '') + '"',
+      '"' + (s.dateUpdated || '') + '"'
     ].join(','));
   });
   var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
