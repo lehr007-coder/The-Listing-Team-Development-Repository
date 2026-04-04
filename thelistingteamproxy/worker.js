@@ -12555,9 +12555,10 @@ var index_default = {
           } catch (objErr) {
             console.warn("Failed to create ylopo_event record:", objErr.message || objErr);
           }
-          const SB_URL = "https://tglbjiehyfyrefxwgmzz.supabase.co";
-          const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnbGJqaWVoeWZ5cmVmeHdnbXp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTk1MTAyOCwiZXhwIjoyMDg3NTI3MDI4fQ.0SpBb_XAmbyp28hYKMmYg7TGJUk0iPAXG3sVc1vYvEU";
-          try {
+          const SB_URL = env.SUPABASE_URL || "";
+          const SB_KEY = env.SUPABASE_KEY || "";
+          if (!SB_URL || !SB_KEY) { console.warn("Supabase secrets not set, skipping event storage"); }
+          else try {
             const sbHeaders = {
               "apikey": SB_KEY,
               "Authorization": "Bearer " + SB_KEY,
