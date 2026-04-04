@@ -3259,6 +3259,7 @@ function trendArrow(id) {
 }
 
 function switchContactsView(v) {
+  try {
   var cp = document.getElementById('contactsViewPanel');
   var sp = document.getElementById('sourceViewPanel');
   var gp = document.getElementById('geoViewPanel');
@@ -3267,20 +3268,27 @@ function switchContactsView(v) {
   var ts = document.getElementById('viewTabSource');
   var tg = document.getElementById('viewTabGeo');
   var tsl = document.getElementById('viewTabSeller');
-  cp.style.display = 'none'; sp.style.display = 'none'; gp.style.display = 'none'; if (slp) slp.style.display = 'none';
-  tb.classList.remove('active'); ts.classList.remove('active'); tg.classList.remove('active'); if (tsl) tsl.classList.remove('active');
+  if (cp) cp.style.display = 'none';
+  if (sp) sp.style.display = 'none';
+  if (gp) gp.style.display = 'none';
+  if (slp) slp.style.display = 'none';
+  if (tb) tb.classList.remove('active');
+  if (ts) ts.classList.remove('active');
+  if (tg) tg.classList.remove('active');
+  if (tsl) tsl.classList.remove('active');
   if (v === 'source') {
-    sp.style.display = 'block'; ts.classList.add('active');
+    if (sp) sp.style.display = 'block'; if (ts) ts.classList.add('active');
     renderSrcPerf();
   } else if (v === 'geo') {
-    gp.style.display = 'block'; tg.classList.add('active');
+    if (gp) gp.style.display = 'block'; if (tg) tg.classList.add('active');
     renderGeoView();
   } else if (v === 'seller') {
     if (slp) slp.style.display = 'block'; if (tsl) tsl.classList.add('active');
     renderSellerTab();
   } else {
-    cp.style.display = 'block'; tb.classList.add('active');
+    if (cp) cp.style.display = 'block'; if (tb) tb.classList.add('active');
   }
+  } catch(err) { console.error('switchContactsView error:', err); alert('View switch error: ' + err.message); }
 }
 
 function getSrcColor(name) {
@@ -3386,7 +3394,8 @@ var GEO_DATA = [];
 var GEO_SORT = { key: 'count', dir: -1 };
 
 function renderGeoView() {
-  if (!ALL_LEADS.length) { document.getElementById('geoKPIs').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data</div>'; return; }
+  try {
+  if (!ALL_LEADS || !ALL_LEADS.length) { var gkpi = document.getElementById('geoKPIs'); if (gkpi) gkpi.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data</div>'; return; }
   var cityMap = {};
   var stateMap = {};
   var withLoc = 0;
@@ -3436,6 +3445,7 @@ function renderGeoView() {
   }).join('');
 
   renderGeoTbl();
+  } catch(err) { console.error('renderGeoView error:', err); alert('Geography error: ' + err.message); }
 }
 
 function sortGeoTbl(key) {
@@ -3581,6 +3591,7 @@ function getSellerLeads() {
 }
 
 function renderSellerTab() {
+  try {
   var sellers = getSellerLeads();
   var container = _el('sellerTabContent');
   if (!container) return;
@@ -3785,6 +3796,7 @@ function renderSellerTab() {
   html += '</tbody></table></div></div>';
 
   container.innerHTML = html;
+  } catch(err) { console.error('renderSellerTab error:', err); alert('Seller Intel error: ' + err.message); }
 }
 
 function sortSellerTable(key) {
