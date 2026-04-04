@@ -3922,69 +3922,66 @@ function calcSellerMotivation(c, ext) {
   if (!ext) ext = getExtendedData(c);
   var score = 0;
   var factors = [];
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
 
-  // Equity factor (0-25) — high equity = more motivated/able to sell
-  if (ext.equityPct > 0) {
-    var eqPts = Math.min(Math.round(ext.equityPct / 4), 25);
-    score += eqPts;
-    factors.push({ name: 'Equity ' + ext.equityPct + '%', pts: eqPts, max: 25 });
-  } else if (ext.equity > 0 && ext.estValue > 0) {
-    var calcPct = Math.round(ext.equity / ext.estValue * 100);
-    var eqPts2 = Math.min(Math.round(calcPct / 4), 25);
-    score += eqPts2;
-    factors.push({ name: 'Equity ~' + calcPct + '%', pts: eqPts2, max: 25 });
-  }
+  // Listing status signals (0-25) — expired/canceled/withdrawn/fsbo = high motivation
+  var listPts = 0;
+  if (tags.some(function(t) { return t === 'expired'; })) { listPts += 15; factors.push({ name: 'Expired', pts: 15, max: 25 }); }
+  if (tags.some(function(t) { return t === 'canceled' || t === 'cancelled'; })) { listPts += 12; factors.push({ name: 'Canceled', pts: 12, max: 25 }); }
+  if (tags.some(function(t) { return t === 'withdrawn'; })) { listPts += 10; factors.push({ name: 'Withdrawn', pts: 10, max: 25 }); }
+  if (tags.some(function(t) { return t === 'fsbo'; })) { listPts += 18; factors.push({ name: 'FSBO', pts: 18, max: 25 }); }
+  if (tags.some(function(t) { return t === 'under contract'; })) { listPts += 5; factors.push({ name: 'Under Contract', pts: 5, max: 25 }); }
+  listPts = Math.min(listPts, 25);
+  score += listPts;
 
-  // Ownership tenure (0-20) — longer = more equity typically, also life changes
-  if (ext.ownerSince) {
-    var yrs = Math.max(0, (Date.now() - new Date(ext.ownerSince).getTime()) / (365.25 * 86400000));
-    var tenPts = 0;
-    if (yrs >= 10) tenPts = 20;
-    else if (yrs >= 7) tenPts = 16;
-    else if (yrs >= 5) tenPts = 12;
-    else if (yrs >= 3) tenPts = 8;
-    else if (yrs >= 1) tenPts = 4;
-    score += tenPts;
-    factors.push({ name: 'Owner ' + Math.round(yrs) + 'yr', pts: tenPts, max: 20 });
-  }
+  // Equity signals (0-20) — high equity / free & clear = able to sell
+  var eqPts = 0;
+  if (tags.some(function(t) { return t === 'free and clear'; })) { eqPts = 20; factors.push({ name: 'Free & Clear', pts: 20, max: 20 }); }
+  else if (tags.some(function(t) { return t === 'high equity'; })) { eqPts = 15; factors.push({ name: 'High Equity', pts: 15, max: 20 }); }
+  else if (tags.some(function(t) { return t === 'low equity'; })) { eqPts = 3; factors.push({ name: 'Low Equity', pts: 3, max: 20 }); }
+  if (ext.equityPct > 0 && eqPts === 0) { eqPts = Math.min(Math.round(ext.equityPct / 5), 20); factors.push({ name: 'Equity ' + ext.equityPct + '%', pts: eqPts, max: 20 }); }
+  score += eqPts;
 
-  // Activity recency (0-20) — recent engagement = actively considering
-  if (c.dateUpdated) {
-    var days = (Date.now() - new Date(c.dateUpdated).getTime()) / 86400000;
+  // Owner situation (0-15) — absentee/out of state/empty nester = motivated
+  var sitPts = 0;
+  if (tags.some(function(t) { return t === 'absentee'; })) { sitPts += 8; factors.push({ name: 'Absentee', pts: 8, max: 15 }); }
+  if (tags.some(function(t) { return t === 'out of state owners'; })) { sitPts += 10; factors.push({ name: 'Out of State', pts: 10, max: 15 }); }
+  if (tags.some(function(t) { return t === 'empty nester'; })) { sitPts += 7; factors.push({ name: 'Empty Nester', pts: 7, max: 15 }); }
+  if (tags.some(function(t) { return t === 'mover upper'; })) { sitPts += 6; factors.push({ name: 'Mover Upper', pts: 6, max: 15 }); }
+  sitPts = Math.min(sitPts, 15);
+  score += sitPts;
+
+  // Activity recency (0-20)
+  var recDate = c.dateUpdated || c.dateAdded;
+  if (recDate) {
+    var days = (Date.now() - new Date(recDate).getTime()) / 86400000;
     var actPts = 0;
     if (days < 1) actPts = 20;
     else if (days < 3) actPts = 16;
     else if (days < 7) actPts = 12;
     else if (days < 14) actPts = 6;
     else if (days < 30) actPts = 3;
-    score += actPts;
-    factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: actPts, max: 20 });
+    if (actPts > 0) { score += actPts; factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: actPts, max: 20 }); }
   }
 
-  // Tag signals (0-20) — seller-specific tags
-  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
-  var tagPts = 0;
-  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) { tagPts += 10; }
-  if (tags.some(function(t) { return t.indexOf('seller') !== -1; })) { tagPts += 5; }
-  if (tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1; })) { tagPts += 8; }
-  if (tags.some(function(t) { return t.indexOf('cma') !== -1 || t.indexOf('valuation') !== -1; })) { tagPts += 5; }
-  tagPts = Math.min(tagPts, 20);
-  if (tagPts > 0) {
-    score += tagPts;
-    factors.push({ name: 'Tag signals', pts: tagPts, max: 20 });
-  }
+  // Pipeline & intent signals (0-15)
+  var intPts = 0;
+  if (tags.some(function(t) { return t === 'seller pipeline'; })) { intPts += 5; }
+  if (tags.some(function(t) { return t === 'seller lead'; })) { intPts += 3; }
+  if (tags.some(function(t) { return t === 'seller'; })) { intPts += 3; }
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t === 'vip' || t.indexOf('priority') !== -1; })) { intPts += 8; }
+  if (tags.some(function(t) { return t === 'pipeline_active'; })) { intPts += 5; }
+  if (tags.some(function(t) { return t === 'engaged' || t === 'contacted'; })) { intPts += 4; }
+  intPts = Math.min(intPts, 15);
+  if (intPts > 0) { score += intPts; factors.push({ name: 'Pipeline signals', pts: intPts, max: 15 }); }
 
-  // Property value known (0-15) — having data is itself a signal
-  var dataPts = 0;
-  if (ext.estValue > 0) dataPts += 5;
-  if (ext.propertyAddr) dataPts += 3;
-  if (ext.mortgageBalance > 0) dataPts += 4;
-  if (ext.equity > 0 || ext.equityPct > 0) dataPts += 3;
-  dataPts = Math.min(dataPts, 15);
-  if (dataPts > 0) {
-    score += dataPts;
-    factors.push({ name: 'Data richness', pts: dataPts, max: 15 });
-  }
+  // Contact completeness (0-5)
+  var compPts = 0;
+  if (c.email) compPts += 2;
+  if (c.phone) compPts += 2;
+  if (c.address1 || ext.propertyAddr) compPts += 1;
+  compPts = Math.min(compPts, 5);
+  if (compPts > 0) { score += compPts; factors.push({ name: (c.email ? 'email' : '') + (c.email && c.phone ? '+' : '') + (c.phone ? 'phone' : ''), pts: compPts, max: 5 }); }
 
   return { score: Math.min(score, 100), factors: factors };
 }
@@ -3998,13 +3995,16 @@ function getSellerLeads() {
     var ext = getExtendedData(raw);
     var tags = (Array.isArray(raw.tags) ? raw.tags : []).map(function(t) { return String(t).toLowerCase(); });
     var src = (l.source || '').toLowerCase();
-    var isSeller = tags.some(function(t) { return t.indexOf('seller') !== -1; }) ||
-      ext.estValue > 0 || ext.equity > 0 ||
-      (ext.propertyAddr && ext.propertyAddr !== (l.email || '')) ||
-      tags.some(function(t) { return t.indexOf('fsbo') !== -1 || t.indexOf('expired') !== -1 || t.indexOf('withdrawn') !== -1 || t.indexOf('listing') !== -1 || t.indexOf('cma') !== -1 || t.indexOf('home val') !== -1; }) ||
-      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1) ||
-      src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 || src.indexOf('plus leads') !== -1 ||
-      tags.some(function(t) { return t.indexOf('seller pipeline') !== -1 || t.indexOf('home owner') !== -1 || t.indexOf('homeowner') !== -1; });
+
+    // Match your actual tag data
+    var isSeller = tags.some(function(t) { return t === 'seller' || t === 'seller lead' || t === 'seller pipeline'; }) ||
+      tags.some(function(t) { return t === 'expired' || t === 'canceled' || t === 'cancelled' || t === 'withdrawn' || t === 'fsbo'; }) ||
+      tags.some(function(t) { return t === 'high equity' || t === 'low equity' || t === 'free and clear'; }) ||
+      tags.some(function(t) { return t === 'absentee' || t === 'out of state owners' || t === 'empty nester'; }) ||
+      tags.some(function(t) { return t === 'agent owned' || t === 'mover upper' || t === 'missing_owner'; }) ||
+      tags.some(function(t) { return t.indexOf('y_import_seller') !== -1; }) ||
+      src.indexOf('plus leads') !== -1 || src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 ||
+      ext.estValue > 0 || ext.equity > 0;
     if (!isSeller) return;
 
     var mot = calcSellerMotivation(raw, ext);
@@ -4066,22 +4066,24 @@ function renderSellerTab() {
     return;
   }
 
-  // ---- KPIs ----
-  var totalPortfolio = 0, totalEquity = 0, totalTenure = 0, tenureCount = 0;
-  var highMotivation = 0, withProperty = 0;
+  // ---- KPIs & tag counts ----
+  var highMotivation = 0;
+  var tagCounts = { expired: 0, canceled: 0, withdrawn: 0, fsbo: 0, highEquity: 0, lowEquity: 0, freeAndClear: 0, absentee: 0, outOfState: 0, emptyNester: 0, agentOwned: 0 };
   sellers.forEach(function(s) {
-    totalPortfolio += s.estValue;
-    totalEquity += s.equity;
-    if (s.motivation >= 60) highMotivation++;
-    if (s.propertyAddr) withProperty++;
-    if (s.ownerSince) {
-      var yrs = (Date.now() - new Date(s.ownerSince).getTime()) / (365.25 * 86400000);
-      totalTenure += yrs;
-      tenureCount++;
-    }
+    if (s.motivation >= 50) highMotivation++;
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    if (t.indexOf('expired') !== -1) tagCounts.expired++;
+    if (t.indexOf('canceled') !== -1 || t.indexOf('cancelled') !== -1) tagCounts.canceled++;
+    if (t.indexOf('withdrawn') !== -1) tagCounts.withdrawn++;
+    if (t.indexOf('fsbo') !== -1) tagCounts.fsbo++;
+    if (t.indexOf('high equity') !== -1) tagCounts.highEquity++;
+    if (t.indexOf('low equity') !== -1) tagCounts.lowEquity++;
+    if (t.indexOf('free and clear') !== -1) tagCounts.freeAndClear++;
+    if (t.indexOf('absentee') !== -1) tagCounts.absentee++;
+    if (t.indexOf('out of state owners') !== -1) tagCounts.outOfState++;
+    if (t.indexOf('empty nester') !== -1) tagCounts.emptyNester++;
+    if (t.indexOf('agent owned') !== -1) tagCounts.agentOwned++;
   });
-  var avgEquity = sellers.length ? Math.round(totalEquity / sellers.length) : 0;
-  var avgTenure = tenureCount ? Math.round(totalTenure / tenureCount * 10) / 10 : 0;
   var avgMotivation = sellers.length ? Math.round(sellers.reduce(function(a, s) { return a + s.motivation; }, 0) / sellers.length) : 0;
 
   function fmtK(n) {
@@ -4096,9 +4098,10 @@ function renderSellerTab() {
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">';
   var kpis = [
     { val: sellers.length, label: 'Seller Leads', color: 'var(--green)' },
-    { val: fmtK(totalPortfolio), label: 'Portfolio Value', color: 'var(--blue)' },
-    { val: fmtK(avgEquity), label: 'Avg Equity', color: 'var(--brand-accent)' },
-    { val: avgTenure + 'yr', label: 'Avg Tenure', color: 'var(--orange)' },
+    { val: tagCounts.expired, label: 'Expired', color: 'var(--red)' },
+    { val: tagCounts.canceled, label: 'Canceled', color: 'var(--accent,#f97316)' },
+    { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--blue)' },
+    { val: tagCounts.freeAndClear, label: 'Free & Clear', color: 'var(--brand-accent)' },
     { val: avgMotivation, label: 'Avg Motivation', color: 'var(--yellow)' },
     { val: highMotivation, label: 'High Motivation', color: 'var(--red)' }
   ];
@@ -4137,39 +4140,36 @@ function renderSellerTab() {
   });
   html += '</div>';
 
-  // Equity distribution
+  // Seller categories breakdown
   html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
-  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Equity Breakdown</h4>';
-  var eqBuckets = [
-    { label: '$500K+', min: 500000, max: Infinity, color: '#22c55e' },
-    { label: '$250-500K', min: 250000, max: 499999, color: '#10b981' },
-    { label: '$100-250K', min: 100000, max: 249999, color: '#3b82f6' },
-    { label: '$50-100K', min: 50000, max: 99999, color: '#f59e0b' },
-    { label: '<$50K', min: 0, max: 49999, color: '#6b7280' },
-    { label: 'Unknown', min: -1, max: -1, color: '#374151' }
-  ];
-  var maxEqBucket = 1;
-  eqBuckets.forEach(function(b) {
-    if (b.min === -1) {
-      b.count = sellers.filter(function(s) { return !s.equity; }).length;
-    } else {
-      b.count = sellers.filter(function(s) { return s.equity >= b.min && s.equity <= b.max; }).length;
-    }
-    if (b.count > maxEqBucket) maxEqBucket = b.count;
-  });
-  eqBuckets.forEach(function(b) {
-    var pct = Math.round(b.count / maxEqBucket * 100);
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127968; Seller Categories</h4>';
+  var catBars = [
+    { label: 'Expired', count: tagCounts.expired, color: '#ef4444' },
+    { label: 'Canceled', count: tagCounts.canceled, color: '#f59e0b' },
+    { label: 'High Equity', count: tagCounts.highEquity, color: '#22c55e' },
+    { label: 'Absentee', count: tagCounts.absentee, color: '#3b82f6' },
+    { label: 'Low Equity', count: tagCounts.lowEquity, color: '#6b7280' },
+    { label: 'Withdrawn', count: tagCounts.withdrawn, color: '#8b5cf6' },
+    { label: 'Out of State', count: tagCounts.outOfState, color: '#06b6d4' },
+    { label: 'Agent Owned', count: tagCounts.agentOwned, color: '#ec4899' },
+    { label: 'Free & Clear', count: tagCounts.freeAndClear, color: '#10b981' },
+    { label: 'Empty Nester', count: tagCounts.emptyNester, color: '#a855f7' },
+    { label: 'FSBO', count: tagCounts.fsbo, color: '#eab308' }
+  ].filter(function(b) { return b.count > 0; });
+  var maxCatBar = Math.max.apply(null, catBars.map(function(b) { return b.count; }).concat([1]));
+  catBars.forEach(function(b) {
+    var pct = Math.round(b.count / maxCatBar * 100);
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
-      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap">' + b.label + '</div>' +
       '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
       '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
-      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+      '<div style="width:40px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
   });
   html += '</div>';
   html += '</div>';
 
   // ---- Priority Pipeline ----
-  var hotSellers = sellers.filter(function(s) { return s.motivation >= 60; }).sort(function(a, b) { return b.motivation - a.motivation; }).slice(0, 10);
+  var hotSellers = sellers.filter(function(s) { return s.motivation >= 40; }).sort(function(a, b) { return b.motivation - a.motivation; }).slice(0, 12);
   if (hotSellers.length) {
     html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
     html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Priority Seller Pipeline <span style="font-weight:400;color:var(--text-secondary,var(--muted));font-size:12px">(top motivation)</span></h4>';
