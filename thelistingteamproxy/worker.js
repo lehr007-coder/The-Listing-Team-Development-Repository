@@ -2955,6 +2955,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
     <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
+    <button class="btn btn-sm" onclick="findDuplicates()" style="position:relative">&#128279; Duplicates <span id="dupBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
     <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
@@ -5091,6 +5092,116 @@ function setupAutoRefresh(s) {
   if (s && s.autoRefresh && s.refreshInterval > 0) {
     _autoRefreshTimer = setInterval(function() { loadData(); }, s.refreshInterval * 60000);
   }
+}
+
+// -------------------------------------------------------
+// DUPLICATE DETECTION
+// -------------------------------------------------------
+function findDuplicates() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  toast('Scanning for duplicates...', 'info');
+  var emailMap = {};
+  var phoneMap = {};
+  var nameMap = {};
+  var groups = {};
+  var groupId = 0;
+
+  ALL_LEADS.forEach(function(l) {
+    var matched = null;
+    // Match by email
+    if (l.email) {
+      var em = l.email.toLowerCase().trim();
+      if (emailMap[em]) { matched = emailMap[em]; }
+      else { emailMap[em] = l.id; }
+    }
+    // Match by phone (strip non-digits)
+    if (!matched && l.phone) {
+      var ph = l.phone.replace(/\D/g, '').slice(-10);
+      if (ph.length >= 7) {
+        if (phoneMap[ph]) { matched = phoneMap[ph]; }
+        else { phoneMap[ph] = l.id; }
+      }
+    }
+    // Match by name (exact, case-insensitive)
+    if (!matched && l.name) {
+      var nm = l.name.toLowerCase().trim();
+      if (nm.length > 3 && nameMap[nm]) { matched = nameMap[nm]; }
+      else if (nm.length > 3) { nameMap[nm] = l.id; }
+    }
+    if (matched) {
+      // Find or create group
+      var gid = null;
+      for (var g in groups) {
+        if (groups[g].ids.indexOf(matched) !== -1 || groups[g].ids.indexOf(l.id) !== -1) {
+          gid = g; break;
+        }
+      }
+      if (!gid) { gid = 'g' + (groupId++); groups[gid] = { ids: [matched] }; }
+      if (groups[gid].ids.indexOf(l.id) === -1) groups[gid].ids.push(l.id);
+    }
+  });
+
+  var groupArr = Object.keys(groups).map(function(k) { return groups[k]; });
+
+  // Update badge
+  var badge = document.getElementById('dupBadge');
+  if (badge) {
+    if (groupArr.length > 0) {
+      badge.textContent = groupArr.length;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  if (groupArr.length === 0) {
+    toast('No duplicates found!', 'success');
+    return;
+  }
+
+  // Build modal
+  var existing = document.getElementById('dupOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'dupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
+    '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+      '<h2 style="margin:0;font-size:18px;color:var(--text)">&#128279; Potential Duplicates (' + groupArr.length + ' groups)</h2>' +
+      '<button onclick="document.getElementById(&#39;dupOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+    '</div>' +
+    '<div style="padding:16px">';
+
+  groupArr.forEach(function(group, gi) {
+    html += '<div style="margin-bottom:16px;border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+    html += '<div style="padding:10px 14px;background:var(--surface,var(--bg));font-size:12px;font-weight:700;color:var(--text-secondary)">Group ' + (gi + 1) + ' (' + group.ids.length + ' contacts)</div>';
+    group.ids.forEach(function(id) {
+      var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+      if (!lead) return;
+      var age = activityAge(lead);
+      html += '<div style="padding:12px 14px;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div>' +
+          '<div style="font-weight:700;color:var(--text)">' + esc(lead.name) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted)">' + esc(lead.email || 'No email') + ' &bull; ' + esc(lead.phone || 'No phone') + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary)">' + esc(lead.source || 'Unknown source') + ' &bull; Score: ' + lead.score + ' &bull; <span style="color:' + age.color + '">' + age.label + '</span></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px">' +
+          '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + id + '" target="_blank" class="btn btn-sm">GHL</a>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:12px">Matched by email, phone (last 10 digits), or exact name. Review in GHL to merge.</div>';
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  toast('Found ' + groupArr.length + ' potential duplicate groups', 'info');
 }
 
 // INIT
