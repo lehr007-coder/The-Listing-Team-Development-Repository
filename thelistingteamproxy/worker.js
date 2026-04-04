@@ -4824,7 +4824,7 @@ function toggleActivityPanel() {
   panel = document.createElement('div');
   panel.id = 'activityPanel';
   panel.style.cssText = 'position:fixed;top:60px;right:20px;width:380px;max-height:500px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.3);z-index:9998;overflow:hidden';
-  panel.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;color:var(--text)">&#128276; Live Activity</h3><button onclick="document.getElementById(\'activityPanel\').style.display=\'none\'" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer">&#10005;</button></div><div id="activityList" style="max-height:440px;overflow-y:auto;padding:8px"></div>';
+  panel.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;color:var(--text)">&#128276; Live Activity</h3><button onclick="document.getElementById(&#39;activityPanel&#39;).style.display=&#39;none&#39;" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer">&#10005;</button></div><div id="activityList" style="max-height:440px;overflow-y:auto;padding:8px"></div>';
   document.body.appendChild(panel);
   ACTIVITY_UNSEEN = 0;
   updateActivityBadge();
@@ -4907,7 +4907,7 @@ function showShortcutsHelp() {
         '<kbd style="display:inline-block;padding:3px 8px;border-radius:4px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-family:monospace;font-size:12px;font-weight:700;color:var(--text)">' + s[0] + '</kbd>' +
         '<span style="font-size:13px;color:var(--text-secondary)">' + s[1] + '</span></div>';
     }).join('') +
-    '<div style="text-align:center;margin-top:16px"><button onclick="document.getElementById(\'shortcutsHelp\').style.display=\'none\'" style="padding:8px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Got it</button></div></div>';
+    '<div style="text-align:center;margin-top:16px"><button onclick="document.getElementById(&#39;shortcutsHelp&#39;).style.display=&#39;none&#39;" style="padding:8px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Got it</button></div></div>';
   document.body.appendChild(overlay);
 }
 
