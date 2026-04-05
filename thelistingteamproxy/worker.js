@@ -2528,6 +2528,28 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
   .stat-value.flash-green, .flash-green { color: #00ff55 !important; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
   @keyframes pulseGreen { 0%,100% { color: #00ff55 !important; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88 !important; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
+
+  /* -- Mobile-Optimized View -- */
+  body.mobile-mode .toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
+  body.mobile-mode .toolbar .btn { font-size: 11px; padding: 5px 8px; }
+  body.mobile-mode .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px; }
+  body.mobile-mode .stat-card { padding: 10px; }
+  body.mobile-mode .stat-value { font-size: 20px; }
+  body.mobile-mode .stat-label { font-size: 10px; }
+  body.mobile-mode .filters-bar { flex-direction: column; padding: 8px 12px; gap: 6px; }
+  body.mobile-mode .filters-bar .filter-tab { font-size: 11px; padding: 5px 10px; }
+  body.mobile-mode .filters-bar > div { width: 100% !important; min-width: 0 !important; }
+  body.mobile-mode .view-toggle { display: none; }
+  body.mobile-mode .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  body.mobile-mode #leadsTable th:nth-child(n+6), body.mobile-mode #leadsTable td:nth-child(n+6) { display: none; }
+  body.mobile-mode .cards-grid { grid-template-columns: 1fr !important; }
+  body.mobile-mode .lead-card { padding: 12px; }
+  body.mobile-mode .accordion { padding: 12px; }
+  body.mobile-mode .acc-links { flex-direction: column; gap: 4px; }
+  body.mobile-mode .bulk-bar { flex-wrap: wrap; gap: 4px; padding: 8px; }
+  body.mobile-mode .bulk-action { font-size: 10px; padding: 4px 8px; }
+  body.mobile-mode .source-pie-wrap, body.mobile-mode .conversion-mini-wrap { flex-direction: column; }
+  body.mobile-mode #smartListsPanel { flex-direction: column; }
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-sub.positive { color: #1E7A9C; }
 
@@ -2962,9 +2984,14 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
     <button class="btn btn-sm" onclick="findDuplicates()" style="position:relative">&#128279; Duplicates <span id="dupBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="findTestContacts()">&#128270; Test Cleanup</button>
+    <button class="btn btn-sm" onclick="showTeamDashboard()">&#128101; Team</button>
+    <button class="btn btn-sm" onclick="showMarketHeatmap()">&#128506; Heatmap</button>
+    <button class="btn btn-sm" onclick="enableNotifications()">&#128276; Notify</button>
+    <button class="btn btn-sm" onclick="toggleMobileView()">&#128241; Mobile</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
     <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
+    <span id="refreshCountdown" style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap"></span>
   </div>
 </div>
 
@@ -3009,6 +3036,18 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <div class="stat-label">Needs Follow-up</div>
     <div class="stat-value" id="statStale" style="color:var(--accent,#f97316)">&mdash;</div>
     <div class="stat-sub">no activity &gt; 7 days</div>
+  </div>
+</div>
+
+<!-- Source Pie Chart + Conversion Mini -->
+<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Lead Sources</div>
+    <div id="sourcePieChart" style="display:flex;align-items:center;gap:16px"></div>
+  </div>
+  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Conversion Funnel</div>
+    <div id="conversionMini" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>
 </div>
 
@@ -3060,7 +3099,9 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
     <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
   </div>
+  <button class="btn btn-sm" onclick="saveSmartList()" style="font-size:11px;padding:5px 10px;white-space:nowrap">&#128190; Save List</button>
 </div>
+<div id="smartListsPanel" style="padding:4px 24px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
 
 <!-- Bulk Actions Bar -->
 <div class="bulk-bar" id="bulkBar">
@@ -3074,6 +3115,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
   <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:700">&#127968; Enrich Selected</button>
+  <button class="bulk-action" onclick="tagFiltered()" style="color:var(--brand-secondary)">&#127991; Tag Filtered</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
 </div>
 
@@ -6619,6 +6661,33 @@ function bulkTag() {
   });
 }
 
+function tagFiltered() {
+  if (!FILTERED.length) { toast('No filtered contacts', 'error'); return; }
+  var tag = prompt('Enter tag to add to ALL ' + FILTERED.length + ' currently filtered contacts:');
+  if (!tag || !tag.trim()) return;
+  tag = tag.trim();
+  if (!confirm('Tag ' + FILTERED.length + ' filtered contacts with "' + tag + '"?')) return;
+  toast('Tagging ' + FILTERED.length + ' contacts...', 'info');
+  var done = 0, failed = 0;
+  var chain = Promise.resolve();
+  FILTERED.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + l.id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function(r) {
+        if (r.ok) { done++; if (l.tags && l.tags.indexOf(tag) === -1) l.tags.push(tag); }
+        else failed++;
+        if ((done + failed) % 20 === 0) toast('Tagged ' + done + '/' + FILTERED.length, 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + ' contacts with "' + tag + '"' + (failed ? ', ' + failed + ' failed' : ''), 'success');
+  });
+}
+
 function bulkWorkflow() {
   var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
   if (!ids.length) { toast('No contacts selected', 'error'); return; }
@@ -6772,6 +6841,61 @@ function updateStats() {
     if (up + down + stable === 0) { trendEl.innerHTML = '&mdash;'; }
     else { trendEl.innerHTML = '<span style="color:var(--green)">&#9650;' + up + '</span> <span style="color:var(--text-muted)">&#9644;' + stable + '</span> <span style="color:var(--red)">&#9660;' + down + '</span>'; }
   }
+  renderSourcePieChart();
+  renderConversionMini();
+}
+
+function renderSourcePieChart() {
+  var el = document.getElementById('sourcePieChart');
+  if (!el || !ALL_LEADS.length) return;
+  var srcMap = {};
+  ALL_LEADS.forEach(function(l) {
+    var s = l.source || 'Unknown';
+    srcMap[s] = (srcMap[s] || 0) + 1;
+  });
+  var sorted = Object.keys(srcMap).sort(function(a, b) { return srcMap[b] - srcMap[a]; });
+  var top5 = sorted.slice(0, 5);
+  var otherCount = sorted.slice(5).reduce(function(sum, k) { return sum + srcMap[k]; }, 0);
+  if (otherCount > 0) top5.push('Other');
+  var colors = ['var(--brand-secondary)', 'var(--brand-accent)', '#22c55e', '#f59e0b', '#8b5cf6', '#6b7280'];
+  var total = ALL_LEADS.length;
+
+  // CSS conic gradient pie
+  var gradParts = [];
+  var pct = 0;
+  var legendHtml = '';
+  top5.forEach(function(s, i) {
+    var count = s === 'Other' ? otherCount : srcMap[s];
+    var p = Math.round(count / total * 100);
+    gradParts.push(colors[i] + ' ' + pct + '% ' + (pct + p) + '%');
+    pct += p;
+    legendHtml += '<div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:' + colors[i] + ';flex-shrink:0"></span><span style="color:var(--text-secondary)">' + esc(s) + '</span><span style="font-weight:700;color:var(--text);margin-left:auto">' + count + '</span></div>';
+  });
+  el.innerHTML = '<div style="width:80px;height:80px;border-radius:50%;background:conic-gradient(' + gradParts.join(',') + ');flex-shrink:0"></div><div style="display:flex;flex-direction:column;gap:3px;flex:1">' + legendHtml + '</div>';
+}
+
+function renderConversionMini() {
+  var el = document.getElementById('conversionMini');
+  if (!el || !ALL_LEADS.length) return;
+  var total = ALL_LEADS.length;
+  var contacted = ALL_LEADS.filter(function(l) { return l.tags && l.tags.some(function(t) { return t.toLowerCase() === 'contacted' || t.toLowerCase() === 'call-connected'; }); }).length;
+  var hot = ALL_LEADS.filter(function(l) { return l.status === 'hot'; }).length;
+  var showing = ALL_LEADS.filter(function(l) { return l.hasShowing || (l.tags && l.tags.some(function(t) { return t.toLowerCase().indexOf('showing') !== -1; })); }).length;
+  var pipeline = ALL_LEADS.filter(function(l) { return l.tags && l.tags.some(function(t) { var tl = t.toLowerCase(); return tl === 'seller pipeline' || tl === 'under contract' || tl === 'listing'; }); }).length;
+
+  var stages = [
+    { label: 'Total Leads', val: total, color: 'var(--brand-secondary)' },
+    { label: 'Contacted', val: contacted, color: 'var(--brand-accent)' },
+    { label: 'Hot', val: hot, color: '#00ff55' },
+    { label: 'Showing/Active', val: showing, color: '#f59e0b' },
+    { label: 'Pipeline', val: pipeline, color: '#22c55e' }
+  ];
+  var html = '';
+  stages.forEach(function(s) {
+    var pct = total ? Math.round(s.val / total * 100) : 0;
+    html += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--text-secondary);min-width:90px">' + s.label + '</span><div style="flex:1;height:14px;background:var(--card-border);border-radius:4px;overflow:hidden"><div style="width:' + Math.max(pct, 2) + '%;height:100%;background:' + s.color + ';border-radius:4px"></div></div><span style="font-size:11px;font-weight:700;color:var(--text);min-width:40px;text-align:right">' + s.val + '</span></div>';
+  });
+  el.innerHTML = html;
 }
 
 // -------------------------------------------------------
@@ -7400,6 +7524,7 @@ function buildAccordion(lead) {
       '<a href="#" onclick="event.preventDefault();showScoreBreakdown(&#39;' + lead.id + '&#39;)" class="acc-link">Score Breakdown</a>' +
       '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
       '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
+      '<a href="#" onclick="event.preventDefault();generatePDFReport(&#39;' + lead.id + '&#39;)" class="acc-link">&#128196; PDF Report</a>' +
       (ext.address ? '<a href="#" onclick="event.preventDefault();enrichContact(&#39;' + lead.id + '&#39;)" class="acc-link">&#127968; Enrich Property</a>' : '') +
     '</div>' +
   '</div>';
@@ -7836,11 +7961,13 @@ function connectSSE() {
         updateActivityBadge();
         if (data.type === 'ylopo.webhook') {
           toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
+          sendNotification('Ylopo Lead Activity', (data.event||'New activity') + ' - ' + (data.email||data.name||'unknown'));
         }
         // GHL webhook events — auto-refresh contacts when changes happen in GHL
         if (data.type && data.type.indexOf('ghl.') === 0) {
           var ghlMsg = (data.ghlEvent || data.type) + ': ' + (data.name || data.email || data.contactId || 'contact');
           toast('GHL sync: ' + ghlMsg, 'info');
+          sendNotification('GHL Update', ghlMsg);
           // Debounce auto-refresh — wait 2s for batch updates then reload
           if (window._ghlRefreshTimer) clearTimeout(window._ghlRefreshTimer);
           window._ghlRefreshTimer = setTimeout(function() {
@@ -8087,10 +8214,22 @@ function closeSettingsPanel() {
 }
 
 var _autoRefreshTimer = null;
+var _countdownTimer = null;
+var _nextRefreshAt = 0;
 function setupAutoRefresh(s) {
   if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
   if (s && s.autoRefresh && s.refreshInterval > 0) {
-    _autoRefreshTimer = setInterval(function() { loadData(); }, s.refreshInterval * 60000);
+    var ms = s.refreshInterval * 60000;
+    _nextRefreshAt = Date.now() + ms;
+    _autoRefreshTimer = setInterval(function() { _nextRefreshAt = Date.now() + ms; loadData(); }, ms);
+    _countdownTimer = setInterval(function() {
+      var el = document.getElementById('refreshCountdown');
+      if (!el) return;
+      var secs = Math.max(0, Math.round((_nextRefreshAt - Date.now()) / 1000));
+      if (secs > 60) el.textContent = Math.ceil(secs / 60) + 'm';
+      else el.textContent = secs + 's';
+    }, 1000);
   }
 }
 
@@ -8198,7 +8337,11 @@ var MSG_TEMPLATES = [
   { name: 'Re-engagement', subject: 'Still looking for your dream home?', body: 'Hi {name},\\n\\nIt\\'s been a little while since we connected. I wanted to check in and see if you\\'re still in the market.\\n\\nThere are some great new listings that might interest you. Would you like me to send some over?\\n\\nHope to hear from you soon!' },
   { name: 'Hot Lead Priority', subject: 'Great news about properties in your area!', body: 'Hi {name},\\n\\nI\\'ve been keeping an eye on the market for you and some exciting properties just came up that match what you\\'re looking for.\\n\\nCan we set up a time this week to go over them?\\n\\nLooking forward to connecting!' },
   { name: 'Seller Outreach', subject: 'Your home value update', body: 'Hi {name},\\n\\nThe market in your area has been moving! I wanted to reach out and let you know your property may be worth more than you think.\\n\\nWould you be interested in a free, no-obligation market analysis?\\n\\nBest regards' },
-  { name: 'New Listing Alert', subject: 'New listing you might love!', body: 'Hi {name},\\n\\nA new property just hit the market that I think could be a great fit for you. Want me to send you the details or schedule a showing?\\n\\nDon\\'t wait — great properties move fast!\\n\\nCheers' }
+  { name: 'New Listing Alert', subject: 'New listing you might love!', body: 'Hi {name},\\n\\nA new property just hit the market that I think could be a great fit for you. Want me to send you the details or schedule a showing?\\n\\nDon\\'t wait — great properties move fast!\\n\\nCheers' },
+  { name: 'Seller CMA Offer', subject: 'Free home value analysis for your property', body: 'Hi {name},\\n\\nI specialize in your neighborhood and wanted to offer you a complimentary Comparative Market Analysis (CMA) for your home.\\n\\nWith recent sales activity in your area, now could be an excellent time to explore your options. Would you like me to prepare a detailed report?\\n\\nNo obligation — just helpful information.\\n\\nBest regards' },
+  { name: 'Seller Equity Update', subject: 'Great news about your home equity!', body: 'Hi {name},\\n\\nI\\'ve been tracking property values in your area and wanted to share some exciting news — homes like yours have been appreciating significantly.\\n\\nYou may have more equity than you realize. Would you like a quick update on what your home could sell for in today\\'s market?\\n\\nHappy to chat anytime!' },
+  { name: 'Seller Listing Appointment', subject: 'Ready to discuss selling your home?', body: 'Hi {name},\\n\\nThank you for your interest in selling! I\\'d love to schedule a time to walk through your property and discuss our marketing strategy.\\n\\nWe offer professional photography, virtual tours, and targeted digital marketing to get top dollar for your home.\\n\\nWhat day works best for a quick meeting?' },
+  { name: 'Seller Just Sold Nearby', subject: 'A home near you just sold!', body: 'Hi {name},\\n\\nA property near yours just sold and I thought you\\'d want to know! The market in your area continues to be strong.\\n\\nCurious what this means for your home\\'s value? I can provide a quick analysis — no strings attached.\\n\\nJust reply to this message and I\\'ll get that over to you!' }
 ];
 
 function openQuickMessage(id) {
@@ -8698,6 +8841,280 @@ function deleteAllTestContacts() {
   });
 }
 
+// -------------------------------------------------------
+// TEAM PERFORMANCE DASHBOARD
+// -------------------------------------------------------
+function showTeamDashboard() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var teamStats = {};
+  GHL_TEAM_NAMES.forEach(function(name) { teamStats[name] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 }; });
+  teamStats['Unassigned'] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 };
+  var weekAgo = Date.now() - 7 * 86400000;
+  ALL_LEADS.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    var assigned = 'Unassigned';
+    if (raw && raw.assignedTo) { assigned = GHL_USER_MAP[raw.assignedTo] || 'Unassigned'; }
+    if (!teamStats[assigned]) teamStats[assigned] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 };
+    var ts = teamStats[assigned];
+    ts.assigned++;
+    ts.totalScore += l.score;
+    if (l.status === 'hot') ts.hot++;
+    else if (l.status === 'warm') ts.warm++;
+    else ts.cold++;
+    if (l.phone) ts.withPhone++;
+    if (l.tags && l.tags.some(function(t) { return t.toLowerCase() === 'contacted'; })) ts.contacted++;
+    if (l.dateAdded && new Date(l.dateAdded).getTime() > weekAgo) ts.recent7d++;
+  });
+
+  var existing = document.getElementById('teamOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'teamOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<h3 style="margin:0;font-size:18px">&#128101; Team Performance</h3>';
+  html += '<button onclick="document.getElementById(&#39;teamOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))"><th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-secondary)">Agent</th><th style="padding:10px 12px;text-align:center">Assigned</th><th style="padding:10px 12px;text-align:center">Hot</th><th style="padding:10px 12px;text-align:center">Warm</th><th style="padding:10px 12px;text-align:center">Avg Score</th><th style="padding:10px 12px;text-align:center">Contacted</th><th style="padding:10px 12px;text-align:center">Contact Rate</th><th style="padding:10px 12px;text-align:center">New 7d</th></tr></thead><tbody>';
+  Object.keys(teamStats).sort(function(a, b) { return teamStats[b].assigned - teamStats[a].assigned; }).forEach(function(name) {
+    var ts = teamStats[name];
+    if (ts.assigned === 0) return;
+    ts.avgScore = ts.assigned ? Math.round(ts.totalScore / ts.assigned) : 0;
+    var contactRate = ts.withPhone ? Math.round(ts.contacted / ts.withPhone * 100) : 0;
+    var crColor = contactRate >= 50 ? '#22c55e' : contactRate >= 25 ? '#f59e0b' : '#ef4444';
+    html += '<tr style="border-bottom:1px solid var(--card-border)">';
+    html += '<td style="padding:10px 12px;font-weight:700">' + esc(name) + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.assigned + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + ts.hot + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + ts.warm + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.avgScore + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center">' + ts.contacted + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:700;font-size:11px;background:' + crColor + '22;color:' + crColor + '">' + contactRate + '%</span></td>';
+    html += '<td style="padding:10px 12px;text-align:center">' + ts.recent7d + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// MARKET HEATMAP
+// -------------------------------------------------------
+function showMarketHeatmap() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var cityMap = {};
+  ALL_LEADS.forEach(function(l) {
+    var city = [l.city, l.state].filter(Boolean).join(', ') || 'Unknown';
+    if (!cityMap[city]) cityMap[city] = { total: 0, hot: 0, warm: 0, cold: 0, sellers: 0, buyers: 0 };
+    cityMap[city].total++;
+    if (l.status === 'hot') cityMap[city].hot++;
+    else if (l.status === 'warm') cityMap[city].warm++;
+    else cityMap[city].cold++;
+    var pt = (l.propType || '').toLowerCase();
+    if (pt === 'seller') cityMap[city].sellers++;
+    else if (pt === 'buyer') cityMap[city].buyers++;
+  });
+  var sorted = Object.keys(cityMap).sort(function(a, b) { return cityMap[b].total - cityMap[a].total; });
+  var max = cityMap[sorted[0]] ? cityMap[sorted[0]].total : 1;
+
+  var existing = document.getElementById('heatmapOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'heatmapOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128506; Market Heatmap</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + sorted.length + ' areas &bull; ' + ALL_LEADS.length + ' leads</p></div>';
+  html += '<button onclick="document.getElementById(&#39;heatmapOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+  sorted.slice(0, 30).forEach(function(city) {
+    var d = cityMap[city];
+    var intensity = Math.round(d.total / max * 100);
+    var heatColor = intensity >= 70 ? '#ef4444' : intensity >= 40 ? '#f59e0b' : intensity >= 20 ? '#3b82f6' : '#6b7280';
+    html += '<div style="background:var(--surface,var(--bg));border-radius:10px;padding:12px;border-left:4px solid ' + heatColor + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:13px">' + esc(city) + '</span><span style="font-size:18px;font-weight:800;color:' + heatColor + '">' + d.total + '</span></div>';
+    html += '<div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text-secondary)">';
+    html += '<span style="color:#00ff55">&#9632; ' + d.hot + ' hot</span>';
+    html += '<span style="color:var(--brand-accent)">&#9632; ' + d.warm + ' warm</span>';
+    if (d.sellers) html += '<span>&#127968; ' + d.sellers + ' sellers</span>';
+    html += '</div>';
+    html += '<div style="margin-top:6px;height:6px;background:var(--card-border);border-radius:3px;overflow:hidden"><div style="width:' + intensity + '%;height:100%;background:' + heatColor + ';border-radius:3px"></div></div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SAVED FILTERS / SMART LISTS
+// -------------------------------------------------------
+var SMART_LISTS_KEY = 'ylopo_smart_lists';
+function getSavedSmartLists() {
+  try { return JSON.parse(localStorage.getItem(SMART_LISTS_KEY)) || []; } catch(e) { return []; }
+}
+function saveSmartList() {
+  var name = prompt('Name this smart list:');
+  if (!name || !name.trim()) return;
+  var searchVal = _el('searchInput') ? _el('searchInput').value : '';
+  var sourceFilter = _el('sourceFilter') ? _el('sourceFilter').value : '';
+  var sortVal = _el('sortSelect') ? _el('sortSelect').value : '';
+  var lists = getSavedSmartLists();
+  lists.push({ name: name.trim(), search: searchVal, source: sourceFilter, sort: sortVal, filter: typeof CURRENT_FILTER !== 'undefined' ? CURRENT_FILTER : 'all', created: new Date().toISOString() });
+  localStorage.setItem(SMART_LISTS_KEY, JSON.stringify(lists));
+  toast('Smart list "' + name.trim() + '" saved', 'success');
+  renderSmartLists();
+}
+function loadSmartList(idx) {
+  var lists = getSavedSmartLists();
+  var l = lists[idx];
+  if (!l) return;
+  if (_el('searchInput')) { _el('searchInput').value = l.search || ''; }
+  if (_el('sourceFilter')) { _el('sourceFilter').value = l.source || ''; }
+  if (_el('sortSelect') && l.sort) { _el('sortSelect').value = l.sort; }
+  if (l.filter && typeof setFilter === 'function') {
+    var tabs = document.querySelectorAll('.filters-bar .filter-tab');
+    tabs.forEach(function(t) { if (t.textContent.toLowerCase().indexOf(l.filter) >= 0 || (t.onclick && t.onclick.toString().indexOf("'" + l.filter + "'") >= 0)) { t.click(); } });
+  }
+  CURRENT_PAGE = 1;
+  applyFilters();
+  toast('Loaded "' + l.name + '"', 'success');
+}
+function deleteSmartList(idx) {
+  var lists = getSavedSmartLists();
+  lists.splice(idx, 1);
+  localStorage.setItem(SMART_LISTS_KEY, JSON.stringify(lists));
+  renderSmartLists();
+  toast('Smart list deleted', 'success');
+}
+function renderSmartLists() {
+  var el = document.getElementById('smartListsPanel');
+  if (!el) return;
+  var lists = getSavedSmartLists();
+  if (!lists.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:8px">No saved lists. Use filters then click "Save List".</div>'; return; }
+  var html = '';
+  lists.forEach(function(l, i) {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<span onclick="loadSmartList(' + i + ')" style="flex:1;cursor:pointer;font-size:12px;font-weight:600;color:var(--text)">' + esc(l.name) + '</span>';
+    html += '<span style="font-size:10px;color:var(--text-secondary)">' + [l.filter, l.search, l.source].filter(Boolean).join(', ') + '</span>';
+    html += '<button onclick="deleteSmartList(' + i + ')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:12px">&#10005;</button>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// -------------------------------------------------------
+// BROWSER PUSH NOTIFICATIONS
+// -------------------------------------------------------
+var _notificationsEnabled = false;
+function enableNotifications() {
+  if (!('Notification' in window)) { toast('Notifications not supported in this browser', 'error'); return; }
+  Notification.requestPermission().then(function(perm) {
+    if (perm === 'granted') {
+      _notificationsEnabled = true;
+      toast('Notifications enabled! You will be alerted when hot leads arrive.', 'success');
+    } else {
+      toast('Notifications denied. Enable in browser settings.', 'error');
+    }
+  });
+}
+function sendNotification(title, body) {
+  if (!_notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try { new Notification(title, { body: body, icon: '/favicon.ico', tag: 'ylopo-' + Date.now() }); } catch(e) {}
+}
+
+// -------------------------------------------------------
+// PDF LEAD REPORT
+// -------------------------------------------------------
+function generatePDFReport(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+  var raw = RAW_CONTACTS[id] || {};
+  var ext = getExtendedData(raw);
+  var locParts = [ext.city, ext.state, ext.zip].filter(Boolean).join(', ');
+
+  var content = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lead Report - ' + esc(lead.name) + '</title>';
+  content += '<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#333}';
+  content += '.header{background:#0D3B4F;color:#fff;padding:24px;border-radius:12px;margin-bottom:24px}';
+  content += '.header h1{margin:0;font-size:22px}.header p{margin:4px 0 0;opacity:0.8;font-size:13px}';
+  content += '.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}';
+  content += '.card{border:1px solid #e5e7eb;border-radius:8px;padding:16px}';
+  content += '.card h3{margin:0 0 12px;font-size:14px;color:#0D3B4F;text-transform:uppercase;letter-spacing:0.05em}';
+  content += '.row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #f3f4f6}';
+  content += '.row .label{color:#6b7280}.row .value{font-weight:600}';
+  content += '.score{font-size:48px;font-weight:800;text-align:center;margin:12px 0}';
+  content += '.tags{display:flex;flex-wrap:wrap;gap:4px}.tag{background:#e5e7eb;padding:2px 8px;border-radius:4px;font-size:11px}';
+  content += '@media print{body{padding:20px}}</style></head><body>';
+
+  content += '<div class="header"><h1>Lead Report: ' + esc(lead.name) + '</h1>';
+  content += '<p>Generated ' + new Date().toLocaleString() + ' | The Listing Team</p></div>';
+
+  content += '<div class="grid"><div class="card"><h3>Contact Info</h3>';
+  content += '<div class="row"><span class="label">Name</span><span class="value">' + esc(lead.name) + '</span></div>';
+  content += '<div class="row"><span class="label">Email</span><span class="value">' + esc(lead.email || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Phone</span><span class="value">' + esc(lead.phone || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Location</span><span class="value">' + esc(locParts || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Address</span><span class="value">' + esc(ext.address || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Source</span><span class="value">' + esc(lead.source || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Added</span><span class="value">' + fmtDate(lead.dateAdded) + '</span></div>';
+  content += '</div>';
+
+  content += '<div class="card"><h3>Score & Status</h3>';
+  var scoreColor = lead.score >= 75 ? '#22c55e' : lead.score >= 40 ? '#1E7A9C' : '#6b7280';
+  content += '<div class="score" style="color:' + scoreColor + '">' + lead.score + '</div>';
+  content += '<div style="text-align:center;font-size:14px;font-weight:600;margin-bottom:12px">' + lead.status.charAt(0).toUpperCase() + lead.status.slice(1) + ' Lead</div>';
+  content += '<div class="row"><span class="label">Views</span><span class="value">' + lead.matrix.views + '</span></div>';
+  content += '<div class="row"><span class="label">Saves</span><span class="value">' + lead.matrix.saves + '</span></div>';
+  content += '<div class="row"><span class="label">Searches</span><span class="value">' + lead.matrix.searches + '</span></div>';
+  content += '<div class="row"><span class="label">Showings</span><span class="value">' + lead.matrix.showings + '</span></div>';
+  content += '</div></div>';
+
+  content += '<div class="grid"><div class="card"><h3>Property Details</h3>';
+  content += '<div class="row"><span class="label">Beds / Baths</span><span class="value">' + (ext.beds || '?') + 'bd / ' + (ext.baths || '?') + 'ba</span></div>';
+  content += '<div class="row"><span class="label">Sq Ft</span><span class="value">' + (ext.sqft ? Number(ext.sqft).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Price / Value</span><span class="value">' + (ext.price ? '$' + Number(ext.price).toLocaleString() : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Year Built</span><span class="value">' + (ext.yearBuilt || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Equity</span><span class="value">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Mortgage</span><span class="value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : 'N/A') + '</span></div>';
+  content += '</div>';
+
+  content += '<div class="card"><h3>Tags</h3><div class="tags">';
+  (lead.tags || []).forEach(function(t) { content += '<span class="tag">' + esc(t) + '</span>'; });
+  if (!lead.tags || !lead.tags.length) content += '<span style="color:#6b7280;font-size:12px">No tags</span>';
+  content += '</div></div></div>';
+
+  content += '</body></html>';
+
+  var w = window.open('', '_blank');
+  if (w) {
+    w.document.write(content);
+    w.document.close();
+    setTimeout(function() { w.print(); }, 500);
+  } else {
+    toast('Pop-up blocked. Allow pop-ups for this site.', 'error');
+  }
+}
+
+// -------------------------------------------------------
+// MOBILE-OPTIMIZED VIEW
+// -------------------------------------------------------
+function toggleMobileView() {
+  var body = document.body;
+  if (body.classList.contains('mobile-mode')) {
+    body.classList.remove('mobile-mode');
+    toast('Desktop view restored', 'info');
+  } else {
+    body.classList.add('mobile-mode');
+    toast('Mobile view enabled', 'info');
+  }
+}
+
 // INIT
 // -------------------------------------------------------
 document.addEventListener('DOMContentLoaded', function() {
@@ -8707,6 +9124,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (s.defaultView === 'cards') setTimeout(function() { setView('cards'); }, 100);
   setupAutoRefresh(s);
   connectSSE();
+  renderSmartLists();
   loadGHLTeam().then(function() { loadData(); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
