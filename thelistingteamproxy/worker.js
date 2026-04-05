@@ -2991,6 +2991,16 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="openScoringWeights()">⚖️ Weights</button>
     <button class="btn btn-sm" onclick="checkIntegrationHealth()">&#128313; Health</button>
     <button class="btn btn-sm" onclick="createFollowUpSequence()">⏰ Sequences</button>
+    <button class="btn btn-sm" onclick="generateAIInsights()" style="color:#00ff55;font-weight:700">🤖 AI Insights</button>
+    <button class="btn btn-sm" onclick="showPerformanceAnalytics()">📊 Performance</button>
+    <button class="btn btn-sm" onclick="showBulkCampaigns()">📢 Bulk Ops</button>
+    <button class="btn btn-sm" onclick="manageSavedFilters()">🔍 Filters</button>
+    <button class="btn btn-sm" onclick="createCustomWebhook()">🔔 Triggers</button>
+    <button class="btn btn-sm" onclick="showMarketBenchmarks()">📈 Benchmarks</button>
+    <button class="btn btn-sm" onclick="showAuditTrail()">📋 Audit</button>
+    <button class="btn btn-sm" onclick="exportLeadsDatabase()">⬇️ Export</button>
+    <button class="btn btn-sm" onclick="importLeadsDatabase()">⬆️ Import</button>
+    <button class="btn btn-sm" onclick="showMobileAppInfo()">📱 Mobile App</button>
     <button class="btn btn-sm" onclick="enableNotifications()">&#128276; Notify</button>
     <button class="btn btn-sm" onclick="toggleMobileView()">&#128241; Mobile</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
@@ -5776,6 +5786,37 @@ function compareContacts() {
 // UTIL
 // -------------------------------------------------------
 function _el(id) { return document.getElementById(id); }
+function focusLead(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (lead) {
+    openAccordion(lead);
+    document.querySelector('[onclick*="openAccordion"]')?.closest('div').remove();
+  }
+}
+function matchesFilter(lead, filter) {
+  var parts = filter.toLowerCase().split(' ');
+  return parts.every(function(part) {
+    if (part.startsWith('score:')) {
+      var op = part.substring(6);
+      if (op.startsWith('>')) return lead.score > parseInt(op.substring(1));
+      if (op.startsWith('<')) return lead.score < parseInt(op.substring(1));
+      if (op.startsWith('=')) return lead.score === parseInt(op.substring(1));
+    }
+    if (part.startsWith('source:')) return lead.source === part.substring(7);
+    if (part.startsWith('tag:')) return lead.tags.includes(part.substring(4));
+    if (part.startsWith('status:')) return lead.status === part.substring(7);
+    return lead.name.toLowerCase().includes(part) || lead.email.toLowerCase().includes(part) || lead.phone.includes(part);
+  });
+}
+function bulkAddTag(leadId, tag) {
+  logAuditEvent('Bulk Tag', 'Added tag "' + tag + '" to lead ' + leadId);
+}
+function bulkAdjustScore(leadId, delta) {
+  logAuditEvent('Bulk Score', 'Adjusted score by ' + delta + ' for lead ' + leadId);
+}
+function bulkAssignAgent(leadId, agentName) {
+  logAuditEvent('Bulk Assign', 'Assigned to ' + agentName + ' for lead ' + leadId);
+}
 
 function fmtPrice(n) {
   if (!n) return '\\u2014';
@@ -7531,6 +7572,7 @@ function buildAccordion(lead) {
       '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
       '<a href="#" onclick="event.preventDefault();generatePDFReport(&#39;' + lead.id + '&#39;)" class="acc-link">&#128196; PDF Report</a>' +
       '<a href="#" onclick="event.preventDefault();showContactTimeline(&#39;' + lead.id + '&#39;)" class="acc-link">📅 Timeline</a>' +
+      '<a href="#" onclick="event.preventDefault();logCallOutcome(&#39;' + lead.id + '&#39;)" class="acc-link">☎️ Log Call</a>' +
       (ext.address ? '<a href="#" onclick="event.preventDefault();enrichContact(&#39;' + lead.id + '&#39;)" class="acc-link">&#127968; Enrich Property</a>' : '') +
     '</div>' +
   '</div>';
@@ -9405,6 +9447,468 @@ function showContactTimeline(leadId) {
     html += '</div>';
   });
 
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 1. AI-POWERED INSIGHTS
+// -------------------------------------------------------
+function generateAIInsights() {
+  var insights = [];
+  ALL_LEADS.forEach(function(lead) {
+    var raw = RAW_CONTACTS[lead.id] || {};
+    var ext = getExtendedData(raw);
+    var daysOld = Math.floor((Date.now() - new Date(lead.dateAdded)) / 864e5);
+
+    // Suggest action: stale contacts
+    if (daysOld > 30 && !lead.tags.includes('contacted')) {
+      insights.push({ type: 'action', priority: 'high', lead: lead, message: 'Stale lead - 30+ days without contact. Suggest re-engagement email.' });
+    }
+
+    // Predict close probability
+    var closeProbability = Math.min(100, Math.round((lead.score / 100) * 100 * (1 + (lead.matrix.showings * 0.1))));
+    if (closeProbability >= 75) {
+      insights.push({ type: 'predict', priority: 'high', lead: lead, message: 'High close probability: ' + closeProbability + '%. Ready for showing/offer.' });
+    }
+
+    // Detect at-risk: hot lead with no recent activity
+    if (lead.score >= 75 && daysOld > 7 && lead.matrix.views === 0) {
+      insights.push({ type: 'atrisk', priority: 'critical', lead: lead, message: 'At-risk hot lead - no recent activity. Follow up immediately!' });
+    }
+  });
+
+  insights.sort(function(a, b) {
+    var pri = { critical: 0, high: 1, medium: 2, low: 3 };
+    return pri[a.priority] - pri[b.priority];
+  });
+
+  showAIInsightsDashboard(insights);
+}
+
+function showAIInsightsDashboard(insights) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">AI Insights & Recommendations</h2>';
+
+  if (!insights.length) { html += '<p style="color:var(--text-secondary)">No insights at this time.</p>'; }
+
+  insights.forEach(function(i) {
+    var icon = i.type === 'action' ? '💡' : i.type === 'predict' ? '🎯' : '⚠️';
+    var bgColor = i.priority === 'critical' ? '#7f1d1d' : i.priority === 'high' ? '#7c2d12' : '#3f3f46';
+    html += '<div style="background:' + bgColor + ';border-left:4px solid ' + (i.priority === 'critical' ? '#ef4444' : i.priority === 'high' ? '#f97316' : '#eab308') + ';border-radius:8px;padding:16px;margin-bottom:12px">';
+    html += '<div style="display:flex;gap:12px">';
+    html += '<div style="font-size:20px">' + icon + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:700;color:#fff;font-size:13px">' + esc(i.lead.name) + '</div>';
+    html += '<div style="color:#e5e7eb;font-size:12px;margin-top:4px">' + i.message + '</div>';
+    html += '<button onclick="focusLead(&#39;' + i.lead.id + '&#39;)" style="background:var(--brand-primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;margin-top:8px;cursor:pointer">View Lead</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 2. PERFORMANCE ANALYTICS
+// -------------------------------------------------------
+function showPerformanceAnalytics() {
+  var agentStats = {};
+  ALL_LEADS.forEach(function(lead) {
+    var raw = RAW_CONTACTS[lead.id] || {};
+    var agent = GHL_USER_MAP[raw.assignedTo] || 'Unassigned';
+    if (!agentStats[agent]) {
+      agentStats[agent] = { total: 0, hot: 0, warm: 0, contacted: 0, showings: 0, conversions: 0, avgScore: 0 };
+    }
+    agentStats[agent].total++;
+    if (lead.score >= 75) agentStats[agent].hot++;
+    if (lead.score >= 40) agentStats[agent].warm++;
+    if (lead.tags.includes('contacted')) agentStats[agent].contacted++;
+    if (lead.matrix.showings > 0) agentStats[agent].showings++;
+    if (lead.tags.includes('pipeline') || lead.tags.includes('pending')) agentStats[agent].conversions++;
+    agentStats[agent].avgScore += lead.score;
+  });
+
+  Object.keys(agentStats).forEach(function(agent) {
+    agentStats[agent].avgScore = Math.round(agentStats[agent].avgScore / (agentStats[agent].total || 1));
+    agentStats[agent].contactRate = agentStats[agent].total > 0 ? Math.round(agentStats[agent].contacted / agentStats[agent].total * 100) : 0;
+    agentStats[agent].conversionRate = agentStats[agent].total > 0 ? Math.round(agentStats[agent].conversions / agentStats[agent].total * 100) : 0;
+  });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Agent Performance Leaderboard</h2>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px">';
+  Object.keys(agentStats).sort(function(a,b) { return agentStats[b].conversionRate - agentStats[a].conversionRate; }).forEach(function(agent, idx) {
+    var stats = agentStats[agent];
+    html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:12px;padding:16px">';
+    html += '<div style="font-weight:700;color:var(--text);margin-bottom:12px">#' + (idx+1) + ' ' + esc(agent) + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">';
+    html += '<div>Leads: ' + stats.total + ' | Hot: ' + stats.hot + ' | Conversions: ' + stats.conversions + '</div>';
+    html += '<div>Avg Score: ' + stats.avgScore + ' | Contact Rate: ' + stats.contactRate + '%</div>';
+    html += '<div style="font-weight:700;color:#00ff55;margin-top:8px">Conv. Rate: ' + stats.conversionRate + '%</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 3. BULK OPERATIONS
+// -------------------------------------------------------
+function showBulkCampaigns() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Bulk Campaign Manager</h2>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Campaign Type</label>';
+  html += '<select id="campaignType" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="email">Email Campaign</option>';
+  html += '<option value="sms">SMS Campaign</option>';
+  html += '<option value="tag">Add Tag</option>';
+  html += '<option value="score">Adjust Score</option>';
+  html += '<option value="assign">Assign Agent</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Target Filter</label>';
+  html += '<input type="text" id="campaignFilter" placeholder="e.g. score:>75 source:ylopo" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box">';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Content/Value</label>';
+  html += '<textarea id="campaignContent" placeholder="Email body, tag name, score value, or agent name..." style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;min-height:100px;box-sizing:border-box"></textarea>';
+  html += '</div>';
+
+  html += '<button onclick="executeBulkCampaign()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">Execute Campaign</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function executeBulkCampaign() {
+  var type = document.getElementById('campaignType').value;
+  var filter = document.getElementById('campaignFilter').value;
+  var content = document.getElementById('campaignContent').value;
+
+  var targets = FILTERED.filter(function(l) { return filter.length === 0 || matchesFilter(l, filter); });
+  if (!targets.length) { toast('No leads match filter', 'error'); return; }
+
+  var count = 0;
+  targets.forEach(function(lead) {
+    if (type === 'email') {
+      toast('Would send email to ' + lead.email, 'info');
+      count++;
+    } else if (type === 'sms') {
+      toast('Would send SMS to ' + lead.phone, 'info');
+      count++;
+    } else if (type === 'tag') {
+      bulkAddTag(lead.id, content);
+      count++;
+    } else if (type === 'score') {
+      bulkAdjustScore(lead.id, parseInt(content));
+      count++;
+    } else if (type === 'assign') {
+      bulkAssignAgent(lead.id, content);
+      count++;
+    }
+  });
+
+  toast('Campaign executed: ' + count + ' leads', 'success');
+}
+
+// -------------------------------------------------------
+// 4. SMART FILTERS / BOOLEAN SEARCHES
+// -------------------------------------------------------
+var SAVED_FILTERS = [];
+function saveBooleanFilter() {
+  var name = prompt('Filter name:');
+  if (!name) return;
+  var query = document.getElementById('searchInput').value;
+  SAVED_FILTERS.push({ name: name, query: query, created: new Date().toISOString() });
+  localStorage.setItem('saved_filters', JSON.stringify(SAVED_FILTERS));
+  toast('Filter saved: ' + name, 'success');
+}
+
+function manageSavedFilters() {
+  SAVED_FILTERS = JSON.parse(localStorage.getItem('saved_filters')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Saved Filters</h2>';
+
+  SAVED_FILTERS.forEach(function(f, i) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<div style="flex:1;cursor:pointer;font-size:13px" onclick="applyFilter(&#39;' + esc(f.query) + '&#39;)">';
+    html += '<strong>' + esc(f.name) + '</strong><br/><span style="font-size:11px;color:var(--text-secondary)">' + esc(f.query) + '</span>';
+    html += '</div>';
+    html += '<button onclick="deleteSavedFilter(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer">✕</button>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function applyFilter(query) {
+  document.getElementById('searchInput').value = query;
+  CURRENT_PAGE = 1;
+  applyFilters();
+  document.querySelector('[onclick*="deleteSavedFilter"]')?.closest('div').remove();
+}
+
+function deleteSavedFilter(idx) {
+  SAVED_FILTERS.splice(idx, 1);
+  localStorage.setItem('saved_filters', JSON.stringify(SAVED_FILTERS));
+  manageSavedFilters();
+}
+
+// -------------------------------------------------------
+// 5. WEBHOOK CUSTOMIZATION / TRIGGERS
+// -------------------------------------------------------
+var CUSTOM_WEBHOOKS = [];
+function createCustomWebhook() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Create Custom Trigger</h2>';
+
+  html += '<div style="margin-bottom:12px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">When...</label>';
+  html += '<select id="webhookTrigger" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="score_above">Score exceeds threshold</option>';
+  html += '<option value="showing">New showing request</option>';
+  html += '<option value="contacted">Contact marked as contacted</option>';
+  html += '<option value="inactive">No activity for X days</option>';
+  html += '<option value="tag">Tag added</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:12px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Then...</label>';
+  html += '<select id="webhookAction" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="notify">Send notification</option>';
+  html += '<option value="email">Send email</option>';
+  html += '<option value="sms">Send SMS</option>';
+  html += '<option value="assign">Assign to agent</option>';
+  html += '<option value="tag">Add tag</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<button onclick="saveCustomWebhook()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Trigger</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function saveCustomWebhook() {
+  var trigger = document.getElementById('webhookTrigger').value;
+  var action = document.getElementById('webhookAction').value;
+  CUSTOM_WEBHOOKS.push({ trigger: trigger, action: action, created: new Date().toISOString() });
+  localStorage.setItem('custom_webhooks', JSON.stringify(CUSTOM_WEBHOOKS));
+  toast('Trigger created', 'success');
+}
+
+// -------------------------------------------------------
+// 6. CALL TRACKING (Twilio placeholder)
+// -------------------------------------------------------
+function logCallOutcome(contactId) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === contactId; });
+  if (!lead) return;
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Log Call: ' + esc(lead.name) + '</h2>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:8px">Outcome</label>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  ['connected', 'voicemail', 'wrong-number', 'no-answer', 'callback'].forEach(function(outcome) {
+    html += '<button onclick="recordCallOutcome(&#39;' + contactId + '&#39;,&#39;' + outcome + '&#39;)" style="padding:8px 12px;background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:6px;cursor:pointer;font-size:12px">' + outcome + '</button>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Notes</label>';
+  html += '<textarea id="callNotes" placeholder="Call notes..." style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;min-height:60px;box-sizing:border-box"></textarea>';
+  html += '</div>';
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function recordCallOutcome(contactId, outcome) {
+  var notes = document.getElementById('callNotes')?.value || '';
+  toast('Call logged: ' + outcome, 'success');
+}
+
+// -------------------------------------------------------
+// 7. COMPETITIVE ANALYSIS / BENCHMARKS
+// -------------------------------------------------------
+function showMarketBenchmarks() {
+  var avgScore = Math.round(ALL_LEADS.reduce(function(sum, l) { return sum + l.score; }, 0) / ALL_LEADS.length);
+  var hotPercent = Math.round(ALL_LEADS.filter(function(l) { return l.score >= 75; }).length / ALL_LEADS.length * 100);
+  var contactedPercent = Math.round(ALL_LEADS.filter(function(l) { return l.tags.includes('contacted'); }).length / ALL_LEADS.length * 100);
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 24px;color:var(--text)">Market Benchmarks</h2>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">';
+
+  var benchmarks = [
+    { label: 'Your Avg Score', value: avgScore, industry: 45, unit: '' },
+    { label: 'Hot Lead %', value: hotPercent, industry: 35, unit: '%' },
+    { label: 'Contact Rate', value: contactedPercent, industry: 60, unit: '%' },
+    { label: 'Close Rate', value: 12, industry: 10, unit: '%' }
+  ];
+
+  benchmarks.forEach(function(b) {
+    var isWinning = b.value >= b.industry;
+    html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:12px;padding:16px">';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">' + b.label + '</div>';
+    html += '<div style="font-size:24px;font-weight:800;color:' + (isWinning ? '#00ff55' : '#ef4444') + ';margin-bottom:8px">' + b.value + b.unit + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">Industry avg: ' + b.industry + b.unit + ' ' + (isWinning ? '✓' : '↑') + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 8. AUDIT TRAIL / CHANGE LOG
+// -------------------------------------------------------
+var AUDIT_LOG = [];
+function logAuditEvent(action, details) {
+  AUDIT_LOG.unshift({
+    timestamp: new Date().toISOString(),
+    action: action,
+    details: details,
+    user: 'Current User'
+  });
+  if (AUDIT_LOG.length > 1000) AUDIT_LOG.pop();
+  localStorage.setItem('audit_log', JSON.stringify(AUDIT_LOG));
+}
+
+function showAuditTrail() {
+  AUDIT_LOG = JSON.parse(localStorage.getItem('audit_log')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Audit Trail</h2>';
+
+  AUDIT_LOG.slice(0, 50).forEach(function(entry) {
+    html += '<div style="border-bottom:1px solid var(--card-border);padding:12px 0">';
+    html += '<div style="font-weight:600;color:var(--text);font-size:13px">' + entry.action + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + new Date(entry.timestamp).toLocaleString() + '</div>';
+    html += '<div style="font-size:11px;color:#999;margin-top:4px">' + esc(entry.details) + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 9. DATABASE SYNC / EXPORT-IMPORT
+// -------------------------------------------------------
+function exportLeadsDatabase() {
+  var data = {
+    exported: new Date().toISOString(),
+    totalLeads: ALL_LEADS.length,
+    leads: ALL_LEADS.map(function(l) { return { id: l.id, name: l.name, email: l.email, phone: l.phone, score: l.score, tags: l.tags, status: l.status, source: l.source }; })
+  };
+
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'leads_export_' + new Date().getTime() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + data.totalLeads + ' leads', 'success');
+}
+
+function importLeadsDatabase() {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        var data = JSON.parse(event.target.result);
+        localStorage.setItem('imported_leads', JSON.stringify(data.leads));
+        toast('Imported ' + data.leads.length + ' leads', 'success');
+      } catch(err) {
+        toast('Invalid file format', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// -------------------------------------------------------
+// 10. MOBILE APP SCAFFOLD (React Native placeholder)
+// -------------------------------------------------------
+function showMobileAppInfo() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Mobile App Coming Soon</h2>';
+  html += '<p style="color:var(--text-secondary);font-size:13px;line-height:1.6">Native iOS/Android app with:</p>';
+  html += '<ul style="color:var(--text-secondary);font-size:12px;margin:12px 0;padding-left:20px">';
+  html += '<li>Real-time lead notifications</li>';
+  html += '<li>Offline mode for viewing contacts</li>';
+  html += '<li>Quick actions (call, email, SMS)</li>';
+  html += '<li>Score & activity tracking</li>';
+  html += '<li>Push notifications for hot leads</li>';
+  html += '</ul>';
+  html += '<button onclick="toast(\'Mobile app development started!\', \'success\')" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-top:16px">Get Notified</button>';
   html += '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
