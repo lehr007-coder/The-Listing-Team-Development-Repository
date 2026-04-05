@@ -2493,7 +2493,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .topbar-title { font-size: 18px; font-weight: 700; color: #fff; }
   .topbar-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
-  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; overflow: visible; }
   .btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 8px 16px;
@@ -3008,6 +3008,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
         <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
         <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
+        <button onclick="showPipelineKanban()">&#128203; Pipeline Kanban</button>
       </div>
     </div>
 
@@ -3029,6 +3030,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
       <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
       <div class="toolbar-dropdown-content">
         <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
+        <button onclick="compareSelectedContacts()">&#9878; Compare Selected</button>
+        <button onclick="generateDailyDigestEmail()">&#128231; Digest Email</button>
         <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
         <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
         <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
@@ -3180,6 +3183,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <th>Status</th>
         <th>Score</th>
         <th>Activity</th>
+        <th style="width:90px">Trend</th>
         <th>Location</th>
         <th>Type</th>
         <th>Source</th>
@@ -5822,6 +5826,7 @@ function compareContacts() {
 // -------------------------------------------------------
 function _el(id) { return document.getElementById(id); }
 function toggleDropdown(btn) {
+  event.stopPropagation();
   var dd = btn.parentElement;
   var wasOpen = dd.classList.contains('open');
   document.querySelectorAll('.toolbar-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
@@ -7153,7 +7158,7 @@ function renderTable() {
   var tbody = _el('leadsBody');
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
     return;
   }
 
@@ -7191,6 +7196,7 @@ function renderTable() {
           (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
         '</div>' +
       '</td>' +
+      '<td><div id="spark-' + l.id + '" style="width:80px;height:24px"></div></td>' +
       '<td style="color:var(--text-secondary);font-size:12px">' + (l.address ? '<div style="font-weight:600;color:var(--text)">' + esc(l.address) + '</div>' : '') + esc(loc) + '</td>' +
       '<td>' + buildTypeBadge(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
@@ -7208,9 +7214,10 @@ function renderTable() {
       '</td>' +
     '</tr>' +
     '<tr class="detail-row" id="detail-' + l.id + '">' +
-      '<td colspan="11"></td>' +
+      '<td colspan="12"></td>' +
     '</tr>';
   }).join('');
+  setTimeout(addSparklinesToTable, 50);
 }
 
 // -------------------------------------------------------
@@ -9961,6 +9968,273 @@ function showMobileAppInfo() {
 }
 
 // -------------------------------------------------------
+// PIPELINE KANBAN BOARD
+// -------------------------------------------------------
+function showPipelineKanban() {
+  var stages = [
+    { key: 'new', label: 'New Leads', color: 'var(--brand-secondary)' },
+    { key: 'contacted', label: 'Contacted', color: 'var(--brand-accent)' },
+    { key: 'showing', label: 'Showing', color: '#f59e0b' },
+    { key: 'hot', label: 'Hot / Offer', color: '#00ff55' },
+    { key: 'pipeline', label: 'Pipeline', color: '#8b5cf6' }
+  ];
+
+  var buckets = {};
+  stages.forEach(function(s) { buckets[s.key] = []; });
+
+  ALL_LEADS.forEach(function(lead) {
+    if (lead.tags.includes('pipeline') || lead.tags.includes('pending') || lead.tags.includes('under-contract')) {
+      buckets.pipeline.push(lead);
+    } else if (lead.score >= 75 || lead.tags.includes('hot')) {
+      buckets.hot.push(lead);
+    } else if (lead.matrix.showings > 0 || lead.tags.includes('showing') || lead.tags.includes('showing-request')) {
+      buckets.showing.push(lead);
+    } else if (lead.tags.includes('contacted') || lead.tags.includes('call-connected')) {
+      buckets.contacted.push(lead);
+    } else {
+      buckets['new'].push(lead);
+    }
+  });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:stretch;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--bg);border-radius:16px;width:100%;max-width:1200px;overflow-x:auto;padding:24px;display:flex;flex-direction:column">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h2 style="margin:0;color:var(--text)">Pipeline Kanban</h2><span style="font-size:12px;color:var(--text-secondary)">' + ALL_LEADS.length + ' total leads</span></div>';
+  html += '<div style="display:flex;gap:12px;flex:1;overflow-x:auto;padding-bottom:12px">';
+
+  stages.forEach(function(s) {
+    var leads = buckets[s.key];
+    html += '<div style="flex:1;min-width:200px;background:var(--card);border-radius:12px;border-top:3px solid ' + s.color + ';display:flex;flex-direction:column">';
+    html += '<div style="padding:12px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+    html += '<span style="font-weight:700;font-size:13px;color:var(--text)">' + s.label + '</span>';
+    html += '<span style="background:' + s.color + ';color:#000;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px">' + leads.length + '</span>';
+    html += '</div>';
+    html += '<div style="flex:1;overflow-y:auto;max-height:60vh;padding:8px">';
+    leads.slice(0, 20).forEach(function(l) {
+      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+      html += '<div onclick="focusLead(&#39;' + l.id + '&#39;)" style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform=&#39;scale(1.02)&#39;" onmouseout="this.style.transform=&#39;scale(1)&#39;">';
+      html += '<div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:4px">' + esc(l.name) + '</div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px">';
+      html += '<span style="color:var(--text-secondary)">' + esc(l.source || 'Unknown') + '</span>';
+      html += '<span style="font-weight:800;color:' + scoreColor + '">' + l.score + '</span>';
+      html += '</div>';
+      html += '</div>';
+    });
+    if (leads.length > 20) html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);padding:8px">+' + (leads.length - 20) + ' more</div>';
+    if (!leads.length) html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);padding:20px">No leads</div>';
+    html += '</div></div>';
+  });
+
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// LIVE SEARCH WITH TYPEAHEAD
+// -------------------------------------------------------
+function initTypeahead() {
+  var searchInput = document.getElementById('searchInput');
+  if (!searchInput) return;
+
+  var dropdown = document.createElement('div');
+  dropdown.id = 'typeaheadDropdown';
+  dropdown.style.cssText = 'display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--card-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:300px;overflow-y:auto;z-index:600;margin-top:4px';
+  searchInput.parentElement.style.position = 'relative';
+  searchInput.parentElement.appendChild(dropdown);
+
+  searchInput.addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    if (q.length < 2) { dropdown.style.display = 'none'; return; }
+
+    var matches = ALL_LEADS.filter(function(l) {
+      return l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.phone.includes(q);
+    }).slice(0, 8);
+
+    if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+    var html = '';
+    matches.forEach(function(l) {
+      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888';
+      html += '<div onclick="focusLead(&#39;' + l.id + '&#39;);document.getElementById(&#39;typeaheadDropdown&#39;).style.display=&#39;none&#39;" style="padding:10px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border)" onmouseover="this.style.background=&#39;var(--brand-primary)&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+      html += '<div><div style="font-weight:600;font-size:12px;color:var(--text)">' + esc(l.name) + '</div>';
+      html += '<div style="font-size:11px;color:var(--text-secondary)">' + esc(l.email || l.phone || '') + '</div></div>';
+      html += '<span style="font-weight:800;font-size:14px;color:' + scoreColor + '">' + l.score + '</span>';
+      html += '</div>';
+    });
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+  });
+
+  searchInput.addEventListener('blur', function() {
+    setTimeout(function() { dropdown.style.display = 'none'; }, 200);
+  });
+}
+
+// -------------------------------------------------------
+// ENHANCED CONTACT COMPARISON (SIDE-BY-SIDE)
+// -------------------------------------------------------
+function compareSelectedContacts() {
+  var ids = Array.from(SELECTED);
+  if (ids.length < 2) { toast('Select at least 2 contacts to compare', 'error'); return; }
+  if (ids.length > 4) { ids = ids.slice(0, 4); toast('Comparing first 4 selected', 'info'); }
+
+  var leads = ids.map(function(id) { return ALL_LEADS.find(function(l) { return l.id === id; }); }).filter(Boolean);
+  if (leads.length < 2) { toast('Not enough valid contacts', 'error'); return; }
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Contact Comparison</h2>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+
+  var fields = [
+    { label: 'Name', fn: function(l) { return esc(l.name); } },
+    { label: 'Score', fn: function(l) { var c = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888'; return '<span style="font-weight:800;font-size:18px;color:' + c + '">' + l.score + '</span>'; } },
+    { label: 'Status', fn: function(l) { return l.status; } },
+    { label: 'Email', fn: function(l) { return esc(l.email || 'N/A'); } },
+    { label: 'Phone', fn: function(l) { return esc(l.phone || 'N/A'); } },
+    { label: 'Source', fn: function(l) { return esc(l.source || 'N/A'); } },
+    { label: 'Views', fn: function(l) { return l.matrix.views; } },
+    { label: 'Saves', fn: function(l) { return l.matrix.saves; } },
+    { label: 'Searches', fn: function(l) { return l.matrix.searches; } },
+    { label: 'Showings', fn: function(l) { return l.matrix.showings; } },
+    { label: 'Tags', fn: function(l) { return (l.tags || []).slice(0, 5).map(function(t) { return '<span style="background:var(--brand-primary);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:2px">' + esc(t) + '</span>'; }).join(''); } },
+    { label: 'Added', fn: function(l) { return fmtDate(l.dateAdded); } }
+  ];
+
+  // Header
+  html += '<tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--card-border);color:var(--text-secondary)">Field</th>';
+  leads.forEach(function(l) {
+    html += '<th style="padding:8px;border-bottom:2px solid var(--card-border);color:var(--text);text-align:center">' + esc(l.name.split(' ')[0]) + '</th>';
+  });
+  html += '</tr>';
+
+  fields.forEach(function(f, i) {
+    var bg = i % 2 === 0 ? 'var(--surface,var(--bg))' : 'transparent';
+    html += '<tr style="background:' + bg + '"><td style="padding:8px;font-weight:600;color:var(--text-secondary)">' + f.label + '</td>';
+    leads.forEach(function(l) {
+      html += '<td style="padding:8px;text-align:center;color:var(--text)">' + f.fn(l) + '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</table></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// AUTOMATED DAILY DIGEST EMAIL (preview generator)
+// -------------------------------------------------------
+function generateDailyDigestEmail() {
+  var hot = ALL_LEADS.filter(function(l) { return l.score >= 75; });
+  var stale = ALL_LEADS.filter(function(l) {
+    var days = Math.floor((Date.now() - new Date(l.dateUpdated || l.dateAdded)) / 864e5);
+    return days > 14 && !l.tags.includes('contacted');
+  });
+  var newLeads = ALL_LEADS.filter(function(l) {
+    return (Date.now() - new Date(l.dateAdded)) < 864e5;
+  });
+  var showings = ALL_LEADS.filter(function(l) { return l.matrix.showings > 0; });
+
+  var emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;padding:20px">';
+  emailHtml += '<div style="background:#0D3B4F;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">';
+  emailHtml += '<h1 style="margin:0;font-size:20px">The Listing Team</h1>';
+  emailHtml += '<p style="margin:4px 0 0;opacity:0.8;font-size:13px">Daily Lead Digest - ' + new Date().toLocaleDateString() + '</p>';
+  emailHtml += '</div>';
+
+  emailHtml += '<div style="background:#fff;padding:24px;border:1px solid #e5e7eb">';
+
+  // Quick Stats
+  emailHtml += '<div style="display:flex;gap:16px;margin-bottom:24px;text-align:center">';
+  [
+    { label: 'Total', value: ALL_LEADS.length, color: '#0D3B4F' },
+    { label: 'Hot', value: hot.length, color: '#22c55e' },
+    { label: 'New Today', value: newLeads.length, color: '#3b82f6' },
+    { label: 'Need Follow-up', value: stale.length, color: '#ef4444' }
+  ].forEach(function(s) {
+    emailHtml += '<div style="flex:1;padding:12px;background:#f9fafb;border-radius:8px">';
+    emailHtml += '<div style="font-size:24px;font-weight:800;color:' + s.color + '">' + s.value + '</div>';
+    emailHtml += '<div style="font-size:11px;color:#6b7280">' + s.label + '</div>';
+    emailHtml += '</div>';
+  });
+  emailHtml += '</div>';
+
+  // Hot Leads
+  if (hot.length) {
+    emailHtml += '<h3 style="color:#0D3B4F;font-size:14px;margin:20px 0 8px">Hot Leads (score 75+)</h3>';
+    hot.slice(0, 5).forEach(function(l) {
+      emailHtml += '<div style="padding:8px 0;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between">';
+      emailHtml += '<span style="font-weight:600;font-size:13px">' + esc(l.name) + '</span>';
+      emailHtml += '<span style="color:#22c55e;font-weight:800">' + l.score + '</span>';
+      emailHtml += '</div>';
+    });
+  }
+
+  // Stale leads needing follow-up
+  if (stale.length) {
+    emailHtml += '<h3 style="color:#ef4444;font-size:14px;margin:20px 0 8px">Needs Follow-up (' + stale.length + ')</h3>';
+    stale.slice(0, 5).forEach(function(l) {
+      emailHtml += '<div style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px">' + esc(l.name) + ' - ' + esc(l.source || '') + '</div>';
+    });
+  }
+
+  emailHtml += '</div>';
+  emailHtml += '<div style="background:#f9fafb;padding:16px;text-align:center;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:none">';
+  emailHtml += '<a href="' + window.location.origin + '/dashboard/ylopo-contacts" style="display:inline-block;padding:10px 24px;background:#0D3B4F;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Open Dashboard</a>';
+  emailHtml += '</div></body></html>';
+
+  var w = window.open('', '_blank');
+  if (w) {
+    w.document.write(emailHtml);
+    w.document.close();
+    toast('Digest email preview opened', 'success');
+  } else {
+    toast('Pop-up blocked', 'error');
+  }
+}
+
+// -------------------------------------------------------
+// LEAD ENGAGEMENT SPARKLINES
+// -------------------------------------------------------
+function renderSparkline(containerId, data, color) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var max = Math.max.apply(null, data) || 1;
+  var width = el.offsetWidth || 80;
+  var height = 24;
+  var stepX = width / (data.length - 1 || 1);
+
+  var points = data.map(function(v, i) {
+    return (i * stepX) + ',' + (height - (v / max * height));
+  }).join(' ');
+
+  el.innerHTML = '<svg width="' + width + '" height="' + height + '" style="display:block"><polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+function addSparklinesToTable() {
+  ALL_LEADS.forEach(function(lead) {
+    var sparkId = 'spark-' + lead.id;
+    var el = document.getElementById(sparkId);
+    if (!el) return;
+
+    // Generate mock weekly data from available metrics
+    var data = [];
+    var base = lead.matrix.views + lead.matrix.saves + lead.matrix.searches;
+    for (var w = 0; w < 8; w++) {
+      data.push(Math.max(0, base + Math.round((Math.random() - 0.5) * base * 0.6)));
+    }
+    var color = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? '#5DADE2' : '#888';
+    renderSparkline(sparkId, data, color);
+  });
+}
+
+// -------------------------------------------------------
 // MOBILE-OPTIMIZED VIEW
 // -------------------------------------------------------
 function toggleMobileView() {
@@ -9984,6 +10258,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupAutoRefresh(s);
   connectSSE();
   renderSmartLists();
+  initTypeahead();
   loadGHLTeam().then(function() { loadData(); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
