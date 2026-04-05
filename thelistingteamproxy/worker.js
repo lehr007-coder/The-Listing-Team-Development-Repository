@@ -2961,6 +2961,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
     <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
     <button class="btn btn-sm" onclick="findDuplicates()" style="position:relative">&#128279; Duplicates <span id="dupBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
+    <button class="btn btn-sm" onclick="findTestContacts()">&#128270; Test Cleanup</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
     <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
@@ -8232,6 +8233,146 @@ function findDuplicates() {
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
   toast('Found ' + groupArr.length + ' potential duplicate groups', 'info');
+}
+
+// -------------------------------------------------------
+// FIND TEST CONTACTS
+// -------------------------------------------------------
+function findTestContacts() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var testPatterns = ['test', 'demo', 'sample', 'fake', 'dummy', 'example', 'asdf', 'qwerty', 'xxx', 'aaa', 'zzz'];
+  var testEmails = ['test@', 'demo@', 'sample@', 'fake@', 'example@', 'noreply@', 'no-reply@', 'test.com', 'example.com', 'mailinator.com', 'yopmail.com', 'tempmail.com', 'guerrillamail.com'];
+  var testPhones = ['5555555', '1234567', '0000000', '1111111', '9999999'];
+  var found = [];
+
+  ALL_LEADS.forEach(function(l) {
+    var reasons = [];
+    var nameLower = (l.name || '').toLowerCase().trim();
+    var emailLower = (l.email || '').toLowerCase().trim();
+    var phoneDigits = (l.phone || '').replace(/\\D/g, '');
+
+    // Check name
+    testPatterns.forEach(function(p) {
+      if (nameLower === p || nameLower.indexOf(p + ' ') === 0 || nameLower.indexOf(' ' + p) !== -1) {
+        reasons.push('Name contains "' + p + '"');
+      }
+    });
+    if (nameLower.length <= 2 && nameLower.length > 0) reasons.push('Very short name');
+    if (/^[a-z]\s*[a-z]?$/i.test(nameLower)) reasons.push('Single letter name');
+
+    // Check email
+    testEmails.forEach(function(p) {
+      if (emailLower.indexOf(p) !== -1) reasons.push('Email matches "' + p + '"');
+    });
+
+    // Check phone
+    testPhones.forEach(function(p) {
+      if (phoneDigits.indexOf(p) !== -1) reasons.push('Phone pattern "' + p + '"');
+    });
+
+    // No contact info at all
+    if (!l.email && !l.phone && nameLower === 'unknown') reasons.push('Unknown with no contact info');
+
+    if (reasons.length) found.push({ lead: l, reasons: reasons });
+  });
+
+  if (!found.length) { toast('No test contacts detected!', 'success'); return; }
+
+  var existing = document.getElementById('testContactsOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'testContactsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h2 style="margin:0;font-size:18px;color:var(--text)">&#128270; Possible Test Contacts (' + found.length + ')</h2>';
+  html += '<p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Review and delete contacts that look like test data</p></div>';
+  html += '<button onclick="document.getElementById(&#39;testContactsOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="padding:16px">';
+
+  found.forEach(function(f) {
+    var l = f.lead;
+    html += '<div style="margin-bottom:8px;border:1px solid var(--card-border);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px">';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted)">' + esc(l.email || 'No email') + ' &bull; ' + esc(l.phone || 'No phone') + '</div>';
+    html += '<div style="font-size:10px;color:var(--brand-accent);margin-top:2px">' + f.reasons.join(' &bull; ') + '</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:6px;flex-shrink:0">';
+    html += '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + l.id + '" target="_blank" class="btn btn-sm">GHL</a>';
+    html += '<button onclick="deleteTestContact(&#39;' + l.id + '&#39;,&#39;' + esc(l.name).replace(/'/g,'') + '&#39;,this)" class="btn btn-sm" style="color:#ef4444;border-color:#ef4444">Delete</button>';
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  html += '<div style="padding:12px 20px;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;bottom:0;background:var(--card);border-radius:0 0 16px 16px">';
+  html += '<span style="font-size:12px;color:var(--text-secondary)">Detected by name/email/phone patterns</span>';
+  html += '<button onclick="deleteAllTestContacts()" class="btn btn-sm" style="background:#ef4444;color:#fff;border-color:#ef4444">Delete All (' + found.length + ')</button>';
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  toast('Found ' + found.length + ' possible test contacts', 'info');
+}
+
+function deleteTestContact(id, name, btn) {
+  if (!confirm('Delete "' + name + '" from GHL?')) return;
+  fetch(PROXY_URL + '/contacts/' + id, { method: 'DELETE' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      ALL_LEADS = ALL_LEADS.filter(function(l) { return l.id !== id; });
+      FILTERED = FILTERED.filter(function(l) { return l.id !== id; });
+      delete RAW_CONTACTS[id];
+      if (btn) btn.closest('div[style]').parentElement.remove();
+      toast('"' + name + '" deleted', 'success');
+      updateStats();
+    }).catch(function(e) { toast('Delete failed: ' + e.message, 'error'); });
+}
+
+function deleteAllTestContacts() {
+  var found = [];
+  var testPatterns = ['test', 'demo', 'sample', 'fake', 'dummy', 'example', 'asdf', 'qwerty', 'xxx', 'aaa', 'zzz'];
+  var testEmails = ['test@', 'demo@', 'sample@', 'fake@', 'example@', 'noreply@', 'test.com', 'example.com', 'mailinator.com', 'yopmail.com'];
+  var testPhones = ['5555555', '1234567', '0000000', '1111111', '9999999'];
+  ALL_LEADS.forEach(function(l) {
+    var nameLower = (l.name || '').toLowerCase();
+    var emailLower = (l.email || '').toLowerCase();
+    var phoneDigits = (l.phone || '').replace(/\\D/g, '');
+    var isTest = false;
+    testPatterns.forEach(function(p) { if (nameLower === p || nameLower.indexOf(p + ' ') === 0 || nameLower.indexOf(' ' + p) !== -1) isTest = true; });
+    if (nameLower.length <= 2 && nameLower.length > 0) isTest = true;
+    testEmails.forEach(function(p) { if (emailLower.indexOf(p) !== -1) isTest = true; });
+    testPhones.forEach(function(p) { if (phoneDigits.indexOf(p) !== -1) isTest = true; });
+    if (!l.email && !l.phone && nameLower === 'unknown') isTest = true;
+    if (isTest) found.push(l);
+  });
+  if (!found.length) { toast('No test contacts to delete', 'info'); return; }
+  if (!confirm('Delete ' + found.length + ' test contacts from GHL? This cannot be undone.')) return;
+  toast('Deleting ' + found.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  var deleted = 0;
+  found.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + l.id, { method: 'DELETE' }).then(function(res) {
+        if (res.ok) {
+          ALL_LEADS = ALL_LEADS.filter(function(x) { return x.id !== l.id; });
+          FILTERED = FILTERED.filter(function(x) { return x.id !== l.id; });
+          delete RAW_CONTACTS[l.id];
+          deleted++;
+        }
+      }).catch(function() {});
+    });
+  });
+  chain.then(function() {
+    var overlay = document.getElementById('testContactsOverlay');
+    if (overlay) overlay.remove();
+    updateStats();
+    renderCurrentView();
+    renderPagination();
+    toast('Deleted ' + deleted + '/' + found.length + ' test contacts', 'success');
+  });
 }
 
 // INIT
@@ -16636,8 +16777,29 @@ var index_default = {
       }
     }
     const GHL_WEBHOOK_FORWARD = "https://services.leadconnectorhq.com/hooks/SeZr4YCwEZ50IcWqylkQ/webhook-trigger/f9245d8e-d706-4e0e-a125-c523a65e3fc5";
+
+    // HMAC signature verification for webhook security
+    async function verifyWebhookSignature(rawBody, request2, env2) {
+      const secret = env2.WEBHOOK_SECRET || '';
+      if (!secret) return true; // Skip if no secret configured
+      const sig = request2.headers.get('x-webhook-signature') || request2.headers.get('x-signature') || request2.headers.get('x-hub-signature-256') || '';
+      if (!sig) { console.log('Webhook rejected: no signature header'); return false; }
+      try {
+        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody));
+        const expected = Array.from(new Uint8Array(mac)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        const provided = sig.replace(/^sha256=/, '');
+        if (expected !== provided) { console.log('Webhook rejected: signature mismatch'); return false; }
+        return true;
+      } catch(e) { console.log('Webhook signature verification error:', e); return false; }
+    }
+
     if (method === "POST" && path === "/ylopo-webhook") {
       const rawBody = await request.text();
+      // Verify webhook signature if WEBHOOK_SECRET is configured
+      if (env.WEBHOOK_SECRET && !(await verifyWebhookSignature(rawBody, request, env))) {
+        return err('Unauthorized: invalid webhook signature', 401);
+      }
       const responsePromise = json({ received: true, proxy: "v8", forwarded: true });
       const processEvent = /* @__PURE__ */ __name(async () => {
         try {
@@ -16888,6 +17050,10 @@ var index_default = {
     if (method === "POST" && path === "/ghl-webhook") {
       try {
         const rawBody = await request.text();
+        // Verify webhook signature if WEBHOOK_SECRET is configured
+        if (env.WEBHOOK_SECRET && !(await verifyWebhookSignature(rawBody, request, env))) {
+          return err('Unauthorized: invalid webhook signature', 401);
+        }
         let payload;
         try { payload = JSON.parse(rawBody); } catch { return json({ received: true, error: "invalid JSON" }); }
 
