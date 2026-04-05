@@ -4386,7 +4386,8 @@ function renderSellerTab() {
     { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--brand-secondary)' },
     { val: tagCounts.freeAndClear, label: 'Free & Clear', color: 'var(--brand-accent)' },
     { val: avgMotivation, label: 'Avg Motivation', color: 'var(--brand-accent)' },
-    { val: highMotivation, label: 'High Motivation', color: '#00ff55', flash: true }
+    { val: highMotivation, label: 'High Motivation', color: '#00ff55', flash: true },
+    { val: calcAvgResponseTime(sellers), label: 'Avg Response', color: 'var(--brand-secondary)' }
   ];
   kpis.forEach(function(k) {
     var flashCls = k.flash ? ' flash-green' : '';
@@ -4780,6 +4781,57 @@ function renderSellerTab() {
   html += '</div></div>';
   html += '</div>';
 
+  // ---- Tag-Based Workflow Suggestions ----
+  var now = Date.now();
+  var suggestions = [];
+  var noFollowUp30 = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var isExpired = t.indexOf('expired') !== -1 || t.indexOf('fsbo') !== -1;
+    var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    return isExpired && d > 30 && s.phone;
+  });
+  if (noFollowUp30.length) suggestions.push({ icon: '&#128276;', label: 'Expired/FSBO with no activity in 30+ days', count: noFollowUp30.length, action: 'Re-engagement Drip', color: '#ef4444', tag: 're-engagement', ids: noFollowUp30.map(function(s) { return s.id; }) });
+
+  var highEqNoContact = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return (t.indexOf('high equity') !== -1 || t.indexOf('free and clear') !== -1) && t.indexOf('contacted') === -1 && s.phone;
+  });
+  if (highEqNoContact.length) suggestions.push({ icon: '&#128176;', label: 'High equity leads never contacted', count: highEqNoContact.length, action: 'CMA Outreach', color: '#22c55e', tag: 'cma-outreach', ids: highEqNoContact.map(function(s) { return s.id; }) });
+
+  var absenteeOwners = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return (t.indexOf('absentee') !== -1 || t.indexOf('out of state owners') !== -1) && t.indexOf('contacted') === -1;
+  });
+  if (absenteeOwners.length) suggestions.push({ icon: '&#9992;', label: 'Absentee/out-of-state owners not contacted', count: absenteeOwners.length, action: 'Absentee Owner Campaign', color: '#3b82f6', tag: 'absentee-campaign', ids: absenteeOwners.map(function(s) { return s.id; }) });
+
+  var hotNoShowReq = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return s.motivation >= 60 && t.indexOf('showing request') === -1 && t.indexOf('showing requested') === -1 && s.phone;
+  });
+  if (hotNoShowReq.length) suggestions.push({ icon: '&#128293;', label: 'High motivation but no showing request', count: hotNoShowReq.length, action: 'Schedule Showing Follow-Up', color: '#f59e0b', tag: 'showing-followup', ids: hotNoShowReq.map(function(s) { return s.id; }) });
+
+  var staleLeads = sellers.filter(function(s) {
+    var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    return d > 90 && s.phone;
+  });
+  if (staleLeads.length) suggestions.push({ icon: '&#128164;', label: 'Stale leads (90+ days no activity)', count: staleLeads.length, action: 'Wake-Up Campaign', color: '#6b7280', tag: 'wake-up', ids: staleLeads.map(function(s) { return s.id; }) });
+
+  if (suggestions.length) {
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 12px;font-size:14px">&#9889; Workflow Suggestions</h4>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    suggestions.forEach(function(sg) {
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface,var(--bg));border-radius:8px">';
+      html += '<span style="font-size:18px">' + sg.icon + '</span>';
+      html += '<div style="flex:1"><div style="font-size:13px;font-weight:600">' + sg.label + '</div>';
+      html += '<div style="font-size:11px;color:var(--text-secondary)">Suggested: ' + sg.action + '</div></div>';
+      html += '<span style="background:' + sg.color + ';color:#fff;padding:4px 10px;border-radius:12px;font-size:13px;font-weight:700">' + sg.count + '</span>';
+      html += '<button onclick="applyWorkflowTag(&#39;' + sg.tag + '&#39;)" style="padding:5px 12px;border-radius:6px;border:1px solid ' + sg.color + ';background:transparent;color:' + sg.color + ';font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Tag All</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
   // ---- Seller Pipeline Kanban ----
   var pipeStages = [
     { key: 'new', label: 'New / Unworked', color: '#6b7280', icon: '&#128300;', leads: [] },
@@ -5047,8 +5099,9 @@ function generateCallList() {
 
   var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
   html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
-  html += '<div><h3 style="margin:0;font-size:18px">&#128222; Smart Call List</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Top ' + top.length + ' of ' + callable.length + ' callable seller leads</p></div>';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128222; Smart Call Queue</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Top ' + top.length + ' of ' + callable.length + ' callable seller leads &bull; Best time: ' + getBestCallTime() + '</p></div>';
   html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="syncCallListToGHL()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--brand-accent);background:var(--brand-primary);color:#fff;font-size:12px;cursor:pointer;font-weight:700">&#128640; Sync Scores to GHL</button>';
   html += '<button onclick="exportCallListCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export</button>';
   html += '<button onclick="document.getElementById(&#39;callListOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
   html += '</div></div>';
@@ -5069,7 +5122,22 @@ function generateCallList() {
       var rc = r === 'Expired' ? '#ef4444' : r === 'FSBO' ? '#eab308' : r === 'High Equity' ? '#22c55e' : r === 'Free & Clear' ? '#10b981' : r === 'Absentee' ? '#3b82f6' : '#6b7280';
       html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + rc + '22;color:' + rc + ';font-weight:600">' + r + '</span>';
     });
-    html += '</div></div>';
+    html += '</div>';
+    // Property details if available
+    var propParts = [];
+    if (s.propertyAddr) propParts.push(s.propertyAddr);
+    if (s.beds) propParts.push(s.beds + 'bd');
+    if (s.baths) propParts.push(s.baths + 'ba');
+    if (s.price || s.estValue) propParts.push('$' + Number(s.price || s.estValue).toLocaleString());
+    if (propParts.length) html += '<div style="font-size:11px;color:var(--brand-accent);margin-top:3px">&#127968; ' + esc(propParts.join(' &bull; ')) + '</div>';
+    // Call outcome buttons
+    html += '<div style="display:flex;gap:4px;margin-top:5px" id="callOutcome-' + s.id + '">';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;connected&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #22c55e;background:transparent;color:#22c55e;cursor:pointer">&#9989; Connected</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;voicemail&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #f59e0b;background:transparent;color:#f59e0b;cursor:pointer">&#128172; Voicemail</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;no answer&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #6b7280;background:transparent;color:#6b7280;cursor:pointer">&#128683; No Answer</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;wrong number&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer">&#10060; Wrong #</button>';
+    html += '</div>';
+    html += '</div>';
     html += '<div style="text-align:center;flex-shrink:0"><div style="font-size:20px;font-weight:800;color:' + prColor + '">' + s.callPriority + '</div><div style="font-size:9px;color:var(--text-secondary)">priority</div></div>';
     html += '</div>';
   });
@@ -5102,6 +5170,135 @@ function exportCallListCSV() {
   a.download = 'smart-call-list-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   toast('Exported top 50 call list', 'success');
+}
+
+function calcAvgResponseTime(sellers) {
+  var times = [];
+  sellers.forEach(function(s) {
+    if (!s.dateAdded || !s.dateUpdated) return;
+    var added = new Date(s.dateAdded).getTime();
+    var updated = new Date(s.dateUpdated).getTime();
+    var diff = updated - added;
+    if (diff > 0 && diff < 365 * 86400000) times.push(diff);
+  });
+  if (!times.length) return 'N/A';
+  var avg = times.reduce(function(a, b) { return a + b; }, 0) / times.length;
+  var hours = Math.round(avg / 3600000);
+  if (hours < 1) return '<1h';
+  if (hours < 24) return hours + 'h';
+  var days = Math.round(hours / 24);
+  return days + 'd';
+}
+
+function applyWorkflowTag(tag) {
+  // Re-compute the matching leads for this tag
+  var sellers = getSellerLeads();
+  var now = Date.now();
+  var targets = [];
+  if (tag === 're-engagement') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999; return (t.indexOf('expired')!==-1||t.indexOf('fsbo')!==-1) && d>30 && s.phone; });
+  } else if (tag === 'cma-outreach') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return (t.indexOf('high equity')!==-1||t.indexOf('free and clear')!==-1) && t.indexOf('contacted')===-1 && s.phone; });
+  } else if (tag === 'absentee-campaign') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return (t.indexOf('absentee')!==-1||t.indexOf('out of state owners')!==-1) && t.indexOf('contacted')===-1; });
+  } else if (tag === 'showing-followup') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return s.motivation>=60 && t.indexOf('showing request')===-1 && t.indexOf('showing requested')===-1 && s.phone; });
+  } else if (tag === 'wake-up') {
+    targets = sellers.filter(function(s) { var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999; return d>90 && s.phone; });
+  }
+  if (!targets.length) { toast('No matching leads for this workflow', 'info'); return; }
+  if (!confirm('Tag ' + targets.length + ' leads with "' + tag + '"?\\n\\nYou can use this tag in GHL workflows to trigger automated sequences.')) return;
+  toast('Tagging ' + targets.length + ' leads...', 'info');
+  var done = 0;
+  var chain = Promise.resolve();
+  targets.forEach(function(s) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + s.id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function() { done++; }).catch(function() {});
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + '/' + targets.length + ' leads with "' + tag + '"', 'success');
+  });
+}
+
+function getBestCallTime() {
+  var h = new Date().getHours();
+  if (h >= 9 && h < 11) return '9-11am (Peak window)';
+  if (h >= 11 && h < 13) return '11am-1pm (Good)';
+  if (h >= 16 && h < 19) return '4-7pm (Peak window)';
+  if (h >= 13 && h < 16) return '1-4pm (Moderate)';
+  if (h >= 7 && h < 9) return '7-9am (Early)';
+  return 'After hours \u2014 schedule for 9-11am or 4-7pm';
+}
+
+function logCallOutcome(contactId, outcome, btn) {
+  var noteText = 'Call outcome: ' + outcome + ' (' + new Date().toLocaleString() + ')';
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: noteText })
+  }).then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var row = btn.closest('div[id^="callOutcome"]');
+    if (row) {
+      var colors = { connected: '#22c55e', voicemail: '#f59e0b', 'no answer': '#6b7280', 'wrong number': '#ef4444' };
+      row.innerHTML = '<span style="font-size:11px;font-weight:700;color:' + (colors[outcome] || '#6b7280') + '">Logged: ' + outcome + ' \u2713</span>';
+    }
+    toast('Call outcome logged to GHL', 'success');
+  }).catch(function(e) { toast('Failed to log: ' + e.message, 'error'); });
+
+  // Also tag the contact based on outcome
+  if (outcome === 'connected') {
+    fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['contacted', 'call-connected'] })
+    }).catch(function() {});
+  } else if (outcome === 'wrong number') {
+    fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['wrong-number'] })
+    }).catch(function() {});
+  }
+}
+
+function syncCallListToGHL() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var withPhone = sellers.filter(function(s) { return s.phone; });
+  if (!confirm('Write lead scores for ' + withPhone.length + ' seller leads to GHL custom field "lead_score"?\\n\\nThis lets you use scores in GHL workflows and automations.')) return;
+
+  toast('Syncing scores to GHL...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  withPhone.forEach(function(s) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + s.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customFields: [
+            { key: 'lead_score', field_value: String(s.score) },
+            { key: 'motivation_score', field_value: String(s.motivation) },
+            { key: 'call_priority', field_value: String(s.callPriority || s.motivation) }
+          ]
+        })
+      }).then(function(res) {
+        if (res.ok) done++;
+        else failed++;
+        if ((done + failed) % 10 === 0) toast('Synced ' + done + '/' + withPhone.length, 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Score sync complete: ' + done + ' updated, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+  });
 }
 
 // -------------------------------------------------------
