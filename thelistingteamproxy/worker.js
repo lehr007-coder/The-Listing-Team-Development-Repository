@@ -6127,6 +6127,7 @@ function processRawContacts(allRaw) {
       source:      ext.source || String(c.source||''),
       city:        ext.city,
       state:       ext.state,
+      address:     ext.address,
       propType:    contactType,
       isNew:       isNewThisWeek(c),
       hasShowing:  matrix.showings > 0
@@ -6774,7 +6775,7 @@ function renderTable() {
           (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
         '</div>' +
       '</td>' +
-      '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
+      '<td style="color:var(--text-secondary);font-size:12px">' + (l.address ? '<div style="font-weight:600;color:var(--text)">' + esc(l.address) + '</div>' : '') + esc(loc) + '</td>' +
       '<td>' + buildTypeBadge(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
       '<td style="font-size:12px">' +
@@ -6890,7 +6891,8 @@ function renderCards() {
         '<span class="mm">&#128269; <span>' + m.searches + '</span></span>' +
         (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
       '</div>' +
-      (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
+      (l.address ? '<div style="font-size:11px;color:var(--text);margin:4px 0;font-weight:600">&#127968; ' + esc(l.address) + '</div>' : '') +
+      (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:' + (l.address ? '0' : '4px') + ' 0">' + esc(loc) + '</div>' : '') +
       (l.propType ? '<div style="margin:2px 0">' + buildTypeBadge(l.propType) + '</div>' : '') +
       '<div class="contact-card-meta">' +
         buildSourceBadge(l.source) +
