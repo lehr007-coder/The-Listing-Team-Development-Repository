@@ -2553,6 +2553,23 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-sub.positive { color: #1E7A9C; }
 
+  /* \u2500\u2500 Toolbar Dropdown Menus \u2500\u2500 */
+  .toolbar-dropdown { position: relative; display: inline-block; }
+  .toolbar-dropdown-btn { cursor: pointer; }
+  .toolbar-dropdown-content {
+    display: none; position: absolute; top: 100%; left: 0; z-index: 1000;
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); min-width: 200px; padding: 6px 0;
+    margin-top: 4px;
+  }
+  .toolbar-dropdown.open .toolbar-dropdown-content { display: block; }
+  .toolbar-dropdown-content button {
+    display: block; width: 100%; text-align: left; padding: 8px 16px;
+    border: none; background: none; color: var(--text); font-size: 12px;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .toolbar-dropdown-content button:hover { background: var(--brand-primary); color: #fff; border-radius: 4px; }
+
   /* \u2500\u2500 Filters Bar \u2500\u2500 */
   .filters-bar {
     padding: 16px 24px;
@@ -2978,32 +2995,50 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
       <option value="0" style="color:#111">All Time</option>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
-    <button class="btn btn-sm" onclick="exportAllCSV()">Export All</button>
-    <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center">0</span></button>
-    <button class="btn btn-sm" onclick="openSettingsPanel()">&#9881; Settings</button>
+    <button class="btn btn-sm" onclick="generateAIInsights()" style="color:#00ff55;font-weight:700">&#129302; AI Insights</button>
+    <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
     <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
-    <button class="btn btn-sm" onclick="findDuplicates()" style="position:relative">&#128279; Duplicates <span id="dupBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
-    <button class="btn btn-sm" onclick="findTestContacts()">&#128270; Test Cleanup</button>
-    <button class="btn btn-sm" onclick="showTeamDashboard()">&#128101; Team</button>
-    <button class="btn btn-sm" onclick="showMarketHeatmap()">&#128506; Heatmap</button>
-    <button class="btn btn-sm" onclick="showABTestDashboard()">&#128202; A/B Tests</button>
-    <button class="btn btn-sm" onclick="setupRoutingRules()">&#128177; Routing</button>
-    <button class="btn btn-sm" onclick="openScoringWeights()">⚖️ Weights</button>
-    <button class="btn btn-sm" onclick="checkIntegrationHealth()">&#128313; Health</button>
-    <button class="btn btn-sm" onclick="createFollowUpSequence()">⏰ Sequences</button>
-    <button class="btn btn-sm" onclick="generateAIInsights()" style="color:#00ff55;font-weight:700">🤖 AI Insights</button>
-    <button class="btn btn-sm" onclick="showPerformanceAnalytics()">📊 Performance</button>
-    <button class="btn btn-sm" onclick="showBulkCampaigns()">📢 Bulk Ops</button>
-    <button class="btn btn-sm" onclick="manageSavedFilters()">🔍 Filters</button>
-    <button class="btn btn-sm" onclick="createCustomWebhook()">🔔 Triggers</button>
-    <button class="btn btn-sm" onclick="showMarketBenchmarks()">📈 Benchmarks</button>
-    <button class="btn btn-sm" onclick="showAuditTrail()">📋 Audit</button>
-    <button class="btn btn-sm" onclick="exportLeadsDatabase()">⬇️ Export</button>
-    <button class="btn btn-sm" onclick="importLeadsDatabase()">⬆️ Import</button>
-    <button class="btn btn-sm" onclick="showMobileAppInfo()">📱 Mobile App</button>
-    <button class="btn btn-sm" onclick="enableNotifications()">&#128276; Notify</button>
-    <button class="btn btn-sm" onclick="toggleMobileView()">&#128241; Mobile</button>
-    <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128200; Analytics &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="showPerformanceAnalytics()">&#128202; Agent Leaderboard</button>
+        <button onclick="showTeamDashboard()">&#128101; Team Dashboard</button>
+        <button onclick="showMarketHeatmap()">&#128506; Market Heatmap</button>
+        <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
+        <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
+        <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
+      </div>
+    </div>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="openSettingsPanel()">&#9881; Settings</button>
+        <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
+        <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
+        <button onclick="createFollowUpSequence()">&#9200; Follow-up Sequences</button>
+        <button onclick="createCustomWebhook()">&#128276; Custom Triggers</button>
+        <button onclick="enableNotifications()">&#128276; Notifications</button>
+        <button onclick="checkIntegrationHealth()">&#128313; Health Check</button>
+        <button onclick="showDiagnostics()">&#128295; Diagnostics</button>
+      </div>
+    </div>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
+        <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
+        <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
+        <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+        <button onclick="exportAllCSV()">&#128196; Export CSV</button>
+        <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
+        <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
+      </div>
+    </div>
+
+    <button class="btn btn-sm" onclick="toggleMobileView()">&#128241;</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
     <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
     <span id="refreshCountdown" style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap"></span>
@@ -5786,6 +5821,17 @@ function compareContacts() {
 // UTIL
 // -------------------------------------------------------
 function _el(id) { return document.getElementById(id); }
+function toggleDropdown(btn) {
+  var dd = btn.parentElement;
+  var wasOpen = dd.classList.contains('open');
+  document.querySelectorAll('.toolbar-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  if (!wasOpen) dd.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.toolbar-dropdown')) {
+    document.querySelectorAll('.toolbar-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  }
+});
 function focusLead(id) {
   var lead = ALL_LEADS.find(function(l) { return l.id === id; });
   if (lead) {
