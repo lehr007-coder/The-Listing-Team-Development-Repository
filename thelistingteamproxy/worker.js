@@ -9954,7 +9954,7 @@ function showMobileAppInfo() {
   html += '<li>Score & activity tracking</li>';
   html += '<li>Push notifications for hot leads</li>';
   html += '</ul>';
-  html += '<button onclick="toast(\'Mobile app development started!\', \'success\')" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-top:16px">Get Notified</button>';
+  html += '<button onclick="toast(&#39;Mobile app development started!&#39;, &#39;success&#39;)" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-top:16px">Get Notified</button>';
   html += '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
