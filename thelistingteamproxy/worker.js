@@ -2546,6 +2546,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   body.mobile-mode .lead-card { padding: 12px; }
   body.mobile-mode .accordion { padding: 12px; }
   body.mobile-mode .acc-links { flex-direction: column; gap: 4px; }
+  .bulk-bar { display: none; align-items: center; gap: 8px; padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--card-border); flex-wrap: wrap; }
+  .bulk-bar.visible { display: flex; }
   body.mobile-mode .bulk-bar { flex-wrap: wrap; gap: 4px; padding: 8px; }
   body.mobile-mode .bulk-action { font-size: 10px; padding: 4px 8px; }
   body.mobile-mode .source-pie-wrap, body.mobile-mode .conversion-mini-wrap { flex-direction: column; }
@@ -9103,7 +9105,7 @@ function renderSmartLists() {
   var el = document.getElementById('smartListsPanel');
   if (!el) return;
   var lists = getSavedSmartLists();
-  if (!lists.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:8px">No saved lists. Use filters then click "Save List".</div>'; return; }
+  if (!lists.length) { el.innerHTML = ''; return; }
   var html = '';
   lists.forEach(function(l, i) {
     html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
