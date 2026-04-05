@@ -5931,13 +5931,17 @@ function getExtendedData(c) {
     maxPrice: maxPrice,
     price: price,
     propType:  getCF(c,['property_type','propertytype','prop_type','ylopo_property_type'])||'',
-    city:      getCF(c,['ylopo_search_city','ylopo_listing_city','primarysearchcity','listingcity','city','search_city','home_city'])||'',
-    state:     getCF(c,['ylopo_search_state','ylopo_listing_state','primarysearchstate','listingstate','state','search_state','home_state'])||'',
-    zip:       getCF(c,['ylopo_search_zip','ylopo_listing_zip','primarysearchpostalcode','listingzip','zip','postal_code','search_zip'])||'',
+    city:      getCF(c,['ylopo_search_city','ylopo_listing_city','primarysearchcity','listingcity','city','search_city','home_city'])||c.city||'',
+    state:     getCF(c,['ylopo_search_state','ylopo_listing_state','primarysearchstate','listingstate','state','search_state','home_state'])||c.state||'',
+    zip:       getCF(c,['ylopo_search_zip','ylopo_listing_zip','primarysearchpostalcode','listingzip','zip','postal_code','search_zip'])||c.postalCode||'',
     source:    getCF(c,['ylopo_source','ylopo_event_source','fub_source','fub_registration_source','source','lead_source'])||String(c.source||''),
     leadType:  getCF(c,['ylopo_lead_type','leadtype','fub_registration_type','lead_type','type'])||'',
-    estValue:  getCF(c,['estimated','estimated_value','est_home_value','home_value','homevalue'])||'',
-    address:   getCF(c,['address','home_address','listing_address','ylopo_listing_address'])||c.address1||'',
+    estValue:  getCF(c,['estimated','estimated_value','est_home_value','home_value','homevalue','zestimate','property_value','avm_value'])||'',
+    equity:    Number(getCF(c,['equity','home_equity','equity_amount','estimated_equity','equity_value']))||0,
+    equityPct: Number(getCF(c,['equity_percent','equity_pct','ltv','equity_percentage']))||0,
+    mortgageBalance: Number(getCF(c,['mortgage_balance','loan_balance','remaining_balance','mortgage_amount','loan_amount']))||0,
+    ownerSince: getCF(c,['owner_since','ownership_date','purchase_date','date_purchased'])||'',
+    address:   getCF(c,['address','home_address','listing_address','ylopo_listing_address','property_address','street_address','mailing_address'])||c.address1||'',
     sqft: sqft,
     yearBuilt: yearBuilt,
     mlsNumber: mlsNumber,
@@ -7122,20 +7126,25 @@ function buildAccordion(lead) {
         (ext.ylopoLastLogin ? '<div style="font-size:12px;color:var(--text-secondary)">Last login: <strong style="color:var(--text)">' + fmtDate(ext.ylopoLastLogin) + '</strong></div>' : '') +
       '</div>' +
       '<div class="acc-section">' +
-        '<div class="acc-section-title">Property Preferences</div>' +
+        '<div class="acc-section-title">&#127968; Property Details</div>' +
         '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr)">' +
-          '<div class="prop-item"><div class="pi-icon">Budget</div><div class="pi-label">Budget</div><div class="pi-value">' + (ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : ext.price ? fmtPrice(ext.price) : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-icon">Bed/Bath</div><div class="pi-label">Bed/Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-icon">SqFt</div><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + (esc(ext.address)||'\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
         '</div>' +
-        (ext.yearBuilt || ext.mlsNumber || ext.propType ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary)">' +
+        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px">' +
+          '<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + (ext.price ? fmtPrice(ext.price) : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '\\u2014') + '</div></div>' +
+        '</div>' +
+        (ext.yearBuilt || ext.mlsNumber || ext.propType || ext.ownerSince ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' +
           (ext.yearBuilt ? '<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>' : '') +
           (ext.mlsNumber ? '<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>' : '') +
           (ext.propType  ? '<span>Type: <strong>' + esc(ext.propType) + '</strong></span>'  : '') +
+          (ext.ownerSince ? '<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>' : '') +
         '</div>' : '') +
         (ext.assignedWebsite ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>' : '') +
         (ext.ylopoEventType ? '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>' : '') +
-        (ext.estValue ? '<div style="font-size:12px;color:var(--text-secondary)">Est. Value: <strong>' + esc(String(ext.estValue)) + '</strong></div>' : '') +
       '</div>' +
       '<div class="acc-section">' +
         '<div class="acc-section-title">Tags</div>' +
@@ -7188,8 +7197,64 @@ function buildAccordion(lead) {
       (lead.phone ? '<a href="sms:' + esc(lead.phone) + '" class="acc-link">SMS</a>' : '') +
       '<a href="#" onclick="event.preventDefault();showScoreBreakdown(&#39;' + lead.id + '&#39;)" class="acc-link">Score Breakdown</a>' +
       '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
+      '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
     '</div>' +
   '</div>';
+}
+
+// -------------------------------------------------------
+// VIEW ALL FIELDS (debug / data inspection)
+// -------------------------------------------------------
+function showAllFields(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('No raw data for this contact', 'error'); return; }
+  var popup = document.createElement('div');
+  popup.id = 'allFieldsPopup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);border-radius:16px 16px 0 0;z-index:1">';
+  html += '<h3 style="margin:0;font-size:15px;color:var(--text)">All Fields: ' + esc(raw.firstName || '') + ' ' + esc(raw.lastName || '') + '</h3>';
+  html += '<button onclick="document.getElementById(&#39;allFieldsPopup&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  // Native GHL fields
+  html += '<div style="padding:14px 20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--brand-accent);margin-bottom:8px">GHL Native Fields</div>';
+  var nativeKeys = ['id','firstName','lastName','email','phone','address1','city','state','postalCode','country','source','type','dateAdded','dateUpdated','tags','companyName','website'];
+  nativeKeys.forEach(function(k) {
+    var v = raw[k];
+    if (v === undefined || v === null || v === '') return;
+    if (Array.isArray(v)) v = v.join(', ');
+    html += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--card-border);font-size:12px">';
+    html += '<span style="min-width:140px;color:var(--text-secondary);font-weight:600">' + esc(k) + '</span>';
+    html += '<span style="color:var(--text);word-break:break-all">' + esc(String(v)) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Custom fields
+  var cf = Array.isArray(raw.customField) ? raw.customField : Array.isArray(raw.customFields) ? raw.customFields : [];
+  if (cf.length) {
+    html += '<div style="padding:14px 20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--brand-accent);margin-bottom:8px">Custom Fields (' + cf.length + ')</div>';
+    cf.forEach(function(f) {
+      var val = f.value || f.fieldValue || '';
+      if (!val && val !== 0) return;
+      if (Array.isArray(val)) val = val.join(', ');
+      var label = f.fieldKey || f.key || f.name || f.id || 'unknown';
+      html += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--card-border);font-size:12px">';
+      html += '<span style="min-width:200px;color:var(--text-secondary);font-weight:600;word-break:break-all">' + esc(label) + '</span>';
+      html += '<span style="color:var(--text);word-break:break-all">' + esc(String(val)) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="padding:14px 20px;font-size:12px;color:var(--text-secondary)">No custom fields found on this contact.</div>';
+  }
+
+  html += '</div>';
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
 }
 
 // -------------------------------------------------------
