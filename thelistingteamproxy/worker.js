@@ -3073,6 +3073,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
   <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
+  <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:700">&#127968; Enrich Selected</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
 </div>
 
@@ -7330,6 +7331,58 @@ function bulkEnrichSellers() {
   chain.then(function() {
     toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
     if (done > 0) loadData(true);
+  });
+}
+
+// -------------------------------------------------------
+// ENRICH SELECTED CONTACTS
+// -------------------------------------------------------
+function enrichSelected() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('Select contacts first', 'error'); return; }
+  var leads = ids.map(function(id) {
+    var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+    if (!lead) return null;
+    var raw = RAW_CONTACTS[id];
+    var ext = raw ? getExtendedData(raw) : {};
+    var address = lead.address || ext.address || (raw && raw.address1) || '';
+    if (!address) return null;
+    var cityStateZip = [lead.city || ext.city || (raw && raw.city) || '', lead.state || ext.state || (raw && raw.state) || '', ext.zip || (raw && raw.postalCode) || ''].filter(Boolean).join(' ');
+    return { id: id, name: lead.name, address: address, cityStateZip: cityStateZip };
+  }).filter(Boolean);
+
+  if (!leads.length) { toast('None of the selected contacts have an address', 'error'); return; }
+  if (!confirm('Enrich ' + leads.length + ' contact' + (leads.length > 1 ? 's' : '') + ' with ATTOM property data?\\n\\nThis will look up beds, baths, sqft, value, year built and write to GHL.')) return;
+
+  toast('Enriching ' + leads.length + ' contacts...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  leads.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: l.id, address1: l.address, address2: l.cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.ok) {
+          done++;
+          var r = data.enriched;
+          var info = [];
+          if (r.beds) info.push(r.beds + 'bd');
+          if (r.baths) info.push(r.baths + 'ba');
+          if (r.estValue) info.push('$' + r.estValue.toLocaleString());
+          toast(l.name + ': ' + (info.length ? info.join(' | ') : 'enriched') + ' (' + done + '/' + leads.length + ')', 'success');
+        } else {
+          failed++;
+          toast(l.name + ': failed - ' + (data.error || 'unknown'), 'error');
+        }
+      }).catch(function(e) { failed++; toast(l.name + ': error - ' + e.message, 'error'); });
+    });
+  });
+  chain.then(function() {
+    toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) setTimeout(function() { loadData(true); }, 1500);
   });
 }
 
