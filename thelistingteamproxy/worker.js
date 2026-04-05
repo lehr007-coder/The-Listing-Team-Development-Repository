@@ -2986,6 +2986,11 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="btn btn-sm" onclick="findTestContacts()">&#128270; Test Cleanup</button>
     <button class="btn btn-sm" onclick="showTeamDashboard()">&#128101; Team</button>
     <button class="btn btn-sm" onclick="showMarketHeatmap()">&#128506; Heatmap</button>
+    <button class="btn btn-sm" onclick="showABTestDashboard()">&#128202; A/B Tests</button>
+    <button class="btn btn-sm" onclick="setupRoutingRules()">&#128177; Routing</button>
+    <button class="btn btn-sm" onclick="openScoringWeights()">⚖️ Weights</button>
+    <button class="btn btn-sm" onclick="checkIntegrationHealth()">&#128313; Health</button>
+    <button class="btn btn-sm" onclick="createFollowUpSequence()">⏰ Sequences</button>
     <button class="btn btn-sm" onclick="enableNotifications()">&#128276; Notify</button>
     <button class="btn btn-sm" onclick="toggleMobileView()">&#128241; Mobile</button>
     <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
@@ -7525,6 +7530,7 @@ function buildAccordion(lead) {
       '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
       '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
       '<a href="#" onclick="event.preventDefault();generatePDFReport(&#39;' + lead.id + '&#39;)" class="acc-link">&#128196; PDF Report</a>' +
+      '<a href="#" onclick="event.preventDefault();showContactTimeline(&#39;' + lead.id + '&#39;)" class="acc-link">📅 Timeline</a>' +
       (ext.address ? '<a href="#" onclick="event.preventDefault();enrichContact(&#39;' + lead.id + '&#39;)" class="acc-link">&#127968; Enrich Property</a>' : '') +
     '</div>' +
   '</div>';
@@ -9099,6 +9105,309 @@ function generatePDFReport(id) {
   } else {
     toast('Pop-up blocked. Allow pop-ups for this site.', 'error');
   }
+}
+
+// -------------------------------------------------------
+// A/B TEST OUTREACH TEMPLATES
+// -------------------------------------------------------
+var AB_TESTS = {};
+function createABTest() {
+  var name = prompt('Test name (e.g., "Subject A vs B"):');
+  if (!name) return;
+  var variantA = prompt('Variant A subject:');
+  if (!variantA) return;
+  var variantB = prompt('Variant B subject:');
+  if (!variantB) return;
+  var testId = 'test_' + Date.now();
+  AB_TESTS[testId] = {
+    name: name, variantA: variantA, variantB: variantB,
+    resultsA: { sent: 0, opened: 0, replied: 0 },
+    resultsB: { sent: 0, opened: 0, replied: 0 },
+    created: new Date().toISOString()
+  };
+  localStorage.setItem('ab_tests', JSON.stringify(AB_TESTS));
+  toast('A/B test created: ' + name, 'success');
+  showABTestDashboard();
+}
+function trackABTestEvent(testId, variant, event) {
+  if (!AB_TESTS[testId]) return;
+  AB_TESTS[testId]['results' + variant][event]++;
+  localStorage.setItem('ab_tests', JSON.stringify(AB_TESTS));
+}
+function showABTestDashboard() {
+  AB_TESTS = JSON.parse(localStorage.getItem('ab_tests')) || {};
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">A/B Test Dashboard</h2>';
+  html += '<button onclick="createABTest()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-bottom:16px">+ New Test</button>';
+
+  Object.keys(AB_TESTS).forEach(function(testId) {
+    var t = AB_TESTS[testId];
+    var openRateA = t.resultsA.sent > 0 ? Math.round(t.resultsA.opened / t.resultsA.sent * 100) : 0;
+    var openRateB = t.resultsB.sent > 0 ? Math.round(t.resultsB.opened / t.resultsB.sent * 100) : 0;
+    var replyRateA = t.resultsA.sent > 0 ? Math.round(t.resultsA.replied / t.resultsA.sent * 100) : 0;
+    var replyRateB = t.resultsB.sent > 0 ? Math.round(t.resultsB.replied / t.resultsB.sent * 100) : 0;
+    var winnerOpen = openRateA > openRateB ? 'A' : openRateB > openRateA ? 'B' : 'tie';
+    var winnerReply = replyRateA > replyRateB ? 'A' : replyRateB > replyRateA ? 'B' : 'tie';
+
+    html += '<div style="border:1px solid var(--card-border);border-radius:12px;padding:16px;margin-bottom:16px">';
+    html += '<div style="font-weight:700;color:var(--text);margin-bottom:12px">' + esc(t.name) + '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">';
+    html += '<div><strong>Variant A:</strong> ' + esc(t.variantA) + '<br/>Sent: ' + t.resultsA.sent + ' | Open: ' + openRateA + '% | Reply: ' + replyRateA + '%</div>';
+    html += '<div><strong>Variant B:</strong> ' + esc(t.variantB) + '<br/>Sent: ' + t.resultsB.sent + ' | Open: ' + openRateB + '% | Reply: ' + replyRateB + '%</div>';
+    html += '</div>';
+    html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">Winner (open): ' + winnerOpen + ' | Winner (reply): ' + winnerReply + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// LEAD ROUTING RULES
+// -------------------------------------------------------
+var ROUTING_RULES = [];
+function setupRoutingRules() {
+  ROUTING_RULES = JSON.parse(localStorage.getItem('routing_rules')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Routing Rules</h2>';
+  html += '<button onclick="addRoutingRule()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-bottom:16px">+ New Rule</button>';
+
+  ROUTING_RULES.forEach(function(r, i) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<div style="font-size:12px"><strong>' + esc(r.agentName) + '</strong><br/>If ' + esc(r.condition) + ' (match: ' + esc(r.value) + ')</div>';
+    html += '<button onclick="deleteRoutingRule(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">&#10005;</button>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+function addRoutingRule() {
+  var agentName = prompt('Agent name:');
+  if (!agentName) return;
+  var condition = prompt('Condition (zip, source, score):');
+  if (!condition) return;
+  var value = prompt('Value to match:');
+  if (!value) return;
+  ROUTING_RULES.push({ agentName: agentName, condition: condition, value: value });
+  localStorage.setItem('routing_rules', JSON.stringify(ROUTING_RULES));
+  toast('Routing rule added', 'success');
+  setupRoutingRules();
+}
+function deleteRoutingRule(idx) {
+  ROUTING_RULES.splice(idx, 1);
+  localStorage.setItem('routing_rules', JSON.stringify(ROUTING_RULES));
+  setupRoutingRules();
+}
+function applyRoutingRules(lead) {
+  ROUTING_RULES = JSON.parse(localStorage.getItem('routing_rules')) || [];
+  for (var i = 0; i < ROUTING_RULES.length; i++) {
+    var r = ROUTING_RULES[i];
+    var matches = false;
+    if (r.condition === 'zip' && lead.zip === r.value) matches = true;
+    if (r.condition === 'source' && lead.source === r.value) matches = true;
+    if (r.condition === 'score' && lead.score >= parseInt(r.value)) matches = true;
+    if (matches) {
+      return r.agentName;
+    }
+  }
+  return null;
+}
+
+// -------------------------------------------------------
+// AUTOMATED FOLLOW-UP SEQUENCES
+// -------------------------------------------------------
+var FOLLOW_UP_SEQUENCES = [];
+function createFollowUpSequence() {
+  var name = prompt('Sequence name (e.g., "30/60/90 day follow-up"):');
+  if (!name) return;
+  var seq = { name: name, steps: [], created: new Date().toISOString() };
+  FOLLOW_UP_SEQUENCES.push(seq);
+  editSequence(FOLLOW_UP_SEQUENCES.length - 1);
+}
+function editSequence(idx) {
+  var seq = FOLLOW_UP_SEQUENCES[idx];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">' + esc(seq.name) + '</h2>';
+  html += '<button onclick="addSequenceStep(' + idx + ')" style="padding:6px 12px;background:var(--brand-accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:12px">+ Add Step</button>';
+
+  (seq.steps || []).forEach(function(step, si) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">';
+    html += '<strong>Day ' + step.day + ':</strong> ' + esc(step.action) + ' - ' + esc(step.message) + '';
+    html += '</div>';
+  });
+
+  html += '<button onclick="saveFollowUpSequences()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Sequence</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+function addSequenceStep(idx) {
+  var day = prompt('Days to wait:');
+  if (!day) return;
+  var action = prompt('Action (email/sms):');
+  if (!action) return;
+  var message = prompt('Message:');
+  if (!message) return;
+  if (!FOLLOW_UP_SEQUENCES[idx].steps) FOLLOW_UP_SEQUENCES[idx].steps = [];
+  FOLLOW_UP_SEQUENCES[idx].steps.push({ day: parseInt(day), action: action, message: message });
+  editSequence(idx);
+}
+function saveFollowUpSequences() {
+  localStorage.setItem('follow_up_sequences', JSON.stringify(FOLLOW_UP_SEQUENCES));
+  toast('Follow-up sequence saved', 'success');
+  document.querySelector('[onclick*="editSequence"]')?.parentElement?.remove();
+}
+
+// -------------------------------------------------------
+// CUSTOM SCORING WEIGHTS
+// -------------------------------------------------------
+var SCORE_WEIGHTS = { views: 10, saves: 15, searches: 5, showings: 25, engagement: 20, age: 5, tags: 20 };
+function openScoringWeights() {
+  var saved = JSON.parse(localStorage.getItem('score_weights')) || SCORE_WEIGHTS;
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Scoring Weights</h2>';
+
+  Object.keys(saved).forEach(function(key) {
+    html += '<div style="margin-bottom:16px">';
+    html += '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px">' + key.charAt(0).toUpperCase() + key.slice(1) + '</label>';
+    html += '<input type="range" id="w_' + key + '" min="0" max="50" value="' + saved[key] + '" style="width:100%">';
+    html += '<div style="font-size:11px;color:var(--text);margin-top:4px">Weight: <span id="v_' + key + '">' + saved[key] + '</span></div>';
+    html += '</div>';
+  });
+
+  html += '<button onclick="saveScoringWeights()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Weights</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  Object.keys(saved).forEach(function(key) {
+    var input = document.getElementById('w_' + key);
+    if (input) {
+      input.oninput = function() { document.getElementById('v_' + key).textContent = this.value; };
+    }
+  });
+}
+function saveScoringWeights() {
+  var weights = {};
+  Object.keys(SCORE_WEIGHTS).forEach(function(key) {
+    var input = document.getElementById('w_' + key);
+    weights[key] = parseInt(input.value);
+  });
+  localStorage.setItem('score_weights', JSON.stringify(weights));
+  SCORE_WEIGHTS = weights;
+  toast('Scoring weights updated', 'success');
+  document.querySelector('[onclick*="saveScoringWeights"]').closest('div').remove();
+}
+
+// -------------------------------------------------------
+// INTEGRATION HEALTH MONITOR
+// -------------------------------------------------------
+var HEALTH_CHECKS = {};
+function checkIntegrationHealth() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Integration Health</h2>';
+
+  var apis = [
+    { name: 'GHL API', endpoint: '/health/ghl' },
+    { name: 'Ylopo Webhook', endpoint: '/health/ylopo' },
+    { name: 'ATTOM API', endpoint: '/health/attom' }
+  ];
+
+  apis.forEach(function(api) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<span style="font-size:13px"><strong>' + api.name + '</strong></span>';
+    html += '<span id="status-' + api.name + '" style="font-size:12px;color:#ccc;font-weight:600">checking...</span>';
+    html += '</div>';
+
+    fetch(PROXY_URL + api.endpoint, { method: 'GET' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var status = data.status || 'unknown';
+        var statusEl = document.getElementById('status-' + api.name);
+        if (statusEl) {
+          statusEl.textContent = status === 'ok' ? '✓ Healthy' : '✗ Down';
+          statusEl.style.color = status === 'ok' ? '#00ff55' : '#ef4444';
+        }
+      })
+      .catch(function(e) {
+        var statusEl = document.getElementById('status-' + api.name);
+        if (statusEl) {
+          statusEl.textContent = '✗ Error';
+          statusEl.style.color = '#ef4444';
+        }
+      });
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// CONTACT TIMELINE
+// -------------------------------------------------------
+function showContactTimeline(leadId) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === leadId; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+  var raw = RAW_CONTACTS[leadId] || {};
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Timeline: ' + esc(lead.name) + '</h2>';
+
+  var events = [
+    { date: lead.dateAdded, icon: '📍', label: 'Added to GHL', color: 'var(--brand-primary)' },
+    { date: lead.dateUpdated, icon: '🔄', label: 'Last updated', color: 'var(--brand-accent)' }
+  ];
+
+  if (raw.notes && raw.notes.length) {
+    raw.notes.forEach(function(n) {
+      events.push({ date: n.createdAt || n.time, icon: '📝', label: 'Note: ' + n.body.substring(0, 40) + '...', color: '#6b7280' });
+    });
+  }
+
+  events.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+
+  events.forEach(function(e) {
+    html += '<div style="display:flex;gap:12px;margin-bottom:16px">';
+    html += '<div style="font-size:20px;width:30px;text-align:center">' + e.icon + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:600;color:var(--text);font-size:13px">' + e.label + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + new Date(e.date).toLocaleString() + '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
 }
 
 // -------------------------------------------------------
