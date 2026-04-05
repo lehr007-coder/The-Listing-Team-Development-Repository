@@ -4884,6 +4884,7 @@ function renderSellerTab() {
   html += '<button onclick="showDuplicates()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128269; Duplicates</button>';
   html += '<button onclick="showTagCrossRef()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128279; Tag Cross-Ref</button>';
   html += '<button onclick="exportSellerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
+  html += '<button onclick="bulkEnrichSellers()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--brand-accent);background:var(--brand-primary);color:#fff;font-size:12px;cursor:pointer;font-weight:700">&#127968; Enrich Properties</button>';
   html += '</div></div>';
   html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
   html += '<thead><tr style="background:var(--surface,var(--bg))">';
@@ -7201,6 +7202,7 @@ function buildAccordion(lead) {
       '<a href="#" onclick="event.preventDefault();showScoreBreakdown(&#39;' + lead.id + '&#39;)" class="acc-link">Score Breakdown</a>' +
       '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
       '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
+      (ext.address ? '<a href="#" onclick="event.preventDefault();enrichContact(&#39;' + lead.id + '&#39;)" class="acc-link">&#127968; Enrich Property</a>' : '') +
     '</div>' +
   '</div>';
 }
@@ -7258,6 +7260,77 @@ function showAllFields(id) {
   html += '</div>';
   popup.innerHTML = html;
   document.body.appendChild(popup);
+}
+
+// -------------------------------------------------------
+// ATTOM PROPERTY ENRICHMENT (client-side)
+// -------------------------------------------------------
+function enrichContact(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('No contact data', 'error'); return; }
+  var ext = getExtendedData(raw);
+  var address = ext.address || raw.address1 || '';
+  if (!address) { toast('No address on this contact', 'error'); return; }
+  var cityStateZip = [ext.city || raw.city || '', ext.state || raw.state || '', ext.zip || raw.postalCode || ''].filter(Boolean).join(' ');
+
+  toast('Looking up property data...', 'info');
+  fetch(PROXY_URL + '/attom/enrich', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contactId: id, address1: address, address2: cityStateZip })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data.ok) { toast('Enrichment failed: ' + (data.error || 'Unknown'), 'error'); return; }
+    var r = data.enriched;
+    var details = [];
+    if (r.beds) details.push(r.beds + 'bd');
+    if (r.baths) details.push(r.baths + 'ba');
+    if (r.sqft) details.push(r.sqft.toLocaleString() + ' sqft');
+    if (r.estValue) details.push('$' + r.estValue.toLocaleString());
+    if (r.yearBuilt) details.push('Built ' + r.yearBuilt);
+    toast('Enriched: ' + details.join(' | ') + ' (' + data.fieldsWritten + ' fields written to GHL)', 'success');
+    // Refresh this contact's accordion
+    setTimeout(function() { loadData(true); }, 1000);
+  })
+  .catch(function(e) { toast('Enrich error: ' + e.message, 'error'); });
+}
+
+function bulkEnrichSellers() {
+  var sellers = getSellerLeads();
+  var enrichable = sellers.filter(function(s) {
+    var hasAddr = s.propertyAddr || '';
+    var hasPropData = s.beds || s.baths || s.sqft || s.price;
+    return hasAddr && !hasPropData;
+  });
+  if (!enrichable.length) { toast('No seller leads need enrichment (all have data or no address)', 'info'); return; }
+  if (!confirm('Enrich ' + enrichable.length + ' seller leads with ATTOM property data?\\n\\nThis will look up beds, baths, sqft, value, year built for each address and write it to GHL.\\n\\nATTOM API calls: ' + enrichable.length)) return;
+
+  toast('Enriching ' + enrichable.length + ' contacts...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  enrichable.forEach(function(s) {
+    chain = chain.then(function() {
+      var raw = RAW_CONTACTS[s.id];
+      var ext = raw ? getExtendedData(raw) : {};
+      var address = s.propertyAddr || ext.address || '';
+      var cityStateZip = [s.city || ext.city || '', s.state || ext.state || '', ext.zip || ''].filter(Boolean).join(' ');
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: s.id, address1: address, address2: cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.ok) done++;
+        else failed++;
+        toast('Enriched ' + done + '/' + enrichable.length + (failed ? ' (' + failed + ' failed)' : ''), 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) loadData(true);
+  });
 }
 
 // -------------------------------------------------------
@@ -16776,6 +16849,141 @@ var index_default = {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
       }
     }
+    // -------------------------------------------------------
+    // ATTOM PROPERTY DATA ENRICHMENT
+    // -------------------------------------------------------
+    if (method === "GET" && path === "/attom/property") {
+      const attomKey = env.ATTOM_KEY || '';
+      if (!attomKey) return err('ATTOM_KEY not configured', 500);
+      const address1 = url.searchParams.get('address1') || '';
+      const address2 = url.searchParams.get('address2') || '';
+      if (!address1) return err('address1 parameter required', 400);
+      try {
+        const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
+        const resp = await fetch(attomUrl, {
+          headers: { 'Accept': 'application/json', 'apikey': attomKey }
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          console.log(`ATTOM API error ${resp.status}: ${errText}`);
+          return err(`ATTOM API error: ${resp.status}`, resp.status);
+        }
+        const data = await resp.json();
+        const prop = data?.property?.[0] || {};
+        const building = prop.building || {};
+        const rooms = building.rooms || {};
+        const size = building.size || {};
+        const lot = prop.lot || {};
+        const summary = building.summary || {};
+        const assessment = prop.assessment || {};
+        const market = assessment.market || {};
+        const avm = prop.avm || {};
+        const mortgage = prop.sale?.mortgage || {};
+
+        const result = {
+          beds: rooms.beds || rooms.bedrooms || 0,
+          baths: rooms.bathstotal || rooms.bathsfull || 0,
+          bathsFull: rooms.bathsfull || 0,
+          bathsHalf: rooms.bathshalf || 0,
+          sqft: size.livingsize || size.universalsize || 0,
+          lotSqft: lot.lotsize1 || lot.lotsize2 || 0,
+          lotAcres: lot.lotnum || 0,
+          yearBuilt: summary.yearbuilt || summary.yearbuilteffective || 0,
+          stories: summary.levels || 0,
+          garage: building.parking?.garagetype || '',
+          pool: building.interior?.fplccount > 0 ? 'Yes' : 'No',
+          fireplace: building.interior?.fplccount || 0,
+          propertyType: prop.summary?.propclass || prop.summary?.proptype || '',
+          propertySubType: prop.summary?.propsubtype || '',
+          assessedValue: assessment.assessed?.assdttlvalue || 0,
+          marketValue: market.mktttlvalue || 0,
+          taxAmount: assessment.tax?.taxamt || 0,
+          avmValue: avm.amount?.value || 0,
+          avmHigh: avm.amount?.high || 0,
+          avmLow: avm.amount?.low || 0,
+          lastSalePrice: prop.sale?.saleshistory?.[0]?.amount?.saleamt || 0,
+          lastSaleDate: prop.sale?.saleshistory?.[0]?.amount?.salerecdate || '',
+          ownerName: prop.assessment?.owner?.owner1?.fullname || '',
+          mailingAddr: prop.assessment?.owner?.mailingaddressoneline || '',
+          address: prop.address?.oneLine || address1,
+          city: prop.address?.locality || '',
+          state: prop.address?.countrySubd || '',
+          zip: prop.address?.postal1 || '',
+          fips: prop.identifier?.fips || '',
+          apn: prop.identifier?.apn || '',
+          raw: prop
+        };
+        return json({ ok: true, property: result });
+      } catch (e) {
+        console.log('ATTOM fetch error:', e);
+        return err(`ATTOM error: ${e.message}`, 500);
+      }
+    }
+
+    // ATTOM enrichment write-back to GHL
+    if (method === "POST" && path === "/attom/enrich") {
+      const attomKey = env.ATTOM_KEY || '';
+      if (!attomKey) return err('ATTOM_KEY not configured', 500);
+      try {
+        const body = await request.json();
+        const contactId = body.contactId;
+        const address1 = body.address1 || '';
+        const address2 = body.address2 || '';
+        if (!contactId) return err('contactId required', 400);
+        if (!address1) return err('address1 required', 400);
+
+        // Fetch from ATTOM
+        const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
+        const resp = await fetch(attomUrl, {
+          headers: { 'Accept': 'application/json', 'apikey': attomKey }
+        });
+        if (!resp.ok) return err(`ATTOM API error: ${resp.status}`, resp.status);
+        const data = await resp.json();
+        const prop = data?.property?.[0] || {};
+        const building = prop.building || {};
+        const rooms = building.rooms || {};
+        const size = building.size || {};
+        const summary = building.summary || {};
+        const assessment = prop.assessment || {};
+        const market = assessment.market || {};
+        const avm = prop.avm || {};
+        const lot = prop.lot || {};
+
+        // Build GHL custom field updates
+        const beds = rooms.beds || rooms.bedrooms || 0;
+        const baths = rooms.bathstotal || rooms.bathsfull || 0;
+        const sqft = size.livingsize || size.universalsize || 0;
+        const yearBuilt = summary.yearbuilt || 0;
+        const estValue = avm.amount?.value || market.mktttlvalue || assessment.assessed?.assdttlvalue || 0;
+        const lotSize = lot.lotsize1 || lot.lotsize2 || 0;
+
+        const customFields = [];
+        if (beds) customFields.push({ key: 'contact.ylopo_beds', field_value: String(beds) });
+        if (baths) customFields.push({ key: 'contact.ylopo_baths', field_value: String(baths) });
+        if (sqft) customFields.push({ key: 'contact.ylopo_listing_sqft', field_value: String(sqft) });
+        if (yearBuilt) customFields.push({ key: 'contact.ylopo_listing_year_built', field_value: String(yearBuilt) });
+        if (estValue) customFields.push({ key: 'estimated_value', field_value: String(estValue) });
+        if (lotSize) customFields.push({ key: 'lot_size', field_value: String(lotSize) });
+
+        // Write to GHL
+        if (customFields.length > 0) {
+          await ghl(env, "PUT", `/contacts/${contactId}`, { customFields });
+        }
+
+        const result = { beds, baths, sqft, yearBuilt, estValue, lotSize,
+          propertyType: prop.summary?.propclass || '',
+          stories: summary.levels || 0,
+          lastSalePrice: prop.sale?.saleshistory?.[0]?.amount?.saleamt || 0,
+          lastSaleDate: prop.sale?.saleshistory?.[0]?.amount?.salerecdate || ''
+        };
+
+        broadcastSSE({ type: 'attom.enriched', contactId, fields: customFields.length });
+        return json({ ok: true, enriched: result, fieldsWritten: customFields.length });
+      } catch (e) {
+        return err(`Enrich error: ${e.message}`, 500);
+      }
+    }
+
     const GHL_WEBHOOK_FORWARD = "https://services.leadconnectorhq.com/hooks/SeZr4YCwEZ50IcWqylkQ/webhook-trigger/f9245d8e-d706-4e0e-a125-c523a65e3fc5";
 
     // HMAC signature verification for webhook security
