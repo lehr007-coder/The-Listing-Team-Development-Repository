@@ -5,22 +5,49 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 var GHL_V1 = "https://rest.gohighlevel.com/v1";
 var GHL_V2 = "https://services.leadconnectorhq.com";
 var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
+var ALLOWED_ORIGINS = [
+  'https://thelistingteamproxy-staging.lehr007.workers.dev',
+  'https://thelistingteamproxy.lehr007.workers.dev',
+  'http://localhost:8787',
+  'http://127.0.0.1:8787'
+];
 var CORS = {
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id, X-API-Key",
   "Access-Control-Max-Age": "86400"
 };
-function corsHeaders(extra = {}) {
-  return { ...CORS, "Content-Type": "application/json", ...extra };
+function getCorsOrigin(request) {
+  var origin = request && request.headers ? request.headers.get('Origin') || '' : '';
+  if (ALLOWED_ORIGINS.indexOf(origin) !== -1) return origin;
+  return ALLOWED_ORIGINS[0];
+}
+function corsHeaders(extra = {}, request = null) {
+  return { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "application/json", ...extra };
 }
 __name(corsHeaders, "corsHeaders");
+var _currentRequest = null;
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: corsHeaders() });
+  return new Response(JSON.stringify(data), { status, headers: corsHeaders({}, _currentRequest) });
 }
 __name(json, "json");
-function err(msg, status = 500, details = null) {
-  return json({ ok: false, error: msg, ...details ? { details } : {}, proxy: "v8" }, status);
+function err(msg, status = 500) {
+  return json({ ok: false, error: msg, proxy: "v8" }, status);
+}
+function validateApiKey(request, env) {
+  var apiKey = request.headers.get('X-API-Key') || '';
+  var envKey = env.PROXY_API_KEY || '';
+  if (!envKey) return true; // Skip if not configured
+  return apiKey === envKey;
+}
+async function safeJsonParse(request, maxBytes) {
+  maxBytes = maxBytes || 1048576; // 1MB default
+  var contentLength = parseInt(request.headers.get('Content-Length') || '0');
+  if (contentLength > maxBytes) return { error: 'Request body too large' };
+  try {
+    return { data: await request.json() };
+  } catch(e) {
+    return { error: 'Invalid JSON: ' + e.message };
+  }
 }
 __name(err, "err");
 var ADMIN_HUB_HTML = `<!DOCTYPE html>
@@ -18661,12 +18688,21 @@ function broadcastSSE(event) {
 __name(broadcastSSE, "broadcastSSE");
 var index_default = {
   async fetch(request, env) {
+    _currentRequest = request;
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
     const locId = env.GHL_LOCATION_ID || LOC_ID;
     if (method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: corsHeaders({}, request) });
+    }
+    // Auth check for mutation endpoints (skip GET, dashboard pages, webhooks, SSE)
+    if ((method === 'POST' || method === 'PUT' || method === 'DELETE') &&
+        !path.startsWith('/ghl-webhook') && !path.startsWith('/ylopo-webhook') &&
+        !path.startsWith('/dashboard') && path !== '/events') {
+      if (!validateApiKey(request, env)) {
+        return err('Unauthorized', 401);
+      }
     }
     // -------------------------------------------------------
     // ADMIN: Auto-setup GHL outbound webhook for 2-way sync
@@ -18677,7 +18713,7 @@ var index_default = {
         const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
         if (!token) return err("No GHL API token configured", 500);
 
-        const results = { webhookUrl, tokenPrefix: token.substring(0, 10) + "...", steps: [] };
+        const results = { webhookUrl, tokenConfigured: true, steps: [] };
 
         // Step 1: List existing webhooks to avoid duplicates
         let existing = [];
@@ -18761,23 +18797,30 @@ var index_default = {
 
     if (method === "GET" && path === "/health") {
       return json({
-        ok: true,
+        ok: true, status: 'ok',
         proxy: "thelistingteamproxy-v8",
-        api: { jwt: "V1 (contacts, fields, tags, notes, tasks)", pit: "V2 (custom objects only)" },
         tokenPresent: !!env.GHL_API_KEY,
         v2TokenPresent: !!env.GHL_V2_TOKEN,
-        features: [
-          "pagination",
-          "fields",
-          "tags",
-          "notes",
-          "tasks",
-          "ylopo-webhook",
-          "ylopo-sync",
-          "ylopo-events"
-        ],
+        attomConfigured: !!env.ATTOM_KEY,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
+    }
+    if (method === "GET" && path === "/health/ghl") {
+      try {
+        const token = env.GHL_API_KEY || env.GHL_V2_TOKEN;
+        if (!token) return json({ status: 'down', reason: 'No token configured' });
+        const r = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
+          headers: { Authorization: `Bearer ${token}`, Version: '2021-07-28' },
+          signal: AbortSignal.timeout(10000)
+        });
+        return json({ status: r.ok ? 'ok' : 'down', code: r.status });
+      } catch(e) { return json({ status: 'down', reason: e.message }); }
+    }
+    if (method === "GET" && path === "/health/ylopo") {
+      return json({ status: 'ok', message: 'Webhook endpoint active' });
+    }
+    if (method === "GET" && path === "/health/attom") {
+      return json({ status: env.ATTOM_KEY ? 'ok' : 'down', configured: !!env.ATTOM_KEY });
     }
     if (method === "GET" && path === "/debug") {
       const results = {};
@@ -19115,13 +19158,14 @@ var index_default = {
     if (method === "GET" && path === "/attom/property") {
       const attomKey = env.ATTOM_KEY || '';
       if (!attomKey) return err('ATTOM_KEY not configured', 500);
-      const address1 = url.searchParams.get('address1') || '';
-      const address2 = url.searchParams.get('address2') || '';
+      const address1 = (url.searchParams.get('address1') || '').substring(0, 256);
+      const address2 = (url.searchParams.get('address2') || '').substring(0, 128);
       if (!address1) return err('address1 parameter required', 400);
       try {
         const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
         const resp = await fetch(attomUrl, {
-          headers: { 'Accept': 'application/json', 'apikey': attomKey }
+          headers: { 'Accept': 'application/json', 'apikey': attomKey },
+          signal: AbortSignal.timeout(15000)
         });
         if (!resp.ok) {
           const errText = await resp.text();
@@ -19185,7 +19229,9 @@ var index_default = {
       const attomKey = env.ATTOM_KEY || '';
       if (!attomKey) return err('ATTOM_KEY not configured', 500);
       try {
-        const body = await request.json();
+        const parsed = await safeJsonParse(request);
+        if (parsed.error) return err(parsed.error, 400);
+        const body = parsed.data;
         const contactId = body.contactId;
         const address1 = body.address1 || '';
         const address2 = body.address2 || '';
@@ -19195,7 +19241,8 @@ var index_default = {
         // Fetch from ATTOM
         const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
         const resp = await fetch(attomUrl, {
-          headers: { 'Accept': 'application/json', 'apikey': attomKey }
+          headers: { 'Accept': 'application/json', 'apikey': attomKey },
+          signal: AbortSignal.timeout(15000)
         });
         if (!resp.ok) return err(`ATTOM API error: ${resp.status}`, resp.status);
         const data = await resp.json();
@@ -19969,31 +20016,31 @@ var index_default = {
     if (method === "GET" && (path === "/" || path === "/dashboard")) {
       return new Response(ADMIN_HUB_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/site-matrix") {
       return new Response(SITE_MATRIX_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/priority-leads") {
       return new Response(PRIORITY_LEADS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
       return new Response(YLOPO_CONTACTS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
       return new Response(YLOPO_ANALYTICS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/idx") {
@@ -20380,7 +20427,7 @@ loadData();
 <\/script></body></html>`;
       return new Response(IDX_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" }
       });
     }
     return json({ error: "Not found", path, proxy: "v8" }, 404);
