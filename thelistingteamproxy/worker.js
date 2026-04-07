@@ -1,28 +1,63 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// index.js
+// worker.js
+var __defProp2 = Object.defineProperty;
+var __name2 = /* @__PURE__ */ __name((target, value) => __defProp2(target, "name", { value, configurable: true }), "__name");
 var GHL_V1 = "https://rest.gohighlevel.com/v1";
 var GHL_V2 = "https://services.leadconnectorhq.com";
 var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
+var ALLOWED_ORIGINS = [
+  "https://thelistingteamproxy-staging.lehr007.workers.dev",
+  "https://thelistingteamproxy.lehr007.workers.dev",
+  "http://localhost:8787",
+  "http://127.0.0.1:8787"
+];
 var CORS = {
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id, X-API-Key",
   "Access-Control-Max-Age": "86400"
 };
-function corsHeaders(extra = {}) {
-  return { ...CORS, "Content-Type": "application/json", ...extra };
+function getCorsOrigin(request) {
+  var origin = request && request.headers ? request.headers.get("Origin") || "" : "";
+  if (ALLOWED_ORIGINS.indexOf(origin) !== -1) return origin;
+  return ALLOWED_ORIGINS[0];
+}
+__name(getCorsOrigin, "getCorsOrigin");
+function corsHeaders(extra = {}, request = null) {
+  return { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "application/json", ...extra };
 }
 __name(corsHeaders, "corsHeaders");
+__name2(corsHeaders, "corsHeaders");
+var _currentRequest = null;
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: corsHeaders() });
+  return new Response(JSON.stringify(data), { status, headers: corsHeaders({}, _currentRequest) });
 }
 __name(json, "json");
-function err(msg, status = 500, details = null) {
-  return json({ ok: false, error: msg, ...details ? { details } : {}, proxy: "v8" }, status);
+__name2(json, "json");
+function err(msg, status = 500) {
+  return json({ ok: false, error: msg, proxy: "v8" }, status);
 }
 __name(err, "err");
+function validateApiKey(request, env) {
+  var apiKey = request.headers.get("X-API-Key") || "";
+  var envKey = env.PROXY_API_KEY || "";
+  if (!envKey) return true;
+  return apiKey === envKey;
+}
+__name(validateApiKey, "validateApiKey");
+async function safeJsonParse(request, maxBytes) {
+  maxBytes = maxBytes || 1048576;
+  var contentLength = parseInt(request.headers.get("Content-Length") || "0");
+  if (contentLength > maxBytes) return { error: "Request body too large" };
+  try {
+    return { data: await request.json() };
+  } catch (e) {
+    return { error: "Invalid JSON: " + e.message };
+  }
+}
+__name(safeJsonParse, "safeJsonParse");
+__name2(err, "err");
 var ADMIN_HUB_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,6 +176,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-title">Ylopo Contacts</div>
           <div class="card-desc">Full contact management with custom fields, tags, notes, tasks, and Ylopo event history per lead.</div>
           <div class="card-tag">Contact CRM</div>
+        </div>
+      </a>
+      <a href="/dashboard/ylopo-contacts#source" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4C8}</div>
+        <div class="card-body">
+          <div class="card-title">Source Performance</div>
+          <div class="card-desc">Analyze lead sources: volume, quality, hot rate, buyer/seller split, and recent activity by source.</div>
+          <div class="card-tag">Lead Intelligence</div>
         </div>
       </a>
       <a href="/dashboard/priority-leads" class="card rose">
@@ -262,7 +306,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div class="status-item" id="clockItem" style="margin-left:auto;font-variant-numeric:tabular-nums"></div>
   </div>
 
-  <div class="footer">The Listing Team \u00B7 Cloudflare Workers Infrastructure \u00B7 13 Active Services</div>
+  <div class="footer">The Listing Team \xB7 Cloudflare Workers Infrastructure \xB7 13 Active Services</div>
 </div>
 <script>
 function updateClock(){
@@ -441,7 +485,7 @@ async function startFetch(){
   setProgress(10);
   setStatus('Loading all Ylopo contacts (bulk)...');
   try{
-    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=20',{headers:{Accept:'application/json'},signal:abortCtl.signal});
+    const res=await fetch(PROXY+'/contacts/bulk?query=ylopo&pages=20&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/json'},signal:abortCtl.signal});
     if(!res.ok)throw new Error('HTTP '+res.status);
     setProgress(70);
     const data=await res.json();
@@ -1475,6 +1519,7 @@ body.dark-mode {
 <div class="external-links">
     <a href="/dashboard" class="external-link" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:#60a5fa">&#127968; Hub</a>
     <a href="/dashboard/ylopo-contacts" class="external-link" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:#4ade80">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-contacts#source" class="external-link" style="background:rgba(234,179,8,0.15);border-color:rgba(234,179,8,0.3);color:#eab308">&#128200; Sources</a>
     <a href="/dashboard/ylopo-analytics" class="external-link" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.3);color:#c084fc">&#128202; Analytics</a>
     <a href="/dashboard/site-matrix" class="external-link" style="background:rgba(6,182,212,0.15);border-color:rgba(6,182,212,0.3);color:#22d3ee">&#127760; Matrix</a>
     <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; GHL</a>
@@ -1515,7 +1560,7 @@ body.dark-mode {
     <!-- Tabs -->
     <div class="dashboard-tabs">
         <button class="tab-btn active" onclick="switchTab('leads')">&#128202; Leads View</button>
-        <button class="tab-btn" onclick="window.location.href='/dashboard/ylopo-analytics'">&#128200; Source Performance</button>
+        <button class="tab-btn" onclick="switchTab('source')">&#128200; Source Performance</button>
         <button class="tab-btn" onclick="switchTab('matrix')">&#127919; Matrix Overview</button>
     </div>
 
@@ -1584,9 +1629,49 @@ body.dark-mode {
 
     <!-- Tab: Source Performance -->
     <div id="sourceTab" class="tab-content">
-        <div style="text-align: center; padding: 4rem;">
-            <h2>&#128200; Source Performance</h2>
-            <p style="color: var(--text-muted); margin-top: 1rem;">Coming soon...</p>
+        <!-- Source KPI Cards -->
+        <div id="sourceKPIs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+        <!-- Source Breakdown Table -->
+        <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
+            <h3 style="margin:0 0 16px 0;font-size:16px">&#128202; Source Breakdown</h3>
+            <div style="overflow-x:auto">
+                <table id="sourcePerfTable" style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead><tr style="border-bottom:2px solid var(--card-border);text-align:left">
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer" onclick="sortSourceTable('name')">Source</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('count')">Leads</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('hot')">Hot</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('warm')">Warm</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('cold')">Cold</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('avgScore')">Avg Score</th>
+                        <th style="padding:10px 12px;font-weight:700;cursor:pointer;text-align:center" onclick="sortSourceTable('showings')">Showings</th>
+                        <th style="padding:10px 12px;font-weight:700;text-align:center">Quality</th>
+                        <th style="padding:10px 12px;font-weight:700;text-align:center">Volume</th>
+                    </tr></thead>
+                    <tbody id="sourcePerfBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Source Charts Row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+                <h3 style="margin:0 0 12px 0;font-size:16px">&#127919; Lead Distribution by Source</h3>
+                <div id="sourceDistChart" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+                <h3 style="margin:0 0 12px 0;font-size:16px">&#128293; Hot Lead Rate by Source</h3>
+                <div id="sourceHotChart" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+        </div>
+        <!-- Type Breakdown -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+                <h3 style="margin:0 0 12px 0;font-size:16px">&#127968; Buyer vs Seller by Source</h3>
+                <div id="sourceTypeChart" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
+            <div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+                <h3 style="margin:0 0 12px 0;font-size:16px">&#128197; Recent Activity by Source (7 days)</h3>
+                <div id="sourceRecentChart" style="display:flex;flex-direction:column;gap:8px"></div>
+            </div>
         </div>
     </div>
 
@@ -2106,6 +2191,7 @@ body.dark-mode {
         document.querySelectorAll('.tab-content').forEach(function(content) { content.classList.remove('active'); });
         document.getElementById(tab + 'Tab').classList.add('active');
         if (tab === 'matrix') renderMatrixTab();
+        if (tab === 'source') renderSourceTab();
     }
 
     function switchView(view) {
@@ -2207,7 +2293,7 @@ body.dark-mode {
     var MAX_PAGES = 15;
     var CACHE_KEY = 'priorityLeads_cache';
     var CACHE_TS_KEY = 'priorityLeads_cacheTs';
-    var CACHE_TTL = 5 * 60 * 1000; // 5 min cache
+    var CACHE_TTL = 0; // Always fetch fresh data on page load
 
     function saveCache(contacts) {
         try {
@@ -2232,22 +2318,13 @@ body.dark-mode {
     (async function loadAllContacts() {
         var tableBody = document.getElementById('tableBody');
 
-        // Try cache first for instant display
-        var cached = loadCache();
-        if (cached && cached.length > 0) {
-            CONTACTS = cached;
-            FILTERED_CONTACTS = [].concat(CONTACTS);
-            renderTable(CONTACTS);
-            updateStats();
-            tableBody.insertAdjacentHTML('beforebegin', '<div id="refreshNotice" style="text-align:center;padding:8px;font-size:0.85rem;color:var(--text-muted);">Showing cached data (' + cached.length + ' leads). Refreshing in background...</div>');
-        }
+        // Always clear stale cache and fetch fresh data on page load
+        try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem(CACHE_TS_KEY); } catch(e) {}
 
-        // Fetch all data in one bulk request (server handles pagination)
+        // Fetch all data fresh from GHL/Ylopo (server handles pagination)
         try {
-            if (!cached) {
-                tableBody.innerHTML = '<div class="loading"><p>Loading priority leads...</p></div>';
-            }
-            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=20');
+            tableBody.innerHTML = '<div class="loading"><p>Loading priority leads...</p></div>';
+            var response = await fetch(PROXY_URL + '/contacts/bulk?query=ypriority&pages=20&t=' + Date.now(), { cache: 'no-store' });
             if (!response.ok) throw new Error('HTTP ' + response.status);
             var data = await response.json();
             var allContacts = data.contacts || [];
@@ -2257,13 +2334,9 @@ body.dark-mode {
             FILTERED_CONTACTS = [].concat(CONTACTS);
             renderTable(CONTACTS);
             updateStats();
-            var notice = document.getElementById('refreshNotice');
-            if (notice) notice.remove();
         } catch (error) {
             console.error('Error:', error);
-            if (!cached) {
-                tableBody.innerHTML = '<div class="loading"><p style="color: var(--error);">Failed to load: ' + error.message + '</p></div>';
-            }
+            tableBody.innerHTML = '<div class="loading"><p style="color: var(--error);">Failed to load: ' + error.message + '</p></div>';
         }
     })();
 
@@ -2401,6 +2474,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .source-homes { background:rgba(249,115,22,0.15); color:#f97316; }
   .source-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
 
+  /* Contact type badge colors */
+  .type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .type-seller { background:rgba(34,197,94,0.2); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+  .type-buyer { background:rgba(16,185,129,0.15); color:#10b981; }
+  .type-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
+
   /* Card GHL/Ylopo links */
   .card-link-ghl,.card-link-ylopo { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; transition:all 0.15s; }
   .card-link-ghl { background:rgba(59,130,246,0.12); color:#3b82f6; }
@@ -2449,7 +2528,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .topbar-title { font-size: 18px; font-weight: 700; color: #fff; }
   .topbar-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
-  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; overflow: visible; }
   .btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 8px 16px;
@@ -2482,8 +2561,51 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+  .stat-value.flash-green, .flash-green { color: #00ff55 !important; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
+  @keyframes pulseGreen { 0%,100% { color: #00ff55 !important; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88 !important; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
+
+  /* -- Mobile-Optimized View -- */
+  body.mobile-mode .toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
+  body.mobile-mode .toolbar .btn { font-size: 11px; padding: 5px 8px; }
+  body.mobile-mode .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px; }
+  body.mobile-mode .stat-card { padding: 10px; }
+  body.mobile-mode .stat-value { font-size: 20px; }
+  body.mobile-mode .stat-label { font-size: 10px; }
+  body.mobile-mode .filters-bar { flex-direction: column; padding: 8px 12px; gap: 6px; }
+  body.mobile-mode .filters-bar .filter-tab { font-size: 11px; padding: 5px 10px; }
+  body.mobile-mode .filters-bar > div { width: 100% !important; min-width: 0 !important; }
+  body.mobile-mode .view-toggle { display: none; }
+  body.mobile-mode .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  body.mobile-mode #leadsTable th:nth-child(n+6), body.mobile-mode #leadsTable td:nth-child(n+6) { display: none; }
+  body.mobile-mode .cards-grid { grid-template-columns: 1fr !important; }
+  body.mobile-mode .lead-card { padding: 12px; }
+  body.mobile-mode .accordion { padding: 12px; }
+  body.mobile-mode .acc-links { flex-direction: column; gap: 4px; }
+  .bulk-bar { display: none; align-items: center; gap: 8px; padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--card-border); flex-wrap: wrap; }
+  .bulk-bar.visible { display: flex; }
+  body.mobile-mode .bulk-bar { flex-wrap: wrap; gap: 4px; padding: 8px; }
+  body.mobile-mode .bulk-action { font-size: 10px; padding: 4px 8px; }
+  body.mobile-mode .source-pie-wrap, body.mobile-mode .conversion-mini-wrap { flex-direction: column; }
+  body.mobile-mode #smartListsPanel { flex-direction: column; }
   .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .stat-sub.positive { color: #1E7A9C; }
+
+  /* \u2500\u2500 Toolbar Dropdown Menus \u2500\u2500 */
+  .toolbar-dropdown { position: relative; display: inline-block; }
+  .toolbar-dropdown-btn { cursor: pointer; }
+  .toolbar-dropdown-content {
+    display: none; position: absolute; top: 100%; left: 0; z-index: 1000;
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); min-width: 200px; padding: 6px 0;
+    margin-top: 4px;
+  }
+  .toolbar-dropdown.open .toolbar-dropdown-content { display: block; }
+  .toolbar-dropdown-content button {
+    display: block; width: 100%; text-align: left; padding: 8px 16px;
+    border: none; background: none; color: var(--text); font-size: 12px;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .toolbar-dropdown-content button:hover { background: var(--brand-primary); color: #fff; border-radius: 4px; }
 
   /* \u2500\u2500 Filters Bar \u2500\u2500 */
   .filters-bar {
@@ -2669,8 +2791,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 
   /* Pagination */
   .pagination {
-    display: flex; align-items: center; justify-content: center;
-    gap: 6px; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 16px 24px; flex-wrap: wrap;
   }
   .page-btn {
     min-width: 32px; height: 32px;
@@ -2865,6 +2987,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <a href="/dashboard" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(59,130,246,0.3);color:#60a5fa;background:rgba(59,130,246,0.1)">\u{1F3E0} Hub</a>
   <a href="/dashboard/priority-leads" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;background:rgba(239,68,68,0.1)">\u{1F525} Priority</a>
   <a href="/dashboard/ylopo-analytics" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(168,85,247,0.3);color:#c084fc;background:rgba(168,85,247,0.1)">\u{1F4CA} Analytics</a>
+  <a href="/dashboard/ylopo-contacts#source" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(234,179,8,0.3);color:#eab308;background:rgba(234,179,8,0.1)">\u{1F4C8} Sources</a>
   <a href="/dashboard/site-matrix" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(6,182,212,0.3);color:#22d3ee;background:rgba(6,182,212,0.1)">\u{1F30D} Matrix</a>
 </div>
 
@@ -2901,14 +3024,68 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
   <div class="topbar-right">
     <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" style="color:#111">30 Days</option>
-      <option value="60" style="color:#111">60 Days</option>
       <option value="30" selected style="color:#111">30 Days</option>
-      <option value="180" style="color:#111">180 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="90" style="color:#111">90 Days</option>
+      <option value="180" style="color:#111">6 Months</option>
+      <option value="365" style="color:#111">1 Year</option>
+      <option value="0" style="color:#111">All Time</option>
     </select>
     <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
-    <button class="btn btn-sm" onclick="showDiagnostics()">Diagnostics</button>
+    <button class="btn btn-sm" onclick="generateAIInsights()" style="color:#00ff55;font-weight:700">&#129302; AI Insights</button>
+    <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
+    <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128200; Analytics &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="showPerformanceAnalytics()">&#128202; Agent Leaderboard</button>
+        <button onclick="showTeamDashboard()">&#128101; Team Dashboard</button>
+        <button onclick="showMarketHeatmap()">&#128506; Market Heatmap</button>
+        <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
+        <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
+        <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
+        <button onclick="showPipelineKanban()">&#128203; Pipeline Kanban</button>
+        <button onclick="showActivityCalendar()">&#128197; Activity Calendar</button>
+        <button onclick="showSourceROI()">&#128176; Source ROI</button>
+        <button onclick="showDataQuality()">&#128202; Data Quality</button>
+      </div>
+    </div>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="openSettingsPanel()">&#9881; Settings</button>
+        <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
+        <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
+        <button onclick="createFollowUpSequence()">&#9200; Follow-up Sequences</button>
+        <button onclick="createCustomWebhook()">&#128276; Custom Triggers</button>
+        <button onclick="enableNotifications()">&#128276; Notifications</button>
+        <button onclick="checkIntegrationHealth()">&#128313; Health Check</button>
+        <button onclick="showAutoTagRules()">&#127991; Auto-Tag Rules</button>
+        <button onclick="showDiagnostics()">&#128295; Diagnostics</button>
+      </div>
+    </div>
+
+    <div class="toolbar-dropdown">
+      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
+      <div class="toolbar-dropdown-content">
+        <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
+        <button onclick="compareSelectedContacts()">&#9878; Compare Selected</button>
+        <button onclick="generateDailyDigestEmail()">&#128231; Digest Email</button>
+        <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
+        <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
+        <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+        <button onclick="exportAllCSV()">&#128196; Export CSV</button>
+        <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
+        <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
+      </div>
+    </div>
+
+    <button class="btn btn-sm" onclick="toggleMobileView()">&#128241;</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
+    <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
+    <span id="refreshCountdown" style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap"></span>
   </div>
 </div>
 
@@ -2916,22 +3093,22 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <div class="stats-row">
   <div class="stat-card">
     <div class="stat-label">Total Contacts</div>
-    <div class="stat-value" id="statTotal">&mdash;</div>
+    <div class="stat-value flash-green" id="statTotal">&mdash;</div>
     <div class="stat-sub">in GHL</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Hot Leads</div>
-    <div class="stat-value" id="statHot" style="color:var(--red)">&mdash;</div>
+    <div class="stat-value flash-green" id="statHot">&mdash;</div>
     <div class="stat-sub">score &ge; 75</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Warm Leads</div>
-    <div class="stat-value" id="statWarm" style="color:var(--yellow)">&mdash;</div>
+    <div class="stat-value" id="statWarm" style="color:var(--brand-accent)">&mdash;</div>
     <div class="stat-sub">score 40&ndash;74</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Cold Leads</div>
-    <div class="stat-value" id="statCold" style="color:var(--blue)">&mdash;</div>
+    <div class="stat-value" id="statCold" style="color:var(--brand-secondary)">&mdash;</div>
     <div class="stat-sub">score &lt; 40</div>
   </div>
   <div class="stat-card">
@@ -2944,7 +3121,41 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
     <div class="stat-sub">last 7 days</div>
   </div>
+  <div class="stat-card">
+    <div class="stat-label">Score Trends</div>
+    <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
+    <div class="stat-sub">since last visit</div>
+  </div>
+  <div class="stat-card" style="cursor:pointer" onclick="setFilter('stale',this)">
+    <div class="stat-label">Needs Follow-up</div>
+    <div class="stat-value" id="statStale" style="color:var(--accent,#f97316)">&mdash;</div>
+    <div class="stat-sub">no activity &gt; 7 days</div>
+  </div>
 </div>
+
+<!-- Source Pie Chart + Conversion Mini -->
+<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Lead Sources</div>
+    <div id="sourcePieChart" style="display:flex;align-items:center;gap:16px"></div>
+  </div>
+  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Conversion Funnel</div>
+    <div id="conversionMini" style="display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+</div>
+
+<!-- View Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px;flex-wrap:wrap">
+  <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
+  <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
+  <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
+  <button class="filter-tab" id="viewTabBuyer" onclick="switchContactsView('buyer')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128269; Buyer Intel</button>
+  <button class="filter-tab" id="viewTabSeller" onclick="switchContactsView('seller')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127968; Seller Intel</button>
+</div>
+
+<!-- Contacts View -->
+<div id="contactsViewPanel">
 
 <!-- Filters Bar -->
 <div class="filters-bar">
@@ -2954,6 +3165,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
   <button class="filter-tab" onclick="setFilter('new',this)">New</button>
   <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+  <button class="filter-tab" onclick="setFilter('stale',this)" style="color:var(--accent,#f97316)">&#9888; Needs Follow-up</button>
   <select class="filter-tab" id="sourceFilter" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;cursor:pointer;-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center">
     <option value="all">All Sources</option>
     <option value="ylopo">Ylopo Leads</option>
@@ -2961,8 +3173,13 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <option value="zillow">Zillow</option>
     <option value="realtor">Realtor.com</option>
   </select>
-  <div style="flex:1;min-width:200px">
-    <input type="text" class="filter-search" id="searchInput" placeholder="Search name, email, phone, city..." oninput="CURRENT_PAGE=1;applyFilters()">
+  <div style="flex:1;min-width:200px;position:relative">
+    <input type="text" class="filter-search" id="searchInput" placeholder="Search... (try score:>80 source:ylopo tag:hot stale:true age:<7)" oninput="CURRENT_PAGE=1;applyFilters()" style="padding-right:70px">
+    <div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;gap:4px">
+      <button onclick="saveSearchPreset()" title="Save current search" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)">&#128190;</button>
+      <button onclick="togglePresetMenu()" title="Saved searches" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)" id="presetBtn">&#9733;</button>
+    </div>
+    <div id="presetMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--card-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);min-width:260px;max-height:300px;overflow-y:auto;z-index:500"></div>
   </div>
   <select class="filter-tab" id="sortSelect" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer">
     <option value="score_desc">Score Down</option>
@@ -2976,14 +3193,23 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
     <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
   </div>
+  <button class="btn btn-sm" onclick="saveSmartList()" style="font-size:11px;padding:5px 10px;white-space:nowrap">&#128190; Save List</button>
 </div>
+<div id="smartListsPanel" style="padding:4px 24px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
 
 <!-- Bulk Actions Bar -->
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+  <button class="bulk-action" onclick="bulkTag()">&#127991;&#65039; Add Tag</button>
+  <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
   <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
   <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+  <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
+  <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
+  <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
   <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
+  <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:700">&#127968; Enrich Selected</button>
+  <button class="bulk-action" onclick="tagFiltered()" style="color:var(--brand-secondary)">&#127991; Tag Filtered</button>
   <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
 </div>
 
@@ -2998,14 +3224,16 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <th>Status</th>
         <th>Score</th>
         <th>Activity</th>
+        <th style="width:90px">Trend</th>
         <th>Location</th>
+        <th>Type</th>
         <th>Source</th>
         <th>Added</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody id="leadsBody">
-      <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
+      <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -3015,6 +3243,97 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 
 <!-- Pagination -->
 <div class="pagination" id="paginationEl"></div>
+
+</div><!-- /contactsViewPanel -->
+
+<!-- Source Performance Panel -->
+<div id="sourceViewPanel" style="display:none">
+  <div id="srcKPIs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
+  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
+    <h3 style="margin:0 0 16px 0;font-size:16px;color:var(--text)">&#128202; Source Breakdown</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--card-border);text-align:left">
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer" onclick="sortSrcTbl('name')">Source</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('count')">Leads</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('hot')">Hot</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('warm')">Warm</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('cold')">Cold</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('avgScore')">Avg Score</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('showings')">Showings</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Quality</th>
+          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Volume</th>
+        </tr></thead>
+        <tbody id="srcTblBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127919; Lead Distribution</h3>
+      <div id="srcDistBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128293; Hot Lead Rate</h3>
+      <div id="srcHotBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127968; Buyer vs Seller</h3>
+      <div id="srcTypeBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128197; New This Week</h3>
+      <div id="srcRecentBars" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Geography View -->
+<div id="geoViewPanel" style="display:none">
+  <div id="geoKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127963; Top Cities</h3>
+      <div id="geoCityBars" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
+      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127758; Top States</h3>
+      <div id="geoStateBars" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
+    <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128202; City Breakdown Table</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="border-bottom:2px solid var(--card-border)">
+          <th style="padding:10px 12px;text-align:left;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('name')">City</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('count')">Leads</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('avgScore')">Avg Score</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('hot')">Hot</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('showings')">Showings</th>
+          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">Quality</th>
+        </tr></thead>
+        <tbody id="geoTblBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Buyer Intelligence View -->
+<div id="buyerViewPanel" style="display:none">
+  <div id="buyerTabContent" style="padding:4px 0">
+    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading buyer intelligence...</div>
+  </div>
+</div>
+
+<!-- Seller Intelligence View -->
+<div id="sellerViewPanel" style="display:none">
+  <div id="sellerTabContent" style="padding:4px 0">
+    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading seller intelligence...</div>
+  </div>
+</div>
 
 <!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
 <input id="listingsInput" value="" class="hidden" aria-hidden="true">
@@ -3030,7 +3349,7 @@ var PROXY_URL = window.location.origin;
 var PAGE_SIZE = 25;
 var MAX_PAGES = 15;
 var CACHE_KEY = 'ylopo_contacts_cache';
-var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+var CACHE_TTL = 0; // Always fetch fresh data on page load
 
 // -------------------------------------------------------
 // STATE
@@ -3044,11 +3363,2552 @@ var SORT_KEY       = 'score_desc';
 var EXPANDED       = new Set();
 var SELECTED       = new Set();
 var CURRENT_VIEW   = 'table';
+var SCORE_TRENDS   = {}; // { contactId: { prev, curr, dir } }
+var SRC_DATA = [];
+var SRC_SORT = { key: 'count', dir: -1 };
+
+// -------------------------------------------------------
+// SCORE TREND TRACKING
+// -------------------------------------------------------
+var SCORE_HISTORY_KEY = 'ylopo_score_history';
+
+function updateScoreTrends(leads) {
+  var history = {};
+  try { history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY) || '{}'); } catch(e) {}
+  var now = Date.now();
+  var dayMs = 86400000;
+  SCORE_TRENDS = {};
+
+  leads.forEach(function(l) {
+    var prev = history[l.id];
+    if (prev && prev.s !== undefined) {
+      var diff = l.score - prev.s;
+      var dir = diff > 2 ? 'up' : diff < -2 ? 'down' : 'stable';
+      SCORE_TRENDS[l.id] = { prev: prev.s, curr: l.score, diff: diff, dir: dir, lastTs: prev.t };
+    } else {
+      SCORE_TRENDS[l.id] = { prev: null, curr: l.score, diff: 0, dir: 'new', lastTs: null };
+    }
+    // Save current score (only update if >4h since last save to track real changes)
+    if (!prev || !prev.t || (now - prev.t > 4 * 3600000)) {
+      history[l.id] = { s: l.score, t: now };
+    }
+  });
+
+  // Prune entries older than 30 days
+  var cutoff = now - 30 * dayMs;
+  Object.keys(history).forEach(function(k) { if (history[k].t < cutoff) delete history[k]; });
+
+  try { localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
+}
+
+function trendArrow(id) {
+  var t = SCORE_TRENDS[id];
+  if (!t || t.dir === 'new') return '<span style="font-size:10px;color:var(--text-muted)" title="New lead">&#9679;</span>';
+  if (t.dir === 'up') return '<span style="font-size:12px;color:var(--green)" title="Score up ' + t.diff + ' (was ' + t.prev + ')">&#9650;</span>';
+  if (t.dir === 'down') return '<span style="font-size:12px;color:var(--red)" title="Score down ' + t.diff + ' (was ' + t.prev + ')">&#9660;</span>';
+  return '<span style="font-size:10px;color:var(--text-muted)" title="Stable (was ' + t.prev + ')">&#9644;</span>';
+}
+
+function switchContactsView(v) {
+  try {
+  var cp = document.getElementById('contactsViewPanel');
+  var sp = document.getElementById('sourceViewPanel');
+  var gp = document.getElementById('geoViewPanel');
+  var bp = document.getElementById('buyerViewPanel');
+  var slp = document.getElementById('sellerViewPanel');
+  var tb = document.getElementById('viewTabContacts');
+  var ts = document.getElementById('viewTabSource');
+  var tg = document.getElementById('viewTabGeo');
+  var tby = document.getElementById('viewTabBuyer');
+  var tsl = document.getElementById('viewTabSeller');
+  if (cp) cp.style.display = 'none';
+  if (sp) sp.style.display = 'none';
+  if (gp) gp.style.display = 'none';
+  if (bp) bp.style.display = 'none';
+  if (slp) slp.style.display = 'none';
+  if (tb) tb.classList.remove('active');
+  if (ts) ts.classList.remove('active');
+  if (tg) tg.classList.remove('active');
+  if (tby) tby.classList.remove('active');
+  if (tsl) tsl.classList.remove('active');
+  if (v === 'source') {
+    if (sp) sp.style.display = 'block'; if (ts) ts.classList.add('active');
+    renderSrcPerf();
+  } else if (v === 'geo') {
+    if (gp) gp.style.display = 'block'; if (tg) tg.classList.add('active');
+    renderGeoView();
+  } else if (v === 'buyer') {
+    if (bp) bp.style.display = 'block'; if (tby) tby.classList.add('active');
+    renderBuyerTab();
+  } else if (v === 'seller') {
+    if (slp) slp.style.display = 'block'; if (tsl) tsl.classList.add('active');
+    renderSellerTab();
+  } else {
+    if (cp) cp.style.display = 'block'; if (tb) tb.classList.add('active');
+  }
+  } catch(err) { console.error('switchContactsView error:', err); alert('View switch error: ' + err.message); }
+}
+
+function getSrcColor(name) {
+  var s = (name || '').toLowerCase();
+  if (s.indexOf('ylopo') !== -1) return { bg: 'rgba(234,179,8,0.15)', fg: '#eab308' };
+  if (s.indexOf('zillow') !== -1) return { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' };
+  if (s.indexOf('realtor') !== -1) return { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' };
+  if (s.indexOf('homes') !== -1) return { bg: 'rgba(249,115,22,0.15)', fg: '#f97316' };
+  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('plus leads') !== -1) return { bg: 'rgba(139,92,246,0.15)', fg: '#8b5cf6' };
+  return { bg: 'rgba(100,116,139,0.15)', fg: '#94a3b8' };
+}
+
+function sortSrcTbl(key) {
+  if (SRC_SORT.key === key) SRC_SORT.dir *= -1;
+  else { SRC_SORT.key = key; SRC_SORT.dir = -1; }
+  renderSrcTblBody();
+}
+
+function renderSrcPerf() {
+  var leads = ALL_LEADS;
+  if (!leads.length) { document.getElementById('srcKPIs').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary)">No lead data available</div>'; return; }
+  var srcMap = {};
+  var weekAgo = Date.now() - 7 * 86400000;
+  leads.forEach(function(l) {
+    var s = l.source || 'Unknown';
+    if (!srcMap[s]) srcMap[s] = { name: s, count: 0, totalScore: 0, hot: 0, warm: 0, cold: 0, showings: 0, views: 0, saves: 0, buyers: 0, sellers: 0, recent: 0 };
+    var d = srcMap[s]; d.count++; d.totalScore += (l.score || 0);
+    if (l.status === 'HOT') d.hot++; else if (l.status === 'WARM') d.warm++; else d.cold++;
+    var m = l.matrix || {};
+    d.showings += (m.showings || 0); d.views += (m.views || 0); d.saves += (m.saves || 0);
+    var pt = (l.propType || '').toLowerCase();
+    if (pt.indexOf('seller') !== -1) d.sellers++; else if (pt.indexOf('buyer') !== -1) d.buyers++;
+    if (l.dateAdded && new Date(l.dateAdded).getTime() > weekAgo) d.recent++;
+  });
+  SRC_DATA = Object.keys(srcMap).map(function(k) { var d = srcMap[k]; d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0; d.hotRate = d.count ? Math.round(d.hot / d.count * 100) : 0; return d; });
+  var top = SRC_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
+  var best = SRC_DATA.slice().sort(function(a,b) { return b.avgScore - a.avgScore; })[0];
+  var mostShow = SRC_DATA.slice().sort(function(a,b) { return b.showings - a.showings; })[0];
+  document.getElementById('srcKPIs').innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
+  renderSrcTblBody();
+  renderSrcCharts();
+}
+
+function renderSrcTblBody() {
+  var data = SRC_DATA.slice().sort(function(a,b) {
+    var av = a[SRC_SORT.key], bv = b[SRC_SORT.key];
+    if (typeof av === 'string') return SRC_SORT.dir * av.localeCompare(bv);
+    return SRC_SORT.dir * (av - bv);
+  });
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('srcTblBody').innerHTML = data.map(function(d) {
+    var c = getSrcColor(d.name);
+    var ql = d.avgScore >= 70 ? 'Excellent' : d.avgScore >= 50 ? 'Good' : d.avgScore >= 30 ? 'Fair' : 'Low';
+    var qc = d.avgScore >= 70 ? '#22c55e' : d.avgScore >= 50 ? '#3b82f6' : d.avgScore >= 30 ? '#f59e0b' : '#ef4444';
+    var pct = Math.round(d.count / mx * 100);
+    return '<tr style="border-bottom:1px solid var(--card-border)">' +
+      '<td style="padding:10px 12px"><span style="display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;background:' + c.bg + ';color:' + c.fg + '">' + esc(d.name) + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">' + d.count + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:#00ff55">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.warm + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-secondary)">' + d.cold + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + qc + '22;color:' + qc + '">' + d.avgScore + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:600;color:var(--text)">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;font-weight:600;color:' + qc + '">' + ql + '</span></td>' +
+      '<td style="padding:10px 12px;width:150px"><div style="background:var(--card-border);border-radius:4px;height:8px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + c.fg + '"></div></div></td></tr>';
+  }).join('');
+}
+
+function renderSrcCharts() {
+  var data = SRC_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 10);
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  function bar(label, val, maxV, color) {
+    var p = Math.round(val / maxV * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:' + color + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + val + '</div></div></div>';
+  }
+  document.getElementById('srcDistBars').innerHTML = data.map(function(d) { return bar(d.name, d.count, mx, getSrcColor(d.name).fg); }).join('');
+  var hotSorted = data.slice().sort(function(a,b) { return b.hotRate - a.hotRate; });
+  document.getElementById('srcHotBars').innerHTML = hotSorted.map(function(d) {
+    var bc = d.hotRate >= 30 ? '#ef4444' : d.hotRate >= 15 ? '#f59e0b' : '#3b82f6';
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(d.hotRate, 3) + '%;height:100%;border-radius:4px;background:' + bc + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.hotRate + '%</div></div><span style="font-size:11px;color:var(--text-secondary);min-width:30px">' + d.hot + '/' + d.count + '</span></div>';
+  }).join('');
+  var typeData = data.filter(function(d) { return d.buyers + d.sellers > 0; });
+  document.getElementById('srcTypeBars').innerHTML = typeData.length ? typeData.map(function(d) {
+    var total = d.buyers + d.sellers; var bPct = total ? Math.round(d.buyers / total * 100) : 0; var sPct = 100 - bPct;
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;display:flex;border-radius:4px;height:20px;overflow:hidden">' +
+      (d.buyers ? '<div style="width:' + bPct + '%;height:100%;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (bPct > 15 ? d.buyers + ' B' : '') + '</div>' : '') +
+      (d.sellers ? '<div style="width:' + sPct + '%;height:100%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (sPct > 15 ? d.sellers + ' S' : '') + '</div>' : '') +
+      '</div><span style="font-size:11px;color:var(--text-secondary);min-width:50px">' + d.buyers + 'B/' + d.sellers + 'S</span></div>';
+  }).join('') : '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px">No buyer/seller data yet</div>';
+  var recSorted = data.slice().sort(function(a,b) { return b.recent - a.recent; });
+  var mxR = Math.max.apply(null, recSorted.map(function(d) { return d.recent; }).concat([1]));
+  document.getElementById('srcRecentBars').innerHTML = recSorted.map(function(d) { return bar(d.name, d.recent, mxR, getSrcColor(d.name).fg); }).join('');
+}
+
+// -------------------------------------------------------
+// GEOGRAPHY VIEW
+// -------------------------------------------------------
+var GEO_DATA = [];
+var GEO_SORT = { key: 'count', dir: -1 };
+
+function renderGeoView() {
+  try {
+  if (!ALL_LEADS || !ALL_LEADS.length) { var gkpi = document.getElementById('geoKPIs'); if (gkpi) gkpi.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">No lead data loaded yet. Go back to Contacts and wait for data to load first.</div>'; return; }
+  var cityMap = {};
+  var stateMap = {};
+  var withLoc = 0;
+  // Try to enrich leads with geo data from raw contacts if missing
+  ALL_LEADS.forEach(function(l) {
+    if (!l.city && !l.state && RAW_CONTACTS[l.id]) {
+      var raw = RAW_CONTACTS[l.id];
+      l.city = raw.city || raw.locationCity || '';
+      l.state = raw.state || raw.locationState || '';
+      if (!l.city && !l.state && raw.address1) {
+        var parts = (raw.address1 || '').split(',');
+        if (parts.length >= 2) {
+          l.city = parts[parts.length - 2].trim();
+        }
+      }
+    }
+    var city = (l.city || '').trim();
+    var state = (l.state || '').trim();
+    if (city || state) withLoc++;
+    if (city) {
+      var ck = city.toLowerCase();
+      if (!cityMap[ck]) cityMap[ck] = { name: city, count: 0, totalScore: 0, hot: 0, showings: 0, views: 0 };
+      var cd = cityMap[ck]; cd.count++; cd.totalScore += l.score;
+      if (l.status === 'hot') cd.hot++;
+      var m = l.matrix || {}; cd.showings += (m.showings||0); cd.views += (m.views||0);
+    }
+    if (state) {
+      var sk = state.toLowerCase();
+      if (!stateMap[sk]) stateMap[sk] = { name: state, count: 0 };
+      stateMap[sk].count++;
+    }
+  });
+  GEO_DATA = Object.keys(cityMap).map(function(k) { var d = cityMap[k]; d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0; return d; });
+  var stateArr = Object.keys(stateMap).map(function(k) { return stateMap[k]; }).sort(function(a,b) { return b.count - a.count; });
+
+  if (!withLoc) {
+    document.getElementById('geoKPIs').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-secondary)">' +
+      '<div style="font-size:36px;margin-bottom:12px">&#127758;</div>' +
+      '<h3 style="margin:0 0 8px">No Location Data Found</h3>' +
+      '<p style="margin:0;font-size:13px">' + ALL_LEADS.length + ' leads loaded but none have city/state fields populated in GHL.</p>' +
+      '<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">To populate: add city/state to contacts in GoHighLevel, or ensure Ylopo passes registration location data.</p></div>';
+    return;
+  }
+
+  var topCity = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
+  var hotCity = GEO_DATA.slice().sort(function(a,b) { return b.hot - a.hot; })[0];
+
+  // KPIs
+  document.getElementById('geoKPIs').innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:#00ff55">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
+
+  // City bars
+  var cityTop = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 12);
+  var mxC = Math.max.apply(null, cityTop.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoCityBars').innerHTML = cityTop.map(function(d) {
+    var p = Math.round(d.count / mxC * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:110px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:var(--accent,#f97316);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.count + '</div></div></div>';
+  }).join('');
+
+  // State bars
+  var stateTop = stateArr.slice(0, 10);
+  var mxS = Math.max.apply(null, stateTop.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoStateBars').innerHTML = stateTop.map(function(d) {
+    var p = Math.round(d.count / mxS * 100);
+    return '<div style="display:flex;align-items:center;gap:10px"><span style="min-width:110px;font-size:12px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(d.name) + '</span><div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden"><div style="width:' + Math.max(p, 3) + '%;height:100%;border-radius:4px;background:var(--blue);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.count + '</div></div></div>';
+  }).join('');
+
+  renderGeoTbl();
+  } catch(err) { console.error('renderGeoView error:', err); alert('Geography error: ' + err.message); }
+}
+
+function sortGeoTbl(key) {
+  if (GEO_SORT.key === key) GEO_SORT.dir *= -1;
+  else { GEO_SORT.key = key; GEO_SORT.dir = -1; }
+  renderGeoTbl();
+}
+
+function renderGeoTbl() {
+  var data = GEO_DATA.slice().sort(function(a,b) {
+    var av = a[GEO_SORT.key], bv = b[GEO_SORT.key];
+    if (typeof av === 'string') return GEO_SORT.dir * av.localeCompare(bv);
+    return GEO_SORT.dir * (av - bv);
+  });
+  var mx = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+  document.getElementById('geoTblBody').innerHTML = data.map(function(d) {
+    var ql = d.avgScore >= 70 ? 'Excellent' : d.avgScore >= 50 ? 'Good' : d.avgScore >= 30 ? 'Fair' : 'Low';
+    var qc = d.avgScore >= 70 ? '#22c55e' : d.avgScore >= 50 ? '#3b82f6' : d.avgScore >= 30 ? '#f59e0b' : '#ef4444';
+    return '<tr style="border-bottom:1px solid var(--card-border)">' +
+      '<td style="padding:10px 12px;font-weight:600;color:var(--text)">' + esc(d.name) + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.count + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.avgScore + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// -------------------------------------------------------
+// BUYER INTELLIGENCE SYSTEM
+// -------------------------------------------------------
+var BUYER_SORT = { key: 'readiness', dir: -1 };
+
+function calcBuyerReadiness(c, ext, m) {
+  if (!ext) ext = getExtendedData(c);
+  if (!m) m = getMatrix(c);
+  var score = 0;
+  var factors = [];
+
+  // Search activity (0-20) \u2014 if Ylopo data exists
+  var actPts = 0;
+  actPts += Math.min(m.views * 0.5, 8);
+  actPts += Math.min(m.saves * 2, 8);
+  actPts += Math.min(m.searches * 1, 4);
+  actPts += Math.min(m.showings * 5, 10);
+  actPts = Math.min(Math.round(actPts), 20);
+  if (actPts > 0) {
+    score += actPts;
+    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: 20 });
+  }
+
+  // Recency (0-25) \u2014 most important when no activity data
+  var recPts = 0;
+  var recDate = c.dateUpdated || c.dateAdded;
+  if (recDate) {
+    var days = (Date.now() - new Date(recDate).getTime()) / 86400000;
+    if (days < 1) recPts = 25;
+    else if (days < 3) recPts = 20;
+    else if (days < 7) recPts = 15;
+    else if (days < 14) recPts = 10;
+    else if (days < 30) recPts = 5;
+    else if (days < 60) recPts = 2;
+    if (recPts > 0) factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: recPts, max: 25 });
+  }
+  score += recPts;
+
+  // Contact completeness (0-15) \u2014 email + phone = more reachable
+  var compPts = 0;
+  if (c.email) compPts += 5;
+  if (c.phone) compPts += 5;
+  if (c.firstName || c.first_name) compPts += 3;
+  if (c.address1 || ext.city) compPts += 2;
+  compPts = Math.min(compPts, 15);
+  if (compPts > 0) {
+    score += compPts;
+    var compLabel = (c.email ? 'email' : '') + (c.email && c.phone ? '+' : '') + (c.phone ? 'phone' : '');
+    factors.push({ name: compLabel || 'contact info', pts: compPts, max: 15 });
+  }
+
+  // Source quality (0-15)
+  var srcPts = 0;
+  var src = String(c.source || ext.source || '').toLowerCase();
+  if (src.indexOf('ylopo') !== -1) { srcPts = 12; }
+  else if (src.indexOf('zillow') !== -1) { srcPts = 10; }
+  else if (src.indexOf('realtor') !== -1) { srcPts = 8; }
+  else if (src.indexOf('homes') !== -1) { srcPts = 6; }
+  else if (src) { srcPts = 3; }
+  srcPts = Math.min(srcPts, 15);
+  if (srcPts > 0) {
+    score += srcPts;
+    factors.push({ name: (c.source || ext.source || 'Unknown').substring(0, 15), pts: srcPts, max: 15 });
+  }
+
+  // Price range defined (0-10)
+  var pricePts = 0;
+  if (ext.minPrice > 0 || ext.maxPrice > 0) { pricePts = 6; }
+  if (ext.minPrice > 0 && ext.maxPrice > 0) { pricePts = 10; }
+  if (pricePts > 0) {
+    score += pricePts;
+    var priceLabel = '';
+    if (ext.minPrice && ext.maxPrice) priceLabel = fmtPrice(ext.minPrice) + '-' + fmtPrice(ext.maxPrice);
+    else if (ext.maxPrice) priceLabel = 'up to ' + fmtPrice(ext.maxPrice);
+    else priceLabel = fmtPrice(ext.minPrice) + '+';
+    factors.push({ name: priceLabel, pts: pricePts, max: 10 });
+  }
+
+  // Property preferences (0-5)
+  var prefPts = 0;
+  if (ext.beds) prefPts += 2;
+  if (ext.baths) prefPts += 2;
+  if (ext.propType) prefPts += 1;
+  prefPts = Math.min(prefPts, 5);
+  if (prefPts > 0) {
+    score += prefPts;
+    factors.push({ name: (ext.beds || '?') + 'bd/' + (ext.baths || '?') + 'ba', pts: prefPts, max: 5 });
+  }
+
+  // Tag signals (0-10)
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
+  var tagPts = 0;
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t.indexOf('priority') !== -1; })) tagPts += 5;
+  if (tags.some(function(t) { return t.indexOf('buyer') !== -1 || t.indexOf('pre-approved') !== -1 || t.indexOf('preapproved') !== -1; })) tagPts += 3;
+  if (tags.some(function(t) { return t.indexOf('showing') !== -1; })) tagPts += 3;
+  if (tags.some(function(t) { return t.indexOf('warm') !== -1; })) tagPts += 2;
+  tagPts = Math.min(tagPts, 10);
+  if (tagPts > 0) {
+    score += tagPts;
+    factors.push({ name: 'Tag signals', pts: tagPts, max: 10 });
+  }
+
+  return { score: Math.min(score, 100), factors: factors };
+}
+
+function getBuyerLeads() {
+  var leads = ALL_LEADS || [];
+  var buyers = [];
+  leads.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    var ext = getExtendedData(raw);
+    var m = l.matrix || getMatrix(raw);
+    var tags = (l.tags || []).map(function(t) { return String(t).toLowerCase(); });
+
+    // Exclude contacts that are explicitly sellers (and not also buyers)
+    var isExplicitSeller = tags.some(function(t) { return t.indexOf('seller') !== -1 && t.indexOf('buyer') === -1; }) ||
+      (ext.propType && ext.propType.toLowerCase().indexOf('seller') !== -1 && ext.propType.toLowerCase().indexOf('buyer') === -1);
+    var src = (l.source || '').toLowerCase();
+    var isSellerSource = src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 || src.indexOf('plus leads') !== -1;
+    if (isExplicitSeller && !m.views && !m.saves && isSellerSource) return;
+
+    var rd = calcBuyerReadiness(raw, ext, m);
+    buyers.push({
+      id: l.id,
+      name: l.name || 'Unknown',
+      email: l.email || '',
+      phone: l.phone || '',
+      source: l.source || 'Unknown',
+      score: l.score || 0,
+      tags: l.tags || [],
+      dateAdded: l.dateAdded || '',
+      dateUpdated: l.dateUpdated || '',
+      views: m.views || 0,
+      saves: m.saves || 0,
+      searches: m.searches || 0,
+      showings: m.showings || 0,
+      infoReqs: m.infoReqs || 0,
+      minPrice: ext.minPrice,
+      maxPrice: ext.maxPrice,
+      beds: ext.beds,
+      baths: ext.baths,
+      city: l.city || ext.city || '',
+      propType: ext.propType || '',
+      readiness: rd.score,
+      rdFactors: rd.factors,
+      saveRate: m.views > 0 ? Math.round(m.saves / m.views * 100) : 0
+    });
+  });
+  return buyers;
+}
+
+function renderBuyerTab() {
+  try {
+  var buyers = getBuyerLeads();
+  var container = _el('buyerTabContent');
+  if (!container) return;
+
+  if (!buyers.length) {
+    var totalLeads = (ALL_LEADS || []).length;
+    container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-muted)">' +
+      '<div style="font-size:48px;margin-bottom:16px">&#128269;</div>' +
+      '<h3 style="margin:0 0 8px">No Buyer Leads Found</h3>' +
+      '<p style="margin:0;font-size:13px">' + totalLeads + ' leads loaded but none have search activity (views, saves, searches, showings).</p>' +
+      '<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">Buyer leads need at least one Ylopo activity event to appear here.</p></div>';
+    return;
+  }
+
+  function fmtK(n) {
+    if (!n) return '\\u2014';
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n;
+  }
+
+  // ---- KPIs ----
+  var totalViews = 0, totalSaves = 0, totalShowings = 0, withPrice = 0, highReady = 0;
+  buyers.forEach(function(b) {
+    totalViews += b.views;
+    totalSaves += b.saves;
+    totalShowings += b.showings;
+    if (b.minPrice || b.maxPrice) withPrice++;
+    if (b.readiness >= 60) highReady++;
+  });
+  var avgReadiness = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.readiness; }, 0) / buyers.length) : 0;
+  var avgSaveRate = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.saveRate; }, 0) / buyers.length) : 0;
+
+  var html = '';
+
+  // KPI cards
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">';
+  var kpis = [
+    { val: buyers.length, label: 'Active Buyers', color: 'var(--brand-secondary)' },
+    { val: totalViews.toLocaleString(), label: 'Total Views', color: 'var(--brand-accent)' },
+    { val: totalSaves, label: 'Total Saves', color: 'var(--green)' },
+    { val: totalShowings, label: 'Showings', color: 'var(--brand-accent)' },
+    { val: avgReadiness, label: 'Avg Readiness', color: 'var(--brand-accent)' },
+    { val: highReady, label: 'Hot Buyers', color: '#00ff55', flash: true },
+    { val: avgSaveRate + '%', label: 'Avg Save Rate', color: 'var(--brand-secondary)' }
+  ];
+  kpis.forEach(function(k) {
+    var flashCls = k.flash ? ' flash-green' : '';
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">' + k.label + '</div></div>';
+  });
+  html += '</div>';
+
+  // ---- BUYER AI INTELLIGENCE DASHBOARD ----
+  var now = Date.now();
+  // Buyer Portfolio Health = contactability + readiness quality + freshness + activity intensity
+  var contactableByrs = buyers.filter(function(b) { return b.phone || b.email; }).length;
+  var contactRate = buyers.length ? Math.round(contactableByrs / buyers.length * 100) : 0;
+  var hotByrs = buyers.filter(function(b) { return b.readiness >= 60; }).length;
+  var hotRate = buyers.length ? Math.round(hotByrs / buyers.length * 100) : 0;
+  var avgReadiness = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.readiness; }, 0) / buyers.length) : 0;
+  var activeBuyers = buyers.filter(function(b) { return b.views > 0 || b.saves > 0 || b.searches > 0; }).length;
+  var activityRate = buyers.length ? Math.round(activeBuyers / buyers.length * 100) : 0;
+  var freshByrs = buyers.filter(function(b) {
+    var d = b.dateUpdated || b.dateAdded || '';
+    return d && (now - new Date(d).getTime()) < 30 * 86400000;
+  }).length;
+  var freshRate = buyers.length ? Math.round(freshByrs / buyers.length * 100) : 0;
+  var healthScore = Math.min(100, Math.round(contactRate * 0.2 + hotRate * 0.3 + activityRate * 0.25 + avgReadiness * 0.15 + freshRate * 0.1));
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
+  var healthLabel = healthScore >= 70 ? 'Strong' : healthScore >= 45 ? 'Moderate' : 'Weak';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
+
+  // Health gauge
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128681; Buyer Pipeline Health</h4>';
+  html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
+  html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
+  var circumference = 2 * Math.PI * 50;
+  var dashOffset = circumference - (healthScore / 100) * circumference;
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '</svg>';
+  html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
+  html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
+  html += '<span style="font-size:11px;color:var(--text-secondary)">' + healthLabel + '</span>';
+  html += '</div></div>';
+  html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);text-align:left">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Contactable</span><strong style="color:var(--text)">' + contactRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Hot (60+)</span><strong style="color:var(--text)">' + hotRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Active</span><strong style="color:var(--text)">' + activityRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between"><span>Avg Readiness</span><strong style="color:var(--text)">' + avgReadiness + '</strong></div>';
+  html += '</div></div>';
+
+  // AI Insights Panel
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; Buyer AI Insights</h4>';
+
+  // Predictive patterns - which source/price/bed combos have highest readiness
+  var sourceReadiness = {};
+  buyers.forEach(function(b) {
+    var src = b.source || 'Unknown';
+    if (!sourceReadiness[src]) sourceReadiness[src] = { total: 0, count: 0, hot: 0 };
+    sourceReadiness[src].total += b.readiness;
+    sourceReadiness[src].count++;
+    if (b.readiness >= 60) sourceReadiness[src].hot++;
+  });
+  var srcPred = Object.keys(sourceReadiness).map(function(s) {
+    var d = sourceReadiness[s];
+    return { source: s, avg: Math.round(d.total / d.count), count: d.count, hotRate: Math.round(d.hot / d.count * 100) };
+  }).filter(function(p) { return p.count >= 3; }).sort(function(a, b) { return b.hotRate - a.hotRate; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#127919; Top Conversion Sources</div>';
+  if (srcPred.length) {
+    srcPred.slice(0, 5).forEach(function(p) {
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px">';
+      html += '<span style="width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.source) + '</span>';
+      html += '<div style="flex:1;height:6px;background:var(--surface,var(--bg));border-radius:3px;overflow:hidden"><div style="width:' + p.hotRate + '%;height:100%;background:' + (p.hotRate >= 50 ? '#22c55e' : p.hotRate >= 30 ? '#f59e0b' : '#6b7280') + ';border-radius:3px"></div></div>';
+      html += '<span style="width:50px;text-align:right;font-weight:600;color:' + (p.hotRate >= 50 ? '#22c55e' : '#f59e0b') + '">' + p.hotRate + '% hot</span>';
+      html += '</div>';
+    });
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">Need more data</div>'; }
+  html += '</div>';
+
+  // Behavior Alerts - newly active, high readiness, going cold
+  var byerAlerts = [];
+  buyers.forEach(function(b) {
+    var du = b.dateUpdated ? new Date(b.dateUpdated).getTime() : 0;
+    var daysSinceUpdate = du ? (now - du) / 86400000 : 999;
+    if (daysSinceUpdate < 2 && b.readiness >= 50) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Hot & Fresh', msg: 'Updated ' + Math.floor(daysSinceUpdate) + 'd ago, ' + b.saves + ' saves', color: '#ef4444', icon: '&#128293;' });
+    } else if (b.readiness >= 70 && b.shows > 0) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Show Ready', msg: 'Requested ' + b.shows + ' showing(s)', color: '#f59e0b', icon: '&#127968;' });
+    } else if (daysSinceUpdate > 60 && daysSinceUpdate < 90 && b.readiness >= 40) {
+      byerAlerts.push({ name: b.name, phone: b.phone, type: 'Cooling Off', msg: 'Inactive ' + Math.floor(daysSinceUpdate) + 'd, readiness ' + b.readiness, color: '#8b5cf6', icon: '&#9888;' });
+    }
+  });
+  byerAlerts.sort(function(a, b) { return a.type === 'Hot & Fresh' ? -1 : 1; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#128276; Buyer Alerts <span style="font-weight:400;color:var(--text-secondary)">(' + byerAlerts.length + ')</span></div>';
+  if (byerAlerts.length) {
+    byerAlerts.slice(0, 4).forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:' + a.color + '11;border-radius:6px;font-size:12px">';
+      html += '<span>' + a.icon + '</span>';
+      html += '<div style="flex:1;min-width:0"><strong>' + esc(a.name) + '</strong> <span style="color:var(--text-secondary)">' + a.msg + '</span></div>';
+      if (a.phone) html += '<a href="tel:' + a.phone + '" style="color:var(--green);text-decoration:none;font-size:11px" onclick="event.stopPropagation()">Call</a>';
+      html += '</div>';
+    });
+    if (byerAlerts.length > 4) html += '<div style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:4px">+ ' + (byerAlerts.length - 4) + ' more</div>';
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">No alerts</div>'; }
+  html += '</div>';
+
+  // Recommended Actions
+  html += '<div>';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#9889; Recommended Actions</div>';
+  var byerActions = [];
+  var noShowBuyers = buyers.filter(function(b) { return b.readiness >= 60 && b.shows === 0; }).length;
+  if (noShowBuyers > 0) byerActions.push({ icon: '&#127968;', text: noShowBuyers + " high-readiness buyers haven't requested showings yet", priority: 'high' });
+  if (contactRate < 80) byerActions.push({ icon: '&#128222;', text: 'Only ' + contactRate + '% of buyers contactable \u2014 missing phone/email data', priority: 'high' });
+  if (hotRate < 25) byerActions.push({ icon: '&#128293;', text: 'Low hot buyer rate (' + hotRate + '%) \u2014 increase nurture outreach', priority: 'medium' });
+  if (activityRate < 60) byerActions.push({ icon: '&#128200;', text: 'Only ' + activityRate + '% showing activity \u2014 low pipeline engagement', priority: 'high' });
+  if (freshRate < 40) byerActions.push({ icon: '&#128640;', text: 'Only ' + freshRate + '% fresh buyers (30d) \u2014 increase new lead sources', priority: 'high' });
+  var lowPriceBuyers = buyers.filter(function(b) { return b.maxPrice > 0 && b.maxPrice < 200000; }).length;
+  if (lowPriceBuyers > buyers.length * 0.3) byerActions.push({ icon: '&#128181;', text: lowPriceBuyers + ' buyers in budget <$200K \u2014 segment separately', priority: 'medium' });
+  if (!byerActions.length) byerActions.push({ icon: '&#9989;', text: 'Buyer pipeline looks healthy! Keep the showings flowing.', priority: 'low' });
+  byerActions.forEach(function(a) {
+    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e';
+    html += '<div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px">';
+    html += '<span>' + a.icon + '</span>';
+    html += '<span style="flex:1">' + a.text + '</span>';
+    html += '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:' + prColor + '22;color:' + prColor + ';font-weight:600;white-space:nowrap">' + a.priority + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // Market timing insights
+  var hourBkts = new Array(24).fill(0);
+  var dayBkts = [0, 0, 0, 0, 0, 0, 0];
+  buyers.forEach(function(b) {
+    var d = b.dateUpdated || b.dateAdded;
+    if (!d) return;
+    var dt = new Date(d);
+    hourBkts[dt.getHours()]++;
+    dayBkts[dt.getDay()]++;
+  });
+  var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var bestDay = 0; dayBkts.forEach(function(v, i) { if (v > dayBkts[bestDay]) bestDay = i; });
+  var bestHour = 0; var bestHourVal = 0;
+  for (var hi = 0; hi < 22; hi++) {
+    var blk = hourBkts[hi] + hourBkts[hi + 1] + (hourBkts[hi + 2] || 0);
+    if (blk > bestHourVal) { bestHourVal = blk; bestHour = hi; }
+  }
+  var fmtHr = function(h) { return h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm'; };
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Best times
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Buyers</h4>';
+  html += '<div style="text-align:center;margin-bottom:12px">';
+  html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
+  html += '<div style="font-size:14px;color:var(--text-secondary)">' + fmtHr(bestHour) + ' \u2013 ' + fmtHr(bestHour + 3) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Based on buyer activity patterns</div>';
+  html += '</div>';
+  var maxDay = Math.max.apply(null, dayBkts.concat([1]));
+  html += '<div style="display:flex;gap:4px;align-items:end;height:50px;justify-content:center">';
+  dayBkts.forEach(function(v, i) {
+    var h = Math.max(4, Math.round(v / maxDay * 50));
+    var c = i === bestDay ? '#22c55e' : 'var(--surface,var(--bg))';
+    html += '<div style="text-align:center;flex:1"><div style="height:' + h + 'px;background:' + c + ';border-radius:3px 3px 0 0;margin:0 auto;max-width:20px"></div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px">' + dayNames[i] + '</div></div>';
+  });
+  html += '</div></div>';
+
+  // Buyer segments
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Segments</h4>';
+  var byerSegs = [
+    { label: 'First-Time Buyers', desc: 'No price range history', count: buyers.filter(function(b) { return !b.maxPrice || b.maxPrice === 0; }).length, color: '#3b82f6', action: 'Educate on market' },
+    { label: 'Active Showings', desc: 'Requested 2+ showings', count: buyers.filter(function(b) { return b.shows >= 2; }).length, color: '#22c55e', action: 'Follow up asap' },
+    { label: 'Price-Sensitive', desc: 'Budget <$150K', count: buyers.filter(function(b) { return b.maxPrice > 0 && b.maxPrice < 150000; }).length, color: '#f59e0b', action: 'Show value properties' },
+    { label: 'Investment Buyers', desc: 'High-price range (500K+)', count: buyers.filter(function(b) { return b.maxPrice >= 500000; }).length, color: '#8b5cf6', action: 'Premium service' },
+    { label: 'Upgrade Seekers', desc: 'Actively searching (>5 searches)', count: buyers.filter(function(b) { return b.searches >= 5; }).length, color: '#f97316', action: 'Send new listings' }
+  ].filter(function(n) { return n.count > 0; });
+  byerSegs.forEach(function(n) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="width:8px;height:8px;border-radius:50%;background:' + n.color + ';flex-shrink:0"></div>';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + n.label + ' <span style="font-weight:400;color:var(--text-secondary);font-size:11px">(' + n.count + ')</span></div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + n.desc + '</div></div>';
+    html += '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:' + n.color + '22;color:' + n.color + ';font-weight:600;white-space:nowrap">' + n.action + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // Conversion funnel
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  html += '<h4 style="margin:0;font-size:14px">&#128200; Buyer Conversion Funnel</h4>';
+  html += '<button onclick="showBuyerFunnelDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
+  html += '</div>';
+  // Funnel: total -> contactable -> active -> high-readiness -> showing-requested -> conversion-ready
+  var funnelStgs = [
+    { label: 'Total Buyers', count: buyers.length, color: '#6b7280' },
+    { label: 'Contactable', count: contactableByrs, color: '#3b82f6' },
+    { label: 'Active (any activity)', count: activeBuyers, color: '#f59e0b' },
+    { label: 'Hot Readiness (60+)', count: hotByrs, color: '#f97316' },
+    { label: 'Showing Requested', count: buyers.filter(function(b) { return b.shows > 0; }).length, color: '#22c55e' },
+    { label: 'Near Closing', count: buyers.filter(function(b) { return b.shows >= 2 && b.readiness >= 60 && (b.phone || b.email); }).length, color: '#10b981' }
+  ];
+  var maxFn = funnelStgs[0].count || 1;
+  funnelStgs.forEach(function(stg, idx) {
+    var wPct = Math.max(8, Math.round(stg.count / maxFn * 100));
+    var cvPct = idx > 0 ? Math.round(stg.count / funnelStgs[idx - 1].count * 100) || 0 : 100;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    html += '<div style="width:120px;font-size:12px;text-align:right;white-space:nowrap;color:var(--text-secondary)">' + stg.label + '</div>';
+    html += '<div style="flex:1;position:relative">';
+    html += '<div style="height:28px;background:var(--surface,var(--bg));border-radius:6px;overflow:hidden">';
+    html += '<div style="width:' + wPct + '%;height:100%;background:' + stg.color + ';border-radius:6px;display:flex;align-items:center;justify-content:center;transition:width 0.3s">';
+    html += '<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.3)">' + stg.count + '</span>';
+    html += '</div></div></div>';
+    if (idx > 0) html += '<div style="width:50px;font-size:11px;color:' + (cvPct >= 50 ? '#22c55e' : cvPct >= 25 ? '#f59e0b' : '#ef4444') + ';font-weight:600">' + cvPct + '%</div>';
+    else html += '<div style="width:50px"></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // ---- Charts row ----
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Readiness distribution
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Readiness Distribution</h4>';
+  var rdBuckets = [
+    { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
+    { label: '60-79 &#128992;', min: 60, max: 79, color: '#f59e0b' },
+    { label: '40-59 &#128993;', min: 40, max: 59, color: '#eab308' },
+    { label: '20-39 &#128309;', min: 20, max: 39, color: '#3b82f6' },
+    { label: '0-19 &#9898;', min: 0, max: 19, color: '#6b7280' }
+  ];
+  var maxRdBucket = 1;
+  rdBuckets.forEach(function(b) {
+    b.count = buyers.filter(function(s) { return s.readiness >= b.min && s.readiness <= b.max; }).length;
+    if (b.count > maxRdBucket) maxRdBucket = b.count;
+  });
+  rdBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxRdBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+
+  // Price range distribution
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Price Range Interest</h4>';
+  var priceBuckets = [
+    { label: '$1M+', min: 1000000, max: Infinity, color: '#a855f7' },
+    { label: '$500K-1M', min: 500000, max: 999999, color: '#8b5cf6' },
+    { label: '$300-500K', min: 300000, max: 499999, color: '#3b82f6' },
+    { label: '$200-300K', min: 200000, max: 299999, color: '#06b6d4' },
+    { label: '$100-200K', min: 100000, max: 199999, color: '#10b981' },
+    { label: '<$100K', min: 0, max: 99999, color: '#6b7280' },
+    { label: 'Unknown', min: -1, max: -1, color: '#374151' }
+  ];
+  var maxPrBucket = 1;
+  priceBuckets.forEach(function(b) {
+    if (b.min === -1) {
+      b.count = buyers.filter(function(s) { return !s.maxPrice && !s.minPrice; }).length;
+    } else {
+      b.count = buyers.filter(function(s) {
+        var p = s.maxPrice || s.minPrice || 0;
+        return p >= b.min && p <= b.max;
+      }).length;
+    }
+    if (b.count > maxPrBucket) maxPrBucket = b.count;
+  });
+  priceBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxPrBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Hottest Buyers Pipeline ----
+  var hotBuyers = buyers.filter(function(b) { return b.readiness >= 40; }).sort(function(a, b) { return b.readiness - a.readiness; }).slice(0, 12);
+  if (hotBuyers.length) {
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Hottest Buyers <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(highest readiness)</span></h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    hotBuyers.forEach(function(b) {
+      var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : '#eab308';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<strong style="font-size:14px">' + esc(b.name) + '</strong>';
+      html += '<span style="background:' + rdColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + b.readiness + '</span></div>';
+      html += '<div style="display:flex;gap:10px;font-size:12px;color:var(--text-secondary);margin-bottom:6px">';
+      html += '<span>&#128065; ' + b.views + ' views</span>';
+      html += '<span>&#10084;&#65039; ' + b.saves + ' saves</span>';
+      if (b.showings) html += '<span>&#127968; ' + b.showings + ' showings</span>';
+      html += '</div>';
+      if (b.minPrice || b.maxPrice) {
+        html += '<div style="font-size:12px;margin-bottom:4px">&#128176; ';
+        if (b.minPrice && b.maxPrice) html += fmtK(b.minPrice) + ' - ' + fmtK(b.maxPrice);
+        else if (b.maxPrice) html += 'Up to ' + fmtK(b.maxPrice);
+        else html += fmtK(b.minPrice) + '+';
+        if (b.beds || b.baths) html += ' &middot; ' + (b.beds || '?') + 'bd/' + (b.baths || '?') + 'ba';
+        html += '</div>';
+      }
+      if (b.rdFactors.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">';
+        b.rdFactors.forEach(function(f) {
+          var opacity = Math.max(0.3, f.pts / f.max);
+          html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,' + opacity + ');color:#fff">' + f.name + ' +' + f.pts + '</span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ---- Full Buyer Table ----
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h4 style="margin:0;font-size:14px">&#128209; All Buyer Leads (' + buyers.length + ')</h4>';
+  html += '<button onclick="exportBuyerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
+  html += '</div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  var cols = [
+    { key: 'name', label: 'Name' },
+    { key: 'views', label: 'Views' },
+    { key: 'saves', label: 'Saves' },
+    { key: 'searches', label: 'Searches' },
+    { key: 'showings', label: 'Showings' },
+    { key: 'saveRate', label: 'Save Rate' },
+    { key: 'maxPrice', label: 'Max Price' },
+    { key: 'readiness', label: 'Readiness' },
+    { key: 'score', label: 'Lead Score' }
+  ];
+  cols.forEach(function(col) {
+    var arrow = BUYER_SORT.key === col.key ? (BUYER_SORT.dir === -1 ? ' &#9660;' : ' &#9650;') : '';
+    html += '<th onclick="sortBuyerTable(&#39;' + col.key + '&#39;)" style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-secondary);border-bottom:1px solid var(--card-border)">' + col.label + arrow + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  var sorted = buyers.slice().sort(function(a, b) {
+    var aVal = a[BUYER_SORT.key] || 0;
+    var bVal = b[BUYER_SORT.key] || 0;
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (aVal < bVal) return BUYER_SORT.dir;
+    if (aVal > bVal) return -BUYER_SORT.dir;
+    return 0;
+  });
+
+  sorted.forEach(function(b) {
+    var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : b.readiness >= 40 ? '#eab308' : '#6b7280';
+    var srColor = b.saveRate >= 30 ? 'var(--green)' : b.saveRate >= 15 ? 'var(--yellow)' : 'var(--text-secondary)';
+    html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(b.name) + '</td>';
+    html += '<td style="padding:10px 12px">' + b.views + '</td>';
+    html += '<td style="padding:10px 12px;color:var(--green)">' + b.saves + '</td>';
+    html += '<td style="padding:10px 12px">' + b.searches + '</td>';
+    html += '<td style="padding:10px 12px;color:var(--accent2)">' + b.showings + '</td>';
+    html += '<td style="padding:10px 12px;color:' + srColor + ';font-weight:600">' + b.saveRate + '%</td>';
+    html += '<td style="padding:10px 12px">' + (b.maxPrice ? fmtK(b.maxPrice) : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + rdColor + ';color:#fff">' + b.readiness + '</span></td>';
+    html += '<td style="padding:10px 12px;font-weight:600">' + b.score + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+  } catch(err) { console.error('renderBuyerTab error:', err); alert('Buyer Intel error: ' + err.message); }
+}
+
+function sortBuyerTable(key) {
+  if (BUYER_SORT.key === key) {
+    BUYER_SORT.dir = BUYER_SORT.dir === -1 ? 1 : -1;
+  } else {
+    BUYER_SORT.key = key;
+    BUYER_SORT.dir = -1;
+  }
+  renderBuyerTab();
+}
+
+function exportBuyerCSV() {
+  var buyers = getBuyerLeads();
+  if (!buyers.length) { toast('No buyer data to export', 'error'); return; }
+  var headers = ['Name','Email','Phone','Views','Saves','Searches','Showings','Save Rate %','Min Price','Max Price','Beds','Baths','City','Readiness','Lead Score','Source','Tags'];
+  var rows = [headers.join(',')];
+  buyers.sort(function(a, b) { return b.readiness - a.readiness; }).forEach(function(b) {
+    rows.push([
+      '"' + (b.name || '').replace(/"/g, '""') + '"',
+      '"' + (b.email || '') + '"',
+      '"' + (b.phone || '') + '"',
+      b.views, b.saves, b.searches, b.showings, b.saveRate,
+      b.minPrice || '', b.maxPrice || '',
+      '"' + (b.beds || '') + '"', '"' + (b.baths || '') + '"',
+      '"' + (b.city || '') + '"',
+      b.readiness, b.score,
+      '"' + (b.source || '') + '"',
+      '"' + (b.tags || []).join('; ') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'buyer-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported ' + buyers.length + ' buyer leads', 'success');
+}
+
+function showBuyerFunnelDetail() {
+  var buyers = getBuyerLeads();
+  if (!buyers.length) { toast('No buyer leads', 'error'); return; }
+  var now = Date.now();
+
+  var stages = {
+    total: { label: 'All Buyers', leads: buyers.slice(), color: '#6b7280' },
+    contactable: { label: 'Contactable', leads: buyers.filter(function(b) { return b.phone || b.email; }), color: '#3b82f6' },
+    active: { label: 'Active', leads: buyers.filter(function(b) { return b.views > 0 || b.saves > 0 || b.searches > 0; }), color: '#f59e0b' },
+    hot: { label: 'Hot (60+ readiness)', leads: buyers.filter(function(b) { return b.readiness >= 60; }), color: '#f97316' },
+    showing: { label: 'Showed Properties', leads: buyers.filter(function(b) { return b.shows > 0; }), color: '#22c55e' },
+    closing: { label: 'Near Closing', leads: buyers.filter(function(b) { return b.shows >= 2 && b.readiness >= 60 && (b.phone || b.email); }), color: '#10b981' }
+  };
+
+  var existing = document.getElementById('buyerFunnelOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'buyerFunnelOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128200; Buyer Conversion Funnel</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Where buyers stand in the purchase journey</p></div>';
+  html += '<button onclick="document.getElementById(&#39;buyerFunnelOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  Object.keys(stages).forEach(function(key) {
+    var st = stages[key];
+    if (!st.leads.length) return;
+    st.leads.sort(function(a, b) { return b.readiness - a.readiness; });
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:50%;background:' + st.color + '"></div>';
+    html += '<span style="font-size:14px;font-weight:700">' + st.label + '</span><span style="font-size:12px;color:var(--text-secondary)">(' + st.leads.length + ')</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    st.leads.slice(0, 8).forEach(function(b) {
+      var rc = b.readiness >= 60 ? '#ef4444' : b.readiness >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--surface,var(--bg));border-radius:8px;padding:10px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between"><strong>' + esc(b.name) + '</strong><span style="color:' + rc + ';font-weight:700">' + b.readiness + '</span></div>';
+      html += '<div style="font-size:11px;margin-top:3px;color:var(--text-secondary)">Views: ' + b.views + ' | Saves: ' + b.saves + ' | Shows: ' + b.shows + '</div>';
+      if (b.phone) html += '<div style="margin-top:3px"><a href="tel:' + b.phone + '" style="color:var(--green);text-decoration:none;font-size:11px">&#128222; Call</a></div>';
+      html += '</div>';
+    });
+    if (st.leads.length > 8) html += '<div style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-secondary)">+ ' + (st.leads.length - 8) + ' more</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SELLER INTELLIGENCE SYSTEM
+// -------------------------------------------------------
+var SELLER_SORT = { key: 'motivation', dir: -1 };
+
+function calcSellerMotivation(c, ext) {
+  if (!ext) ext = getExtendedData(c);
+  var score = 0;
+  var factors = [];
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t) { return String(t).toLowerCase(); });
+
+  // Listing status signals (0-25) \u2014 expired/canceled/withdrawn/fsbo = high motivation
+  var listPts = 0;
+  if (tags.some(function(t) { return t === 'expired'; })) { listPts += 15; factors.push({ name: 'Expired', pts: 15, max: 25 }); }
+  if (tags.some(function(t) { return t === 'canceled' || t === 'cancelled'; })) { listPts += 12; factors.push({ name: 'Canceled', pts: 12, max: 25 }); }
+  if (tags.some(function(t) { return t === 'withdrawn'; })) { listPts += 10; factors.push({ name: 'Withdrawn', pts: 10, max: 25 }); }
+  if (tags.some(function(t) { return t === 'fsbo'; })) { listPts += 18; factors.push({ name: 'FSBO', pts: 18, max: 25 }); }
+  if (tags.some(function(t) { return t === 'under contract'; })) { listPts += 5; factors.push({ name: 'Under Contract', pts: 5, max: 25 }); }
+  listPts = Math.min(listPts, 25);
+  score += listPts;
+
+  // Equity signals (0-20) \u2014 high equity / free & clear = able to sell
+  var eqPts = 0;
+  if (tags.some(function(t) { return t === 'free and clear'; })) { eqPts = 20; factors.push({ name: 'Free & Clear', pts: 20, max: 20 }); }
+  else if (tags.some(function(t) { return t === 'high equity'; })) { eqPts = 15; factors.push({ name: 'High Equity', pts: 15, max: 20 }); }
+  else if (tags.some(function(t) { return t === 'low equity'; })) { eqPts = 3; factors.push({ name: 'Low Equity', pts: 3, max: 20 }); }
+  if (ext.equityPct > 0 && eqPts === 0) { eqPts = Math.min(Math.round(ext.equityPct / 5), 20); factors.push({ name: 'Equity ' + ext.equityPct + '%', pts: eqPts, max: 20 }); }
+  score += eqPts;
+
+  // Owner situation (0-15) \u2014 absentee/out of state/empty nester = motivated
+  var sitPts = 0;
+  if (tags.some(function(t) { return t === 'absentee'; })) { sitPts += 8; factors.push({ name: 'Absentee', pts: 8, max: 15 }); }
+  if (tags.some(function(t) { return t === 'out of state owners'; })) { sitPts += 10; factors.push({ name: 'Out of State', pts: 10, max: 15 }); }
+  if (tags.some(function(t) { return t === 'empty nester'; })) { sitPts += 7; factors.push({ name: 'Empty Nester', pts: 7, max: 15 }); }
+  if (tags.some(function(t) { return t === 'mover upper'; })) { sitPts += 6; factors.push({ name: 'Mover Upper', pts: 6, max: 15 }); }
+  sitPts = Math.min(sitPts, 15);
+  score += sitPts;
+
+  // Activity recency (0-20)
+  var recDate = c.dateUpdated || c.dateAdded;
+  if (recDate) {
+    var days = (Date.now() - new Date(recDate).getTime()) / 86400000;
+    var actPts = 0;
+    if (days < 1) actPts = 20;
+    else if (days < 3) actPts = 16;
+    else if (days < 7) actPts = 12;
+    else if (days < 14) actPts = 6;
+    else if (days < 30) actPts = 3;
+    if (actPts > 0) { score += actPts; factors.push({ name: days < 1 ? 'Active today' : Math.floor(days) + 'd ago', pts: actPts, max: 20 }); }
+  }
+
+  // Pipeline & intent signals (0-15)
+  var intPts = 0;
+  if (tags.some(function(t) { return t === 'seller pipeline'; })) { intPts += 5; }
+  if (tags.some(function(t) { return t === 'seller lead'; })) { intPts += 3; }
+  if (tags.some(function(t) { return t === 'seller'; })) { intPts += 3; }
+  if (tags.some(function(t) { return t.indexOf('hot') !== -1 || t === 'vip' || t.indexOf('priority') !== -1; })) { intPts += 8; }
+  if (tags.some(function(t) { return t === 'pipeline_active'; })) { intPts += 5; }
+  if (tags.some(function(t) { return t === 'engaged' || t === 'contacted'; })) { intPts += 4; }
+  intPts = Math.min(intPts, 15);
+  if (intPts > 0) { score += intPts; factors.push({ name: 'Pipeline signals', pts: intPts, max: 15 }); }
+
+  // Contact completeness (0-5)
+  var compPts = 0;
+  if (c.email) compPts += 2;
+  if (c.phone) compPts += 2;
+  if (c.address1 || ext.propertyAddr) compPts += 1;
+  compPts = Math.min(compPts, 5);
+  if (compPts > 0) { score += compPts; factors.push({ name: (c.email ? 'email' : '') + (c.email && c.phone ? '+' : '') + (c.phone ? 'phone' : ''), pts: compPts, max: 5 }); }
+
+  return { score: Math.min(score, 100), factors: factors };
+}
+
+function getSellerLeads() {
+  var leads = ALL_LEADS || [];
+  var sellers = [];
+  leads.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return;
+    var ext = getExtendedData(raw);
+    var tags = (Array.isArray(raw.tags) ? raw.tags : []).map(function(t) { return String(t).toLowerCase(); });
+    var src = (l.source || '').toLowerCase();
+
+    // Match your actual tag data
+    var isSeller = tags.some(function(t) { return t === 'seller' || t === 'seller lead' || t === 'seller pipeline'; }) ||
+      tags.some(function(t) { return t === 'expired' || t === 'canceled' || t === 'cancelled' || t === 'withdrawn' || t === 'fsbo'; }) ||
+      tags.some(function(t) { return t === 'high equity' || t === 'low equity' || t === 'free and clear'; }) ||
+      tags.some(function(t) { return t === 'absentee' || t === 'out of state owners' || t === 'empty nester'; }) ||
+      tags.some(function(t) { return t === 'agent owned' || t === 'mover upper' || t === 'missing_owner'; }) ||
+      tags.some(function(t) { return t.indexOf('y_import_seller') !== -1; }) ||
+      src.indexOf('plus leads') !== -1 || src.indexOf('myplus') !== -1 || src.indexOf('my+plus') !== -1 ||
+      ext.estValue > 0 || ext.equity > 0;
+    if (!isSeller) return;
+
+    var mot = calcSellerMotivation(raw, ext);
+    sellers.push({
+      id: l.id,
+      name: l.name || 'Unknown',
+      email: l.email || '',
+      phone: l.phone || '',
+      source: l.source || 'Unknown',
+      score: l.score || 0,
+      tags: l.tags || [],
+      dateAdded: l.dateAdded || '',
+      dateUpdated: l.dateUpdated || '',
+      estValue: ext.estValue,
+      equity: ext.equity,
+      equityPct: ext.equityPct,
+      mortgageBalance: ext.mortgageBalance,
+      ownerSince: ext.ownerSince,
+      propertyAddr: ext.propertyAddr || ext.address || '',
+      beds: ext.beds || '',
+      baths: ext.baths || '',
+      sqft: ext.sqft || '',
+      yearBuilt: ext.yearBuilt || '',
+      price: ext.price || 0,
+      city: ext.city || '',
+      state: ext.state || '',
+      zip: ext.zip || '',
+      motivation: mot.score,
+      motFactors: mot.factors,
+      propType: ext.propType
+    });
+  });
+  return sellers;
+}
+
+function renderSellerTab() {
+  try {
+  var sellers = getSellerLeads();
+  var container = _el('sellerTabContent');
+  if (!container) return;
+
+  if (!sellers.length) {
+    // Show diagnostic info
+    var totalLeads = (ALL_LEADS || []).length;
+    var sampleTags = [];
+    var sampleSources = [];
+    (ALL_LEADS || []).slice(0, 20).forEach(function(l) {
+      if (l.tags && l.tags.length) l.tags.forEach(function(t) { if (sampleTags.indexOf(t) === -1 && sampleTags.length < 15) sampleTags.push(t); });
+      if (l.source && sampleSources.indexOf(l.source) === -1 && sampleSources.length < 10) sampleSources.push(l.source);
+    });
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">' +
+      '<div style="font-size:48px;margin-bottom:16px">&#127968;</div>' +
+      '<h3 style="margin:0 0 8px">No Seller Leads Found</h3>' +
+      '<p style="margin:0 0 16px;font-size:13px">' + totalLeads + ' total leads loaded, but none match seller criteria.</p>' +
+      '<div style="text-align:left;max-width:500px;margin:0 auto;font-size:12px;background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:8px;padding:16px">' +
+      '<p style="margin:0 0 8px;font-weight:600;color:var(--text)">How leads are identified as sellers:</p>' +
+      '<ul style="margin:0 0 12px;padding-left:20px;color:var(--text-secondary)">' +
+      '<li>Tagged: seller, fsbo, expired, withdrawn, listing, cma, home val</li>' +
+      '<li>Source: My+Plus Leads / MyPlus / Plus Leads</li>' +
+      '<li>Has property value, equity, or property address data</li>' +
+      '</ul>' +
+      '<p style="margin:0 0 4px;font-weight:600;color:var(--text)">Sample tags in your data:</p>' +
+      '<p style="margin:0 0 12px;word-break:break-all">' + (sampleTags.length ? sampleTags.map(function(t) { return '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;background:var(--card);font-size:11px">' + esc(t) + '</span>'; }).join('') : '<em>No tags found</em>') + '</p>' +
+      '<p style="margin:0 0 4px;font-weight:600;color:var(--text)">Sources in your data:</p>' +
+      '<p style="margin:0;word-break:break-all">' + (sampleSources.length ? sampleSources.map(function(t) { return '<span style="display:inline-block;padding:2px 6px;margin:2px;border-radius:4px;background:var(--card);font-size:11px">' + esc(t) + '</span>'; }).join('') : '<em>No sources found</em>') + '</p>' +
+      '</div></div>';
+    return;
+  }
+
+  // ---- KPIs & tag counts ----
+  var highMotivation = 0;
+  var tagCounts = { expired: 0, canceled: 0, withdrawn: 0, fsbo: 0, highEquity: 0, lowEquity: 0, freeAndClear: 0, absentee: 0, outOfState: 0, emptyNester: 0, agentOwned: 0 };
+  sellers.forEach(function(s) {
+    if (s.motivation >= 50) highMotivation++;
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    if (t.indexOf('expired') !== -1) tagCounts.expired++;
+    if (t.indexOf('canceled') !== -1 || t.indexOf('cancelled') !== -1) tagCounts.canceled++;
+    if (t.indexOf('withdrawn') !== -1) tagCounts.withdrawn++;
+    if (t.indexOf('fsbo') !== -1) tagCounts.fsbo++;
+    if (t.indexOf('high equity') !== -1) tagCounts.highEquity++;
+    if (t.indexOf('low equity') !== -1) tagCounts.lowEquity++;
+    if (t.indexOf('free and clear') !== -1) tagCounts.freeAndClear++;
+    if (t.indexOf('absentee') !== -1) tagCounts.absentee++;
+    if (t.indexOf('out of state owners') !== -1) tagCounts.outOfState++;
+    if (t.indexOf('empty nester') !== -1) tagCounts.emptyNester++;
+    if (t.indexOf('agent owned') !== -1) tagCounts.agentOwned++;
+  });
+  var avgMotivation = sellers.length ? Math.round(sellers.reduce(function(a, s) { return a + s.motivation; }, 0) / sellers.length) : 0;
+
+  function fmtK(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n;
+  }
+
+  var html = '';
+
+  // KPI cards row
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">';
+  var kpis = [
+    { val: sellers.length, label: 'Seller Leads', color: 'var(--brand-secondary)' },
+    { val: tagCounts.expired, label: 'Expired', color: 'var(--brand-accent)' },
+    { val: tagCounts.canceled, label: 'Canceled', color: 'var(--brand-accent)' },
+    { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--brand-secondary)' },
+    { val: tagCounts.freeAndClear, label: 'Free & Clear', color: 'var(--brand-accent)' },
+    { val: avgMotivation, label: 'Avg Motivation', color: 'var(--brand-accent)' },
+    { val: highMotivation, label: 'High Motivation', color: '#00ff55', flash: true },
+    { val: calcAvgResponseTime(sellers), label: 'Avg Response', color: 'var(--brand-secondary)' }
+  ];
+  kpis.forEach(function(k) {
+    var flashCls = k.flash ? ' flash-green' : '';
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary,var(--muted));margin-top:4px">' + k.label + '</div></div>';
+  });
+  html += '</div>';
+
+  // ---- AI INTELLIGENCE DASHBOARD ----
+  // Portfolio Health Score
+  var totalWithPhone = sellers.filter(function(s) { return s.phone; }).length;
+  var totalWithEmail = sellers.filter(function(s) { return s.email; }).length;
+  var contactable = sellers.filter(function(s) { return s.phone || s.email; }).length;
+  var contactRate = sellers.length ? Math.round(contactable / sellers.length * 100) : 0;
+  var avgMot = sellers.length ? Math.round(sellers.reduce(function(a, s) { return a + s.motivation; }, 0) / sellers.length) : 0;
+  var hotPct = sellers.length ? Math.round(sellers.filter(function(s) { return s.motivation >= 60; }).length / sellers.length * 100) : 0;
+  var freshLeads = sellers.filter(function(s) {
+    var d = s.dateUpdated || s.dateAdded || '';
+    return d && (now - new Date(d).getTime()) < 30 * 86400000;
+  }).length;
+  var freshPct = sellers.length ? Math.round(freshLeads / sellers.length * 100) : 0;
+  // Portfolio Health = weighted combo
+  var healthScore = Math.min(100, Math.round(contactRate * 0.25 + hotPct * 0.3 + freshPct * 0.25 + avgMot * 0.2));
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
+  var healthLabel = healthScore >= 70 ? 'Healthy' : healthScore >= 45 ? 'Needs Attention' : 'Critical';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
+
+  // Health gauge
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#129504; Portfolio Health</h4>';
+  html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
+  html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
+  var circumference = 2 * Math.PI * 50;
+  var dashOffset = circumference - (healthScore / 100) * circumference;
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '</svg>';
+  html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
+  html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
+  html += '<span style="font-size:11px;color:var(--text-secondary)">' + healthLabel + '</span>';
+  html += '</div></div>';
+  html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary);text-align:left">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Contactable</span><strong style="color:var(--text)">' + contactRate + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Hot Leads</span><strong style="color:var(--text)">' + hotPct + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Fresh (30d)</span><strong style="color:var(--text)">' + freshPct + '%</strong></div>';
+  html += '<div style="display:flex;justify-content:space-between"><span>Avg Motivation</span><strong style="color:var(--text)">' + avgMot + '</strong></div>';
+  html += '</div></div>';
+
+  // AI Insights Panel \u2014 Predictive scoring + recommended actions + alerts
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; AI Insights</h4>';
+
+  // Predictive patterns \u2014 find which tag combos correlate with highest motivation
+  var tagMotMap = {};
+  sellers.forEach(function(s) {
+    (s.tags || []).forEach(function(t) {
+      var tl = String(t).toLowerCase();
+      if (!tagMotMap[tl]) tagMotMap[tl] = { total: 0, count: 0, hot: 0 };
+      tagMotMap[tl].total += s.motivation;
+      tagMotMap[tl].count++;
+      if (s.motivation >= 60) tagMotMap[tl].hot++;
+    });
+  });
+  var predictors = Object.keys(tagMotMap).map(function(t) {
+    var d = tagMotMap[t];
+    return { tag: t, avg: Math.round(d.total / d.count), count: d.count, hotRate: Math.round(d.hot / d.count * 100) };
+  }).filter(function(p) { return p.count >= 5; }).sort(function(a, b) { return b.hotRate - a.hotRate; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#127919; Top Conversion Predictors</div>';
+  if (predictors.length) {
+    predictors.slice(0, 5).forEach(function(p) {
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px">';
+      html += '<span style="width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.tag) + '</span>';
+      html += '<div style="flex:1;height:6px;background:var(--surface,var(--bg));border-radius:3px;overflow:hidden"><div style="width:' + p.hotRate + '%;height:100%;background:' + (p.hotRate >= 50 ? '#22c55e' : p.hotRate >= 30 ? '#f59e0b' : '#6b7280') + ';border-radius:3px"></div></div>';
+      html += '<span style="width:55px;text-align:right;font-weight:600;color:' + (p.hotRate >= 50 ? '#22c55e' : '#f59e0b') + '">' + p.hotRate + '% hot</span>';
+      html += '</div>';
+    });
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">Need more data for predictions</div>'; }
+  html += '</div>';
+
+  // Behavior Alerts \u2014 leads with recent spikes
+  var alerts = [];
+  sellers.forEach(function(s) {
+    var du = s.dateUpdated ? new Date(s.dateUpdated).getTime() : 0;
+    var da = s.dateAdded ? new Date(s.dateAdded).getTime() : 0;
+    var daysSinceUpdate = du ? (now - du) / 86400000 : 999;
+    var daysSinceAdd = da ? (now - da) / 86400000 : 999;
+    if (daysSinceUpdate < 3 && s.motivation >= 50) {
+      alerts.push({ name: s.name, phone: s.phone, type: 'Hot & Active', msg: 'Updated ' + Math.floor(daysSinceUpdate) + 'd ago with motivation ' + s.motivation, color: '#ef4444', icon: '&#128293;' });
+    } else if (daysSinceAdd < 7 && s.motivation >= 40) {
+      alerts.push({ name: s.name, phone: s.phone, type: 'New High-Value', msg: 'Added ' + Math.floor(daysSinceAdd) + 'd ago, motivation ' + s.motivation, color: '#f59e0b', icon: '&#11088;' });
+    } else if (s.motivation >= 70 && !s.phone && !s.email) {
+      alerts.push({ name: s.name, phone: '', type: 'Missing Contact', msg: 'Motivation ' + s.motivation + ' but no phone/email', color: '#8b5cf6', icon: '&#9888;' });
+    }
+  });
+  alerts.sort(function(a, b) { return a.type === 'Hot & Active' ? -1 : 1; });
+
+  html += '<div style="margin-bottom:14px">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#128276; Behavior Alerts <span style="font-weight:400;color:var(--text-secondary)">(' + alerts.length + ')</span></div>';
+  if (alerts.length) {
+    alerts.slice(0, 4).forEach(function(a) {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:' + a.color + '11;border-radius:6px;font-size:12px">';
+      html += '<span>' + a.icon + '</span>';
+      html += '<div style="flex:1;min-width:0"><strong>' + esc(a.name) + '</strong> <span style="color:var(--text-secondary)">' + a.msg + '</span></div>';
+      if (a.phone) html += '<a href="tel:' + a.phone + '" style="color:var(--green);text-decoration:none;font-size:11px" onclick="event.stopPropagation()">Call</a>';
+      html += '</div>';
+    });
+    if (alerts.length > 4) html += '<div style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:4px">+ ' + (alerts.length - 4) + ' more alerts</div>';
+  } else { html += '<div style="font-size:12px;color:var(--text-secondary)">No alerts right now</div>'; }
+  html += '</div>';
+
+  // Recommended Next Actions
+  html += '<div>';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text)">&#9889; Recommended Actions</div>';
+  var actions = [];
+  if (staleCount > sellers.length * 0.3) actions.push({ icon: '&#128197;', text: staleCount + ' stale leads (90d+) need re-engagement campaign', priority: 'high' });
+  if (contactRate < 70) actions.push({ icon: '&#128222;', text: 'Only ' + contactRate + '% contactable \u2014 enrich missing phone/email data', priority: 'high' });
+  if (hotPct < 15) actions.push({ icon: '&#128293;', text: 'Low hot lead rate (' + hotPct + '%) \u2014 increase outreach to warm leads', priority: 'medium' });
+  if (freshPct < 30) actions.push({ icon: '&#128640;', text: 'Only ' + freshPct + '% fresh leads \u2014 pipeline needs new lead sources', priority: 'high' });
+  var noTagSellers = sellers.filter(function(s) { return !s.tags || s.tags.length <= 1; }).length;
+  if (noTagSellers > sellers.length * 0.2) actions.push({ icon: '&#127991;', text: noTagSellers + ' leads have minimal tags \u2014 run auto-tagging', priority: 'medium' });
+  var highMotNoPhone = sellers.filter(function(s) { return s.motivation >= 50 && !s.phone; }).length;
+  if (highMotNoPhone > 5) actions.push({ icon: '&#9888;', text: highMotNoPhone + ' high-motivation leads missing phone numbers', priority: 'high' });
+  if (!actions.length) actions.push({ icon: '&#9989;', text: 'Pipeline looks healthy! Keep up the outreach.', priority: 'low' });
+  actions.forEach(function(a) {
+    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e';
+    html += '<div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px">';
+    html += '<span>' + a.icon + '</span>';
+    html += '<span style="flex:1">' + a.text + '</span>';
+    html += '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:' + prColor + '22;color:' + prColor + ';font-weight:600;white-space:nowrap">' + a.priority + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Market Timing Insights ----
+  var hourBuckets = new Array(24).fill(0);
+  var dayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+  sellers.forEach(function(s) {
+    var d = s.dateUpdated || s.dateAdded;
+    if (!d) return;
+    var dt = new Date(d);
+    hourBuckets[dt.getHours()]++;
+    dayBuckets[dt.getDay()]++;
+  });
+  var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var bestDay = 0; dayBuckets.forEach(function(v, i) { if (v > dayBuckets[bestDay]) bestDay = i; });
+  var bestHourStart = 0; var bestHourVal = 0;
+  for (var hi = 0; hi < 22; hi++) {
+    var block = hourBuckets[hi] + hourBuckets[hi + 1] + (hourBuckets[hi + 2] || 0);
+    if (block > bestHourVal) { bestHourVal = block; bestHourStart = hi; }
+  }
+  var fmtHour = function(h) { return h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm'; };
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Best time to call
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Leads</h4>';
+  html += '<div style="text-align:center;margin-bottom:12px">';
+  html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
+  html += '<div style="font-size:14px;color:var(--text-secondary)">' + fmtHour(bestHourStart) + ' \u2013 ' + fmtHour(bestHourStart + 3) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Based on lead activity patterns</div>';
+  html += '</div>';
+  // Day-of-week mini chart
+  var maxDay = Math.max.apply(null, dayBuckets.concat([1]));
+  html += '<div style="display:flex;gap:4px;align-items:end;height:50px;justify-content:center">';
+  dayBuckets.forEach(function(v, i) {
+    var h = Math.max(4, Math.round(v / maxDay * 50));
+    var c = i === bestDay ? '#22c55e' : 'var(--surface,var(--bg))';
+    html += '<div style="text-align:center;flex:1"><div style="height:' + h + 'px;background:' + c + ';border-radius:3px 3px 0 0;margin:0 auto;max-width:20px"></div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px">' + dayNames[i] + '</div></div>';
+  });
+  html += '</div></div>';
+
+  // Lead Nurture Suggestions
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128231; Nurture Sequence Suggestions</h4>';
+  var nurtureSegs = [
+    { label: 'Immediate Call', desc: 'Motivation 70+ with phone', count: sellers.filter(function(s) { return s.motivation >= 70 && s.phone; }).length, color: '#ef4444', action: 'Call within 24hrs' },
+    { label: 'CMA Outreach', desc: 'Expired/Canceled with email', count: sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return (t.indexOf('expired') !== -1 || t.indexOf('canceled') !== -1) && s.email; }).length, color: '#f59e0b', action: 'Send CMA email' },
+    { label: 'Drip Campaign', desc: 'Motivation 30-60, contactable', count: sellers.filter(function(s) { return s.motivation >= 30 && s.motivation < 60 && (s.phone || s.email); }).length, color: '#3b82f6', action: 'Add to email drip' },
+    { label: 'Re-engagement', desc: '90+ days stale, any contact', count: sellers.filter(function(s) { var d = s.dateUpdated || s.dateAdded; return d && (now - new Date(d).getTime()) > 90 * 86400000 && (s.phone || s.email); }).length, color: '#8b5cf6', action: 'Send check-in' },
+    { label: 'Data Enrichment', desc: 'No phone or email', count: sellers.filter(function(s) { return !s.phone && !s.email; }).length, color: '#6b7280', action: 'Skip trace / enrich' }
+  ].filter(function(n) { return n.count > 0; });
+  nurtureSegs.forEach(function(n) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="width:8px;height:8px;border-radius:50%;background:' + n.color + ';flex-shrink:0"></div>';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + n.label + ' <span style="font-weight:400;color:var(--text-secondary);font-size:11px">(' + n.count + ')</span></div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + n.desc + '</div></div>';
+    html += '<span style="font-size:10px;padding:3px 8px;border-radius:6px;background:' + n.color + '22;color:' + n.color + ';font-weight:600;white-space:nowrap">' + n.action + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Win/Loss Tracker ----
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  html += '<h4 style="margin:0;font-size:14px">&#128200; Pipeline Conversion Funnel</h4>';
+  html += '<button onclick="showWinLossDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
+  html += '</div>';
+  // Funnel stages based on tags and motivation
+  var funnelStages = [
+    { label: 'Total Sellers', count: sellers.length, color: '#6b7280' },
+    { label: 'Contactable', count: contactable, color: '#3b82f6' },
+    { label: 'Motivated (40+)', count: sellers.filter(function(s) { return s.motivation >= 40; }).length, color: '#f59e0b' },
+    { label: 'Hot Prospect (60+)', count: sellers.filter(function(s) { return s.motivation >= 60; }).length, color: '#f97316' },
+    { label: 'Listing Ready (70+)', count: sellers.filter(function(s) { return s.motivation >= 70 && s.phone; }).length, color: '#ef4444' },
+    { label: 'Pipeline Tagged', count: sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1; }).length, color: '#22c55e' }
+  ];
+  var maxFunnel = funnelStages[0].count || 1;
+  funnelStages.forEach(function(stage, idx) {
+    var widthPct = Math.max(8, Math.round(stage.count / maxFunnel * 100));
+    var convPct = idx > 0 ? Math.round(stage.count / funnelStages[idx - 1].count * 100) || 0 : 100;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    html += '<div style="width:120px;font-size:12px;text-align:right;white-space:nowrap;color:var(--text-secondary)">' + stage.label + '</div>';
+    html += '<div style="flex:1;position:relative">';
+    html += '<div style="height:28px;background:var(--surface,var(--bg));border-radius:6px;overflow:hidden">';
+    html += '<div style="width:' + widthPct + '%;height:100%;background:' + stage.color + ';border-radius:6px;display:flex;align-items:center;justify-content:center;transition:width 0.3s">';
+    html += '<span style="color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.3)">' + stage.count + '</span>';
+    html += '</div></div></div>';
+    if (idx > 0) html += '<div style="width:50px;font-size:11px;color:' + (convPct >= 50 ? '#22c55e' : convPct >= 25 ? '#f59e0b' : '#ef4444') + ';font-weight:600">' + convPct + '%</div>';
+    else html += '<div style="width:50px"></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // ---- Motivation Distribution ----
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Motivation bar chart
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Motivation Distribution</h4>';
+  var motBuckets = [
+    { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
+    { label: '60-79 &#128992;', min: 60, max: 79, color: '#f59e0b' },
+    { label: '40-59 &#128993;', min: 40, max: 59, color: '#eab308' },
+    { label: '20-39 &#128309;', min: 20, max: 39, color: '#3b82f6' },
+    { label: '0-19 &#9898;', min: 0, max: 19, color: '#6b7280' }
+  ];
+  var maxBucket = 1;
+  motBuckets.forEach(function(b) {
+    b.count = sellers.filter(function(s) { return s.motivation >= b.min && s.motivation <= b.max; }).length;
+    if (b.count > maxBucket) maxBucket = b.count;
+  });
+  motBuckets.forEach(function(b) {
+    var pct = Math.round(b.count / maxBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:80px;font-size:12px;text-align:right">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:30px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+
+  // Seller categories breakdown
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127968; Seller Categories</h4>';
+  var catBars = [
+    { label: 'Expired', count: tagCounts.expired, color: '#ef4444' },
+    { label: 'Canceled', count: tagCounts.canceled, color: '#f59e0b' },
+    { label: 'High Equity', count: tagCounts.highEquity, color: '#22c55e' },
+    { label: 'Absentee', count: tagCounts.absentee, color: '#3b82f6' },
+    { label: 'Low Equity', count: tagCounts.lowEquity, color: '#6b7280' },
+    { label: 'Withdrawn', count: tagCounts.withdrawn, color: '#8b5cf6' },
+    { label: 'Out of State', count: tagCounts.outOfState, color: '#06b6d4' },
+    { label: 'Agent Owned', count: tagCounts.agentOwned, color: '#ec4899' },
+    { label: 'Free & Clear', count: tagCounts.freeAndClear, color: '#10b981' },
+    { label: 'Empty Nester', count: tagCounts.emptyNester, color: '#a855f7' },
+    { label: 'FSBO', count: tagCounts.fsbo, color: '#eab308' }
+  ].filter(function(b) { return b.count > 0; });
+  var maxCatBar = Math.max.apply(null, catBars.map(function(b) { return b.count; }).concat([1]));
+  catBars.forEach(function(b) {
+    var pct = Math.round(b.count / maxCatBar * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:40px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  // ---- Priority Pipeline ----
+  var hotSellers = sellers.filter(function(s) { return s.motivation >= 40; }).sort(function(a, b) { return b.motivation - a.motivation; }).slice(0, 12);
+  if (hotSellers.length) {
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Priority Seller Pipeline <span style="font-weight:400;color:var(--text-secondary,var(--muted));font-size:12px">(top motivation)</span></h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
+    hotSellers.forEach(function(s) {
+      var motColor = s.motivation >= 80 ? '#ef4444' : '#f59e0b';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<strong style="font-size:14px">' + s.name + '</strong>';
+      html += '<span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></div>';
+      if (s.propertyAddr) html += '<div style="font-size:12px;color:var(--text-secondary,var(--muted));margin-bottom:4px">&#128205; ' + s.propertyAddr + '</div>';
+      html += '<div style="display:flex;gap:12px;font-size:12px;margin-top:6px">';
+      if (s.estValue) html += '<span>&#127968; ' + fmtK(s.estValue) + '</span>';
+      if (s.equity) html += '<span>&#128176; ' + fmtK(s.equity) + '</span>';
+      if (s.ownerSince) {
+        var yrs = Math.round((Date.now() - new Date(s.ownerSince).getTime()) / (365.25 * 86400000) * 10) / 10;
+        html += '<span>&#128197; ' + yrs + 'yr</span>';
+      }
+      html += '</div>';
+      // Motivation factor chips
+      if (s.motFactors.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">';
+        s.motFactors.forEach(function(f) {
+          var opacity = Math.max(0.3, f.pts / f.max);
+          html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(99,102,241,' + opacity + ');color:#fff">' + f.name + ' +' + f.pts + '</span>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ---- Lead Aging Analysis ----
+  var now = Date.now();
+  var ageBuckets = [
+    { label: 'Last 7 days', min: 0, max: 7, color: '#22c55e', leads: [] },
+    { label: '8-30 days', min: 8, max: 30, color: '#3b82f6', leads: [] },
+    { label: '31-90 days', min: 31, max: 90, color: '#f59e0b', leads: [] },
+    { label: '91-180 days', min: 91, max: 180, color: '#f97316', leads: [] },
+    { label: '180+ days', min: 181, max: 99999, color: '#ef4444', leads: [] }
+  ];
+  sellers.forEach(function(s) {
+    var dateStr = s.dateUpdated || s.dateAdded || '';
+    if (!dateStr) { ageBuckets[4].leads.push(s); return; }
+    var days = Math.floor((now - new Date(dateStr).getTime()) / 86400000);
+    for (var bi = 0; bi < ageBuckets.length; bi++) {
+      if (days >= ageBuckets[bi].min && days <= ageBuckets[bi].max) { ageBuckets[bi].leads.push(s); break; }
+    }
+  });
+  var maxAgeBucket = Math.max.apply(null, ageBuckets.map(function(b) { return b.leads.length; }).concat([1]));
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+  // Aging chart
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#9200; Lead Aging (by last update)</h4>';
+  ageBuckets.forEach(function(b) {
+    var pct = Math.round(b.leads.length / maxAgeBucket * 100);
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap">' + b.label + '</div>' +
+      '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
+      '<div style="width:40px;font-size:12px;font-weight:600">' + b.leads.length + '</div></div>';
+  });
+  var staleCount = ageBuckets[3].leads.length + ageBuckets[4].leads.length;
+  var freshCount = ageBuckets[0].leads.length + ageBuckets[1].leads.length;
+  html += '<div style="margin-top:10px;display:flex;gap:12px;font-size:12px">';
+  html += '<span style="color:#22c55e;font-weight:600">&#9989; ' + freshCount + ' fresh (< 30d)</span>';
+  html += '<span style="color:#ef4444;font-weight:600">&#9888; ' + staleCount + ' stale (> 90d)</span>';
+  html += '</div></div>';
+
+  // ---- Seller Segments ----
+  var segments = [
+    { name: 'Hot Expired + High Equity', icon: '&#128293;', desc: 'Expired listings with high equity - highest conversion potential', color: '#ef4444',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('expired') !== -1 && t.indexOf('high equity') !== -1; } },
+    { name: 'Absentee Owners', icon: '&#127968;', desc: 'Out-of-area owners who may want to sell', color: '#3b82f6',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('absentee') !== -1; } },
+    { name: 'Free & Clear', icon: '&#128176;', desc: 'No mortgage - maximum flexibility on price', color: '#10b981',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('free and clear') !== -1; } },
+    { name: 'Canceled + Withdrawn', icon: '&#128260;', desc: 'Failed listings that may relist with right agent', color: '#f59e0b',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('canceled') !== -1 || t.indexOf('withdrawn') !== -1; } },
+    { name: 'Out of State + High Equity', icon: '&#9992;', desc: 'Remote owners with significant equity', color: '#8b5cf6',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('out of state owners') !== -1 && t.indexOf('high equity') !== -1; } },
+    { name: 'FSBO Opportunities', icon: '&#128204;', desc: 'For-sale-by-owner leads open to agent help', color: '#eab308',
+      filter: function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase()}); return t.indexOf('fsbo') !== -1; } }
+  ];
+  segments.forEach(function(seg) { seg.count = sellers.filter(seg.filter).length; });
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Actionable Segments</h4>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  segments.filter(function(seg) { return seg.count > 0; }).forEach(function(seg) {
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface,var(--bg));border-radius:8px;cursor:pointer" onclick="filterSellerSegment(&#39;' + seg.name.replace(/'/g, '') + '&#39;)">';
+    html += '<span style="font-size:18px">' + seg.icon + '</span>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:13px;font-weight:600">' + seg.name + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + seg.desc + '</div></div>';
+    html += '<div style="background:' + seg.color + ';color:#fff;padding:4px 10px;border-radius:12px;font-size:13px;font-weight:700;flex-shrink:0">' + seg.count + '</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  html += '</div>';
+
+  // ---- Tag-Based Workflow Suggestions ----
+  var now = Date.now();
+  var suggestions = [];
+  var noFollowUp30 = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var isExpired = t.indexOf('expired') !== -1 || t.indexOf('fsbo') !== -1;
+    var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    return isExpired && d > 30 && s.phone;
+  });
+  if (noFollowUp30.length) suggestions.push({ icon: '&#128276;', label: 'Expired/FSBO with no activity in 30+ days', count: noFollowUp30.length, action: 'Re-engagement Drip', color: '#ef4444', tag: 're-engagement', ids: noFollowUp30.map(function(s) { return s.id; }) });
+
+  var highEqNoContact = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return (t.indexOf('high equity') !== -1 || t.indexOf('free and clear') !== -1) && t.indexOf('contacted') === -1 && s.phone;
+  });
+  if (highEqNoContact.length) suggestions.push({ icon: '&#128176;', label: 'High equity leads never contacted', count: highEqNoContact.length, action: 'CMA Outreach', color: '#22c55e', tag: 'cma-outreach', ids: highEqNoContact.map(function(s) { return s.id; }) });
+
+  var absenteeOwners = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return (t.indexOf('absentee') !== -1 || t.indexOf('out of state owners') !== -1) && t.indexOf('contacted') === -1;
+  });
+  if (absenteeOwners.length) suggestions.push({ icon: '&#9992;', label: 'Absentee/out-of-state owners not contacted', count: absenteeOwners.length, action: 'Absentee Owner Campaign', color: '#3b82f6', tag: 'absentee-campaign', ids: absenteeOwners.map(function(s) { return s.id; }) });
+
+  var hotNoShowReq = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return s.motivation >= 60 && t.indexOf('showing request') === -1 && t.indexOf('showing requested') === -1 && s.phone;
+  });
+  if (hotNoShowReq.length) suggestions.push({ icon: '&#128293;', label: 'High motivation but no showing request', count: hotNoShowReq.length, action: 'Schedule Showing Follow-Up', color: '#f59e0b', tag: 'showing-followup', ids: hotNoShowReq.map(function(s) { return s.id; }) });
+
+  var staleLeads = sellers.filter(function(s) {
+    var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    return d > 90 && s.phone;
+  });
+  if (staleLeads.length) suggestions.push({ icon: '&#128164;', label: 'Stale leads (90+ days no activity)', count: staleLeads.length, action: 'Wake-Up Campaign', color: '#6b7280', tag: 'wake-up', ids: staleLeads.map(function(s) { return s.id; }) });
+
+  if (suggestions.length) {
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 12px;font-size:14px">&#9889; Workflow Suggestions</h4>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    suggestions.forEach(function(sg) {
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface,var(--bg));border-radius:8px">';
+      html += '<span style="font-size:18px">' + sg.icon + '</span>';
+      html += '<div style="flex:1"><div style="font-size:13px;font-weight:600">' + sg.label + '</div>';
+      html += '<div style="font-size:11px;color:var(--text-secondary)">Suggested: ' + sg.action + '</div></div>';
+      html += '<span style="background:' + sg.color + ';color:#fff;padding:4px 10px;border-radius:12px;font-size:13px;font-weight:700">' + sg.count + '</span>';
+      html += '<button onclick="applyWorkflowTag(&#39;' + sg.tag + '&#39;)" style="padding:5px 12px;border-radius:6px;border:1px solid ' + sg.color + ';background:transparent;color:' + sg.color + ';font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Tag All</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ---- Seller Pipeline Kanban ----
+  var pipeStages = [
+    { key: 'new', label: 'New / Unworked', color: '#6b7280', icon: '&#128300;', leads: [] },
+    { key: 'nurture', label: 'Nurture', color: '#3b82f6', icon: '&#128231;', leads: [] },
+    { key: 'hot', label: 'Hot Prospect', color: '#f59e0b', icon: '&#128293;', leads: [] },
+    { key: 'listing', label: 'Listing Ready', color: '#22c55e', icon: '&#127968;', leads: [] }
+  ];
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var hasContact = s.phone || s.email;
+    var hasPipeline = t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1;
+    var isExpired = t.indexOf('expired') !== -1 || t.indexOf('fsbo') !== -1;
+    if (hasPipeline || (s.motivation >= 70 && isExpired)) {
+      pipeStages[3].leads.push(s);
+    } else if (s.motivation >= 50 || (isExpired && hasContact)) {
+      pipeStages[2].leads.push(s);
+    } else if (s.motivation >= 25 && hasContact) {
+      pipeStages[1].leads.push(s);
+    } else {
+      pipeStages[0].leads.push(s);
+    }
+  });
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<h4 style="margin:0 0 14px;font-size:14px">&#128203; Seller Pipeline</h4>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
+  pipeStages.forEach(function(stage) {
+    html += '<div style="background:var(--surface,var(--bg));border-radius:10px;padding:14px;min-height:120px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html += '<span style="font-size:13px;font-weight:700">' + stage.icon + ' ' + stage.label + '</span>';
+    html += '<span style="background:' + stage.color + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700">' + stage.leads.length + '</span>';
+    html += '</div>';
+    // Show top 3 leads in each stage
+    stage.leads.sort(function(a, b) { return b.motivation - a.motivation; });
+    stage.leads.slice(0, 3).forEach(function(s) {
+      var mc = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%">' + esc(s.name) + '</span>';
+      html += '<span style="color:' + mc + ';font-weight:700;font-size:11px">' + s.motivation + '</span>';
+      html += '</div>';
+      if (s.propertyAddr) html += '<div style="font-size:10px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">&#127968; ' + esc(s.propertyAddr) + '</div>';
+      var propLine = [];
+      if (s.beds) propLine.push(s.beds + 'bd');
+      if (s.baths) propLine.push(s.baths + 'ba');
+      if (s.price || s.estValue) propLine.push('$' + Number(s.price || s.estValue).toLocaleString());
+      if (propLine.length) html += '<div style="font-size:10px;color:var(--brand-accent);margin-top:1px;font-weight:600">' + propLine.join(' &middot; ') + '</div>';
+      if (s.phone) html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">&#128222; ' + s.phone + '</div>';
+      html += '</div>';
+    });
+    if (stage.leads.length > 3) {
+      html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:4px">+ ' + (stage.leads.length - 3) + ' more</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // ---- Activity Trends (last 4 weeks) ----
+  var weeks = [];
+  for (var wi = 0; wi < 4; wi++) {
+    var weekStart = now - (wi + 1) * 7 * 86400000;
+    var weekEnd = now - wi * 7 * 86400000;
+    var weekLabel = wi === 0 ? 'This Week' : wi === 1 ? 'Last Week' : wi + ' Weeks Ago';
+    var added = 0;
+    var updated = 0;
+    sellers.forEach(function(s) {
+      var da = s.dateAdded ? new Date(s.dateAdded).getTime() : 0;
+      var du = s.dateUpdated ? new Date(s.dateUpdated).getTime() : 0;
+      if (da >= weekStart && da < weekEnd) added++;
+      if (du >= weekStart && du < weekEnd) updated++;
+    });
+    weeks.push({ label: weekLabel, added: added, updated: updated });
+  }
+  weeks.reverse();
+  var maxWeekVal = Math.max.apply(null, weeks.map(function(w) { return Math.max(w.added, w.updated); }).concat([1]));
+
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
+  html += '<h4 style="margin:0 0 14px;font-size:14px">&#128200; Weekly Activity Trends</h4>';
+  html += '<div style="display:flex;gap:4px;margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:2px"></span><span style="font-size:11px;color:var(--text-secondary)">New Leads</span>';
+  html += '<span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;margin-left:12px"></span><span style="font-size:11px;color:var(--text-secondary)">Updated</span></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end;min-height:100px">';
+  weeks.forEach(function(w) {
+    var addH = Math.max(4, Math.round(w.added / maxWeekVal * 80));
+    var updH = Math.max(4, Math.round(w.updated / maxWeekVal * 80));
+    html += '<div style="text-align:center">';
+    html += '<div style="display:flex;gap:4px;justify-content:center;align-items:end;height:90px">';
+    html += '<div style="width:20px;height:' + addH + 'px;background:#22c55e;border-radius:4px 4px 0 0" title="Added: ' + w.added + '"></div>';
+    html += '<div style="width:20px;height:' + updH + 'px;background:#3b82f6;border-radius:4px 4px 0 0" title="Updated: ' + w.updated + '"></div>';
+    html += '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:6px">' + w.label + '</div>';
+    html += '<div style="font-size:10px;color:var(--text-secondary)">' + w.added + ' / ' + w.updated + '</div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  // ---- Full Seller Table ----
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+  html += '<h4 style="margin:0;font-size:14px">&#128209; All Seller Leads (' + sellers.length + ')</h4>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="generateCallList()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128222; Call List</button>';
+  html += '<button onclick="showFollowUpQueue()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128197; Follow-Ups</button>';
+  html += '<button onclick="showDuplicates()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128269; Duplicates</button>';
+  html += '<button onclick="showTagCrossRef()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128279; Tag Cross-Ref</button>';
+  html += '<button onclick="exportSellerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
+  html += '<button onclick="bulkEnrichSellers()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--brand-accent);background:var(--brand-primary);color:#fff;font-size:12px;cursor:pointer;font-weight:700">&#127968; Enrich Properties</button>';
+  html += '</div></div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  var cols = [
+    { key: 'name', label: 'Name' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'propertyAddr', label: 'Address' },
+    { key: 'bedsBaths', label: 'Bed/Bath' },
+    { key: 'price', label: 'Price/Value' },
+    { key: 'source', label: 'Source' },
+    { key: 'tagCount', label: 'Tags' },
+    { key: 'dateUpdated', label: 'Last Updated' },
+    { key: 'motivation', label: 'Motivation' },
+    { key: 'score', label: 'Lead Score' }
+  ];
+  cols.forEach(function(col) {
+    var arrow = SELLER_SORT.key === col.key ? (SELLER_SORT.dir === -1 ? ' &#9660;' : ' &#9650;') : '';
+    html += '<th onclick="sortSellerTable(&#39;' + col.key + '&#39;)" style="padding:10px 12px;text-align:left;cursor:pointer;white-space:nowrap;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--text-secondary,var(--muted));border-bottom:1px solid var(--card-border)">' + col.label + arrow + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // Sort sellers
+  var sorted = sellers.slice().sort(function(a, b) {
+    var sk = SELLER_SORT.key;
+    var aVal, bVal;
+    if (sk === 'bedsBaths') { aVal = Number(a.beds) || 0; bVal = Number(b.beds) || 0; }
+    else if (sk === 'price') { aVal = Number(a.price || a.estValue) || 0; bVal = Number(b.price || b.estValue) || 0; }
+    else { aVal = a[sk] || 0; bVal = b[sk] || 0; }
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (aVal < bVal) return SELLER_SORT.dir;
+    if (aVal > bVal) return -SELLER_SORT.dir;
+    return 0;
+  });
+
+  sorted.forEach(function(s) {
+    var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280';
+    var addrDisplay = s.propertyAddr || '';
+    var cityState = [s.city, s.state].filter(Boolean).join(', ');
+    var bedBath = '';
+    if (s.beds || s.baths) bedBath = (s.beds || '?') + 'bd / ' + (s.baths || '?') + 'ba';
+    if (s.sqft) bedBath += (bedBath ? '<br>' : '') + '<span style="font-size:10px;color:var(--text-secondary)">' + Number(s.sqft).toLocaleString() + ' sqft</span>';
+    var priceVal = s.price || s.estValue || 0;
+    var priceDisplay = priceVal ? '$' + Number(priceVal).toLocaleString() : '';
+    html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
+    html += '<td style="padding:10px 12px;white-space:nowrap">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none" onclick="event.stopPropagation()">' + s.phone + '</a>' : '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (addrDisplay ? esc(addrDisplay) + (cityState ? '<br><span style="font-size:10px;color:var(--text-secondary)">' + esc(cityState) + '</span>' : '') : (cityState ? esc(cityState) : '&#8212;')) + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + (bedBath || '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-weight:600;white-space:nowrap;color:var(--brand-accent)">' + (priceDisplay || '&#8212;') + '</td>';
+    html += '<td style="padding:10px 12px;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(s.source) + '</td>';
+    s.tagCount = (s.tags || []).length;
+    var topTags = (s.tags || []).slice(0, 3).map(function(t) { return '<span style="display:inline-block;font-size:10px;padding:1px 5px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(t) + '</span>'; }).join('');
+    html += '<td style="padding:10px 12px">' + (topTags || '&#8212;') + (s.tagCount > 3 ? '<span style="font-size:10px;color:var(--text-secondary)"> +' + (s.tagCount - 3) + '</span>' : '') + '</td>';
+    var updFmt = s.dateUpdated ? new Date(s.dateUpdated).toLocaleDateString() : '&#8212;';
+    html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + updFmt + '</td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + motColor + ';color:#fff">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 12px;font-weight:600">' + s.score + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+
+  container.innerHTML = html;
+  } catch(err) { console.error('renderSellerTab error:', err); alert('Seller Intel error: ' + err.message); }
+}
+
+function sortSellerTable(key) {
+  if (SELLER_SORT.key === key) {
+    SELLER_SORT.dir = SELLER_SORT.dir === -1 ? 1 : -1;
+  } else {
+    SELLER_SORT.key = key;
+    SELLER_SORT.dir = -1;
+  }
+  renderSellerTab();
+}
+
+function exportSellerCSV() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller data to export', 'error'); return; }
+  var headers = ['Name','Email','Phone','Address','City','State','Zip','Beds','Baths','SqFt','Price/Value','Source','Motivation Score','Lead Score','Tags','Date Added','Last Updated'];
+  var rows = [headers.join(',')];
+  sellers.sort(function(a, b) { return b.motivation - a.motivation; }).forEach(function(s) {
+    rows.push([
+      '"' + (s.name || '').replace(/"/g, '""') + '"',
+      '"' + (s.email || '') + '"',
+      '"' + (s.phone || '') + '"',
+      '"' + (s.propertyAddr || '').replace(/"/g, '""') + '"',
+      '"' + (s.city || '') + '"',
+      '"' + (s.state || '') + '"',
+      '"' + (s.zip || '') + '"',
+      s.beds || '',
+      s.baths || '',
+      s.sqft || '',
+      s.price || s.estValue || '',
+      '"' + (s.source || '').replace(/"/g, '""') + '"',
+      s.motivation,
+      s.score,
+      '"' + (s.tags || []).join('; ') + '"',
+      '"' + (s.dateAdded || '') + '"',
+      '"' + (s.dateUpdated || '') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'seller-intelligence-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported ' + sellers.length + ' seller leads', 'success');
+}
+
+// -------------------------------------------------------
+// SMART CALL LIST
+// -------------------------------------------------------
+function generateCallList() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads to build call list', 'error'); return; }
+
+  // Score contacts for call priority: motivation + recency + phone availability + tag combos
+  var callable = sellers.filter(function(s) { return s.phone; }).map(function(s) {
+    var tags = (s.tags || []).map(function(t) { return String(t).toLowerCase(); });
+    var priority = s.motivation;
+    // Bonus for high-value tag combos
+    var hasExpired = tags.indexOf('expired') !== -1;
+    var hasHighEq = tags.indexOf('high equity') !== -1;
+    var hasAbsentee = tags.indexOf('absentee') !== -1;
+    var hasFSBO = tags.indexOf('fsbo') !== -1;
+    var hasFreeClr = tags.indexOf('free and clear') !== -1;
+    if (hasExpired && hasHighEq) priority += 15;
+    if (hasFSBO) priority += 10;
+    if (hasAbsentee && hasHighEq) priority += 10;
+    if (hasFreeClr) priority += 8;
+    if (tags.indexOf('out of state owners') !== -1) priority += 5;
+    // Recency boost already in motivation, but double-weight for calls
+    var d = s.dateUpdated ? (Date.now() - new Date(s.dateUpdated).getTime()) / 86400000 : 999;
+    if (d < 1) priority += 10;
+    else if (d < 7) priority += 5;
+    s.callPriority = Math.min(priority, 100);
+    s.callReason = [];
+    if (hasExpired) s.callReason.push('Expired');
+    if (hasFSBO) s.callReason.push('FSBO');
+    if (hasHighEq) s.callReason.push('High Equity');
+    if (hasFreeClr) s.callReason.push('Free & Clear');
+    if (hasAbsentee) s.callReason.push('Absentee');
+    if (tags.indexOf('canceled') !== -1 || tags.indexOf('cancelled') !== -1) s.callReason.push('Canceled');
+    if (tags.indexOf('withdrawn') !== -1) s.callReason.push('Withdrawn');
+    if (tags.indexOf('out of state owners') !== -1) s.callReason.push('Out of State');
+    if (!s.callReason.length) s.callReason.push('Seller Lead');
+    return s;
+  });
+
+  callable.sort(function(a, b) { return b.callPriority - a.callPriority; });
+  var top = callable.slice(0, 25);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'callListOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128222; Smart Call Queue</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Top ' + top.length + ' of ' + callable.length + ' callable seller leads &bull; Best time: ' + getBestCallTime() + '</p></div>';
+  html += '<div style="display:flex;gap:8px">';
+  html += '<button onclick="syncCallListToGHL()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--brand-accent);background:var(--brand-primary);color:#fff;font-size:12px;cursor:pointer;font-weight:700">&#128640; Sync Scores to GHL</button>';
+  html += '<button onclick="exportCallListCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export</button>';
+  html += '<button onclick="document.getElementById(&#39;callListOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div></div>';
+
+  html += '<div style="padding:0">';
+  top.forEach(function(s, i) {
+    var prColor = s.callPriority >= 70 ? '#ef4444' : s.callPriority >= 50 ? '#f59e0b' : '#3b82f6';
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:14px">';
+    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + prColor + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">' + (i + 1) + '</div>';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-weight:700;font-size:14px">' + esc(s.name) + '</div>';
+    html += '<div style="display:flex;gap:8px;font-size:12px;color:var(--text-secondary);margin-top:2px">';
+    html += '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none;font-weight:600">&#128222; ' + s.phone + '</a>';
+    if (s.email) html += '<span>' + s.email + '</span>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">';
+    s.callReason.forEach(function(r) {
+      var rc = r === 'Expired' ? '#ef4444' : r === 'FSBO' ? '#eab308' : r === 'High Equity' ? '#22c55e' : r === 'Free & Clear' ? '#10b981' : r === 'Absentee' ? '#3b82f6' : '#6b7280';
+      html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + rc + '22;color:' + rc + ';font-weight:600">' + r + '</span>';
+    });
+    html += '</div>';
+    // Property details if available
+    var propParts = [];
+    if (s.propertyAddr) propParts.push(s.propertyAddr);
+    if (s.beds) propParts.push(s.beds + 'bd');
+    if (s.baths) propParts.push(s.baths + 'ba');
+    if (s.price || s.estValue) propParts.push('$' + Number(s.price || s.estValue).toLocaleString());
+    if (propParts.length) html += '<div style="font-size:11px;color:var(--brand-accent);margin-top:3px">&#127968; ' + esc(propParts.join(' &bull; ')) + '</div>';
+    // Call outcome buttons
+    html += '<div style="display:flex;gap:4px;margin-top:5px" id="callOutcome-' + s.id + '">';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;connected&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #22c55e;background:transparent;color:#22c55e;cursor:pointer">&#9989; Connected</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;voicemail&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #f59e0b;background:transparent;color:#f59e0b;cursor:pointer">&#128172; Voicemail</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;no answer&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #6b7280;background:transparent;color:#6b7280;cursor:pointer">&#128683; No Answer</button>';
+    html += '<button onclick="logCallOutcome(&#39;' + s.id + '&#39;,&#39;wrong number&#39;,this)" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer">&#10060; Wrong #</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '<div style="text-align:center;flex-shrink:0"><div style="font-size:20px;font-weight:800;color:' + prColor + '">' + s.callPriority + '</div><div style="font-size:9px;color:var(--text-secondary)">priority</div></div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function exportCallListCSV() {
+  var sellers = getSellerLeads().filter(function(s) { return s.phone; });
+  sellers.sort(function(a, b) { return b.motivation - a.motivation; });
+  var headers = ['Priority','Name','Phone','Email','Motivation','Tags','Source','Date Added'];
+  var rows = [headers.join(',')];
+  sellers.slice(0, 50).forEach(function(s, i) {
+    rows.push([
+      i + 1,
+      '"' + (s.name || '').replace(/"/g, '""') + '"',
+      '"' + (s.phone || '') + '"',
+      '"' + (s.email || '') + '"',
+      s.motivation,
+      '"' + (s.tags || []).join('; ') + '"',
+      '"' + (s.source || '') + '"',
+      '"' + (s.dateAdded || '') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([rows.join('\\n')], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'smart-call-list-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  toast('Exported top 50 call list', 'success');
+}
+
+function calcAvgResponseTime(sellers) {
+  var times = [];
+  sellers.forEach(function(s) {
+    if (!s.dateAdded || !s.dateUpdated) return;
+    var added = new Date(s.dateAdded).getTime();
+    var updated = new Date(s.dateUpdated).getTime();
+    var diff = updated - added;
+    if (diff > 0 && diff < 365 * 86400000) times.push(diff);
+  });
+  if (!times.length) return 'N/A';
+  var avg = times.reduce(function(a, b) { return a + b; }, 0) / times.length;
+  var hours = Math.round(avg / 3600000);
+  if (hours < 1) return '<1h';
+  if (hours < 24) return hours + 'h';
+  var days = Math.round(hours / 24);
+  return days + 'd';
+}
+
+function applyWorkflowTag(tag) {
+  // Re-compute the matching leads for this tag
+  var sellers = getSellerLeads();
+  var now = Date.now();
+  var targets = [];
+  if (tag === 're-engagement') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999; return (t.indexOf('expired')!==-1||t.indexOf('fsbo')!==-1) && d>30 && s.phone; });
+  } else if (tag === 'cma-outreach') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return (t.indexOf('high equity')!==-1||t.indexOf('free and clear')!==-1) && t.indexOf('contacted')===-1 && s.phone; });
+  } else if (tag === 'absentee-campaign') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return (t.indexOf('absentee')!==-1||t.indexOf('out of state owners')!==-1) && t.indexOf('contacted')===-1; });
+  } else if (tag === 'showing-followup') {
+    targets = sellers.filter(function(s) { var t = (s.tags||[]).map(function(x){return String(x).toLowerCase();}); return s.motivation>=60 && t.indexOf('showing request')===-1 && t.indexOf('showing requested')===-1 && s.phone; });
+  } else if (tag === 'wake-up') {
+    targets = sellers.filter(function(s) { var d = s.dateUpdated ? (now - new Date(s.dateUpdated).getTime()) / 86400000 : 999; return d>90 && s.phone; });
+  }
+  if (!targets.length) { toast('No matching leads for this workflow', 'info'); return; }
+  if (!confirm('Tag ' + targets.length + ' leads with "' + tag + '"?\\n\\nYou can use this tag in GHL workflows to trigger automated sequences.')) return;
+  toast('Tagging ' + targets.length + ' leads...', 'info');
+  var done = 0;
+  var chain = Promise.resolve();
+  targets.forEach(function(s) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + s.id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function() { done++; }).catch(function() {});
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + '/' + targets.length + ' leads with "' + tag + '"', 'success');
+  });
+}
+
+function getBestCallTime() {
+  var h = new Date().getHours();
+  if (h >= 9 && h < 11) return '9-11am (Peak window)';
+  if (h >= 11 && h < 13) return '11am-1pm (Good)';
+  if (h >= 16 && h < 19) return '4-7pm (Peak window)';
+  if (h >= 13 && h < 16) return '1-4pm (Moderate)';
+  if (h >= 7 && h < 9) return '7-9am (Early)';
+  return 'After hours \u2014 schedule for 9-11am or 4-7pm';
+}
+
+function logCallOutcome(contactId, outcome, btn) {
+  var noteText = 'Call outcome: ' + outcome + ' (' + new Date().toLocaleString() + ')';
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: noteText })
+  }).then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var row = btn.closest('div[id^="callOutcome"]');
+    if (row) {
+      var colors = { connected: '#22c55e', voicemail: '#f59e0b', 'no answer': '#6b7280', 'wrong number': '#ef4444' };
+      row.innerHTML = '<span style="font-size:11px;font-weight:700;color:' + (colors[outcome] || '#6b7280') + '">Logged: ' + outcome + ' \u2713</span>';
+    }
+    toast('Call outcome logged to GHL', 'success');
+  }).catch(function(e) { toast('Failed to log: ' + e.message, 'error'); });
+
+  // Also tag the contact based on outcome
+  if (outcome === 'connected') {
+    fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['contacted', 'call-connected'] })
+    }).catch(function() {});
+  } else if (outcome === 'wrong number') {
+    fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags: ['wrong-number'] })
+    }).catch(function() {});
+  }
+}
+
+function syncCallListToGHL() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var withPhone = sellers.filter(function(s) { return s.phone; });
+  if (!confirm('Write lead scores for ' + withPhone.length + ' seller leads to GHL custom field "lead_score"?\\n\\nThis lets you use scores in GHL workflows and automations.')) return;
+
+  toast('Syncing scores to GHL...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  withPhone.forEach(function(s) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + s.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customFields: [
+            { key: 'lead_score', field_value: String(s.score) },
+            { key: 'motivation_score', field_value: String(s.motivation) },
+            { key: 'call_priority', field_value: String(s.callPriority || s.motivation) }
+          ]
+        })
+      }).then(function(res) {
+        if (res.ok) done++;
+        else failed++;
+        if ((done + failed) % 10 === 0) toast('Synced ' + done + '/' + withPhone.length, 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Score sync complete: ' + done + ' updated, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+  });
+}
+
+// -------------------------------------------------------
+// TAG CROSS-REFERENCE ANALYSIS
+// -------------------------------------------------------
+function showTagCrossRef() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+
+  // Count tag combinations
+  var sellerTags = ['expired', 'canceled', 'withdrawn', 'fsbo', 'high equity', 'low equity', 'free and clear', 'absentee', 'out of state owners', 'empty nester', 'agent owned', 'seller pipeline', 'under contract'];
+  var combos = {};
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var matched = sellerTags.filter(function(st) { return t.indexOf(st) !== -1; });
+    // Count pairs
+    for (var i = 0; i < matched.length; i++) {
+      for (var j = i + 1; j < matched.length; j++) {
+        var key = matched[i] + ' + ' + matched[j];
+        if (!combos[key]) combos[key] = { label: matched[i] + ' + ' + matched[j], count: 0, avgMot: 0, totalMot: 0 };
+        combos[key].count++;
+        combos[key].totalMot += s.motivation;
+      }
+    }
+  });
+
+  var comboArr = Object.keys(combos).map(function(k) {
+    var c = combos[k];
+    c.avgMot = c.count ? Math.round(c.totalMot / c.count) : 0;
+    return c;
+  }).sort(function(a, b) { return b.count - a.count; }).slice(0, 20);
+
+  var overlay = document.createElement('div');
+  overlay.id = 'tagCrossRefOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128279; Tag Cross-Reference</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Most common tag combinations among seller leads</p></div>';
+  html += '<button onclick="document.getElementById(&#39;tagCrossRefOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  if (!comboArr.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">No tag combinations found</div>';
+  } else {
+    var maxCombo = comboArr[0].count;
+    html += '<div style="padding:16px 20px">';
+    comboArr.forEach(function(c) {
+      var pct = Math.round(c.count / maxCombo * 100);
+      var motColor = c.avgMot >= 60 ? '#ef4444' : c.avgMot >= 40 ? '#f59e0b' : '#3b82f6';
+      html += '<div style="margin-bottom:10px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">';
+      html += '<span style="font-size:13px;font-weight:600">' + c.label + '</span>';
+      html += '<span style="font-size:12px"><strong>' + c.count + '</strong> leads &middot; <span style="color:' + motColor + '">avg ' + c.avgMot + ' motivation</span></span>';
+      html += '</div>';
+      html += '<div style="height:8px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">';
+      html += '<div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,' + motColor + ',' + motColor + '88);border-radius:4px;transition:width 0.3s"></div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// WIN/LOSS DETAIL
+// -------------------------------------------------------
+function showWinLossDetail() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var now = Date.now();
+
+  // Categorize leads by pipeline stage
+  var stages = {
+    pipeline: { label: 'In Pipeline', leads: [], color: '#22c55e' },
+    hot: { label: 'Hot Prospects', leads: [], color: '#ef4444' },
+    warm: { label: 'Warm / Nurturing', leads: [], color: '#f59e0b' },
+    stale: { label: 'Gone Cold (90d+)', leads: [], color: '#6b7280' },
+    noContact: { label: 'No Contact Info', leads: [], color: '#8b5cf6' }
+  };
+  sellers.forEach(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    var hasPipeline = t.indexOf('seller pipeline') !== -1 || t.indexOf('under contract') !== -1;
+    var d = s.dateUpdated || s.dateAdded || '';
+    var days = d ? (now - new Date(d).getTime()) / 86400000 : 999;
+    if (hasPipeline) stages.pipeline.leads.push(s);
+    else if (!s.phone && !s.email) stages.noContact.leads.push(s);
+    else if (days > 90) stages.stale.leads.push(s);
+    else if (s.motivation >= 60) stages.hot.leads.push(s);
+    else stages.warm.leads.push(s);
+  });
+
+  var existing = document.getElementById('winLossOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'winLossOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128200; Pipeline Conversion Detail</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Where your seller leads stand in the pipeline</p></div>';
+  html += '<button onclick="document.getElementById(&#39;winLossOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  Object.keys(stages).forEach(function(key) {
+    var st = stages[key];
+    if (!st.leads.length) return;
+    st.leads.sort(function(a, b) { return b.motivation - a.motivation; });
+    html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border)">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:50%;background:' + st.color + '"></div>';
+    html += '<span style="font-size:14px;font-weight:700">' + st.label + '</span><span style="font-size:12px;color:var(--text-secondary)">(' + st.leads.length + ')</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">';
+    st.leads.slice(0, 8).forEach(function(s) {
+      var mc = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#6b7280';
+      html += '<div style="background:var(--surface,var(--bg));border-radius:8px;padding:10px;font-size:12px">';
+      html += '<div style="display:flex;justify-content:space-between"><strong>' + esc(s.name) + '</strong><span style="color:' + mc + ';font-weight:700">' + s.motivation + '</span></div>';
+      if (s.phone) html += '<div style="margin-top:3px"><a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">&#128222; ' + s.phone + '</a></div>';
+      html += '</div>';
+    });
+    if (st.leads.length > 8) html += '<div style="display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-secondary)">+ ' + (st.leads.length - 8) + ' more</div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// FOLLOW-UP QUEUE \u2014 sellers overdue for contact
+// -------------------------------------------------------
+function showFollowUpQueue() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+  var now = Date.now();
+  var overdue = sellers.filter(function(s) {
+    if (!s.phone && !s.email) return false;
+    var lastTouch = s.dateUpdated || s.dateAdded || '';
+    if (!lastTouch) return true;
+    var days = (now - new Date(lastTouch).getTime()) / 86400000;
+    return days > 14;
+  }).map(function(s) {
+    var lastTouch = s.dateUpdated || s.dateAdded || '';
+    var days = lastTouch ? Math.floor((now - new Date(lastTouch).getTime()) / 86400000) : 999;
+    s._daysSince = days;
+    s._urgency = days > 90 ? 'critical' : days > 30 ? 'high' : 'medium';
+    return s;
+  });
+  overdue.sort(function(a, b) {
+    var urgA = a._urgency === 'critical' ? 3 : a._urgency === 'high' ? 2 : 1;
+    var urgB = b._urgency === 'critical' ? 3 : b._urgency === 'high' ? 2 : 1;
+    if (urgA !== urgB) return urgB - urgA;
+    return b.motivation - a.motivation;
+  });
+
+  var existing = document.getElementById('followUpOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'followUpOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var critical = overdue.filter(function(s) { return s._urgency === 'critical'; }).length;
+  var high = overdue.filter(function(s) { return s._urgency === 'high'; }).length;
+  var medium = overdue.filter(function(s) { return s._urgency === 'medium'; }).length;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:750px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128197; Follow-Up Queue</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + overdue.length + ' sellers need follow-up (no contact in 14+ days)</p></div>';
+  html += '<button onclick="document.getElementById(&#39;followUpOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="display:flex;gap:12px;margin-top:12px">';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#ef444422;color:#ef4444;font-weight:600">&#128308; Critical (90d+): ' + critical + '</span>';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#f59e0b22;color:#f59e0b;font-weight:600">&#128992; High (30-90d): ' + high + '</span>';
+  html += '<span style="font-size:12px;padding:4px 10px;border-radius:8px;background:#3b82f622;color:#3b82f6;font-weight:600">&#128309; Medium (14-30d): ' + medium + '</span>';
+  html += '</div></div>';
+
+  if (!overdue.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">All sellers have been contacted within the last 14 days!</div>';
+  } else {
+    html += '<div style="padding:0">';
+    overdue.slice(0, 30).forEach(function(s, i) {
+      var urgColor = s._urgency === 'critical' ? '#ef4444' : s._urgency === 'high' ? '#f59e0b' : '#3b82f6';
+      html += '<div style="padding:12px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:12px">';
+      html += '<div style="width:8px;height:8px;border-radius:50%;background:' + urgColor + ';flex-shrink:0"></div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+      html += '<span style="font-weight:700;font-size:14px">' + esc(s.name) + '</span>';
+      html += '<span style="font-size:12px;color:' + urgColor + ';font-weight:600">' + s._daysSince + ' days ago</span></div>';
+      html += '<div style="display:flex;gap:10px;font-size:12px;color:var(--text-secondary);margin-top:3px">';
+      if (s.phone) html += '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">&#128222; ' + s.phone + '</a>';
+      if (s.email) html += '<span>' + esc(s.email) + '</span>';
+      html += '<span style="color:' + urgColor + '">motivation: ' + s.motivation + '</span>';
+      html += '</div>';
+      var topTags = (s.tags || []).slice(0, 4);
+      if (topTags.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">';
+        topTags.forEach(function(t) { html += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(t) + '</span>'; });
+        html += '</div>';
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// DUPLICATE DETECTION \u2014 find potential duplicate contacts
+// -------------------------------------------------------
+function showDuplicates() {
+  var sellers = getSellerLeads();
+  if (!sellers.length) { toast('No seller leads', 'error'); return; }
+
+  var dupes = [];
+  var emailMap = {};
+  var phoneMap = {};
+  var nameMap = {};
+
+  sellers.forEach(function(s) {
+    if (s.email) {
+      var em = s.email.toLowerCase().trim();
+      if (!emailMap[em]) emailMap[em] = [];
+      emailMap[em].push(s);
+    }
+    if (s.phone) {
+      var ph = s.phone.replace(/D/g, '').slice(-10);
+      if (ph.length >= 7) {
+        if (!phoneMap[ph]) phoneMap[ph] = [];
+        phoneMap[ph].push(s);
+      }
+    }
+    if (s.name && s.name.trim().length > 3) {
+      var nm = s.name.toLowerCase().trim();
+      if (!nameMap[nm]) nameMap[nm] = [];
+      nameMap[nm].push(s);
+    }
+  });
+
+  var seen = {};
+  function addGroup(type, key, group) {
+    var ids = group.map(function(s) { return s.id; }).sort().join(',');
+    if (seen[ids]) return;
+    seen[ids] = true;
+    dupes.push({ type: type, key: key, contacts: group });
+  }
+
+  Object.keys(emailMap).forEach(function(em) { if (emailMap[em].length > 1) addGroup('Email', em, emailMap[em]); });
+  Object.keys(phoneMap).forEach(function(ph) { if (phoneMap[ph].length > 1) addGroup('Phone', ph, phoneMap[ph]); });
+  Object.keys(nameMap).forEach(function(nm) { if (nameMap[nm].length > 1) addGroup('Name', nm, nameMap[nm]); });
+
+  var existing = document.getElementById('dupesOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'dupesOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128269; Duplicate Detection</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + dupes.length + ' potential duplicate groups found</p></div>';
+  html += '<button onclick="document.getElementById(&#39;dupesOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+
+  if (!dupes.length) {
+    html += '<div style="padding:40px;text-align:center;color:var(--text-secondary)">&#9989; No duplicate contacts detected!</div>';
+  } else {
+    html += '<div style="padding:12px 20px">';
+    dupes.forEach(function(d) {
+      var typeColor = d.type === 'Email' ? '#3b82f6' : d.type === 'Phone' ? '#22c55e' : '#f59e0b';
+      html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;margin-bottom:10px">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<span style="font-size:12px;padding:2px 8px;border-radius:6px;background:' + typeColor + '22;color:' + typeColor + ';font-weight:600">' + d.type + ' match</span>';
+      html += '<span style="font-size:12px;color:var(--text-secondary)">' + esc(d.key) + '</span></div>';
+      d.contacts.forEach(function(c) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--card-border)">';
+        html += '<div><span style="font-weight:600;font-size:13px">' + esc(c.name) + '</span>';
+        if (c.email) html += '<span style="font-size:11px;color:var(--text-secondary);margin-left:8px">' + esc(c.email) + '</span>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:8px;align-items:center">';
+        if (c.phone) html += '<span style="font-size:11px;color:var(--text-secondary)">' + c.phone + '</span>';
+        html += '<span style="font-size:11px;color:var(--text-secondary)">Score: ' + c.motivation + '</span>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SELLER SEGMENT FILTER
+// -------------------------------------------------------
+function filterSellerSegment(segName) {
+  var segDefs = {
+    'Hot Expired + High Equity': function(t) { return t.indexOf('expired') !== -1 && t.indexOf('high equity') !== -1; },
+    'Absentee Owners': function(t) { return t.indexOf('absentee') !== -1; },
+    'Free & Clear': function(t) { return t.indexOf('free and clear') !== -1; },
+    'Canceled + Withdrawn': function(t) { return t.indexOf('canceled') !== -1 || t.indexOf('withdrawn') !== -1; },
+    'Out of State + High Equity': function(t) { return t.indexOf('out of state owners') !== -1 && t.indexOf('high equity') !== -1; },
+    'FSBO Opportunities': function(t) { return t.indexOf('fsbo') !== -1; }
+  };
+  var fn = segDefs[segName];
+  if (!fn) return;
+  var sellers = getSellerLeads();
+  var filtered = sellers.filter(function(s) {
+    var t = (s.tags || []).map(function(x) { return String(x).toLowerCase(); });
+    return fn(t);
+  });
+  if (!filtered.length) { toast('No leads in segment: ' + segName, 'error'); return; }
+
+  filtered.sort(function(a, b) { return b.motivation - a.motivation; });
+
+  var overlay = document.createElement('div');
+  overlay.id = 'segmentOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:750px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#127919; ' + esc(segName) + '</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + filtered.length + ' leads in this segment</p></div>';
+  html += '<button onclick="document.getElementById(&#39;segmentOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))">';
+  html += '<th style="padding:10px 12px;text-align:left;font-weight:600;font-size:12px">Name</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Phone</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Email</th>';
+  html += '<th style="padding:10px 8px;text-align:center;font-weight:600;font-size:12px">Motivation</th>';
+  html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Tags</th>';
+  html += '</tr></thead><tbody>';
+  filtered.forEach(function(s) {
+    var motColor = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#3b82f6';
+    html += '<tr style="border-bottom:1px solid var(--card-border)">';
+    html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
+    html += '<td style="padding:10px 8px">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">' + s.phone + '</a>' : '-') + '</td>';
+    html += '<td style="padding:10px 8px;font-size:12px">' + (s.email ? esc(s.email) : '-') + '</td>';
+    html += '<td style="padding:10px 8px;text-align:center"><span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 8px">';
+    (s.tags || []).slice(0, 5).forEach(function(tg) {
+      html += '<span style="display:inline-block;font-size:10px;padding:2px 6px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(tg) + '</span>';
+    });
+    html += '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+
+  var existing = document.getElementById('segmentOverlay');
+  if (existing) existing.remove();
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// CONTACT COMPARISON
+// -------------------------------------------------------
+function compareContacts() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (ids.length < 2) { toast('Select at least 2 contacts to compare', 'error'); return; }
+  if (ids.length > 4) { toast('Select up to 4 contacts for comparison', 'error'); return; }
+  var leads = ids.map(function(id) { return ALL_LEADS.find(function(l) { return l.id === id; }); }).filter(Boolean);
+  if (leads.length < 2) { toast('Could not find selected contacts', 'error'); return; }
+
+  var existing = document.getElementById('compareOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'compareOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+    '<h2 style="margin:0;font-size:18px;color:var(--text)">&#9878; Contact Comparison</h2>' +
+    '<button onclick="document.getElementById(&#39;compareOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+  '</div>';
+
+  // Header row with names
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="border-bottom:2px solid var(--card-border)"><th style="padding:12px;text-align:left;color:var(--text-secondary);font-size:12px;min-width:120px">Metric</th>';
+  leads.forEach(function(l) {
+    html += '<th style="padding:12px;text-align:center;min-width:140px"><div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div><div style="font-size:11px;color:var(--text-muted)">' + esc(l.source||'') + '</div></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  function row(label, vals, highlight) {
+    var best = -Infinity; var bestIdx = -1;
+    if (highlight) { vals.forEach(function(v,i) { var n = parseFloat(v); if (!isNaN(n) && n > best) { best = n; bestIdx = i; } }); }
+    var r = '<tr style="border-bottom:1px solid var(--card-border)"><td style="padding:10px 12px;font-weight:600;color:var(--text-secondary);font-size:12px">' + label + '</td>';
+    vals.forEach(function(v, i) {
+      var style = i === bestIdx ? 'font-weight:800;color:var(--green)' : 'color:var(--text)';
+      r += '<td style="padding:10px 12px;text-align:center;' + style + '">' + v + '</td>';
+    });
+    return r + '</tr>';
+  }
+
+  html += row('Score', leads.map(function(l) { return l.score; }), true);
+  html += row('Status', leads.map(function(l) { return '<span class="badge badge-' + l.status + '">' + l.status + '</span>'; }));
+  html += row('Email', leads.map(function(l) { return esc(l.email || 'None'); }));
+  html += row('Phone', leads.map(function(l) { return esc(l.phone || 'None'); }));
+  html += row('Views', leads.map(function(l) { return (l.matrix||{}).views||0; }), true);
+  html += row('Saves', leads.map(function(l) { return (l.matrix||{}).saves||0; }), true);
+  html += row('Searches', leads.map(function(l) { return (l.matrix||{}).searches||0; }), true);
+  html += row('Showings', leads.map(function(l) { return (l.matrix||{}).showings||0; }), true);
+  html += row('City', leads.map(function(l) { return esc(l.city || '\u2014'); }));
+  html += row('Type', leads.map(function(l) { return esc(l.propType || '\u2014'); }));
+  html += row('Source', leads.map(function(l) { return esc(l.source || '\u2014'); }));
+  html += row('Activity', leads.map(function(l) { var a = activityAge(l); return '<span style="color:' + a.color + '">' + a.label + '</span>'; }));
+  html += row('Tags', leads.map(function(l) { return (l.tags||[]).slice(0,3).map(function(t){return esc(t);}).join(', ') || '\u2014'; }));
+  html += row('Added', leads.map(function(l) { return fmtDate(l.dateAdded); }));
+
+  html += '</tbody></table></div>';
+  html += '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center;font-size:11px;color:var(--text-muted)">&#9989; Green = best in category</div>';
+  html += '</div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
 
 // -------------------------------------------------------
 // UTIL
 // -------------------------------------------------------
 function _el(id) { return document.getElementById(id); }
+function toggleDropdown(btn) {
+  event.stopPropagation();
+  var dd = btn.parentElement;
+  var wasOpen = dd.classList.contains('open');
+  document.querySelectorAll('.toolbar-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  if (!wasOpen) dd.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.toolbar-dropdown')) {
+    document.querySelectorAll('.toolbar-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+  }
+});
+function focusLead(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (lead) {
+    openAccordion(lead);
+    document.querySelector('[onclick*="openAccordion"]')?.closest('div').remove();
+  }
+}
+function matchesFilter(lead, filter) {
+  var parts = filter.toLowerCase().split(' ');
+  return parts.every(function(part) {
+    if (part.startsWith('score:')) {
+      var op = part.substring(6);
+      if (op.startsWith('>')) return lead.score > parseInt(op.substring(1));
+      if (op.startsWith('<')) return lead.score < parseInt(op.substring(1));
+      if (op.startsWith('=')) return lead.score === parseInt(op.substring(1));
+    }
+    if (part.startsWith('source:')) return lead.source === part.substring(7);
+    if (part.startsWith('tag:')) return lead.tags.includes(part.substring(4));
+    if (part.startsWith('status:')) return lead.status === part.substring(7);
+    return lead.name.toLowerCase().includes(part) || lead.email.toLowerCase().includes(part) || lead.phone.includes(part);
+  });
+}
+function bulkAddTag(leadId, tag) {
+  logAuditEvent('Bulk Tag', 'Added tag "' + tag + '" to lead ' + leadId);
+}
+function bulkAdjustScore(leadId, delta) {
+  logAuditEvent('Bulk Score', 'Adjusted score by ' + delta + ' for lead ' + leadId);
+}
+function bulkAssignAgent(leadId, agentName) {
+  logAuditEvent('Bulk Assign', 'Assigned to ' + agentName + ' for lead ' + leadId);
+}
 
 function fmtPrice(n) {
   if (!n) return '\\u2014';
@@ -3091,35 +5951,59 @@ function toast(msg, type, duration) {
 // CUSTOM FIELD HELPERS
 // -------------------------------------------------------
 
-function getCF(contact, keys) {
-  if (!contact) return null;
+// Build a field index for O(1) lookups instead of O(n*m) linear scans
+function buildFieldIndex(contact) {
+  if (contact._cfIdx) return contact._cfIdx;
   var fields = Array.isArray(contact.customField) ? contact.customField
     : Array.isArray(contact.customFields) ? contact.customFields
     : [];
-  if (fields.length === 0) return null;
+  var exact = {};  // exact key matches
+  var parts = [];  // for substring matching (fallback)
+  for (var i = 0; i < fields.length; i++) {
+    var f = fields[i];
+    if (f.value == null || f.value === '') continue;
+    var v = f.value;
+    if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
+    var fid   = (f.id||'').toLowerCase();
+    var fkey  = (f.key||'').toLowerCase();
+    var ffk   = (f.fieldKey||'').toLowerCase();
+    var fname = (f.name||'').toLowerCase();
+    var ffkS  = ffk.startsWith('contact.') ? ffk.slice(8) : ffk;
+    var fkeyS = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
+    if (fid)   exact[fid] = f;
+    if (fkey)  exact[fkey] = f;
+    if (ffk)   exact[ffk] = f;
+    if (fname) exact[fname] = f;
+    if (ffkS && ffkS !== ffk)   exact[ffkS] = f;
+    if (fkeyS && fkeyS !== fkey) exact[fkeyS] = f;
+    parts.push({ f: f, ffkS: ffkS, fkeyS: fkeyS, fname: fname, ffk: ffk });
+  }
+  contact._cfIdx = { exact: exact, parts: parts };
+  return contact._cfIdx;
+}
+
+function getCF(contact, keys) {
+  if (!contact) return null;
+  var idx = buildFieldIndex(contact);
+  if (!idx.exact && !idx.parts) return null;
   for (var ki = 0; ki < keys.length; ki++) {
     var k = keys[ki].toLowerCase();
-    var found = null;
-    for (var fi = 0; fi < fields.length; fi++) {
-      var f = fields[fi];
-      var fid   = (f.id||'').toLowerCase();
-      var fkey  = (f.key||'').toLowerCase();
-      var ffk   = (f.fieldKey||'').toLowerCase();
-      var fname = (f.name||'').toLowerCase();
-      var ffkStripped  = ffk.startsWith('contact.')  ? ffk.slice(8)  : ffk;
-      var fkeyStripped = fkey.startsWith('contact.') ? fkey.slice(8) : fkey;
-      if (fid===k || fkey===k || ffk===k || fname===k
-        || ffkStripped===k || fkeyStripped===k
-        || fname.indexOf(k)!==-1 || ffk.indexOf(k)!==-1
-        || ffkStripped.indexOf(k)!==-1 || fkeyStripped.indexOf(k)!==-1
-        || k.indexOf(ffkStripped)!==-1 || k.indexOf(fname)!==-1) {
-        found = f;
-        break;
+    // Fast exact match
+    var found = idx.exact[k];
+    // Fallback: substring matching
+    if (!found) {
+      for (var pi = 0; pi < idx.parts.length; pi++) {
+        var p = idx.parts[pi];
+        if ((p.fname && p.fname.indexOf(k) !== -1) || (p.ffk && p.ffk.indexOf(k) !== -1)
+          || (p.ffkS && p.ffkS.indexOf(k) !== -1) || (p.fkeyS && p.fkeyS.indexOf(k) !== -1)
+          || (p.ffkS && k.indexOf(p.ffkS) !== -1) || (p.fname && k.indexOf(p.fname) !== -1)) {
+          found = p.f;
+          break;
+        }
       }
     }
-    if (found && found.value!=null && found.value!=='') {
+    if (found && found.value != null && found.value !== '') {
       var v = found.value;
-      if (typeof v === 'string' && (v === '[object Object]' || v.indexOf('[object ') === 0)) continue;
       if (Array.isArray(v)) return v.join(', ');
       return String(v);
     }
@@ -3156,32 +6040,58 @@ function getMatrix(c) {
   };
 }
 
-function calcScore(c) {
-  var score = 0;
-  if (!c) return score;
-  if (c.email)  score += 5;
-  if (c.phone)  score += 5;
-  var m = getMatrix(c);
-  score += Math.min(m.views    * 2,  20);
-  score += Math.min(m.saves    * 4,  20);
-  score += Math.min(m.searches * 3,  15);
-  score += Math.min(m.showings * 10, 30);
-  score += Math.min(m.infoReqs * 5,  15);
-  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
-  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) score += 15;
-  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  score += 10;
-  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     score += 5;
-  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    score += 5;
+function calcScore(c, m) {
+  if (!c) return 0;
+  if (!m) m = getMatrix(c);
+  var w = SCORE_WEIGHTS || { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
+
+  // --- Contact completeness ---
+  var contact = 0;
+  if (c.email) contact += w.contact * 0.5;
+  if (c.phone) contact += w.contact * 0.5;
+
+  // --- Engagement ---
+  var engagement = 0;
+  engagement += Math.min(m.views    * 1.5, w.engagement * 0.34);
+  engagement += Math.min(m.saves    * 4,   w.engagement * 0.46);
+  engagement += Math.min(m.searches * 2,   w.engagement * 0.23);
+  engagement += Math.min(m.showings * 10,  w.engagement * 0.86);
+  engagement += Math.min(m.infoReqs * 5,   w.engagement * 0.29);
+  engagement = Math.min(engagement, w.engagement);
+
+  // --- Source quality ---
+  var srcScore = 0;
   var src = String(c.source||'').toLowerCase();
-  if (src.indexOf('ylopo')!==-1)   score += 5;
-  if (src.indexOf('zillow')!==-1)  score += 3;
+  if (src.indexOf('ylopo')!==-1)   srcScore = w.source * 0.8;
+  else if (src.indexOf('zillow')!==-1)  srcScore = w.source * 0.6;
+  else if (src.indexOf('realtor')!==-1) srcScore = w.source * 0.5;
+  else if (src.indexOf('homes')!==-1)   srcScore = w.source * 0.4;
+  else if (src.indexOf('myplus')!==-1 || src.indexOf('my+')!==-1) srcScore = w.source * 0.7;
+  else if (src) srcScore = w.source * 0.3;
+  srcScore = Math.min(srcScore, w.source);
+
+  // --- Recency ---
+  var recency = 0;
   if (c.dateUpdated) {
-    var diff = (Date.now() - new Date(c.dateUpdated)) / 86400000;
-    if (diff < 1)  score += 15;
-    else if (diff < 3)  score += 10;
-    else if (diff < 7)  score += 5;
+    var daysSinceUpdate = (Date.now() - new Date(c.dateUpdated)) / 86400000;
+    if (daysSinceUpdate < 1)       recency = w.recency;
+    else if (daysSinceUpdate < 3)  recency = w.recency * 0.75;
+    else if (daysSinceUpdate < 7)  recency = w.recency * 0.5;
+    else if (daysSinceUpdate < 14) recency = w.recency * 0.25;
+    else if (daysSinceUpdate < 30) recency = w.recency * 0.1;
   }
-  return Math.min(Math.round(score), 100);
+
+  // --- Tags / signals ---
+  var tagScore = 0;
+  var tags = (Array.isArray(c.tags) ? c.tags : []).map(function(t){return String(t).toLowerCase();});
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) tagScore += w.tags * 0.6;
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;}))  tagScore += w.tags * 0.4;
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;}))     tagScore += w.tags * 0.2;
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;}))    tagScore += w.tags * 0.12;
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;}))   tagScore += w.tags * 0.2;
+  tagScore = Math.min(tagScore, w.tags);
+
+  return Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
 }
 
 function getStatus(score, tags) {
@@ -3204,6 +6114,177 @@ function isNewThisWeek(c) {
   if (!c.dateAdded) return false;
   var diff = (Date.now() - new Date(c.dateAdded)) / 86400000;
   return diff <= 7;
+}
+
+function daysSinceActivity(lead) {
+  var d = lead.dateUpdated || lead.dateAdded || '';
+  if (!d) return 999;
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+}
+
+function isStale(lead) {
+  // "Stale" = score >= 30 (not worthless) AND no activity > 7 days
+  return lead.score >= 30 && daysSinceActivity(lead) > 7;
+}
+
+function activityAge(lead) {
+  var days = daysSinceActivity(lead);
+  if (days <= 1)  return { label: 'Today', color: 'var(--green)', cls: 'fresh' };
+  if (days <= 3)  return { label: days + 'd ago', color: 'var(--green)', cls: 'fresh' };
+  if (days <= 7)  return { label: days + 'd ago', color: 'var(--blue)', cls: 'recent' };
+  if (days <= 14) return { label: days + 'd ago', color: 'var(--yellow)', cls: 'aging' };
+  if (days <= 30) return { label: days + 'd ago', color: 'var(--accent,#f97316)', cls: 'stale' };
+  return { label: days > 900 ? 'Unknown' : days + 'd ago', color: 'var(--red)', cls: 'overdue' };
+}
+
+function calcScoreBreakdown(c) {
+  var m = getMatrix(c);
+  var w = SCORE_WEIGHTS || { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
+  // Contact completeness
+  var contact = 0;
+  if (c.email) contact += w.contact * 0.5;
+  if (c.phone) contact += w.contact * 0.5;
+  // Engagement
+  var engagement = 0;
+  var engDetails = [];
+  var vPts = Math.min(m.views * 1.5, w.engagement * 0.34); engagement += vPts; if (m.views) engDetails.push(m.views + ' views = ' + Math.round(vPts) + 'pts');
+  var sPts = Math.min(m.saves * 4, w.engagement * 0.46); engagement += sPts; if (m.saves) engDetails.push(m.saves + ' saves = ' + Math.round(sPts) + 'pts');
+  var srPts = Math.min(m.searches * 2, w.engagement * 0.23); engagement += srPts; if (m.searches) engDetails.push(m.searches + ' searches = ' + Math.round(srPts) + 'pts');
+  var shPts = Math.min(m.showings * 10, w.engagement * 0.86); engagement += shPts; if (m.showings) engDetails.push(m.showings + ' showings = ' + Math.round(shPts) + 'pts');
+  var iPts = Math.min((m.infoReqs||0) * 5, w.engagement * 0.29); engagement += iPts; if (m.infoReqs) engDetails.push(m.infoReqs + ' info reqs = ' + Math.round(iPts) + 'pts');
+  engagement = Math.min(engagement, w.engagement);
+  // Source
+  var srcScore = 0; var srcName = String(c.source||'').toLowerCase();
+  if (srcName.indexOf('ylopo')!==-1) srcScore = w.source * 0.8;
+  else if (srcName.indexOf('zillow')!==-1) srcScore = w.source * 0.6;
+  else if (srcName.indexOf('realtor')!==-1) srcScore = w.source * 0.5;
+  else if (srcName.indexOf('homes')!==-1) srcScore = w.source * 0.4;
+  else if (srcName.indexOf('myplus')!==-1||srcName.indexOf('my+')!==-1) srcScore = w.source * 0.7;
+  else if (srcName) srcScore = w.source * 0.3;
+  srcScore = Math.min(srcScore, w.source);
+  // Recency
+  var recency = 0; var daysSince = -1;
+  if (c.dateUpdated) {
+    daysSince = Math.floor((Date.now() - new Date(c.dateUpdated)) / 86400000);
+    if (daysSince < 1) recency = w.recency;
+    else if (daysSince < 3) recency = w.recency * 0.75;
+    else if (daysSince < 7) recency = w.recency * 0.5;
+    else if (daysSince < 14) recency = w.recency * 0.25;
+    else if (daysSince < 30) recency = w.recency * 0.1;
+  }
+  // Tags
+  var tagScore = 0; var tagDetails = [];
+  var tags = (Array.isArray(c.tags)?c.tags:[]).map(function(t){return String(t).toLowerCase();});
+  if (tags.some(function(t){return t.indexOf('hot')!==-1||t.indexOf('priority')!==-1;})) { tagScore += w.tags * 0.6; tagDetails.push('hot/priority +' + Math.round(w.tags * 0.6)); }
+  if (tags.some(function(t){return t.indexOf('showing')!==-1;})) { tagScore += w.tags * 0.4; tagDetails.push('showing +' + Math.round(w.tags * 0.4)); }
+  if (tags.some(function(t){return t.indexOf('warm')!==-1;})) { tagScore += w.tags * 0.2; tagDetails.push('warm +' + Math.round(w.tags * 0.2)); }
+  if (tags.some(function(t){return t.indexOf('ylopo')!==-1;})) { tagScore += w.tags * 0.12; tagDetails.push('ylopo +' + Math.round(w.tags * 0.12)); }
+  if (tags.some(function(t){return t.indexOf('seller')!==-1;})) { tagScore += w.tags * 0.2; tagDetails.push('seller +' + Math.round(w.tags * 0.2)); }
+  tagScore = Math.min(tagScore, w.tags);
+  var total = Math.min(Math.round(contact + engagement + srcScore + recency + tagScore), 100);
+  return {
+    total: total, contact: Math.round(contact), contactMax: w.contact,
+    engagement: Math.round(engagement), engMax: w.engagement, engDetails: engDetails,
+    source: Math.round(srcScore), srcMax: w.source, srcName: c.source || 'Unknown',
+    recency: Math.round(recency), recMax: w.recency, daysSince: daysSince,
+    tags: Math.round(tagScore), tagMax: w.tags, tagDetails: tagDetails
+  };
+}
+
+function showScoreBreakdown(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('Contact data not found', 'error'); return; }
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  var b = calcScoreBreakdown(raw);
+  var existing = document.getElementById('scoreBreakdownPopup');
+  if (existing) existing.remove();
+
+  function bar(val, max, color) {
+    var pct = max > 0 ? Math.round(val / max * 100) : 0;
+    return '<div style="flex:1;height:8px;border-radius:4px;background:var(--surface,var(--bg))">' +
+      '<div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + color + ';transition:width 0.3s"></div></div>';
+  }
+
+  function tip(val, max) {
+    if (val >= max * 0.8) return '<span style="color:var(--green)">&#10003; Great</span>';
+    if (val >= max * 0.4) return '<span style="color:var(--yellow)">&#8599; Room to grow</span>';
+    return '<span style="color:var(--red)">&#9888; Needs work</span>';
+  }
+
+  var popup = document.createElement('div');
+  popup.id = 'scoreBreakdownPopup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
+
+  var scoreColor = b.total >= 75 ? '#00ff55' : b.total >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
+    '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+      '<div>' +
+        '<h2 style="margin:0;font-size:16px;color:var(--text)">Score Breakdown</h2>' +
+        (lead ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">' + esc(lead.name) + '</div>' : '') +
+      '</div>' +
+      '<div style="font-size:36px;font-weight:800;color:' + scoreColor + '">' + b.total + '</div>' +
+    '</div>' +
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">';
+
+  // Contact completeness
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128100; Contact Info</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.contact + '/' + b.contactMax + ' ' + tip(b.contact, b.contactMax) + '</span>' +
+    '</div>' +
+    bar(b.contact, b.contactMax, 'var(--blue)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (raw.email ? '&#10003; Email' : '&#10007; No email') + ' &bull; ' + (raw.phone ? '&#10003; Phone' : '&#10007; No phone') + '</div>' +
+  '</div>';
+
+  // Engagement
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128200; Engagement</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.engagement + '/' + b.engMax + ' ' + tip(b.engagement, b.engMax) + '</span>' +
+    '</div>' +
+    bar(b.engagement, b.engMax, 'var(--green)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.engDetails.length ? b.engDetails.join(' &bull; ') : 'No engagement data') + '</div>' +
+  '</div>';
+
+  // Source
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#127760; Source Quality</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.source + '/' + b.srcMax + '</span>' +
+    '</div>' +
+    bar(b.source, b.srcMax, 'var(--accent2,#8b5cf6)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">Source: ' + esc(b.srcName) + '</div>' +
+  '</div>';
+
+  // Recency
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#128337; Recency</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.recency + '/' + b.recMax + ' ' + tip(b.recency, b.recMax) + '</span>' +
+    '</div>' +
+    bar(b.recency, b.recMax, 'var(--yellow)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.daysSince >= 0 ? 'Last activity: ' + b.daysSince + ' days ago' : 'No activity date') + '</div>' +
+  '</div>';
+
+  // Tags
+  html += '<div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:600;color:var(--text)">&#127991; Tags &amp; Signals</span>' +
+      '<span style="font-size:12px;font-weight:700;color:var(--text)">' + b.tags + '/' + b.tagMax + '</span>' +
+    '</div>' +
+    bar(b.tags, b.tagMax, 'var(--accent,#f97316)') +
+    '<div style="font-size:11px;color:var(--text-muted);margin-top:3px">' + (b.tagDetails.length ? b.tagDetails.join(' &bull; ') : 'No scoring tags found') + '</div>' +
+  '</div>';
+
+  html += '</div>' +
+    '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+      '<button onclick="document.getElementById(&#39;scoreBreakdownPopup&#39;).remove()" style="padding:8px 24px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Close</button>' +
+    '</div></div>';
+
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
 }
 
 // -------------------------------------------------------
@@ -3230,13 +6311,17 @@ function getExtendedData(c) {
     maxPrice: maxPrice,
     price: price,
     propType:  getCF(c,['property_type','propertytype','prop_type','ylopo_property_type'])||'',
-    city:      getCF(c,['ylopo_search_city','ylopo_listing_city','primarysearchcity','listingcity','city','search_city','home_city'])||'',
-    state:     getCF(c,['ylopo_search_state','ylopo_listing_state','primarysearchstate','listingstate','state','search_state','home_state'])||'',
-    zip:       getCF(c,['ylopo_search_zip','ylopo_listing_zip','primarysearchpostalcode','listingzip','zip','postal_code','search_zip'])||'',
+    city:      getCF(c,['ylopo_search_city','ylopo_listing_city','primarysearchcity','listingcity','city','search_city','home_city'])||c.city||'',
+    state:     getCF(c,['ylopo_search_state','ylopo_listing_state','primarysearchstate','listingstate','state','search_state','home_state'])||c.state||'',
+    zip:       getCF(c,['ylopo_search_zip','ylopo_listing_zip','primarysearchpostalcode','listingzip','zip','postal_code','search_zip'])||c.postalCode||'',
     source:    getCF(c,['ylopo_source','ylopo_event_source','fub_source','fub_registration_source','source','lead_source'])||String(c.source||''),
     leadType:  getCF(c,['ylopo_lead_type','leadtype','fub_registration_type','lead_type','type'])||'',
-    estValue:  getCF(c,['estimated','estimated_value','est_home_value','home_value','homevalue'])||'',
-    address:   getCF(c,['address','home_address','listing_address','ylopo_listing_address'])||c.address1||'',
+    estValue:  getCF(c,['estimated','estimated_value','est_home_value','home_value','homevalue','zestimate','property_value','avm_value'])||'',
+    equity:    Number(getCF(c,['equity','home_equity','equity_amount','estimated_equity','equity_value']))||0,
+    equityPct: Number(getCF(c,['equity_percent','equity_pct','ltv','equity_percentage']))||0,
+    mortgageBalance: Number(getCF(c,['mortgage_balance','loan_balance','remaining_balance','mortgage_amount','loan_amount']))||0,
+    ownerSince: getCF(c,['owner_since','ownership_date','purchase_date','date_purchased'])||'',
+    address:   getCF(c,['address','home_address','listing_address','ylopo_listing_address','property_address','street_address','mailing_address'])||c.address1||'',
     sqft: sqft,
     yearBuilt: yearBuilt,
     mlsNumber: mlsNumber,
@@ -3383,8 +6468,8 @@ function processRawContacts(allRaw) {
     return true;
   }).map(function(c) {
     RAW_CONTACTS[c.id] = c;
-    var score  = calcScore(c);
     var matrix = getMatrix(c);
+    var score  = calcScore(c, matrix);
     var ext    = getExtendedData(c);
 
     var fn = capName(c.firstName || c.first_name || '');
@@ -3398,6 +6483,14 @@ function processRawContacts(allRaw) {
       name = (fn + ' ' + ln).trim();
     }
     if (!name) name = 'Unknown';
+
+    // Auto-classify My+Plus Leads (and deviations) as Seller contact type
+    var rawSource = (ext.source || String(c.source || '')).toLowerCase();
+    var contactType = ext.propType || ext.leadType || c.type || '';
+    var isPlusLeads = rawSource.indexOf('plus leads') !== -1 || rawSource.indexOf('myplus') !== -1 || rawSource.indexOf('my+plus') !== -1 || rawSource.indexOf('my +plus') !== -1 || rawSource.indexOf('myplusleads') !== -1 || rawSource.indexOf('plusleads') !== -1;
+    if (isPlusLeads && (!contactType || contactType.toLowerCase() !== 'seller')) {
+      contactType = 'Seller';
+    }
 
     return {
       id:          c.id,
@@ -3414,35 +6507,28 @@ function processRawContacts(allRaw) {
       source:      ext.source || String(c.source||''),
       city:        ext.city,
       state:       ext.state,
+      address:     ext.address,
+      propType:    contactType,
       isNew:       isNewThisWeek(c),
       hasShowing:  matrix.showings > 0
     };
   });
+  updateScoreTrends(ALL_LEADS);
   updateStats();
   applyFilters();
 }
 
 function loadData() {
   _el('loadingOverlay').style.display = 'flex';
-  _el('loadingText').textContent = 'Fetching last ' + LOAD_DAYS + ' days of contacts...';
+  _el('loadingText').textContent = LOAD_DAYS > 0 ? 'Fetching last ' + LOAD_DAYS + ' days of contacts...' : 'Fetching all contacts...';
 
-  // Try loading from cache first
-  var cached = getCachedData();
-  if (cached && cached.length > 0) {
-    _el('loadingText').textContent = 'Loading cached data (' + cached.length + ' contacts)...';
-    processRawContacts(cached);
-    _el('loadingOverlay').style.display = 'none';
-    toast('Loaded ' + ALL_LEADS.length + ' contacts from cache, refreshing...', 'info');
-    // Background refresh
-    fetchAllContacts(true);
-    return;
-  }
-
+  // Always fetch fresh data from GHL/Ylopo on every page load
+  try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   fetchAllContacts(false);
 }
 
 function fetchAllContacts(isBackground) {
-  var cutoffDate = new Date(Date.now() - LOAD_DAYS * 864e5);
+  var cutoffDate = LOAD_DAYS > 0 ? new Date(Date.now() - LOAD_DAYS * 864e5) : null;
   var allRaw    = [];
   var seenIds   = {};
   var startAfter = '';
@@ -3450,6 +6536,7 @@ function fetchAllContacts(isBackground) {
   var page      = 0;
   var FETCH_SIZE = 100;
   var hitCutoff = false;
+  var maxPages = LOAD_DAYS === 0 ? 100 : LOAD_DAYS <= 30 ? 15 : LOAD_DAYS <= 90 ? 30 : LOAD_DAYS <= 365 ? 50 : 100;
 
   function fetchPage() {
     page++;
@@ -3458,7 +6545,7 @@ function fetchAllContacts(isBackground) {
     if (startAfterId) url += '&startAfterId=' + encodeURIComponent(startAfterId);
 
     if (!isBackground) {
-      _el('loadingText').textContent = 'Page ' + page + '/' + MAX_PAGES + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
+      _el('loadingText').textContent = 'Page ' + page + '/' + maxPages + ' \\u00b7 ' + allRaw.length + ' contacts loaded...';
     }
 
     var fetchOpts = { cache: 'no-store', headers: { 'Accept': 'application/json' } };
@@ -3490,10 +6577,10 @@ function fetchAllContacts(isBackground) {
         allRaw = allRaw.concat(newRaw);
         var lastContact = raw[raw.length - 1];
         var lastDate = new Date(lastContact.dateAdded || lastContact.createdAt || 0);
-        if (lastDate < cutoffDate) { hitCutoff = true; finishLoad(); return; }
+        if (cutoffDate && lastDate < cutoffDate) { hitCutoff = true; finishLoad(); return; }
         // Use meta pagination cursors from GHL API response
         var meta = data.meta || {};
-        if (meta.startAfter && meta.startAfterId && raw.length >= FETCH_SIZE && page < MAX_PAGES) {
+        if (meta.startAfter && meta.startAfterId && raw.length >= FETCH_SIZE && page < maxPages) {
           startAfter = meta.startAfter;
           startAfterId = meta.startAfterId;
         } else {
@@ -3505,7 +6592,7 @@ function fetchAllContacts(isBackground) {
         console.error('loadData error:', e);
         if (!isBackground) {
           _el('loadingOverlay').style.display = 'none';
-          _el('leadsBody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
+          _el('leadsBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
         }
         toast('Failed to load contacts: ' + e.message, 'error');
       });
@@ -3524,7 +6611,12 @@ function fetchAllContacts(isBackground) {
       if (!isBackground) {
         _el('loadingOverlay').style.display = 'none';
       }
-      toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + LOAD_DAYS + 'd range' + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
+      // Update last loaded timestamp
+      var ll = _el('lastLoaded');
+      if (ll) ll.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
+      // Auto-switch to source tab if URL has #source
+      if (window.location.hash === '#source') { switchContactsView('source'); }
+      toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + (LOAD_DAYS > 0 ? LOAD_DAYS + 'd range' : 'all time') + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
       // autoTagSellers disabled \u2014 was writing tags/notes on every page load
     }
   }
@@ -3678,6 +6770,189 @@ function bulkDelete() {
   });
 }
 
+function bulkTag() {
+  var tag = prompt('Enter tag to add to ' + SELECTED.size + ' selected contacts:');
+  if (!tag || !tag.trim()) return;
+  tag = tag.trim();
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  var done = 0, failed = 0;
+  toast('Adding tag "' + tag + '" to ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function(r) {
+        if (r.ok) {
+          done++;
+          var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+          if (lead && lead.tags && lead.tags.indexOf(tag) === -1) lead.tags.push(tag);
+        } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + ' contacts with "' + tag + '"' + (failed > 0 ? ', ' + failed + ' failed' : ''), 'success');
+    clearSelection();
+  });
+}
+
+function tagFiltered() {
+  if (!FILTERED.length) { toast('No filtered contacts', 'error'); return; }
+  var tag = prompt('Enter tag to add to ALL ' + FILTERED.length + ' currently filtered contacts:');
+  if (!tag || !tag.trim()) return;
+  tag = tag.trim();
+  if (!confirm('Tag ' + FILTERED.length + ' filtered contacts with "' + tag + '"?')) return;
+  toast('Tagging ' + FILTERED.length + ' contacts...', 'info');
+  var done = 0, failed = 0;
+  var chain = Promise.resolve();
+  FILTERED.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + l.id + '/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: [tag] })
+      }).then(function(r) {
+        if (r.ok) { done++; if (l.tags && l.tags.indexOf(tag) === -1) l.tags.push(tag); }
+        else failed++;
+        if ((done + failed) % 20 === 0) toast('Tagged ' + done + '/' + FILTERED.length, 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Tagged ' + done + ' contacts with "' + tag + '"' + (failed ? ', ' + failed + ' failed' : ''), 'success');
+  });
+}
+
+function bulkWorkflow() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('No contacts selected', 'error'); return; }
+
+  // Common GHL workflow IDs \u2014 user enters or picks
+  var wfId = prompt('Enter the GHL Workflow ID to trigger for ' + ids.length + ' contacts:\\n\\n(Find this in GHL > Automation > Workflows > click workflow > copy ID from URL)');
+  if (!wfId || !wfId.trim()) return;
+  wfId = wfId.trim();
+
+  if (!confirm('Trigger workflow on ' + ids.length + ' contacts?\\nWorkflow ID: ' + wfId)) return;
+
+  var done = 0, failed = 0;
+  toast('Triggering workflow on ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id + '/workflow/' + wfId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function(r) {
+        if (r.ok) { done++; } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Workflow triggered: ' + done + ' success' + (failed > 0 ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
+    clearSelection();
+  });
+}
+
+function bulkStatus() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('No contacts selected', 'error'); return; }
+
+  var existing = document.getElementById('statusPickerOverlay');
+  if (existing) existing.remove();
+
+  var statuses = [
+    { value: 'open', label: 'Open', color: '#22c55e' },
+    { value: 'won', label: 'Won', color: '#3b82f6' },
+    { value: 'lost', label: 'Lost', color: '#ef4444' },
+    { value: 'abandoned', label: 'Abandoned', color: '#6b7280' },
+    { value: 'new', label: 'New', color: '#a855f7' },
+    { value: 'open:Attempted Contact', label: 'Attempted Contact', color: '#f59e0b' },
+    { value: 'open:Connected', label: 'Connected', color: '#14b8a6' },
+    { value: 'open:Qualified', label: 'Qualified', color: '#06b6d4' },
+    { value: 'open:Appointment Set', label: 'Appointment Set', color: '#8b5cf6' },
+    { value: 'open:Under Contract', label: 'Under Contract', color: '#ec4899' }
+  ];
+
+  var overlay = document.createElement('div');
+  overlay.id = 'statusPickerOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:400px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0;font-size:16px">Change Status for ' + ids.length + ' contacts</h3>';
+  html += '<button onclick="document.getElementById(&#39;statusPickerOverlay&#39;).remove()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="display:grid;gap:8px">';
+  for (var i = 0; i < statuses.length; i++) {
+    var s = statuses[i];
+    html += '<button onclick="applyBulkStatus(&#39;' + s.value + '&#39;)" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;border:1px solid var(--card-border);background:var(--surface,var(--bg));cursor:pointer;text-align:left;font-size:14px;color:var(--text);transition:background 0.2s" onmouseover="this.style.background=&#39;var(--card-border)&#39;" onmouseout="this.style.background=&#39;var(--surface,var(--bg))&#39;">';
+    html += '<span style="width:10px;height:10px;border-radius:50%;background:' + s.color + ';flex-shrink:0"></span>';
+    html += s.label + '</button>';
+  }
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function applyBulkStatus(statusVal) {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  var overlay = document.getElementById('statusPickerOverlay');
+  if (overlay) overlay.remove();
+
+  var parts = statusVal.split(':');
+  var body = { status: parts[0] };
+  if (parts.length > 1) body.pipelineStage = parts[1];
+
+  var done = 0, failed = 0;
+  toast('Updating status on ' + ids.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  ids.forEach(function(id) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function(r) {
+        if (r.ok) { done++; } else { failed++; }
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Status updated: ' + done + ' success' + (failed > 0 ? ', ' + failed + ' failed' : ''), done > 0 ? 'success' : 'error');
+    clearSelection();
+  });
+}
+
+function bulkEmail() {
+  var emails = ALL_LEADS.filter(function(l) { return SELECTED.has(l.id); }).map(function(l) { return l.email; }).filter(Boolean);
+  if (emails.length === 0) { toast('No email addresses found in selection', 'error'); return; }
+  if (emails.length > 50) {
+    navigator.clipboard.writeText(emails.join(', ')).then(function() {
+      toast('Too many for mailto link. Copied ' + emails.length + ' emails to clipboard.', 'info');
+    });
+    return;
+  }
+  window.location.href = 'mailto:?bcc=' + emails.map(function(e) { return encodeURIComponent(e); }).join(',');
+  toast('Opening email client with ' + emails.length + ' recipients', 'success');
+}
+
+function exportAllCSV() {
+  var leads = FILTERED.length ? FILTERED : ALL_LEADS;
+  var csv = ['Name,Email,Phone,Score,Status,Source,Type,City,State,Views,Saves,Searches,Showings,Date Added'];
+  leads.forEach(function(l) {
+    var m = l.matrix || {};
+    csv.push('"' + (l.name||'').replace(/"/g,'""') + '","' + (l.email||'') + '","' + (l.phone||'') + '",' +
+      l.score + ',"' + (l.status||'') + '","' + (l.source||'').replace(/"/g,'""') + '","' + (l.propType||'') + '","' +
+      (l.city||'') + '","' + (l.state||'') + '",' +
+      (m.views||0) + ',' + (m.saves||0) + ',' + (m.searches||0) + ',' + (m.showings||0) + ',"' + (l.dateAdded||'') + '"');
+  });
+  downloadCSV(csv.join('\\n'), FILTERED.length < ALL_LEADS.length ? 'filtered-contacts' : 'all-contacts');
+  toast('Exported ' + leads.length + ' contacts to CSV', 'success');
+}
+
 // -------------------------------------------------------
 // STATS
 // -------------------------------------------------------
@@ -3688,6 +6963,77 @@ function updateStats() {
   _el('statCold').textContent     = ALL_LEADS.filter(function(l){return l.status==='cold';}).length;
   _el('statShowings').textContent = ALL_LEADS.filter(function(l){return l.hasShowing;}).length;
   _el('statNew').textContent      = ALL_LEADS.filter(function(l){return l.isNew;}).length;
+  var staleEl = _el('statStale');
+  if (staleEl) staleEl.textContent = ALL_LEADS.filter(function(l){return isStale(l);}).length;
+
+  // Trend summary
+  var up = 0, down = 0, stable = 0;
+  Object.keys(SCORE_TRENDS).forEach(function(k) {
+    var t = SCORE_TRENDS[k];
+    if (t.dir === 'up') up++;
+    else if (t.dir === 'down') down++;
+    else if (t.dir === 'stable') stable++;
+  });
+  var trendEl = _el('statTrend');
+  if (trendEl) {
+    if (up + down + stable === 0) { trendEl.innerHTML = '&mdash;'; }
+    else { trendEl.innerHTML = '<span style="color:var(--green)">&#9650;' + up + '</span> <span style="color:var(--text-muted)">&#9644;' + stable + '</span> <span style="color:var(--red)">&#9660;' + down + '</span>'; }
+  }
+  renderSourcePieChart();
+  renderConversionMini();
+}
+
+function renderSourcePieChart() {
+  var el = document.getElementById('sourcePieChart');
+  if (!el || !ALL_LEADS.length) return;
+  var srcMap = {};
+  ALL_LEADS.forEach(function(l) {
+    var s = l.source || 'Unknown';
+    srcMap[s] = (srcMap[s] || 0) + 1;
+  });
+  var sorted = Object.keys(srcMap).sort(function(a, b) { return srcMap[b] - srcMap[a]; });
+  var top5 = sorted.slice(0, 5);
+  var otherCount = sorted.slice(5).reduce(function(sum, k) { return sum + srcMap[k]; }, 0);
+  if (otherCount > 0) top5.push('Other');
+  var colors = ['var(--brand-secondary)', 'var(--brand-accent)', '#22c55e', '#f59e0b', '#8b5cf6', '#6b7280'];
+  var total = ALL_LEADS.length;
+
+  // CSS conic gradient pie
+  var gradParts = [];
+  var pct = 0;
+  var legendHtml = '';
+  top5.forEach(function(s, i) {
+    var count = s === 'Other' ? otherCount : srcMap[s];
+    var p = Math.round(count / total * 100);
+    gradParts.push(colors[i] + ' ' + pct + '% ' + (pct + p) + '%');
+    pct += p;
+    legendHtml += '<div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:8px;height:8px;border-radius:2px;background:' + colors[i] + ';flex-shrink:0"></span><span style="color:var(--text-secondary)">' + esc(s) + '</span><span style="font-weight:700;color:var(--text);margin-left:auto">' + count + '</span></div>';
+  });
+  el.innerHTML = '<div style="width:80px;height:80px;border-radius:50%;background:conic-gradient(' + gradParts.join(',') + ');flex-shrink:0"></div><div style="display:flex;flex-direction:column;gap:3px;flex:1">' + legendHtml + '</div>';
+}
+
+function renderConversionMini() {
+  var el = document.getElementById('conversionMini');
+  if (!el || !ALL_LEADS.length) return;
+  var total = ALL_LEADS.length;
+  var contacted = ALL_LEADS.filter(function(l) { return l.tags && l.tags.some(function(t) { return t.toLowerCase() === 'contacted' || t.toLowerCase() === 'call-connected'; }); }).length;
+  var hot = ALL_LEADS.filter(function(l) { return l.status === 'hot'; }).length;
+  var showing = ALL_LEADS.filter(function(l) { return l.hasShowing || (l.tags && l.tags.some(function(t) { return t.toLowerCase().indexOf('showing') !== -1; })); }).length;
+  var pipeline = ALL_LEADS.filter(function(l) { return l.tags && l.tags.some(function(t) { var tl = t.toLowerCase(); return tl === 'seller pipeline' || tl === 'under contract' || tl === 'listing'; }); }).length;
+
+  var stages = [
+    { label: 'Total Leads', val: total, color: 'var(--brand-secondary)' },
+    { label: 'Contacted', val: contacted, color: 'var(--brand-accent)' },
+    { label: 'Hot', val: hot, color: '#00ff55' },
+    { label: 'Showing/Active', val: showing, color: '#f59e0b' },
+    { label: 'Pipeline', val: pipeline, color: '#22c55e' }
+  ];
+  var html = '';
+  stages.forEach(function(s) {
+    var pct = total ? Math.round(s.val / total * 100) : 0;
+    html += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--text-secondary);min-width:90px">' + s.label + '</span><div style="flex:1;height:14px;background:var(--card-border);border-radius:4px;overflow:hidden"><div style="width:' + Math.max(pct, 2) + '%;height:100%;background:' + s.color + ';border-radius:4px"></div></div><span style="font-size:11px;font-weight:700;color:var(--text);min-width:40px;text-align:right">' + s.val + '</span></div>';
+  });
+  el.innerHTML = html;
 }
 
 // -------------------------------------------------------
@@ -3730,6 +7076,40 @@ function setFilter(f, el) {
   applyFilters();
 }
 
+function parseSearchQuery(q) {
+  var filters = [];
+  var textParts = [];
+  var tokens = q.split(/s+/);
+  var validKeys = ['score','source','tag','status','stale','age','city','type','has'];
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i];
+    var colonIdx = t.indexOf(':');
+    if (colonIdx > 0) {
+      var key = t.substring(0, colonIdx).toLowerCase();
+      var val = t.substring(colonIdx + 1).toLowerCase();
+      if (validKeys.indexOf(key) !== -1 && val) {
+        var op = '=';
+        if (val.charAt(0) === '>' || val.charAt(0) === '<') {
+          op = val.charAt(0);
+          val = val.substring(1);
+        }
+        filters.push({ key: key, op: op, val: val });
+        continue;
+      }
+    }
+    textParts.push(t);
+  }
+  return { filters: filters, text: textParts.join(' ').trim() };
+}
+
+function compareNum(actual, op, val) {
+  var n = parseFloat(val);
+  if (isNaN(n)) return false;
+  if (op === '>') return actual > n;
+  if (op === '<') return actual < n;
+  return actual === n;
+}
+
 function applyFilters() {
   var q = (_el('searchInput')||{value:''}).value.trim().toLowerCase();
   SORT_KEY = (_el('sortSelect')||{value:'score_desc'}).value;
@@ -3741,6 +7121,7 @@ function applyFilters() {
   else if (CURRENT_FILTER === 'cold')    leads = leads.filter(function(l){return l.status==='cold';});
   else if (CURRENT_FILTER === 'new')     leads = leads.filter(function(l){return l.isNew;});
   else if (CURRENT_FILTER === 'showing') leads = leads.filter(function(l){return l.hasShowing;});
+  else if (CURRENT_FILTER === 'stale')   leads = leads.filter(function(l){return isStale(l);});
 
   var sourceFilter = (_el('sourceFilter')||{value:'ylopo'}).value;
   if (sourceFilter !== 'all') {
@@ -3759,14 +7140,38 @@ function applyFilters() {
   }
 
   if (q) {
-    leads = leads.filter(function(l) {
-      return l.name.toLowerCase().indexOf(q)!==-1 ||
-        l.email.toLowerCase().indexOf(q)!==-1 ||
-        l.phone.indexOf(q)!==-1 ||
-        (l.city||'').toLowerCase().indexOf(q)!==-1 ||
-        String(l.source||'').toLowerCase().indexOf(q)!==-1 ||
-        (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(q)!==-1;});
-    });
+    var parsed = parseSearchQuery(q);
+    if (parsed.filters.length > 0) {
+      leads = leads.filter(function(l) {
+        return parsed.filters.every(function(f) {
+          if (f.key === 'score') return compareNum(l.score, f.op, f.val);
+          if (f.key === 'source') return String(l.source||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'tag') return (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(f.val)!==-1;});
+          if (f.key === 'status') return l.status === f.val;
+          if (f.key === 'stale') return f.val === 'true' ? isStale(l) : !isStale(l);
+          if (f.key === 'age') return compareNum(daysSinceActivity(l), f.op, f.val);
+          if (f.key === 'city') return (l.city||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'type') return (l.propType||'').toLowerCase().indexOf(f.val) !== -1;
+          if (f.key === 'has') {
+            if (f.val === 'email') return !!l.email;
+            if (f.val === 'phone') return !!l.phone;
+            if (f.val === 'showing') return l.hasShowing;
+          }
+          return true;
+        });
+      });
+    }
+    if (parsed.text) {
+      var txt = parsed.text;
+      leads = leads.filter(function(l) {
+        return l.name.toLowerCase().indexOf(txt)!==-1 ||
+          l.email.toLowerCase().indexOf(txt)!==-1 ||
+          l.phone.indexOf(txt)!==-1 ||
+          (l.city||'').toLowerCase().indexOf(txt)!==-1 ||
+          String(l.source||'').toLowerCase().indexOf(txt)!==-1 ||
+          (l.tags||[]).some(function(t){return t.toLowerCase().indexOf(txt)!==-1;});
+      });
+    }
   }
 
   leads.sort(function(a,b) {
@@ -3794,12 +7199,13 @@ function renderTable() {
   var tbody = _el('leadsBody');
 
   if (page.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text-muted);padding:40px">No contacts match the current filters.</td></tr>';
     return;
   }
 
   tbody.innerHTML = page.map(function(l) {
-    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var badgeHtml = l.badge ? '<span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var m = l.matrix;
@@ -3819,20 +7225,26 @@ function renderTable() {
       '<td>' +
         '<div class="score-bar-wrap">' +
           '<div class="score-bar"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
-          '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+          '<span class="score-num' + scoreFlash + '" style="color:' + scoreColor + ';cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();showScoreBreakdown(&#39;' + l.id + '&#39;)" title="Click for score breakdown">' + l.score + '</span>' +
+          trendArrow(l.id) +
         '</div>' +
       '</td>' +
       '<td>' +
         '<div class="matrix-mini">' +
-          '<span class="mm">Views <span>' + m.views + '</span></span>' +
-          '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
-          '<span class="mm">Search <span>' + m.searches + '</span></span>' +
-          (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+          '<span class="mm">&#128065;&#65039; <span>' + m.views + '</span></span>' +
+          '<span class="mm">&#10084;&#65039; <span>' + m.saves + '</span></span>' +
+          '<span class="mm">&#128269; <span>' + m.searches + '</span></span>' +
+          (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
         '</div>' +
       '</td>' +
-      '<td style="color:var(--text-secondary);font-size:12px">' + esc(loc) + '</td>' +
+      '<td><div id="spark-' + l.id + '" style="width:80px;height:24px"></div></td>' +
+      '<td style="color:var(--text-secondary);font-size:12px">' + (l.address ? '<div style="font-weight:600;color:var(--text)">' + esc(l.address) + '</div>' : '') + esc(loc) + '</td>' +
+      '<td>' + buildTypeBadge(l.propType) + '</td>' +
       '<td>' + buildSourceBadge(l.source) + '</td>' +
-      '<td style="color:var(--text-muted);font-size:12px">' + fmtDate(l.dateAdded) + '</td>' +
+      '<td style="font-size:12px">' +
+        '<div style="color:var(--text-muted)">' + fmtDate(l.dateAdded) + '</div>' +
+        '<div style="font-size:10px;font-weight:600;color:' + activityAge(l).color + '">' + activityAge(l).label + '</div>' +
+      '</td>' +
       '<td>' +
         '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
           (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" title="Email">Email</a>' : '') +
@@ -3843,9 +7255,10 @@ function renderTable() {
       '</td>' +
     '</tr>' +
     '<tr class="detail-row" id="detail-' + l.id + '">' +
-      '<td colspan="10"></td>' +
+      '<td colspan="12"></td>' +
     '</tr>';
   }).join('');
+  setTimeout(addSparklinesToTable, 50);
 }
 
 // -------------------------------------------------------
@@ -3866,6 +7279,19 @@ function getSourceBadgeClass(src) {
 function buildSourceBadge(src) {
   if (!src) return '<span class="source-badge source-default">\u2014</span>';
   return '<span class="source-badge ' + getSourceBadgeClass(src) + '">' + esc(src) + '</span>';
+}
+
+function getTypeBadgeClass(type) {
+  if (!type) return 'type-default';
+  var t = type.toLowerCase();
+  if (t.indexOf('seller') !== -1) return 'type-seller';
+  if (t.indexOf('buyer') !== -1) return 'type-buyer';
+  return 'type-default';
+}
+
+function buildTypeBadge(type) {
+  if (!type) return '<span class="type-badge type-default">\u2014</span>';
+  return '<span class="type-badge ' + getTypeBadgeClass(type) + '">' + esc(type) + '</span>';
 }
 
 // THEME TOGGLE
@@ -3899,7 +7325,8 @@ function renderCards() {
   }
 
   container.innerHTML = page.map(function(l) {
-    var scoreColor = l.score >= 75 ? 'var(--red)' : l.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var badgeHtml = l.badge ? ' <span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var m = l.matrix;
@@ -3919,15 +7346,18 @@ function renderCards() {
       '</div>' +
       '<div class="contact-card-score">' +
         '<div class="score-bar" style="flex:1"><div class="score-bar-fill" style="width:' + l.score + '%;background:' + scoreColor + '"></div></div>' +
-        '<span class="score-num" style="color:' + scoreColor + '">' + l.score + '</span>' +
+        '<span class="score-num' + scoreFlash + '" style="color:' + scoreColor + '">' + l.score + '</span>' +
+        trendArrow(l.id) +
       '</div>' +
       '<div class="contact-card-activity">' +
-        '<span class="mm">Views <span>' + m.views + '</span></span>' +
-        '<span class="mm">Saves <span>' + m.saves + '</span></span>' +
-        '<span class="mm">Search <span>' + m.searches + '</span></span>' +
-        (m.showings ? '<span class="mm">Shows <span>' + m.showings + '</span></span>' : '') +
+        '<span class="mm">&#128065;&#65039; <span>' + m.views + '</span></span>' +
+        '<span class="mm">&#10084;&#65039; <span>' + m.saves + '</span></span>' +
+        '<span class="mm">&#128269; <span>' + m.searches + '</span></span>' +
+        (m.showings ? '<span class="mm">&#127968; <span>' + m.showings + '</span></span>' : '') +
       '</div>' +
-      (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0">' + esc(loc) + '</div>' : '') +
+      (l.address ? '<div style="font-size:11px;color:var(--text);margin:4px 0;font-weight:600">&#127968; ' + esc(l.address) + '</div>' : '') +
+      (loc ? '<div style="font-size:11px;color:var(--text-secondary);margin:' + (l.address ? '0' : '4px') + ' 0">' + esc(loc) + '</div>' : '') +
+      (l.propType ? '<div style="margin:2px 0">' + buildTypeBadge(l.propType) + '</div>' : '') +
       '<div class="contact-card-meta">' +
         buildSourceBadge(l.source) +
         '<span>' + fmtDate(l.dateAdded) + '</span>' +
@@ -3942,6 +7372,61 @@ function renderCards() {
         (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" style="flex:1;justify-content:center">Email</a>' : '') +
         (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" style="flex:1;justify-content:center">Call</a>' : '') +
       '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function buildTimeline(lead, raw, ext) {
+  var events = [];
+  // Contact created
+  if (lead.dateAdded) {
+    events.push({ date: new Date(lead.dateAdded), icon: '&#128204;', label: 'Contact created', detail: 'Source: ' + esc(lead.source || 'Unknown') });
+  }
+  // Tags added (we know current tags but not when \u2014 show as a milestone)
+  if (lead.tags && lead.tags.length > 0) {
+    var tagDate = lead.dateUpdated ? new Date(lead.dateUpdated) : (lead.dateAdded ? new Date(lead.dateAdded) : null);
+    events.push({ date: tagDate || new Date(), icon: '&#127991;', label: 'Tags: ' + lead.tags.slice(0, 5).map(function(t) { return esc(t); }).join(', '), detail: lead.tags.length + ' total tags' });
+  }
+  // Engagement milestones
+  var m = lead.matrix || {};
+  if (m.views > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#128065;', label: m.views + ' listing views', detail: 'Property browsing activity' });
+  }
+  if (m.saves > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#10084;&#65039;', label: m.saves + ' properties saved', detail: 'Showing buying intent' });
+  }
+  if (m.searches > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#128269;', label: m.searches + ' saved searches', detail: 'Active search criteria' });
+  }
+  if (m.showings > 0) {
+    events.push({ date: lead.dateUpdated ? new Date(lead.dateUpdated) : new Date(), icon: '&#127968;', label: m.showings + ' showing requests', detail: 'High-intent activity', highlight: true });
+  }
+  // Ylopo events from raw data
+  if (raw && raw._ylopoEvents && raw._ylopoEvents.length > 0) {
+    raw._ylopoEvents.slice(0, 5).forEach(function(ev) {
+      var evDate = ev.fields && ev.fields.event_date ? new Date(ev.fields.event_date) : new Date();
+      var evType = (ev.fields && ev.fields.event_type) || 'Ylopo Event';
+      events.push({ date: evDate, icon: '&#11088;', label: esc(evType), detail: ev.fields && ev.fields.listing_address ? esc(ev.fields.listing_address) : '' });
+    });
+  }
+  // Last updated
+  if (lead.dateUpdated && lead.dateUpdated !== lead.dateAdded) {
+    events.push({ date: new Date(lead.dateUpdated), icon: '&#128260;', label: 'Last updated', detail: activityAge(lead).label });
+  }
+  // Score
+  events.push({ date: new Date(), icon: '&#127919;', label: 'Current score: ' + lead.score, detail: lead.status.charAt(0).toUpperCase() + lead.status.slice(1) + ' lead' });
+
+  // Sort by date descending (newest first)
+  events.sort(function(a, b) { return b.date - a.date; });
+
+  if (events.length === 0) return '<div style="font-size:12px;color:var(--text-muted);padding:8px 0">No timeline data available</div>';
+
+  return events.map(function(ev) {
+    return '<div style="position:relative;padding:8px 0">' +
+      '<div style="position:absolute;left:-21px;top:12px;width:10px;height:10px;border-radius:50%;background:' + (ev.highlight ? 'var(--red)' : 'var(--accent,#f97316)') + ';border:2px solid var(--card)"></div>' +
+      '<div style="font-size:10px;color:var(--text-muted)">' + ev.date.toLocaleDateString() + '</div>' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text)">' + ev.icon + ' ' + ev.label + '</div>' +
+      (ev.detail ? '<div style="font-size:11px;color:var(--text-secondary)">' + ev.detail + '</div>' : '') +
     '</div>';
   }).join('');
 }
@@ -3964,7 +7449,14 @@ function badgeLabel(b) {
 function renderPagination() {
   var totalPages = Math.ceil(FILTERED.length / PAGE_SIZE);
   var el = _el('paginationEl');
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  var start = (CURRENT_PAGE - 1) * PAGE_SIZE + 1;
+  var end = Math.min(CURRENT_PAGE * PAGE_SIZE, FILTERED.length);
+  var countHtml = '<span style="font-size:12px;color:var(--text-secondary);font-weight:600">' +
+    (FILTERED.length === ALL_LEADS.length
+      ? 'Showing ' + start + '\\u2013' + end + ' of ' + FILTERED.length + ' contacts'
+      : 'Showing ' + start + '\\u2013' + end + ' of ' + FILTERED.length + ' filtered (from ' + ALL_LEADS.length + ' total)') +
+    '</span>';
+  if (totalPages <= 1) { el.innerHTML = countHtml; return; }
 
   var html = '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE-1) + ')" ' + (CURRENT_PAGE===1?'disabled':'') + '>&#8249;</button>';
 
@@ -3978,7 +7470,7 @@ function renderPagination() {
   }
 
   html += '<button class="page-btn" onclick="goPage(' + (CURRENT_PAGE+1) + ')" ' + (CURRENT_PAGE===totalPages?'disabled':'') + '>&#8250;</button>';
-  el.innerHTML = html;
+  el.innerHTML = countHtml + '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' + html + '</div>';
 }
 
 function pagRange(cur, total) {
@@ -4018,6 +7510,7 @@ function toggleExpand(id) {
     if (!lead) { for (var i=0;i<ALL_LEADS.length;i++) { if(ALL_LEADS[i].id===id){lead=ALL_LEADS[i];break;} } }
     if(lead) {
       detailRow.querySelector('td').innerHTML = buildAccordion(lead);
+      loadNotes(id);
       var raw = RAW_CONTACTS[id];
       if (raw && !raw._ylopoEventsLoaded) {
         fetchYlopoEventsForContact(id, function(count) {
@@ -4026,6 +7519,7 @@ function toggleExpand(id) {
             updatedLead.status = getStatus(updatedLead.score, raw.tags);
             updatedLead.badge  = getBadge(raw);
             detailRow.querySelector('td').innerHTML = buildAccordion(updatedLead);
+            loadNotes(id);
             toast('Loaded ' + count + ' Ylopo events for ' + lead.name, 'info');
           }
         });
@@ -4039,7 +7533,7 @@ function buildAccordion(lead) {
   var ext = getExtendedData(raw);
   var m   = lead.matrix;
 
-  var scoreColor = lead.score >= 75 ? 'var(--red)' : lead.score >= 40 ? 'var(--yellow)' : 'var(--blue)';
+  var scoreColor = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
 
   var ylopoUrl = '';
   if (ext.ylopoStarsLink) {
@@ -4098,24 +7592,29 @@ function buildAccordion(lead) {
         (ext.ylopoLastLogin ? '<div style="font-size:12px;color:var(--text-secondary)">Last login: <strong style="color:var(--text)">' + fmtDate(ext.ylopoLastLogin) + '</strong></div>' : '') +
       '</div>' +
       '<div class="acc-section">' +
-        '<div class="acc-section-title">Property Preferences</div>' +
+        '<div class="acc-section-title">&#127968; Property Details</div>' +
         '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr)">' +
-          '<div class="prop-item"><div class="pi-icon">Budget</div><div class="pi-label">Budget</div><div class="pi-value">' + (ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : ext.price ? fmtPrice(ext.price) : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-icon">Bed/Bath</div><div class="pi-label">Bed/Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-icon">SqFt</div><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + (esc(ext.address)||'\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
         '</div>' +
-        (ext.yearBuilt || ext.mlsNumber || ext.propType ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary)">' +
+        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px">' +
+          '<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + (ext.price ? fmtPrice(ext.price) : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '\\u2014') + '</div></div>' +
+          '<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '\\u2014') + '</div></div>' +
+        '</div>' +
+        (ext.yearBuilt || ext.mlsNumber || ext.propType || ext.ownerSince ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' +
           (ext.yearBuilt ? '<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>' : '') +
           (ext.mlsNumber ? '<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>' : '') +
           (ext.propType  ? '<span>Type: <strong>' + esc(ext.propType) + '</strong></span>'  : '') +
+          (ext.ownerSince ? '<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>' : '') +
         '</div>' : '') +
         (ext.assignedWebsite ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>' : '') +
         (ext.ylopoEventType ? '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>' : '') +
-        (ext.estValue ? '<div style="font-size:12px;color:var(--text-secondary)">Est. Value: <strong>' + esc(String(ext.estValue)) + '</strong></div>' : '') +
       '</div>' +
       '<div class="acc-section">' +
         '<div class="acc-section-title">Tags</div>' +
-        '<div class="tags-wrap">' + tagsHtml + '</div>' +
+        '<div class="tags-wrap" id="detailTags-' + lead.id + '">' + tagsHtml + '</div>' +
         (ext.ylopoPriority ? '<div style="margin-top:10px"><span class="badge badge-hot">Priority</span></div>' : '') +
       '</div>' +
       (ext.ylopoMessage ? '<div class="acc-section" style="grid-column:1/-1">' +
@@ -4127,14 +7626,229 @@ function buildAccordion(lead) {
         '<div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap">' + esc(ext.aiNotes) + '</div>' +
       '</div>' : '') +
     '</div>' +
+    // Contact Timeline
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">&#128197; Timeline</div>' +
+      '<div id="timeline-' + lead.id + '" style="display:flex;flex-direction:column;gap:0;border-left:2px solid var(--card-border);margin-left:8px;padding-left:16px">' +
+        buildTimeline(lead, raw, ext) +
+      '</div>' +
+    '</div>' +
+    // Quick Notes
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">Quick Note</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<input type="text" id="quickNote-' + lead.id + '" placeholder="Add a note..." style="flex:1;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px">' +
+        '<button onclick="addQuickNote(&#39;' + lead.id + '&#39;)" style="padding:8px 16px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Note</button>' +
+      '</div>' +
+      '<div id="notesList-' + lead.id + '" style="margin-top:8px;max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>' +
+    '</div>' +
+    // Quick Add Tag
+    '<div class="acc-section" style="grid-column:1/-1">' +
+      '<div class="acc-section-title">Quick Add Tag</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<input type="text" id="quickTag-' + lead.id + '" placeholder="Tag name..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key===&#39;Enter&#39;)addQuickTag(&#39;' + lead.id + '&#39;)">' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;)" style="padding:8px 16px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Add Tag</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;hot&#39;)" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:transparent;color:var(--red);font-size:11px;font-weight:700;cursor:pointer">Hot</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;warm&#39;)" style="padding:6px 12px;border:1px solid var(--yellow);border-radius:6px;background:transparent;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer">Warm</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;showing requested&#39;)" style="padding:6px 12px;border:1px solid var(--accent2);border-radius:6px;background:transparent;color:var(--accent2);font-size:11px;font-weight:700;cursor:pointer">Showing</button>' +
+        '<button onclick="addQuickTag(&#39;' + lead.id + '&#39;,&#39;seller&#39;)" style="padding:6px 12px;border:1px solid var(--green);border-radius:6px;background:transparent;color:var(--green);font-size:11px;font-weight:700;cursor:pointer">Seller</button>' +
+      '</div>' +
+    '</div>' +
+    '</div>' +
     '<div class="acc-links">' +
       '<a href="' + ghlUrl + '" target="_blank" rel="noopener" class="acc-link">Open in GHL</a>' +
       (ylopoUrl ? '<a href="' + esc(ylopoUrl) + '" target="_blank" rel="noopener" class="acc-link">Ylopo Stars</a>' : '') +
       (lead.email ? '<a href="mailto:' + esc(lead.email) + '" class="acc-link">Email</a>' : '') +
       (lead.phone ? '<a href="tel:' + esc(lead.phone) + '" class="acc-link">Call</a>' : '') +
       (lead.phone ? '<a href="sms:' + esc(lead.phone) + '" class="acc-link">SMS</a>' : '') +
+      '<a href="#" onclick="event.preventDefault();showScoreBreakdown(&#39;' + lead.id + '&#39;)" class="acc-link">Score Breakdown</a>' +
+      '<a href="#" onclick="event.preventDefault();openQuickMessage(&#39;' + lead.id + '&#39;)" class="acc-link">&#9993; Quick Message</a>' +
+      '<a href="#" onclick="event.preventDefault();showAllFields(&#39;' + lead.id + '&#39;)" class="acc-link">&#128269; View All Fields</a>' +
+      '<a href="#" onclick="event.preventDefault();generatePDFReport(&#39;' + lead.id + '&#39;)" class="acc-link">&#128196; PDF Report</a>' +
+      '<a href="#" onclick="event.preventDefault();showContactTimeline(&#39;' + lead.id + '&#39;)" class="acc-link">&#128197; Timeline</a>' +
+      '<a href="#" onclick="event.preventDefault();showScoreHistory(&#39;' + lead.id + '&#39;)" class="acc-link">&#128200; Score History</a>' +
+      '<a href="#" onclick="event.preventDefault();logCallOutcome(&#39;' + lead.id + '&#39;)" class="acc-link">&#9742; Log Call</a>' +
+      (ext.address ? '<a href="#" onclick="event.preventDefault();enrichContact(&#39;' + lead.id + '&#39;)" class="acc-link">&#127968; Enrich Property</a>' : '') +
     '</div>' +
   '</div>';
+}
+
+// -------------------------------------------------------
+// VIEW ALL FIELDS (debug / data inspection)
+// -------------------------------------------------------
+function showAllFields(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('No raw data for this contact', 'error'); return; }
+  var popup = document.createElement('div');
+  popup.id = 'allFieldsPopup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);border-radius:16px 16px 0 0;z-index:1">';
+  html += '<h3 style="margin:0;font-size:15px;color:var(--text)">All Fields: ' + esc(raw.firstName || '') + ' ' + esc(raw.lastName || '') + '</h3>';
+  html += '<button onclick="document.getElementById(&#39;allFieldsPopup&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>';
+  html += '</div>';
+
+  // Native GHL fields
+  html += '<div style="padding:14px 20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--brand-accent);margin-bottom:8px">GHL Native Fields</div>';
+  var nativeKeys = ['id','firstName','lastName','email','phone','address1','city','state','postalCode','country','source','type','dateAdded','dateUpdated','tags','companyName','website'];
+  nativeKeys.forEach(function(k) {
+    var v = raw[k];
+    if (v === undefined || v === null || v === '') return;
+    if (Array.isArray(v)) v = v.join(', ');
+    html += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--card-border);font-size:12px">';
+    html += '<span style="min-width:140px;color:var(--text-secondary);font-weight:600">' + esc(k) + '</span>';
+    html += '<span style="color:var(--text);word-break:break-all">' + esc(String(v)) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Custom fields
+  var cf = Array.isArray(raw.customField) ? raw.customField : Array.isArray(raw.customFields) ? raw.customFields : [];
+  if (cf.length) {
+    html += '<div style="padding:14px 20px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--brand-accent);margin-bottom:8px">Custom Fields (' + cf.length + ')</div>';
+    cf.forEach(function(f) {
+      var val = f.value || f.fieldValue || '';
+      if (!val && val !== 0) return;
+      if (Array.isArray(val)) val = val.join(', ');
+      var label = f.fieldKey || f.key || f.name || f.id || 'unknown';
+      html += '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--card-border);font-size:12px">';
+      html += '<span style="min-width:200px;color:var(--text-secondary);font-weight:600;word-break:break-all">' + esc(label) + '</span>';
+      html += '<span style="color:var(--text);word-break:break-all">' + esc(String(val)) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="padding:14px 20px;font-size:12px;color:var(--text-secondary)">No custom fields found on this contact.</div>';
+  }
+
+  html += '</div>';
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
+}
+
+// -------------------------------------------------------
+// ATTOM PROPERTY ENRICHMENT (client-side)
+// -------------------------------------------------------
+function enrichContact(id) {
+  var raw = RAW_CONTACTS[id];
+  if (!raw) { toast('No contact data', 'error'); return; }
+  var ext = getExtendedData(raw);
+  var address = ext.address || raw.address1 || '';
+  if (!address) { toast('No address on this contact', 'error'); return; }
+  var cityStateZip = [ext.city || raw.city || '', ext.state || raw.state || '', ext.zip || raw.postalCode || ''].filter(Boolean).join(' ');
+
+  toast('Looking up property data...', 'info');
+  fetch(PROXY_URL + '/attom/enrich', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contactId: id, address1: address, address2: cityStateZip })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (!data.ok) { toast('Enrichment failed: ' + (data.error || 'Unknown'), 'error'); return; }
+    var r = data.enriched;
+    var details = [];
+    if (r.beds) details.push(r.beds + 'bd');
+    if (r.baths) details.push(r.baths + 'ba');
+    if (r.sqft) details.push(r.sqft.toLocaleString() + ' sqft');
+    if (r.estValue) details.push('$' + r.estValue.toLocaleString());
+    if (r.yearBuilt) details.push('Built ' + r.yearBuilt);
+    toast('Enriched: ' + details.join(' | ') + ' (' + data.fieldsWritten + ' fields written to GHL)', 'success');
+    // Refresh this contact's accordion
+    setTimeout(function() { loadData(true); }, 1000);
+  })
+  .catch(function(e) { toast('Enrich error: ' + e.message, 'error'); });
+}
+
+function bulkEnrichSellers() {
+  var sellers = getSellerLeads();
+  var enrichable = sellers.filter(function(s) {
+    var hasAddr = s.propertyAddr || '';
+    var hasPropData = s.beds || s.baths || s.sqft || s.price;
+    return hasAddr && !hasPropData;
+  });
+  if (!enrichable.length) { toast('No seller leads need enrichment (all have data or no address)', 'info'); return; }
+  if (!confirm('Enrich ' + enrichable.length + ' seller leads with ATTOM property data?\\n\\nThis will look up beds, baths, sqft, value, year built for each address and write it to GHL.\\n\\nATTOM API calls: ' + enrichable.length)) return;
+
+  toast('Enriching ' + enrichable.length + ' contacts...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  enrichable.forEach(function(s) {
+    chain = chain.then(function() {
+      var raw = RAW_CONTACTS[s.id];
+      var ext = raw ? getExtendedData(raw) : {};
+      var address = s.propertyAddr || ext.address || '';
+      var cityStateZip = [s.city || ext.city || '', s.state || ext.state || '', ext.zip || ''].filter(Boolean).join(' ');
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: s.id, address1: address, address2: cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.ok) done++;
+        else failed++;
+        toast('Enriched ' + done + '/' + enrichable.length + (failed ? ' (' + failed + ' failed)' : ''), 'info');
+      }).catch(function() { failed++; });
+    });
+  });
+  chain.then(function() {
+    toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) loadData(true);
+  });
+}
+
+// -------------------------------------------------------
+// ENRICH SELECTED CONTACTS
+// -------------------------------------------------------
+function enrichSelected() {
+  var ids = Array.from ? Array.from(SELECTED) : [].slice.call(SELECTED);
+  if (!ids.length) { toast('Select contacts first', 'error'); return; }
+  var leads = ids.map(function(id) {
+    var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+    if (!lead) return null;
+    var raw = RAW_CONTACTS[id];
+    var ext = raw ? getExtendedData(raw) : {};
+    var address = lead.address || ext.address || (raw && raw.address1) || '';
+    if (!address) return null;
+    var cityStateZip = [lead.city || ext.city || (raw && raw.city) || '', lead.state || ext.state || (raw && raw.state) || '', ext.zip || (raw && raw.postalCode) || ''].filter(Boolean).join(' ');
+    return { id: id, name: lead.name, address: address, cityStateZip: cityStateZip };
+  }).filter(Boolean);
+
+  if (!leads.length) { toast('None of the selected contacts have an address', 'error'); return; }
+  if (!confirm('Enrich ' + leads.length + ' contact' + (leads.length > 1 ? 's' : '') + ' with ATTOM property data?\\n\\nThis will look up beds, baths, sqft, value, year built and write to GHL.')) return;
+
+  toast('Enriching ' + leads.length + ' contacts...', 'info');
+  var done = 0;
+  var failed = 0;
+  var chain = Promise.resolve();
+  leads.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: l.id, address1: l.address, address2: l.cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.ok) {
+          done++;
+          var r = data.enriched;
+          var info = [];
+          if (r.beds) info.push(r.beds + 'bd');
+          if (r.baths) info.push(r.baths + 'ba');
+          if (r.estValue) info.push('$' + r.estValue.toLocaleString());
+          toast(l.name + ': ' + (info.length ? info.join(' | ') : 'enriched') + ' (' + done + '/' + leads.length + ')', 'success');
+        } else {
+          failed++;
+          toast(l.name + ': failed - ' + (data.error || 'unknown'), 'error');
+        }
+      }).catch(function(e) { failed++; toast(l.name + ': error - ' + e.message, 'error'); });
+    });
+  });
+  chain.then(function() {
+    toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) setTimeout(function() { loadData(true); }, 1500);
+  });
 }
 
 // -------------------------------------------------------
@@ -4193,9 +7907,30 @@ function showDiagnostics() {
   var ids = Object.keys(RAW_CONTACTS);
   for (var i=0;i<ids.length;i++) { if(RAW_CONTACTS[ids[i]]._ylopoEventsLoaded) ylopoLoaded++; }
 
+  // Auto-scan custom fields from first raw contact if none stored
+  if (fields.length === 0 && ids.length > 0) {
+    var sample = RAW_CONTACTS[ids[0]];
+    var cfs = Array.isArray(sample.customField) ? sample.customField : Array.isArray(sample.customFields) ? sample.customFields : [];
+    cfs.forEach(function(cf) {
+      fields.push({ id: cf.id||'', key: cf.key||'', fieldKey: cf.field_key||cf.fieldKey||'', name: cf.name||cf.label||'', value: cf.value||'' });
+    });
+    window._FIELD_DIAGNOSTICS = fields;
+  }
+
+  // Collect all unique tags and sources
+  var allTags = {}; var allSources = {};
+  (ALL_LEADS || []).forEach(function(l) {
+    (l.tags || []).forEach(function(t) { allTags[t] = (allTags[t]||0) + 1; });
+    var s = l.source || 'Unknown'; allSources[s] = (allSources[s]||0) + 1;
+  });
+
   if (fields.length === 0) {
-    content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
-      '<p style="color:var(--text-muted)">No field diagnostics available. Load contacts first.</p>';
+    content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts</p>' +
+      '<p style="color:var(--text-muted);margin-bottom:12px">No custom fields found on contacts.</p>' +
+      '<h4 style="margin:12px 0 8px;font-size:13px">Tags (' + Object.keys(allTags).length + ')</h4>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px">' + Object.keys(allTags).sort(function(a,b){return allTags[b]-allTags[a];}).map(function(t){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(t) + ' <strong>' + allTags[t] + '</strong></span>';}).join('') + '</div>' +
+      '<h4 style="margin:12px 0 8px;font-size:13px">Sources (' + Object.keys(allSources).length + ')</h4>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:4px">' + Object.keys(allSources).sort(function(a,b){return allSources[b]-allSources[a];}).map(function(s){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(s) + ' <strong>' + allSources[s] + '</strong></span>';}).join('') + '</div>';
     return;
   }
 
@@ -4209,7 +7944,11 @@ function showDiagnostics() {
     '</tr>';
   }).join('');
 
-  content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts (expand a contact to fetch Ylopo data)</p>' +
+  content.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px">Ylopo Events loaded: <strong>' + ylopoLoaded + '</strong> contacts</p>' +
+    '<h4 style="margin:12px 0 8px;font-size:13px">Tags (' + Object.keys(allTags).length + ')</h4>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">' + Object.keys(allTags).sort(function(a,b){return allTags[b]-allTags[a];}).map(function(t){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(t) + ' <strong>' + allTags[t] + '</strong></span>';}).join('') + '</div>' +
+    '<h4 style="margin:12px 0 8px;font-size:13px">Sources (' + Object.keys(allSources).length + ')</h4>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">' + Object.keys(allSources).sort(function(a,b){return allSources[b]-allSources[a];}).map(function(s){return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:var(--surface,var(--bg));border:1px solid var(--card-border)">' + esc(s) + ' <strong>' + allSources[s] + '</strong></span>';}).join('') + '</div>' +
     '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">Showing <strong>' + fields.length + '</strong> custom fields from first contact:</p>' +
     '<div style="overflow-x:auto">' +
       '<table class="diag-table">' +
@@ -4239,10 +7978,2781 @@ function deleteContact(id, name) {
 }
 
 // -------------------------------------------------------
+// QUICK NOTES & QUICK TAGS
+// -------------------------------------------------------
+function addQuickNote(contactId) {
+  var inp = document.getElementById('quickNote-' + contactId);
+  if (!inp) return;
+  var text = inp.value.trim();
+  if (!text) { toast('Enter a note first', 'error'); return; }
+  inp.disabled = true;
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: text })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function() {
+    inp.value = '';
+    inp.disabled = false;
+    toast('Note added!', 'success');
+    // Prepend note to the list immediately
+    var list = document.getElementById('notesList-' + contactId);
+    if (list) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-radius:8px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-size:12px;color:var(--text)';
+      div.innerHTML = '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">' + new Date().toLocaleString() + '</div>' + text.replace(/</g, '&lt;');
+      list.insertBefore(div, list.firstChild);
+      list.style.display = 'flex';
+    }
+  }).catch(function(e) {
+    inp.disabled = false;
+    toast('Failed to add note: ' + e.message, 'error');
+  });
+}
+
+function loadNotes(contactId) {
+  var list = document.getElementById('notesList-' + contactId);
+  if (!list) return;
+  if (list.dataset.loaded === '1') return; // already loaded
+  list.dataset.loaded = '1';
+  list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">Loading notes...</div>';
+  list.style.display = 'flex';
+  fetch(PROXY_URL + '/contacts/' + contactId + '/notes?t=' + Date.now()).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function(data) {
+    var notes = (data.notes || data.data || []);
+    if (!notes.length) {
+      list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">No notes yet</div>';
+      return;
+    }
+    list.innerHTML = '';
+    notes.slice(0, 20).forEach(function(n) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-radius:8px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-size:12px;color:var(--text)';
+      var date = n.dateAdded ? new Date(n.dateAdded).toLocaleString() : '';
+      div.innerHTML = (date ? '<div style="font-size:10px;color:var(--muted);margin-bottom:4px">' + date + '</div>' : '') + (n.body || '').replace(/</g, '&lt;');
+      list.appendChild(div);
+    });
+  }).catch(function() {
+    list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--muted);font-size:12px">Could not load notes</div>';
+  });
+}
+
+function addQuickTag(contactId, preset) {
+  var tag;
+  if (preset) {
+    tag = preset;
+  } else {
+    var inp = document.getElementById('quickTag-' + contactId);
+    if (!inp) return;
+    tag = inp.value.trim();
+    if (!tag) { toast('Enter a tag name', 'error'); return; }
+  }
+  toast('Adding tag "' + tag + '"...', 'info');
+  fetch(PROXY_URL + '/contacts/' + contactId + '/tags', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: [tag] })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Status ' + r.status);
+    return r.json();
+  }).then(function() {
+    // Update local lead data
+    var lead = ALL_LEADS.find(function(l) { return l.id === contactId; });
+    if (lead) {
+      if (!lead.tags) lead.tags = [];
+      if (lead.tags.indexOf(tag) === -1) lead.tags.push(tag);
+      // Update tag display in the detail panel
+      var tagContainer = document.getElementById('detailTags-' + contactId);
+      if (tagContainer) {
+        tagContainer.innerHTML = lead.tags.map(function(t) {
+          return '<span style="padding:3px 10px;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:11px;font-weight:600">' + t.replace(/</g, '&lt;') + '</span>';
+        }).join(' ');
+      }
+    }
+    // Clear input if it was a manual entry
+    var inp = document.getElementById('quickTag-' + contactId);
+    if (inp && !preset) inp.value = '';
+    toast('Tag "' + tag + '" added!', 'success');
+  }).catch(function(e) {
+    toast('Failed to add tag: ' + e.message, 'error');
+  });
+}
+
+// -------------------------------------------------------
+// -------------------------------------------------------
+// LIVE ACTIVITY FEED (SSE)
+// -------------------------------------------------------
+var ACTIVITY_LOG = [];
+var ACTIVITY_UNSEEN = 0;
+var _sseConn = null;
+
+function connectSSE() {
+  if (_sseConn) { try { _sseConn.close(); } catch(e) {} }
+  try {
+    _sseConn = new EventSource(PROXY_URL + '/events');
+    _sseConn.onmessage = function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (data.type === 'connected') return;
+        ACTIVITY_LOG.unshift(data);
+        if (ACTIVITY_LOG.length > 50) ACTIVITY_LOG.pop();
+        ACTIVITY_UNSEEN++;
+        updateActivityBadge();
+        if (data.type === 'ylopo.webhook') {
+          toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
+          sendNotification('Ylopo Lead Activity', (data.event||'New activity') + ' - ' + (data.email||data.name||'unknown'));
+        }
+        // GHL webhook events \u2014 auto-refresh contacts when changes happen in GHL
+        if (data.type && data.type.indexOf('ghl.') === 0) {
+          var ghlMsg = (data.ghlEvent || data.type) + ': ' + (data.name || data.email || data.contactId || 'contact');
+          toast('GHL sync: ' + ghlMsg, 'info');
+          sendNotification('GHL Update', ghlMsg);
+          // Debounce auto-refresh \u2014 wait 2s for batch updates then reload
+          if (window._ghlRefreshTimer) clearTimeout(window._ghlRefreshTimer);
+          window._ghlRefreshTimer = setTimeout(function() {
+            console.log('[GHL Sync] Auto-refreshing contacts after GHL webhook event');
+            if (typeof loadData === 'function') loadData(true);
+            else if (typeof startFetch === 'function') startFetch();
+          }, 2000);
+        }
+      } catch(ex) {}
+    };
+    _sseConn.onerror = function() {
+      try { _sseConn.close(); } catch(e) {}
+      setTimeout(connectSSE, 30000);
+    };
+  } catch(e) {}
+}
+
+function updateActivityBadge() {
+  var badge = document.getElementById('actBadge');
+  if (!badge) return;
+  if (ACTIVITY_UNSEEN > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = ACTIVITY_UNSEEN > 9 ? '9+' : ACTIVITY_UNSEEN;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleActivityPanel() {
+  var panel = document.getElementById('activityPanel');
+  if (panel) { panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; ACTIVITY_UNSEEN = 0; updateActivityBadge(); renderActivityPanel(); return; }
+  panel = document.createElement('div');
+  panel.id = 'activityPanel';
+  panel.style.cssText = 'position:fixed;top:60px;right:20px;width:380px;max-height:500px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.3);z-index:9998;overflow:hidden';
+  panel.innerHTML = '<div style="padding:14px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0;font-size:14px;color:var(--text)">&#128276; Live Activity</h3><button onclick="document.getElementById(&#39;activityPanel&#39;).style.display=&#39;none&#39;" style="background:none;border:none;color:var(--text-secondary);font-size:16px;cursor:pointer">&#10005;</button></div><div id="activityList" style="max-height:440px;overflow-y:auto;padding:8px"></div>';
+  document.body.appendChild(panel);
+  ACTIVITY_UNSEEN = 0;
+  updateActivityBadge();
+  renderActivityPanel();
+}
+
+function renderActivityPanel() {
+  var list = document.getElementById('activityList');
+  if (!list) return;
+  if (ACTIVITY_LOG.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-secondary);font-size:13px">No activity yet. Events will appear here in real-time as GHL and Ylopo webhooks arrive.</div>';
+    return;
+  }
+  list.innerHTML = ACTIVITY_LOG.map(function(a) {
+    var icon = '&#9679;';
+    var color = 'var(--text-secondary)';
+    if (a.type === 'ylopo.webhook') { icon = '&#128640;'; color = 'var(--yellow)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.created') === 0) { icon = '&#10133;'; color = 'var(--green)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.updated') === 0) { icon = '&#128260;'; color = 'var(--blue)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.deleted') === 0) { icon = '&#128465;'; color = 'var(--red)'; }
+    else if (a.type && a.type.indexOf('ghl.contact.tagged') === 0) { icon = '&#127991;'; color = 'var(--brand-accent)'; }
+    else if (a.type && a.type.indexOf('ghl.note') === 0) { icon = '&#128221;'; color = 'var(--yellow)'; }
+    else if (a.type && a.type.indexOf('ghl.task') === 0) { icon = '&#9745;'; color = 'var(--accent,#f97316)'; }
+    else if (a.type && a.type.indexOf('ghl.message') === 0) { icon = '&#128172;'; color = 'var(--blue)'; }
+    else if (a.type && a.type.indexOf('ghl.opportunity') === 0) { icon = '&#128176;'; color = 'var(--green)'; }
+    else if (a.type && a.type.indexOf('ghl.') === 0) { icon = '&#128260;'; color = 'var(--blue)'; }
+    else if (a.type === 'contact.updated') { icon = '&#9998;'; color = 'var(--blue)'; }
+    else if (a.type === 'contact.tagged') { icon = '&#127991;'; color = 'var(--green)'; }
+    else if (a.type === 'contact.deleted') { icon = '&#128465;'; color = 'var(--red)'; }
+    else if (a.type === 'contacts.fetched') { icon = '&#128203;'; color = 'var(--accent)'; }
+    var time = a.ts ? new Date(a.ts).toLocaleTimeString() : '';
+    var detail = a.summary ? esc(a.summary) : (a.email ? esc(a.email) : (a.event || a.type || ''));
+    return '<div style="padding:8px 10px;border-bottom:1px solid var(--card-border);display:flex;gap:10px;align-items:flex-start">' +
+      '<span style="font-size:14px;color:' + color + ';flex-shrink:0;margin-top:2px">' + icon + '</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--text)">' + esc(a.type || 'event') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + detail + '</div>' +
+      '</div>' +
+      '<span style="font-size:10px;color:var(--text-muted);white-space:nowrap">' + time + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// -------------------------------------------------------
+// KEYBOARD SHORTCUTS
+// -------------------------------------------------------
+document.addEventListener('keydown', function(e) {
+  // Don't trigger if typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  // R = refresh
+  if (e.key === 'r' && !e.ctrlKey && !e.metaKey) { loadData(); e.preventDefault(); }
+  // S = switch to source tab
+  if (e.key === 's' && !e.ctrlKey && !e.metaKey) { switchContactsView('source'); e.preventDefault(); }
+  // C = switch to contacts tab
+  if (e.key === 'c' && !e.ctrlKey && !e.metaKey) { switchContactsView('contacts'); e.preventDefault(); }
+  // T = toggle table/cards view
+  if (e.key === 't' && !e.ctrlKey && !e.metaKey) { setView(CURRENT_VIEW === 'table' ? 'cards' : 'table'); e.preventDefault(); }
+  // / = focus search
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey) { var si = _el('searchInput'); if (si) { si.focus(); e.preventDefault(); } }
+  // Escape = close panels
+  if (e.key === 'Escape') {
+    closeSettingsPanel();
+    var ap = document.getElementById('activityPanel'); if (ap) ap.style.display = 'none';
+  }
+  // ? = show shortcuts help
+  if (e.key === '?' && e.shiftKey) { showShortcutsHelp(); e.preventDefault(); }
+});
+
+function showShortcutsHelp() {
+  var existing = document.getElementById('shortcutsHelp');
+  if (existing) { existing.style.display = existing.style.display === 'none' ? 'flex' : 'none'; return; }
+  var overlay = document.createElement('div');
+  overlay.id = 'shortcutsHelp';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.style.display = 'none'; };
+  var shortcuts = [
+    ['R', 'Refresh data'],
+    ['S', 'Source Performance tab'],
+    ['C', 'Contacts tab'],
+    ['T', 'Toggle Table/Cards view'],
+    ['/', 'Focus search'],
+    ['Esc', 'Close panels'],
+    ['?', 'This help']
+  ];
+  overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px;width:360px">' +
+    '<h2 style="margin:0 0 16px 0;font-size:18px;color:var(--text)">&#9000; Keyboard Shortcuts</h2>' +
+    shortcuts.map(function(s) {
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--card-border)">' +
+        '<kbd style="display:inline-block;padding:3px 8px;border-radius:4px;background:var(--surface,var(--bg));border:1px solid var(--card-border);font-family:monospace;font-size:12px;font-weight:700;color:var(--text)">' + s[0] + '</kbd>' +
+        '<span style="font-size:13px;color:var(--text-secondary)">' + s[1] + '</span></div>';
+    }).join('') +
+    '<div style="text-align:center;margin-top:16px"><button onclick="document.getElementById(&#39;shortcutsHelp&#39;).style.display=&#39;none&#39;" style="padding:8px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Got it</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SETTINGS PANEL
+// -------------------------------------------------------
+var SETTINGS_KEY = 'ylopo_settings';
+var SCORE_WEIGHTS = { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 };
+
+function loadSettings() {
+  var defaults = { pageSize: 25, defaultSort: 'score_desc', defaultView: 'table', autoRefresh: false, refreshInterval: 5, scoreWeights: { contact: 10, engagement: 35, source: 10, recency: 20, tags: 25 } };
+  try { var saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)); var s = Object.assign(defaults, saved || {}); if (s.scoreWeights) SCORE_WEIGHTS = s.scoreWeights; return s; } catch(e) { return defaults; }
+}
+
+function recalcAllScores() {
+  ALL_LEADS.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (raw) {
+      l.score = calcScore(raw);
+      l.status = getStatus(l.score, raw.tags);
+    }
+  });
+  updateStats();
+}
+
+function saveSettings() {
+  var s = {
+    pageSize: Number(document.getElementById('settPageSize').value) || 25,
+    defaultSort: document.getElementById('settDefaultSort').value || 'score_desc',
+    defaultView: document.getElementById('settDefaultView').value || 'table',
+    autoRefresh: document.getElementById('settAutoRefresh').checked,
+    refreshInterval: Number(document.getElementById('settRefreshMin').value) || 5,
+    scoreWeights: {
+      contact: Number(document.getElementById('settWtContact').value) || 10,
+      engagement: Number(document.getElementById('settWtEngagement').value) || 35,
+      source: Number(document.getElementById('settWtSource').value) || 10,
+      recency: Number(document.getElementById('settWtRecency').value) || 20,
+      tags: Number(document.getElementById('settWtTags').value) || 25
+    }
+  };
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch(e) {}
+  SCORE_WEIGHTS = s.scoreWeights;
+  PAGE_SIZE = s.pageSize;
+  SORT_KEY = s.defaultSort;
+  // Recalculate all scores with new weights
+  recalcAllScores();
+  if (s.defaultView !== CURRENT_VIEW) setView(s.defaultView);
+  applyFilters();
+  setupAutoRefresh(s);
+  closeSettingsPanel();
+  toast('Settings saved \u2014 scores recalculated', 'success');
+}
+
+function openSettingsPanel() {
+  var s = loadSettings();
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) { overlay.style.display = 'flex'; return; }
+  overlay = document.createElement('div');
+  overlay.id = 'settingsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e) { if (e.target === overlay) closeSettingsPanel(); };
+  overlay.innerHTML =
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:28px;width:420px;max-width:90vw;max-height:80vh;overflow-y:auto">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+        '<h2 style="margin:0;font-size:18px;color:var(--text)">&#9881;&#65039; Settings</h2>' +
+        '<button onclick="closeSettingsPanel()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+      '</div>' +
+      '<div style="display:grid;gap:16px">' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Contacts Per Page</label>' +
+          '<select id="settPageSize" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="10"' + (s.pageSize===10?' selected':'') + '>10</option>' +
+            '<option value="25"' + (s.pageSize===25?' selected':'') + '>25</option>' +
+            '<option value="50"' + (s.pageSize===50?' selected':'') + '>50</option>' +
+            '<option value="100"' + (s.pageSize===100?' selected':'') + '>100</option>' +
+          '</select></div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Default Sort</label>' +
+          '<select id="settDefaultSort" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="score_desc"' + (s.defaultSort==='score_desc'?' selected':'') + '>Score (High to Low)</option>' +
+            '<option value="score_asc"' + (s.defaultSort==='score_asc'?' selected':'') + '>Score (Low to High)</option>' +
+            '<option value="name_asc"' + (s.defaultSort==='name_asc'?' selected':'') + '>Name (A-Z)</option>' +
+            '<option value="date_desc"' + (s.defaultSort==='date_desc'?' selected':'') + '>Newest First</option>' +
+            '<option value="date_asc"' + (s.defaultSort==='date_asc'?' selected':'') + '>Oldest First</option>' +
+          '</select></div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Default View</label>' +
+          '<select id="settDefaultView" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px">' +
+            '<option value="table"' + (s.defaultView==='table'?' selected':'') + '>Table</option>' +
+            '<option value="cards"' + (s.defaultView==='cards'?' selected':'') + '>Cards</option>' +
+          '</select></div>' +
+        '<div style="display:flex;align-items:center;gap:12px">' +
+          '<label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;flex:1">Auto-Refresh</label>' +
+          '<input type="checkbox" id="settAutoRefresh"' + (s.autoRefresh?' checked':'') + ' style="width:18px;height:18px;cursor:pointer">' +
+        '</div>' +
+        '<div><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">Refresh Interval (minutes)</label>' +
+          '<input type="number" id="settRefreshMin" value="' + s.refreshInterval + '" min="1" max="60" style="margin-top:6px;width:100%;padding:10px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--card));color:var(--text);font-family:inherit;font-size:13px"></div>' +
+        '<div style="border-top:1px solid var(--card-border);padding-top:16px;margin-top:4px"><label style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em">&#127919; Score Weights</label>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin:4px 0 12px">Adjust how much each factor contributes to the lead score.</div>' +
+          '<div style="display:grid;gap:10px">' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Contact Info</span><input type="range" id="settWtContact" min="0" max="20" value="' + (s.scoreWeights ? s.scoreWeights.contact : 10) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.contact : 10) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Engagement</span><input type="range" id="settWtEngagement" min="0" max="50" value="' + (s.scoreWeights ? s.scoreWeights.engagement : 35) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.engagement : 35) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Source</span><input type="range" id="settWtSource" min="0" max="20" value="' + (s.scoreWeights ? s.scoreWeights.source : 10) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.source : 10) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Recency</span><input type="range" id="settWtRecency" min="0" max="30" value="' + (s.scoreWeights ? s.scoreWeights.recency : 20) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.recency : 20) + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:100px;font-size:12px;color:var(--text)">Tags</span><input type="range" id="settWtTags" min="0" max="40" value="' + (s.scoreWeights ? s.scoreWeights.tags : 25) + '" style="flex:1" oninput="this.nextElementSibling.textContent=this.value"><span style="min-width:24px;font-size:12px;font-weight:700;color:var(--text);text-align:right">' + (s.scoreWeights ? s.scoreWeights.tags : 25) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end">' +
+        '<button onclick="closeSettingsPanel()" style="padding:10px 20px;border:1px solid var(--card-border);border-radius:8px;background:var(--card);color:var(--text);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>' +
+        '<button onclick="saveSettings()" style="padding:10px 20px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Save Settings</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function closeSettingsPanel() {
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+var _autoRefreshTimer = null;
+var _countdownTimer = null;
+var _nextRefreshAt = 0;
+function setupAutoRefresh(s) {
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer = null; }
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+  if (s && s.autoRefresh && s.refreshInterval > 0) {
+    var ms = s.refreshInterval * 60000;
+    _nextRefreshAt = Date.now() + ms;
+    _autoRefreshTimer = setInterval(function() { _nextRefreshAt = Date.now() + ms; loadData(); }, ms);
+    _countdownTimer = setInterval(function() {
+      var el = document.getElementById('refreshCountdown');
+      if (!el) return;
+      var secs = Math.max(0, Math.round((_nextRefreshAt - Date.now()) / 1000));
+      if (secs > 60) el.textContent = Math.ceil(secs / 60) + 'm';
+      else el.textContent = secs + 's';
+    }, 1000);
+  }
+}
+
+// -------------------------------------------------------
+// SAVED SEARCH PRESETS
+// -------------------------------------------------------
+var PRESETS_KEY = 'ylopo_search_presets';
+
+function getSavedPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; } catch(e) { return []; }
+}
+
+function saveSearchPreset() {
+  var inp = _el('searchInput');
+  var q = inp ? inp.value.trim() : '';
+  if (!q) { toast('Enter a search query first', 'error'); return; }
+  var name = prompt('Name this saved search:', q.substring(0, 40));
+  if (!name || !name.trim()) return;
+  var presets = getSavedPresets();
+  presets.push({ name: name.trim(), query: q, filter: CURRENT_FILTER, created: Date.now() });
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(presets)); } catch(e) {}
+  toast('Search saved: "' + name.trim() + '"', 'success');
+}
+
+function togglePresetMenu() {
+  var menu = _el('presetMenu');
+  if (!menu) return;
+  if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+  renderPresetMenu();
+  menu.style.display = 'block';
+  // Close on outside click
+  setTimeout(function() {
+    var handler = function(e) {
+      if (!menu.contains(e.target) && e.target.id !== 'presetBtn') {
+        menu.style.display = 'none';
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 10);
+}
+
+function renderPresetMenu() {
+  var menu = _el('presetMenu');
+  if (!menu) return;
+  var presets = getSavedPresets();
+  if (presets.length === 0) {
+    menu.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px">No saved searches yet.<br><span style="font-size:11px;color:var(--text-muted)">Type a search, then click &#128190; to save it.</span></div>';
+    return;
+  }
+  var html = '<div style="padding:10px 14px;border-bottom:1px solid var(--card-border);font-size:12px;font-weight:700;color:var(--text-secondary)">Saved Searches (' + presets.length + ')</div>';
+  presets.forEach(function(p, i) {
+    html += '<div style="padding:10px 14px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;&#39;">' +
+      '<div style="flex:1;min-width:0" onclick="applyPreset(' + i + ')">' +
+        '<div style="font-weight:600;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.query) + '</div>' +
+      '</div>' +
+      '<button onclick="event.stopPropagation();deletePreset(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:4px" title="Delete">&#10005;</button>' +
+    '</div>';
+  });
+  html += '<div style="padding:8px 14px;text-align:center"><button onclick="clearAllPresets()" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;text-decoration:underline">Clear All</button></div>';
+  menu.innerHTML = html;
+}
+
+function applyPreset(idx) {
+  var presets = getSavedPresets();
+  var p = presets[idx];
+  if (!p) return;
+  var inp = _el('searchInput');
+  if (inp) { inp.value = p.query; }
+  if (p.filter) {
+    CURRENT_FILTER = p.filter;
+    var tabs = document.querySelectorAll('.filter-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  }
+  CURRENT_PAGE = 1;
+  applyFilters();
+  var menu = _el('presetMenu');
+  if (menu) menu.style.display = 'none';
+  toast('Applied: "' + p.name + '"', 'success');
+}
+
+function deletePreset(idx) {
+  var presets = getSavedPresets();
+  var name = presets[idx] ? presets[idx].name : '';
+  presets.splice(idx, 1);
+  try { localStorage.setItem(PRESETS_KEY, JSON.stringify(presets)); } catch(e) {}
+  renderPresetMenu();
+  toast('Deleted preset: "' + name + '"', 'info');
+}
+
+function clearAllPresets() {
+  if (!confirm('Delete all saved searches?')) return;
+  try { localStorage.removeItem(PRESETS_KEY); } catch(e) {}
+  renderPresetMenu();
+  toast('All presets cleared', 'info');
+}
+
+// -------------------------------------------------------
+// QUICK MESSAGE TEMPLATES
+// -------------------------------------------------------
+var MSG_TEMPLATES = [
+  { name: 'Initial Follow-up', subject: 'Thanks for your interest!', body: 'Hi {name},\\n\\nThank you for reaching out! I noticed you\\'ve been looking at properties and I\\'d love to help you find the perfect home.\\n\\nWhen would be a good time to chat about what you\\'re looking for?\\n\\nBest regards' },
+  { name: 'Showing Follow-up', subject: 'How was the showing?', body: 'Hi {name},\\n\\nI hope you enjoyed viewing the property! I\\'d love to hear your thoughts.\\n\\nWould you like to schedule another showing or explore similar listings?\\n\\nLet me know!' },
+  { name: 'Re-engagement', subject: 'Still looking for your dream home?', body: 'Hi {name},\\n\\nIt\\'s been a little while since we connected. I wanted to check in and see if you\\'re still in the market.\\n\\nThere are some great new listings that might interest you. Would you like me to send some over?\\n\\nHope to hear from you soon!' },
+  { name: 'Hot Lead Priority', subject: 'Great news about properties in your area!', body: 'Hi {name},\\n\\nI\\'ve been keeping an eye on the market for you and some exciting properties just came up that match what you\\'re looking for.\\n\\nCan we set up a time this week to go over them?\\n\\nLooking forward to connecting!' },
+  { name: 'Seller Outreach', subject: 'Your home value update', body: 'Hi {name},\\n\\nThe market in your area has been moving! I wanted to reach out and let you know your property may be worth more than you think.\\n\\nWould you be interested in a free, no-obligation market analysis?\\n\\nBest regards' },
+  { name: 'New Listing Alert', subject: 'New listing you might love!', body: 'Hi {name},\\n\\nA new property just hit the market that I think could be a great fit for you. Want me to send you the details or schedule a showing?\\n\\nDon\\'t wait \u2014 great properties move fast!\\n\\nCheers' },
+  { name: 'Seller CMA Offer', subject: 'Free home value analysis for your property', body: 'Hi {name},\\n\\nI specialize in your neighborhood and wanted to offer you a complimentary Comparative Market Analysis (CMA) for your home.\\n\\nWith recent sales activity in your area, now could be an excellent time to explore your options. Would you like me to prepare a detailed report?\\n\\nNo obligation \u2014 just helpful information.\\n\\nBest regards' },
+  { name: 'Seller Equity Update', subject: 'Great news about your home equity!', body: 'Hi {name},\\n\\nI\\'ve been tracking property values in your area and wanted to share some exciting news \u2014 homes like yours have been appreciating significantly.\\n\\nYou may have more equity than you realize. Would you like a quick update on what your home could sell for in today\\'s market?\\n\\nHappy to chat anytime!' },
+  { name: 'Seller Listing Appointment', subject: 'Ready to discuss selling your home?', body: 'Hi {name},\\n\\nThank you for your interest in selling! I\\'d love to schedule a time to walk through your property and discuss our marketing strategy.\\n\\nWe offer professional photography, virtual tours, and targeted digital marketing to get top dollar for your home.\\n\\nWhat day works best for a quick meeting?' },
+  { name: 'Seller Just Sold Nearby', subject: 'A home near you just sold!', body: 'Hi {name},\\n\\nA property near yours just sold and I thought you\\'d want to know! The market in your area continues to be strong.\\n\\nCurious what this means for your home\\'s value? I can provide a quick analysis \u2014 no strings attached.\\n\\nJust reply to this message and I\\'ll get that over to you!' }
+];
+
+function openQuickMessage(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+
+  var existing = document.getElementById('msgOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'msgOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var firstName = lead.name.split(' ')[0] || lead.name;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border)">' +
+    '<h2 style="margin:0;font-size:16px;color:var(--text)">&#9993; Quick Message to ' + esc(firstName) + '</h2>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + esc(lead.email || 'No email') + ' &bull; ' + esc(lead.phone || 'No phone') + '</div>' +
+  '</div>';
+
+  // Template selector
+  html += '<div style="padding:16px">';
+  html += '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">Choose a template:</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">';
+  MSG_TEMPLATES.forEach(function(t, i) {
+    html += '<button onclick="applyMsgTemplate(' + i + ')" style="padding:6px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-size:11px;font-weight:600;cursor:pointer">' + esc(t.name) + '</button>';
+  });
+  html += '</div>';
+
+  // Subject
+  html += '<div style="margin-bottom:12px">' +
+    '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Subject</label>' +
+    '<input type="text" id="msgSubject" style="width:100%;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box">' +
+  '</div>';
+
+  // Body
+  html += '<div style="margin-bottom:12px">' +
+    '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Message</label>' +
+    '<textarea id="msgBody" rows="8" style="width:100%;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;resize:vertical;box-sizing:border-box"></textarea>' +
+  '</div>';
+
+  // Action buttons
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  if (lead.email) {
+    html += '<button onclick="sendMsgEmail(&#39;' + esc(lead.email) + '&#39;)" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128231; Send Email</button>';
+  }
+  if (lead.phone) {
+    html += '<button onclick="sendMsgSMS(&#39;' + esc(lead.phone) + '&#39;)" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--green);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128172; Send SMS</button>';
+  }
+  html += '<button onclick="copyMsgToClipboard()" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">&#128203; Copy</button>';
+  html += '</div></div>';
+
+  html += '<div style="padding:10px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+    '<button onclick="document.getElementById(&#39;msgOverlay&#39;).remove()" style="padding:6px 16px;border:none;border-radius:6px;background:transparent;color:var(--text-secondary);font-size:12px;cursor:pointer">Close</button>' +
+  '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  // Store contact info for template filling
+  overlay.dataset.firstName = firstName;
+  overlay.dataset.fullName = lead.name;
+}
+
+function applyMsgTemplate(idx) {
+  var t = MSG_TEMPLATES[idx];
+  if (!t) return;
+  var overlay = document.getElementById('msgOverlay');
+  var firstName = overlay ? overlay.dataset.firstName : '';
+  var subEl = document.getElementById('msgSubject');
+  var bodyEl = document.getElementById('msgBody');
+  if (subEl) subEl.value = t.subject;
+  if (bodyEl) bodyEl.value = t.body.replace(/{name}/g, firstName);
+}
+
+function sendMsgEmail(email) {
+  var subject = (document.getElementById('msgSubject') || {}).value || '';
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  window.location.href = 'mailto:' + encodeURIComponent(email) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  toast('Opening email client...', 'success');
+}
+
+function sendMsgSMS(phone) {
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  window.location.href = 'sms:' + encodeURIComponent(phone) + '?body=' + encodeURIComponent(body);
+  toast('Opening SMS...', 'success');
+}
+
+function copyMsgToClipboard() {
+  var subject = (document.getElementById('msgSubject') || {}).value || '';
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  var text = (subject ? 'Subject: ' + subject + '\\n\\n' : '') + body;
+  navigator.clipboard.writeText(text).then(function() {
+    toast('Message copied to clipboard!', 'success');
+  }).catch(function() {
+    toast('Failed to copy', 'error');
+  });
+}
+
+// -------------------------------------------------------
+// DAILY DIGEST
+// -------------------------------------------------------
+function showDailyDigest() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+
+  var now = Date.now();
+  var day1 = 86400000;
+  var today = new Date().toLocaleDateString();
+
+  // New contacts today & this week
+  var newToday = ALL_LEADS.filter(function(l) { return l.dateAdded && new Date(l.dateAdded).toLocaleDateString() === today; });
+  var newWeek = ALL_LEADS.filter(function(l) { return l.isNew; });
+
+  // Hot leads
+  var hotLeads = ALL_LEADS.filter(function(l) { return l.status === 'hot'; });
+
+  // Stale high-value (score >= 50, no activity > 7 days)
+  var staleHighValue = ALL_LEADS.filter(function(l) { return l.score >= 50 && daysSinceActivity(l) > 7; })
+    .sort(function(a,b) { return b.score - a.score; }).slice(0, 5);
+
+  // Biggest score risers & fallers
+  var risers = [];
+  var fallers = [];
+  Object.keys(SCORE_TRENDS).forEach(function(id) {
+    var t = SCORE_TRENDS[id];
+    var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+    if (!lead) return;
+    if (t.dir === 'up') risers.push({ lead: lead, change: t.prev ? lead.score - t.prev : 0 });
+    else if (t.dir === 'down') fallers.push({ lead: lead, change: t.prev ? lead.score - t.prev : 0 });
+  });
+  risers.sort(function(a,b) { return b.change - a.change; });
+  fallers.sort(function(a,b) { return a.change - b.change; });
+
+  // Showing requests
+  var showingLeads = ALL_LEADS.filter(function(l) { return l.hasShowing; });
+
+  // Average score
+  var avgScore = ALL_LEADS.length ? Math.round(ALL_LEADS.reduce(function(s,l) { return s + l.score; }, 0) / ALL_LEADS.length) : 0;
+
+  // Build modal
+  var existing = document.getElementById('digestOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'digestOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+
+  // Header
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border)">' +
+    '<h2 style="margin:0;font-size:20px;color:var(--text)">&#128240; Daily Digest</h2>' +
+    '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) + '</div>' +
+  '</div>';
+
+  // KPI Row
+  html += '<div style="padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">';
+  var kpis = [
+    { label: 'Total Leads', val: ALL_LEADS.length, color: 'var(--text)' },
+    { label: 'Hot Leads', val: hotLeads.length, color: 'var(--red)' },
+    { label: 'Avg Score', val: avgScore, color: 'var(--blue)' },
+    { label: 'Showings', val: showingLeads.length, color: 'var(--accent2,#8b5cf6)' }
+  ];
+  kpis.forEach(function(k) {
+    html += '<div style="text-align:center;padding:10px;background:var(--surface,var(--bg));border-radius:10px">' +
+      '<div style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
+      '<div style="font-size:10px;color:var(--text-secondary);margin-top:2px">' + k.label + '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+
+  // New Today
+  html += '<div style="padding:0 16px 12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#127381; New Today (' + newToday.length + ')' + (newWeek.length > newToday.length ? ' &bull; ' + newWeek.length + ' this week' : '') + '</div>';
+  if (newToday.length > 0) {
+    newToday.slice(0, 5).forEach(function(l) {
+      html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--card-border);font-size:12px">' +
+        '<span style="color:var(--text);font-weight:600">' + esc(l.name) + '</span>' +
+        '<span style="color:var(--text-muted)">' + esc(l.source || '') + ' &bull; Score ' + l.score + '</span></div>';
+    });
+    if (newToday.length > 5) html += '<div style="font-size:11px;color:var(--text-muted);padding:4px 0">+ ' + (newToday.length - 5) + ' more</div>';
+  } else {
+    html += '<div style="font-size:12px;color:var(--text-muted);padding:4px 0">No new contacts today</div>';
+  }
+  html += '</div>';
+
+  // Priority Follow-ups
+  html += '<div style="padding:0 16px 12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--accent,#f97316);margin-bottom:8px">&#9888; Priority Follow-ups (' + staleHighValue.length + ')</div>';
+  if (staleHighValue.length > 0) {
+    staleHighValue.forEach(function(l) {
+      var age = activityAge(l);
+      html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--card-border);font-size:12px">' +
+        '<span style="color:var(--text);font-weight:600">' + esc(l.name) + ' <span style="color:' + age.color + '">(' + age.label + ')</span></span>' +
+        '<span style="color:var(--text-muted)">Score ' + l.score + '</span></div>';
+    });
+  } else {
+    html += '<div style="font-size:12px;color:var(--green);padding:4px 0">&#10003; All high-value contacts are engaged!</div>';
+  }
+  html += '</div>';
+
+  // Score Movers
+  if (risers.length > 0 || fallers.length > 0) {
+    html += '<div style="padding:0 16px 12px">';
+    html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#128200; Score Movers</div>';
+    if (risers.length > 0) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:4px">&#9650; Rising</div>';
+      risers.slice(0, 3).forEach(function(r) {
+        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">' +
+          '<span style="color:var(--text)">' + esc(r.lead.name) + '</span>' +
+          '<span style="color:var(--green);font-weight:700">+' + r.change + ' &#8594; ' + r.lead.score + '</span></div>';
+      });
+    }
+    if (fallers.length > 0) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--red);margin:6px 0 4px">&#9660; Falling</div>';
+      fallers.slice(0, 3).forEach(function(r) {
+        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">' +
+          '<span style="color:var(--text)">' + esc(r.lead.name) + '</span>' +
+          '<span style="color:var(--red);font-weight:700">' + r.change + ' &#8594; ' + r.lead.score + '</span></div>';
+      });
+    }
+    html += '</div>';
+  }
+
+  // Source breakdown summary
+  html += '<div style="padding:0 16px 16px">';
+  html += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">&#127760; Source Breakdown</div>';
+  var srcCounts = {};
+  ALL_LEADS.forEach(function(l) { var s = l.source || 'Unknown'; srcCounts[s] = (srcCounts[s]||0) + 1; });
+  var srcArr = Object.keys(srcCounts).map(function(k) { return { name: k, count: srcCounts[k] }; })
+    .sort(function(a,b) { return b.count - a.count; }).slice(0, 6);
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  srcArr.forEach(function(s) {
+    html += '<span style="padding:4px 10px;border-radius:8px;background:var(--surface,var(--bg));font-size:11px;font-weight:600;color:var(--text)">' + esc(s.name) + ' <span style="color:var(--text-muted)">(' + s.count + ')</span></span>';
+  });
+  html += '</div></div>';
+
+  // Close button
+  html += '<div style="padding:14px 16px;border-top:1px solid var(--card-border);text-align:center">' +
+    '<button onclick="document.getElementById(&#39;digestOverlay&#39;).remove()" style="padding:8px 24px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Close</button>' +
+  '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// DUPLICATE DETECTION
+// -------------------------------------------------------
+function findDuplicates() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  toast('Scanning for duplicates...', 'info');
+  var emailMap = {};
+  var phoneMap = {};
+  var nameMap = {};
+  var groups = {};
+  var groupId = 0;
+
+  ALL_LEADS.forEach(function(l) {
+    var matched = null;
+    // Match by email
+    if (l.email) {
+      var em = l.email.toLowerCase().trim();
+      if (emailMap[em]) { matched = emailMap[em]; }
+      else { emailMap[em] = l.id; }
+    }
+    // Match by phone (strip non-digits)
+    if (!matched && l.phone) {
+      var ph = l.phone.replace(/D/g, '').slice(-10);
+      if (ph.length >= 7) {
+        if (phoneMap[ph]) { matched = phoneMap[ph]; }
+        else { phoneMap[ph] = l.id; }
+      }
+    }
+    // Match by name (exact, case-insensitive)
+    if (!matched && l.name) {
+      var nm = l.name.toLowerCase().trim();
+      if (nm.length > 3 && nameMap[nm]) { matched = nameMap[nm]; }
+      else if (nm.length > 3) { nameMap[nm] = l.id; }
+    }
+    if (matched) {
+      // Find or create group
+      var gid = null;
+      for (var g in groups) {
+        if (groups[g].ids.indexOf(matched) !== -1 || groups[g].ids.indexOf(l.id) !== -1) {
+          gid = g; break;
+        }
+      }
+      if (!gid) { gid = 'g' + (groupId++); groups[gid] = { ids: [matched] }; }
+      if (groups[gid].ids.indexOf(l.id) === -1) groups[gid].ids.push(l.id);
+    }
+  });
+
+  var groupArr = Object.keys(groups).map(function(k) { return groups[k]; });
+
+  // Update badge
+  var badge = document.getElementById('dupBadge');
+  if (badge) {
+    if (groupArr.length > 0) {
+      badge.textContent = groupArr.length;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  if (groupArr.length === 0) {
+    toast('No duplicates found!', 'success');
+    return;
+  }
+
+  // Build modal
+  var existing = document.getElementById('dupOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'dupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
+    '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
+      '<h2 style="margin:0;font-size:18px;color:var(--text)">&#128279; Potential Duplicates (' + groupArr.length + ' groups)</h2>' +
+      '<button onclick="document.getElementById(&#39;dupOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button>' +
+    '</div>' +
+    '<div style="padding:16px">';
+
+  groupArr.forEach(function(group, gi) {
+    html += '<div style="margin-bottom:16px;border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
+    html += '<div style="padding:10px 14px;background:var(--surface,var(--bg));font-size:12px;font-weight:700;color:var(--text-secondary)">Group ' + (gi + 1) + ' (' + group.ids.length + ' contacts)</div>';
+    group.ids.forEach(function(id) {
+      var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+      if (!lead) return;
+      var age = activityAge(lead);
+      html += '<div style="padding:12px 14px;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div>' +
+          '<div style="font-weight:700;color:var(--text)">' + esc(lead.name) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted)">' + esc(lead.email || 'No email') + ' &bull; ' + esc(lead.phone || 'No phone') + '</div>' +
+          '<div style="font-size:11px;color:var(--text-secondary)">' + esc(lead.source || 'Unknown source') + ' &bull; Score: ' + lead.score + ' &bull; <span style="color:' + age.color + '">' + age.label + '</span></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px">' +
+          '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + id + '" target="_blank" class="btn btn-sm">GHL</a>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '<div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:12px">Matched by email, phone (last 10 digits), or exact name. Review in GHL to merge.</div>';
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  toast('Found ' + groupArr.length + ' potential duplicate groups', 'info');
+}
+
+// -------------------------------------------------------
+// FIND TEST CONTACTS
+// -------------------------------------------------------
+function findTestContacts() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var testPatterns = ['test', 'demo', 'sample', 'fake', 'dummy', 'example', 'asdf', 'qwerty', 'xxx', 'aaa', 'zzz'];
+  var testEmails = ['test@', 'demo@', 'sample@', 'fake@', 'example@', 'noreply@', 'no-reply@', 'test.com', 'example.com', 'mailinator.com', 'yopmail.com', 'tempmail.com', 'guerrillamail.com'];
+  var testPhones = ['5555555', '1234567', '0000000', '1111111', '9999999'];
+  var found = [];
+
+  ALL_LEADS.forEach(function(l) {
+    var reasons = [];
+    var nameLower = (l.name || '').toLowerCase().trim();
+    var emailLower = (l.email || '').toLowerCase().trim();
+    var phoneDigits = (l.phone || '').replace(/\\D/g, '');
+
+    // Check name
+    testPatterns.forEach(function(p) {
+      if (nameLower === p || nameLower.indexOf(p + ' ') === 0 || nameLower.indexOf(' ' + p) !== -1) {
+        reasons.push('Name contains "' + p + '"');
+      }
+    });
+    if (nameLower.length <= 2 && nameLower.length > 0) reasons.push('Very short name');
+    if (/^[a-z]s*[a-z]?$/i.test(nameLower)) reasons.push('Single letter name');
+
+    // Check email
+    testEmails.forEach(function(p) {
+      if (emailLower.indexOf(p) !== -1) reasons.push('Email matches "' + p + '"');
+    });
+
+    // Check phone
+    testPhones.forEach(function(p) {
+      if (phoneDigits.indexOf(p) !== -1) reasons.push('Phone pattern "' + p + '"');
+    });
+
+    // No contact info at all
+    if (!l.email && !l.phone && nameLower === 'unknown') reasons.push('Unknown with no contact info');
+
+    if (reasons.length) found.push({ lead: l, reasons: reasons });
+  });
+
+  if (!found.length) { toast('No test contacts detected!', 'success'); return; }
+
+  var existing = document.getElementById('testContactsOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'testContactsOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h2 style="margin:0;font-size:18px;color:var(--text)">&#128270; Possible Test Contacts (' + found.length + ')</h2>';
+  html += '<p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">Review and delete contacts that look like test data</p></div>';
+  html += '<button onclick="document.getElementById(&#39;testContactsOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="padding:16px">';
+
+  found.forEach(function(f) {
+    var l = f.lead;
+    html += '<div style="margin-bottom:8px;border:1px solid var(--card-border);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:12px">';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:700;color:var(--text)">' + esc(l.name) + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted)">' + esc(l.email || 'No email') + ' &bull; ' + esc(l.phone || 'No phone') + '</div>';
+    html += '<div style="font-size:10px;color:var(--brand-accent);margin-top:2px">' + f.reasons.join(' &bull; ') + '</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:6px;flex-shrink:0">';
+    html += '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + l.id + '" target="_blank" class="btn btn-sm">GHL</a>';
+    html += '<button onclick="deleteTestContact(&#39;' + l.id + '&#39;,&#39;' + esc(l.name).replace(/'/g,'') + '&#39;,this)" class="btn btn-sm" style="color:#ef4444;border-color:#ef4444">Delete</button>';
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  html += '<div style="padding:12px 20px;border-top:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;bottom:0;background:var(--card);border-radius:0 0 16px 16px">';
+  html += '<span style="font-size:12px;color:var(--text-secondary)">Detected by name/email/phone patterns</span>';
+  html += '<button onclick="deleteAllTestContacts()" class="btn btn-sm" style="background:#ef4444;color:#fff;border-color:#ef4444">Delete All (' + found.length + ')</button>';
+  html += '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  toast('Found ' + found.length + ' possible test contacts', 'info');
+}
+
+function deleteTestContact(id, name, btn) {
+  if (!confirm('Delete "' + name + '" from GHL?')) return;
+  fetch(PROXY_URL + '/contacts/' + id, { method: 'DELETE' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      ALL_LEADS = ALL_LEADS.filter(function(l) { return l.id !== id; });
+      FILTERED = FILTERED.filter(function(l) { return l.id !== id; });
+      delete RAW_CONTACTS[id];
+      if (btn) btn.closest('div[style]').parentElement.remove();
+      toast('"' + name + '" deleted', 'success');
+      updateStats();
+    }).catch(function(e) { toast('Delete failed: ' + e.message, 'error'); });
+}
+
+function deleteAllTestContacts() {
+  var found = [];
+  var testPatterns = ['test', 'demo', 'sample', 'fake', 'dummy', 'example', 'asdf', 'qwerty', 'xxx', 'aaa', 'zzz'];
+  var testEmails = ['test@', 'demo@', 'sample@', 'fake@', 'example@', 'noreply@', 'test.com', 'example.com', 'mailinator.com', 'yopmail.com'];
+  var testPhones = ['5555555', '1234567', '0000000', '1111111', '9999999'];
+  ALL_LEADS.forEach(function(l) {
+    var nameLower = (l.name || '').toLowerCase();
+    var emailLower = (l.email || '').toLowerCase();
+    var phoneDigits = (l.phone || '').replace(/\\D/g, '');
+    var isTest = false;
+    testPatterns.forEach(function(p) { if (nameLower === p || nameLower.indexOf(p + ' ') === 0 || nameLower.indexOf(' ' + p) !== -1) isTest = true; });
+    if (nameLower.length <= 2 && nameLower.length > 0) isTest = true;
+    testEmails.forEach(function(p) { if (emailLower.indexOf(p) !== -1) isTest = true; });
+    testPhones.forEach(function(p) { if (phoneDigits.indexOf(p) !== -1) isTest = true; });
+    if (!l.email && !l.phone && nameLower === 'unknown') isTest = true;
+    if (isTest) found.push(l);
+  });
+  if (!found.length) { toast('No test contacts to delete', 'info'); return; }
+  if (!confirm('Delete ' + found.length + ' test contacts from GHL? This cannot be undone.')) return;
+  toast('Deleting ' + found.length + ' contacts...', 'info');
+  var chain = Promise.resolve();
+  var deleted = 0;
+  found.forEach(function(l) {
+    chain = chain.then(function() {
+      return fetch(PROXY_URL + '/contacts/' + l.id, { method: 'DELETE' }).then(function(res) {
+        if (res.ok) {
+          ALL_LEADS = ALL_LEADS.filter(function(x) { return x.id !== l.id; });
+          FILTERED = FILTERED.filter(function(x) { return x.id !== l.id; });
+          delete RAW_CONTACTS[l.id];
+          deleted++;
+        }
+      }).catch(function() {});
+    });
+  });
+  chain.then(function() {
+    var overlay = document.getElementById('testContactsOverlay');
+    if (overlay) overlay.remove();
+    updateStats();
+    renderCurrentView();
+    renderPagination();
+    toast('Deleted ' + deleted + '/' + found.length + ' test contacts', 'success');
+  });
+}
+
+// -------------------------------------------------------
+// TEAM PERFORMANCE DASHBOARD
+// -------------------------------------------------------
+function showTeamDashboard() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var teamStats = {};
+  GHL_TEAM_NAMES.forEach(function(name) { teamStats[name] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 }; });
+  teamStats['Unassigned'] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 };
+  var weekAgo = Date.now() - 7 * 86400000;
+  ALL_LEADS.forEach(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    var assigned = 'Unassigned';
+    if (raw && raw.assignedTo) { assigned = GHL_USER_MAP[raw.assignedTo] || 'Unassigned'; }
+    if (!teamStats[assigned]) teamStats[assigned] = { assigned: 0, hot: 0, warm: 0, cold: 0, avgScore: 0, totalScore: 0, contacted: 0, withPhone: 0, recent7d: 0 };
+    var ts = teamStats[assigned];
+    ts.assigned++;
+    ts.totalScore += l.score;
+    if (l.status === 'hot') ts.hot++;
+    else if (l.status === 'warm') ts.warm++;
+    else ts.cold++;
+    if (l.phone) ts.withPhone++;
+    if (l.tags && l.tags.some(function(t) { return t.toLowerCase() === 'contacted'; })) ts.contacted++;
+    if (l.dateAdded && new Date(l.dateAdded).getTime() > weekAgo) ts.recent7d++;
+  });
+
+  var existing = document.getElementById('teamOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'teamOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<h3 style="margin:0;font-size:18px">&#128101; Team Performance</h3>';
+  html += '<button onclick="document.getElementById(&#39;teamOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:var(--surface,var(--bg))"><th style="padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-secondary)">Agent</th><th style="padding:10px 12px;text-align:center">Assigned</th><th style="padding:10px 12px;text-align:center">Hot</th><th style="padding:10px 12px;text-align:center">Warm</th><th style="padding:10px 12px;text-align:center">Avg Score</th><th style="padding:10px 12px;text-align:center">Contacted</th><th style="padding:10px 12px;text-align:center">Contact Rate</th><th style="padding:10px 12px;text-align:center">New 7d</th></tr></thead><tbody>';
+  Object.keys(teamStats).sort(function(a, b) { return teamStats[b].assigned - teamStats[a].assigned; }).forEach(function(name) {
+    var ts = teamStats[name];
+    if (ts.assigned === 0) return;
+    ts.avgScore = ts.assigned ? Math.round(ts.totalScore / ts.assigned) : 0;
+    var contactRate = ts.withPhone ? Math.round(ts.contacted / ts.withPhone * 100) : 0;
+    var crColor = contactRate >= 50 ? '#22c55e' : contactRate >= 25 ? '#f59e0b' : '#ef4444';
+    html += '<tr style="border-bottom:1px solid var(--card-border)">';
+    html += '<td style="padding:10px 12px;font-weight:700">' + esc(name) + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.assigned + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + ts.hot + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + ts.warm + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.avgScore + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center">' + ts.contacted + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-weight:700;font-size:11px;background:' + crColor + '22;color:' + crColor + '">' + contactRate + '%</span></td>';
+    html += '<td style="padding:10px 12px;text-align:center">' + ts.recent7d + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// MARKET HEATMAP
+// -------------------------------------------------------
+function showMarketHeatmap() {
+  if (!ALL_LEADS.length) { toast('Load contacts first', 'error'); return; }
+  var cityMap = {};
+  ALL_LEADS.forEach(function(l) {
+    var city = [l.city, l.state].filter(Boolean).join(', ') || 'Unknown';
+    if (!cityMap[city]) cityMap[city] = { total: 0, hot: 0, warm: 0, cold: 0, sellers: 0, buyers: 0 };
+    cityMap[city].total++;
+    if (l.status === 'hot') cityMap[city].hot++;
+    else if (l.status === 'warm') cityMap[city].warm++;
+    else cityMap[city].cold++;
+    var pt = (l.propType || '').toLowerCase();
+    if (pt === 'seller') cityMap[city].sellers++;
+    else if (pt === 'buyer') cityMap[city].buyers++;
+  });
+  var sorted = Object.keys(cityMap).sort(function(a, b) { return cityMap[b].total - cityMap[a].total; });
+  var max = cityMap[sorted[0]] ? cityMap[sorted[0]].total : 1;
+
+  var existing = document.getElementById('heatmapOverlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'heatmapOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4)">';
+  html += '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1;border-radius:16px 16px 0 0">';
+  html += '<div><h3 style="margin:0;font-size:18px">&#128506; Market Heatmap</h3><p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary)">' + sorted.length + ' areas &bull; ' + ALL_LEADS.length + ' leads</p></div>';
+  html += '<button onclick="document.getElementById(&#39;heatmapOverlay&#39;).remove()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer">&#10005;</button></div>';
+  html += '<div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">';
+  sorted.slice(0, 30).forEach(function(city) {
+    var d = cityMap[city];
+    var intensity = Math.round(d.total / max * 100);
+    var heatColor = intensity >= 70 ? '#ef4444' : intensity >= 40 ? '#f59e0b' : intensity >= 20 ? '#3b82f6' : '#6b7280';
+    html += '<div style="background:var(--surface,var(--bg));border-radius:10px;padding:12px;border-left:4px solid ' + heatColor + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:13px">' + esc(city) + '</span><span style="font-size:18px;font-weight:800;color:' + heatColor + '">' + d.total + '</span></div>';
+    html += '<div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text-secondary)">';
+    html += '<span style="color:#00ff55">&#9632; ' + d.hot + ' hot</span>';
+    html += '<span style="color:var(--brand-accent)">&#9632; ' + d.warm + ' warm</span>';
+    if (d.sellers) html += '<span>&#127968; ' + d.sellers + ' sellers</span>';
+    html += '</div>';
+    html += '<div style="margin-top:6px;height:6px;background:var(--card-border);border-radius:3px;overflow:hidden"><div style="width:' + intensity + '%;height:100%;background:' + heatColor + ';border-radius:3px"></div></div>';
+    html += '</div>';
+  });
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// SAVED FILTERS / SMART LISTS
+// -------------------------------------------------------
+var SMART_LISTS_KEY = 'ylopo_smart_lists';
+function getSavedSmartLists() {
+  try { return JSON.parse(localStorage.getItem(SMART_LISTS_KEY)) || []; } catch(e) { return []; }
+}
+function saveSmartList() {
+  var name = prompt('Name this smart list:');
+  if (!name || !name.trim()) return;
+  var searchVal = _el('searchInput') ? _el('searchInput').value : '';
+  var sourceFilter = _el('sourceFilter') ? _el('sourceFilter').value : '';
+  var sortVal = _el('sortSelect') ? _el('sortSelect').value : '';
+  var lists = getSavedSmartLists();
+  lists.push({ name: name.trim(), search: searchVal, source: sourceFilter, sort: sortVal, filter: typeof CURRENT_FILTER !== 'undefined' ? CURRENT_FILTER : 'all', created: new Date().toISOString() });
+  localStorage.setItem(SMART_LISTS_KEY, JSON.stringify(lists));
+  toast('Smart list "' + name.trim() + '" saved', 'success');
+  renderSmartLists();
+}
+function loadSmartList(idx) {
+  var lists = getSavedSmartLists();
+  var l = lists[idx];
+  if (!l) return;
+  if (_el('searchInput')) { _el('searchInput').value = l.search || ''; }
+  if (_el('sourceFilter')) { _el('sourceFilter').value = l.source || ''; }
+  if (_el('sortSelect') && l.sort) { _el('sortSelect').value = l.sort; }
+  if (l.filter && typeof setFilter === 'function') {
+    var tabs = document.querySelectorAll('.filters-bar .filter-tab');
+    tabs.forEach(function(t) { if (t.textContent.toLowerCase().indexOf(l.filter) >= 0 || (t.onclick && t.onclick.toString().indexOf("'" + l.filter + "'") >= 0)) { t.click(); } });
+  }
+  CURRENT_PAGE = 1;
+  applyFilters();
+  toast('Loaded "' + l.name + '"', 'success');
+}
+function deleteSmartList(idx) {
+  var lists = getSavedSmartLists();
+  lists.splice(idx, 1);
+  localStorage.setItem(SMART_LISTS_KEY, JSON.stringify(lists));
+  renderSmartLists();
+  toast('Smart list deleted', 'success');
+}
+function renderSmartLists() {
+  var el = document.getElementById('smartListsPanel');
+  if (!el) return;
+  var lists = getSavedSmartLists();
+  if (!lists.length) { el.innerHTML = ''; return; }
+  var html = '';
+  lists.forEach(function(l, i) {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<span onclick="loadSmartList(' + i + ')" style="flex:1;cursor:pointer;font-size:12px;font-weight:600;color:var(--text)">' + esc(l.name) + '</span>';
+    html += '<span style="font-size:10px;color:var(--text-secondary)">' + [l.filter, l.search, l.source].filter(Boolean).join(', ') + '</span>';
+    html += '<button onclick="deleteSmartList(' + i + ')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:12px">&#10005;</button>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// -------------------------------------------------------
+// BROWSER PUSH NOTIFICATIONS
+// -------------------------------------------------------
+var _notificationsEnabled = false;
+function enableNotifications() {
+  if (!('Notification' in window)) { toast('Notifications not supported in this browser', 'error'); return; }
+  Notification.requestPermission().then(function(perm) {
+    if (perm === 'granted') {
+      _notificationsEnabled = true;
+      toast('Notifications enabled! You will be alerted when hot leads arrive.', 'success');
+    } else {
+      toast('Notifications denied. Enable in browser settings.', 'error');
+    }
+  });
+}
+function sendNotification(title, body) {
+  if (!_notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try { new Notification(title, { body: body, icon: '/favicon.ico', tag: 'ylopo-' + Date.now() }); } catch(e) {}
+}
+
+// -------------------------------------------------------
+// PDF LEAD REPORT
+// -------------------------------------------------------
+function generatePDFReport(id) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === id; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+  var raw = RAW_CONTACTS[id] || {};
+  var ext = getExtendedData(raw);
+  var locParts = [ext.city, ext.state, ext.zip].filter(Boolean).join(', ');
+
+  var content = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lead Report - ' + esc(lead.name) + '</title>';
+  content += '<style>body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:40px;color:#333}';
+  content += '.header{background:#0D3B4F;color:#fff;padding:24px;border-radius:12px;margin-bottom:24px}';
+  content += '.header h1{margin:0;font-size:22px}.header p{margin:4px 0 0;opacity:0.8;font-size:13px}';
+  content += '.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}';
+  content += '.card{border:1px solid #e5e7eb;border-radius:8px;padding:16px}';
+  content += '.card h3{margin:0 0 12px;font-size:14px;color:#0D3B4F;text-transform:uppercase;letter-spacing:0.05em}';
+  content += '.row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #f3f4f6}';
+  content += '.row .label{color:#6b7280}.row .value{font-weight:600}';
+  content += '.score{font-size:48px;font-weight:800;text-align:center;margin:12px 0}';
+  content += '.tags{display:flex;flex-wrap:wrap;gap:4px}.tag{background:#e5e7eb;padding:2px 8px;border-radius:4px;font-size:11px}';
+  content += '@media print{body{padding:20px}}</style></head><body>';
+
+  content += '<div class="header"><h1>Lead Report: ' + esc(lead.name) + '</h1>';
+  content += '<p>Generated ' + new Date().toLocaleString() + ' | The Listing Team</p></div>';
+
+  content += '<div class="grid"><div class="card"><h3>Contact Info</h3>';
+  content += '<div class="row"><span class="label">Name</span><span class="value">' + esc(lead.name) + '</span></div>';
+  content += '<div class="row"><span class="label">Email</span><span class="value">' + esc(lead.email || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Phone</span><span class="value">' + esc(lead.phone || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Location</span><span class="value">' + esc(locParts || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Address</span><span class="value">' + esc(ext.address || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Source</span><span class="value">' + esc(lead.source || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Added</span><span class="value">' + fmtDate(lead.dateAdded) + '</span></div>';
+  content += '</div>';
+
+  content += '<div class="card"><h3>Score & Status</h3>';
+  var scoreColor = lead.score >= 75 ? '#22c55e' : lead.score >= 40 ? '#1E7A9C' : '#6b7280';
+  content += '<div class="score" style="color:' + scoreColor + '">' + lead.score + '</div>';
+  content += '<div style="text-align:center;font-size:14px;font-weight:600;margin-bottom:12px">' + lead.status.charAt(0).toUpperCase() + lead.status.slice(1) + ' Lead</div>';
+  content += '<div class="row"><span class="label">Views</span><span class="value">' + lead.matrix.views + '</span></div>';
+  content += '<div class="row"><span class="label">Saves</span><span class="value">' + lead.matrix.saves + '</span></div>';
+  content += '<div class="row"><span class="label">Searches</span><span class="value">' + lead.matrix.searches + '</span></div>';
+  content += '<div class="row"><span class="label">Showings</span><span class="value">' + lead.matrix.showings + '</span></div>';
+  content += '</div></div>';
+
+  content += '<div class="grid"><div class="card"><h3>Property Details</h3>';
+  content += '<div class="row"><span class="label">Beds / Baths</span><span class="value">' + (ext.beds || '?') + 'bd / ' + (ext.baths || '?') + 'ba</span></div>';
+  content += '<div class="row"><span class="label">Sq Ft</span><span class="value">' + (ext.sqft ? Number(ext.sqft).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Price / Value</span><span class="value">' + (ext.price ? '$' + Number(ext.price).toLocaleString() : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Year Built</span><span class="value">' + (ext.yearBuilt || 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Equity</span><span class="value">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() : 'N/A') + '</span></div>';
+  content += '<div class="row"><span class="label">Mortgage</span><span class="value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : 'N/A') + '</span></div>';
+  content += '</div>';
+
+  content += '<div class="card"><h3>Tags</h3><div class="tags">';
+  (lead.tags || []).forEach(function(t) { content += '<span class="tag">' + esc(t) + '</span>'; });
+  if (!lead.tags || !lead.tags.length) content += '<span style="color:#6b7280;font-size:12px">No tags</span>';
+  content += '</div></div></div>';
+
+  content += '</body></html>';
+
+  var w = window.open('', '_blank');
+  if (w) {
+    w.document.write(content);
+    w.document.close();
+    setTimeout(function() { w.print(); }, 500);
+  } else {
+    toast('Pop-up blocked. Allow pop-ups for this site.', 'error');
+  }
+}
+
+// -------------------------------------------------------
+// A/B TEST OUTREACH TEMPLATES
+// -------------------------------------------------------
+var AB_TESTS = {};
+function createABTest() {
+  var name = prompt('Test name (e.g., "Subject A vs B"):');
+  if (!name) return;
+  var variantA = prompt('Variant A subject:');
+  if (!variantA) return;
+  var variantB = prompt('Variant B subject:');
+  if (!variantB) return;
+  var testId = 'test_' + Date.now();
+  AB_TESTS[testId] = {
+    name: name, variantA: variantA, variantB: variantB,
+    resultsA: { sent: 0, opened: 0, replied: 0 },
+    resultsB: { sent: 0, opened: 0, replied: 0 },
+    created: new Date().toISOString()
+  };
+  localStorage.setItem('ab_tests', JSON.stringify(AB_TESTS));
+  toast('A/B test created: ' + name, 'success');
+  showABTestDashboard();
+}
+function trackABTestEvent(testId, variant, event) {
+  if (!AB_TESTS[testId]) return;
+  AB_TESTS[testId]['results' + variant][event]++;
+  localStorage.setItem('ab_tests', JSON.stringify(AB_TESTS));
+}
+function showABTestDashboard() {
+  AB_TESTS = JSON.parse(localStorage.getItem('ab_tests')) || {};
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">A/B Test Dashboard</h2>';
+  html += '<button onclick="createABTest()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-bottom:16px">+ New Test</button>';
+
+  Object.keys(AB_TESTS).forEach(function(testId) {
+    var t = AB_TESTS[testId];
+    var openRateA = t.resultsA.sent > 0 ? Math.round(t.resultsA.opened / t.resultsA.sent * 100) : 0;
+    var openRateB = t.resultsB.sent > 0 ? Math.round(t.resultsB.opened / t.resultsB.sent * 100) : 0;
+    var replyRateA = t.resultsA.sent > 0 ? Math.round(t.resultsA.replied / t.resultsA.sent * 100) : 0;
+    var replyRateB = t.resultsB.sent > 0 ? Math.round(t.resultsB.replied / t.resultsB.sent * 100) : 0;
+    var winnerOpen = openRateA > openRateB ? 'A' : openRateB > openRateA ? 'B' : 'tie';
+    var winnerReply = replyRateA > replyRateB ? 'A' : replyRateB > replyRateA ? 'B' : 'tie';
+
+    html += '<div style="border:1px solid var(--card-border);border-radius:12px;padding:16px;margin-bottom:16px">';
+    html += '<div style="font-weight:700;color:var(--text);margin-bottom:12px">' + esc(t.name) + '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">';
+    html += '<div><strong>Variant A:</strong> ' + esc(t.variantA) + '<br/>Sent: ' + t.resultsA.sent + ' | Open: ' + openRateA + '% | Reply: ' + replyRateA + '%</div>';
+    html += '<div><strong>Variant B:</strong> ' + esc(t.variantB) + '<br/>Sent: ' + t.resultsB.sent + ' | Open: ' + openRateB + '% | Reply: ' + replyRateB + '%</div>';
+    html += '</div>';
+    html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">Winner (open): ' + winnerOpen + ' | Winner (reply): ' + winnerReply + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// LEAD ROUTING RULES
+// -------------------------------------------------------
+var ROUTING_RULES = [];
+function setupRoutingRules() {
+  ROUTING_RULES = JSON.parse(localStorage.getItem('routing_rules')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Routing Rules</h2>';
+  html += '<button onclick="addRoutingRule()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-bottom:16px">+ New Rule</button>';
+
+  ROUTING_RULES.forEach(function(r, i) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<div style="font-size:12px"><strong>' + esc(r.agentName) + '</strong><br/>If ' + esc(r.condition) + ' (match: ' + esc(r.value) + ')</div>';
+    html += '<button onclick="deleteRoutingRule(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">&#10005;</button>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+function addRoutingRule() {
+  var agentName = prompt('Agent name:');
+  if (!agentName) return;
+  var condition = prompt('Condition (zip, source, score):');
+  if (!condition) return;
+  var value = prompt('Value to match:');
+  if (!value) return;
+  ROUTING_RULES.push({ agentName: agentName, condition: condition, value: value });
+  localStorage.setItem('routing_rules', JSON.stringify(ROUTING_RULES));
+  toast('Routing rule added', 'success');
+  setupRoutingRules();
+}
+function deleteRoutingRule(idx) {
+  ROUTING_RULES.splice(idx, 1);
+  localStorage.setItem('routing_rules', JSON.stringify(ROUTING_RULES));
+  setupRoutingRules();
+}
+function applyRoutingRules(lead) {
+  ROUTING_RULES = JSON.parse(localStorage.getItem('routing_rules')) || [];
+  for (var i = 0; i < ROUTING_RULES.length; i++) {
+    var r = ROUTING_RULES[i];
+    var matches = false;
+    if (r.condition === 'zip' && lead.zip === r.value) matches = true;
+    if (r.condition === 'source' && lead.source === r.value) matches = true;
+    if (r.condition === 'score' && lead.score >= parseInt(r.value)) matches = true;
+    if (matches) {
+      return r.agentName;
+    }
+  }
+  return null;
+}
+
+// -------------------------------------------------------
+// AUTOMATED FOLLOW-UP SEQUENCES
+// -------------------------------------------------------
+var FOLLOW_UP_SEQUENCES = [];
+function createFollowUpSequence() {
+  var name = prompt('Sequence name (e.g., "30/60/90 day follow-up"):');
+  if (!name) return;
+  var seq = { name: name, steps: [], created: new Date().toISOString() };
+  FOLLOW_UP_SEQUENCES.push(seq);
+  editSequence(FOLLOW_UP_SEQUENCES.length - 1);
+}
+function editSequence(idx) {
+  var seq = FOLLOW_UP_SEQUENCES[idx];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">' + esc(seq.name) + '</h2>';
+  html += '<button onclick="addSequenceStep(' + idx + ')" style="padding:6px 12px;background:var(--brand-accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:12px">+ Add Step</button>';
+
+  (seq.steps || []).forEach(function(step, si) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">';
+    html += '<strong>Day ' + step.day + ':</strong> ' + esc(step.action) + ' - ' + esc(step.message) + '';
+    html += '</div>';
+  });
+
+  html += '<button onclick="saveFollowUpSequences()" style="padding:8px 16px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Sequence</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+function addSequenceStep(idx) {
+  var day = prompt('Days to wait:');
+  if (!day) return;
+  var action = prompt('Action (email/sms):');
+  if (!action) return;
+  var message = prompt('Message:');
+  if (!message) return;
+  if (!FOLLOW_UP_SEQUENCES[idx].steps) FOLLOW_UP_SEQUENCES[idx].steps = [];
+  FOLLOW_UP_SEQUENCES[idx].steps.push({ day: parseInt(day), action: action, message: message });
+  editSequence(idx);
+}
+function saveFollowUpSequences() {
+  localStorage.setItem('follow_up_sequences', JSON.stringify(FOLLOW_UP_SEQUENCES));
+  toast('Follow-up sequence saved', 'success');
+  document.querySelector('[onclick*="editSequence"]')?.parentElement?.remove();
+}
+
+// -------------------------------------------------------
+// CUSTOM SCORING WEIGHTS
+// -------------------------------------------------------
+var SCORE_WEIGHTS = { views: 10, saves: 15, searches: 5, showings: 25, engagement: 20, age: 5, tags: 20 };
+function openScoringWeights() {
+  var saved = JSON.parse(localStorage.getItem('score_weights')) || SCORE_WEIGHTS;
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Scoring Weights</h2>';
+
+  Object.keys(saved).forEach(function(key) {
+    html += '<div style="margin-bottom:16px">';
+    html += '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px">' + key.charAt(0).toUpperCase() + key.slice(1) + '</label>';
+    html += '<input type="range" id="w_' + key + '" min="0" max="50" value="' + saved[key] + '" style="width:100%">';
+    html += '<div style="font-size:11px;color:var(--text);margin-top:4px">Weight: <span id="v_' + key + '">' + saved[key] + '</span></div>';
+    html += '</div>';
+  });
+
+  html += '<button onclick="saveScoringWeights()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Weights</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  Object.keys(saved).forEach(function(key) {
+    var input = document.getElementById('w_' + key);
+    if (input) {
+      input.oninput = function() { document.getElementById('v_' + key).textContent = this.value; };
+    }
+  });
+}
+function saveScoringWeights() {
+  var weights = {};
+  Object.keys(SCORE_WEIGHTS).forEach(function(key) {
+    var input = document.getElementById('w_' + key);
+    weights[key] = parseInt(input.value);
+  });
+  localStorage.setItem('score_weights', JSON.stringify(weights));
+  SCORE_WEIGHTS = weights;
+  toast('Scoring weights updated', 'success');
+  document.querySelector('[onclick*="saveScoringWeights"]').closest('div').remove();
+}
+
+// -------------------------------------------------------
+// INTEGRATION HEALTH MONITOR
+// -------------------------------------------------------
+var HEALTH_CHECKS = {};
+function checkIntegrationHealth() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Integration Health</h2>';
+
+  var apis = [
+    { name: 'GHL API', endpoint: '/health/ghl' },
+    { name: 'Ylopo Webhook', endpoint: '/health/ylopo' },
+    { name: 'ATTOM API', endpoint: '/health/attom' }
+  ];
+
+  apis.forEach(function(api) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<span style="font-size:13px"><strong>' + api.name + '</strong></span>';
+    html += '<span id="status-' + api.name + '" style="font-size:12px;color:#ccc;font-weight:600">checking...</span>';
+    html += '</div>';
+
+    fetch(PROXY_URL + api.endpoint, { method: 'GET' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var status = data.status || 'unknown';
+        var statusEl = document.getElementById('status-' + api.name);
+        if (statusEl) {
+          statusEl.textContent = status === 'ok' ? '\u2713 Healthy' : '\u2717 Down';
+          statusEl.style.color = status === 'ok' ? '#00ff55' : '#ef4444';
+        }
+      })
+      .catch(function(e) {
+        var statusEl = document.getElementById('status-' + api.name);
+        if (statusEl) {
+          statusEl.textContent = '\u2717 Error';
+          statusEl.style.color = '#ef4444';
+        }
+      });
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// CONTACT TIMELINE
+// -------------------------------------------------------
+function showContactTimeline(leadId) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === leadId; });
+  if (!lead) { toast('Contact not found', 'error'); return; }
+  var raw = RAW_CONTACTS[leadId] || {};
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Timeline: ' + esc(lead.name) + '</h2>';
+
+  var events = [
+    { date: lead.dateAdded, icon: '\u{1F4CD}', label: 'Added to GHL', color: 'var(--brand-primary)' },
+    { date: lead.dateUpdated, icon: '\u{1F504}', label: 'Last updated', color: 'var(--brand-accent)' }
+  ];
+
+  if (raw.notes && raw.notes.length) {
+    raw.notes.forEach(function(n) {
+      events.push({ date: n.createdAt || n.time, icon: '\u{1F4DD}', label: 'Note: ' + n.body.substring(0, 40) + '...', color: '#6b7280' });
+    });
+  }
+
+  events.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+
+  events.forEach(function(e) {
+    html += '<div style="display:flex;gap:12px;margin-bottom:16px">';
+    html += '<div style="font-size:20px;width:30px;text-align:center">' + e.icon + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:600;color:var(--text);font-size:13px">' + e.label + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">' + new Date(e.date).toLocaleString() + '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 1. AI-POWERED INSIGHTS
+// -------------------------------------------------------
+function generateAIInsights() {
+  var insights = [];
+  ALL_LEADS.forEach(function(lead) {
+    var raw = RAW_CONTACTS[lead.id] || {};
+    var ext = getExtendedData(raw);
+    var daysOld = Math.floor((Date.now() - new Date(lead.dateAdded)) / 864e5);
+
+    // Suggest action: stale contacts
+    if (daysOld > 30 && !lead.tags.includes('contacted')) {
+      insights.push({ type: 'action', priority: 'high', lead: lead, message: 'Stale lead - 30+ days without contact. Suggest re-engagement email.' });
+    }
+
+    // Predict close probability
+    var closeProbability = Math.min(100, Math.round((lead.score / 100) * 100 * (1 + (lead.matrix.showings * 0.1))));
+    if (closeProbability >= 75) {
+      insights.push({ type: 'predict', priority: 'high', lead: lead, message: 'High close probability: ' + closeProbability + '%. Ready for showing/offer.' });
+    }
+
+    // Detect at-risk: hot lead with no recent activity
+    if (lead.score >= 75 && daysOld > 7 && lead.matrix.views === 0) {
+      insights.push({ type: 'atrisk', priority: 'critical', lead: lead, message: 'At-risk hot lead - no recent activity. Follow up immediately!' });
+    }
+  });
+
+  insights.sort(function(a, b) {
+    var pri = { critical: 0, high: 1, medium: 2, low: 3 };
+    return pri[a.priority] - pri[b.priority];
+  });
+
+  showAIInsightsDashboard(insights);
+}
+
+function showAIInsightsDashboard(insights) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">AI Insights & Recommendations</h2>';
+
+  if (!insights.length) { html += '<p style="color:var(--text-secondary)">No insights at this time.</p>'; }
+
+  insights.forEach(function(i) {
+    var icon = i.type === 'action' ? '\u{1F4A1}' : i.type === 'predict' ? '\u{1F3AF}' : '\u26A0\uFE0F';
+    var bgColor = i.priority === 'critical' ? '#7f1d1d' : i.priority === 'high' ? '#7c2d12' : '#3f3f46';
+    html += '<div style="background:' + bgColor + ';border-left:4px solid ' + (i.priority === 'critical' ? '#ef4444' : i.priority === 'high' ? '#f97316' : '#eab308') + ';border-radius:8px;padding:16px;margin-bottom:12px">';
+    html += '<div style="display:flex;gap:12px">';
+    html += '<div style="font-size:20px">' + icon + '</div>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-weight:700;color:#fff;font-size:13px">' + esc(i.lead.name) + '</div>';
+    html += '<div style="color:#e5e7eb;font-size:12px;margin-top:4px">' + i.message + '</div>';
+    html += '<button onclick="focusLead(&#39;' + i.lead.id + '&#39;)" style="background:var(--brand-primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;margin-top:8px;cursor:pointer">View Lead</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 2. PERFORMANCE ANALYTICS
+// -------------------------------------------------------
+function showPerformanceAnalytics() {
+  var agentStats = {};
+  ALL_LEADS.forEach(function(lead) {
+    var raw = RAW_CONTACTS[lead.id] || {};
+    var agent = GHL_USER_MAP[raw.assignedTo] || 'Unassigned';
+    if (!agentStats[agent]) {
+      agentStats[agent] = { total: 0, hot: 0, warm: 0, contacted: 0, showings: 0, conversions: 0, avgScore: 0 };
+    }
+    agentStats[agent].total++;
+    if (lead.score >= 75) agentStats[agent].hot++;
+    if (lead.score >= 40) agentStats[agent].warm++;
+    if (lead.tags.includes('contacted')) agentStats[agent].contacted++;
+    if (lead.matrix.showings > 0) agentStats[agent].showings++;
+    if (lead.tags.includes('pipeline') || lead.tags.includes('pending')) agentStats[agent].conversions++;
+    agentStats[agent].avgScore += lead.score;
+  });
+
+  Object.keys(agentStats).forEach(function(agent) {
+    agentStats[agent].avgScore = Math.round(agentStats[agent].avgScore / (agentStats[agent].total || 1));
+    agentStats[agent].contactRate = agentStats[agent].total > 0 ? Math.round(agentStats[agent].contacted / agentStats[agent].total * 100) : 0;
+    agentStats[agent].conversionRate = agentStats[agent].total > 0 ? Math.round(agentStats[agent].conversions / agentStats[agent].total * 100) : 0;
+  });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Agent Performance Leaderboard</h2>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px">';
+  Object.keys(agentStats).sort(function(a,b) { return agentStats[b].conversionRate - agentStats[a].conversionRate; }).forEach(function(agent, idx) {
+    var stats = agentStats[agent];
+    html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:12px;padding:16px">';
+    html += '<div style="font-weight:700;color:var(--text);margin-bottom:12px">#' + (idx+1) + ' ' + esc(agent) + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">';
+    html += '<div>Leads: ' + stats.total + ' | Hot: ' + stats.hot + ' | Conversions: ' + stats.conversions + '</div>';
+    html += '<div>Avg Score: ' + stats.avgScore + ' | Contact Rate: ' + stats.contactRate + '%</div>';
+    html += '<div style="font-weight:700;color:#00ff55;margin-top:8px">Conv. Rate: ' + stats.conversionRate + '%</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 3. BULK OPERATIONS
+// -------------------------------------------------------
+function showBulkCampaigns() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Bulk Campaign Manager</h2>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Campaign Type</label>';
+  html += '<select id="campaignType" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="email">Email Campaign</option>';
+  html += '<option value="sms">SMS Campaign</option>';
+  html += '<option value="tag">Add Tag</option>';
+  html += '<option value="score">Adjust Score</option>';
+  html += '<option value="assign">Assign Agent</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Target Filter</label>';
+  html += '<input type="text" id="campaignFilter" placeholder="e.g. score:>75 source:ylopo" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;box-sizing:border-box">';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Content/Value</label>';
+  html += '<textarea id="campaignContent" placeholder="Email body, tag name, score value, or agent name..." style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;font-size:13px;min-height:100px;box-sizing:border-box"></textarea>';
+  html += '</div>';
+
+  html += '<button onclick="executeBulkCampaign()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">Execute Campaign</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function executeBulkCampaign() {
+  var type = document.getElementById('campaignType').value;
+  var filter = document.getElementById('campaignFilter').value;
+  var content = document.getElementById('campaignContent').value;
+
+  var targets = FILTERED.filter(function(l) { return filter.length === 0 || matchesFilter(l, filter); });
+  if (!targets.length) { toast('No leads match filter', 'error'); return; }
+
+  var count = 0;
+  targets.forEach(function(lead) {
+    if (type === 'email') {
+      toast('Would send email to ' + lead.email, 'info');
+      count++;
+    } else if (type === 'sms') {
+      toast('Would send SMS to ' + lead.phone, 'info');
+      count++;
+    } else if (type === 'tag') {
+      bulkAddTag(lead.id, content);
+      count++;
+    } else if (type === 'score') {
+      bulkAdjustScore(lead.id, parseInt(content));
+      count++;
+    } else if (type === 'assign') {
+      bulkAssignAgent(lead.id, content);
+      count++;
+    }
+  });
+
+  toast('Campaign executed: ' + count + ' leads', 'success');
+}
+
+// -------------------------------------------------------
+// 4. SMART FILTERS / BOOLEAN SEARCHES
+// -------------------------------------------------------
+var SAVED_FILTERS = [];
+function saveBooleanFilter() {
+  var name = prompt('Filter name:');
+  if (!name) return;
+  var query = document.getElementById('searchInput').value;
+  SAVED_FILTERS.push({ name: name, query: query, created: new Date().toISOString() });
+  localStorage.setItem('saved_filters', JSON.stringify(SAVED_FILTERS));
+  toast('Filter saved: ' + name, 'success');
+}
+
+function manageSavedFilters() {
+  SAVED_FILTERS = JSON.parse(localStorage.getItem('saved_filters')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Saved Filters</h2>';
+
+  SAVED_FILTERS.forEach(function(f, i) {
+    html += '<div style="border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">';
+    html += '<div style="flex:1;cursor:pointer;font-size:13px" onclick="applyFilter(&#39;' + esc(f.query) + '&#39;)">';
+    html += '<strong>' + esc(f.name) + '</strong><br/><span style="font-size:11px;color:var(--text-secondary)">' + esc(f.query) + '</span>';
+    html += '</div>';
+    html += '<button onclick="deleteSavedFilter(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer">\u2715</button>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function applyFilter(query) {
+  document.getElementById('searchInput').value = query;
+  CURRENT_PAGE = 1;
+  applyFilters();
+  document.querySelector('[onclick*="deleteSavedFilter"]')?.closest('div').remove();
+}
+
+function deleteSavedFilter(idx) {
+  SAVED_FILTERS.splice(idx, 1);
+  localStorage.setItem('saved_filters', JSON.stringify(SAVED_FILTERS));
+  manageSavedFilters();
+}
+
+// -------------------------------------------------------
+// 5. WEBHOOK CUSTOMIZATION / TRIGGERS
+// -------------------------------------------------------
+var CUSTOM_WEBHOOKS = [];
+function createCustomWebhook() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Create Custom Trigger</h2>';
+
+  html += '<div style="margin-bottom:12px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">When...</label>';
+  html += '<select id="webhookTrigger" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="score_above">Score exceeds threshold</option>';
+  html += '<option value="showing">New showing request</option>';
+  html += '<option value="contacted">Contact marked as contacted</option>';
+  html += '<option value="inactive">No activity for X days</option>';
+  html += '<option value="tag">Tag added</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:12px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Then...</label>';
+  html += '<select id="webhookAction" style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text)">';
+  html += '<option value="notify">Send notification</option>';
+  html += '<option value="email">Send email</option>';
+  html += '<option value="sms">Send SMS</option>';
+  html += '<option value="assign">Assign to agent</option>';
+  html += '<option value="tag">Add tag</option>';
+  html += '</select>';
+  html += '</div>';
+
+  html += '<button onclick="saveCustomWebhook()" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">Save Trigger</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function saveCustomWebhook() {
+  var trigger = document.getElementById('webhookTrigger').value;
+  var action = document.getElementById('webhookAction').value;
+  CUSTOM_WEBHOOKS.push({ trigger: trigger, action: action, created: new Date().toISOString() });
+  localStorage.setItem('custom_webhooks', JSON.stringify(CUSTOM_WEBHOOKS));
+  toast('Trigger created', 'success');
+}
+
+// -------------------------------------------------------
+// 6. CALL TRACKING (Twilio placeholder)
+// -------------------------------------------------------
+function logCallOutcome(contactId) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === contactId; });
+  if (!lead) return;
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Log Call: ' + esc(lead.name) + '</h2>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:8px">Outcome</label>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  ['connected', 'voicemail', 'wrong-number', 'no-answer', 'callback'].forEach(function(outcome) {
+    html += '<button onclick="recordCallOutcome(&#39;' + contactId + '&#39;,&#39;' + outcome + '&#39;)" style="padding:8px 12px;background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:6px;cursor:pointer;font-size:12px">' + outcome + '</button>';
+  });
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px">';
+  html += '<label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">Notes</label>';
+  html += '<textarea id="callNotes" placeholder="Call notes..." style="width:100%;padding:8px;border:1px solid var(--card-border);border-radius:8px;background:var(--surface,var(--bg));color:var(--text);font-family:inherit;min-height:60px;box-sizing:border-box"></textarea>';
+  html += '</div>';
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function recordCallOutcome(contactId, outcome) {
+  var notes = document.getElementById('callNotes')?.value || '';
+  toast('Call logged: ' + outcome, 'success');
+}
+
+// -------------------------------------------------------
+// 7. COMPETITIVE ANALYSIS / BENCHMARKS
+// -------------------------------------------------------
+function showMarketBenchmarks() {
+  var avgScore = Math.round(ALL_LEADS.reduce(function(sum, l) { return sum + l.score; }, 0) / ALL_LEADS.length);
+  var hotPercent = Math.round(ALL_LEADS.filter(function(l) { return l.score >= 75; }).length / ALL_LEADS.length * 100);
+  var contactedPercent = Math.round(ALL_LEADS.filter(function(l) { return l.tags.includes('contacted'); }).length / ALL_LEADS.length * 100);
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 24px;color:var(--text)">Market Benchmarks</h2>';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px">';
+
+  var benchmarks = [
+    { label: 'Your Avg Score', value: avgScore, industry: 45, unit: '' },
+    { label: 'Hot Lead %', value: hotPercent, industry: 35, unit: '%' },
+    { label: 'Contact Rate', value: contactedPercent, industry: 60, unit: '%' },
+    { label: 'Close Rate', value: 12, industry: 10, unit: '%' }
+  ];
+
+  benchmarks.forEach(function(b) {
+    var isWinning = b.value >= b.industry;
+    html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:12px;padding:16px">';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">' + b.label + '</div>';
+    html += '<div style="font-size:24px;font-weight:800;color:' + (isWinning ? '#00ff55' : '#ef4444') + ';margin-bottom:8px">' + b.value + b.unit + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary)">Industry avg: ' + b.industry + b.unit + ' ' + (isWinning ? '\u2713' : '\u2191') + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 8. AUDIT TRAIL / CHANGE LOG
+// -------------------------------------------------------
+var AUDIT_LOG = [];
+function logAuditEvent(action, details) {
+  AUDIT_LOG.unshift({
+    timestamp: new Date().toISOString(),
+    action: action,
+    details: details,
+    user: 'Current User'
+  });
+  if (AUDIT_LOG.length > 1000) AUDIT_LOG.pop();
+  localStorage.setItem('audit_log', JSON.stringify(AUDIT_LOG));
+}
+
+function showAuditTrail() {
+  AUDIT_LOG = JSON.parse(localStorage.getItem('audit_log')) || [];
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Audit Trail</h2>';
+
+  AUDIT_LOG.slice(0, 50).forEach(function(entry) {
+    html += '<div style="border-bottom:1px solid var(--card-border);padding:12px 0">';
+    html += '<div style="font-weight:600;color:var(--text);font-size:13px">' + entry.action + '</div>';
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">' + new Date(entry.timestamp).toLocaleString() + '</div>';
+    html += '<div style="font-size:11px;color:#999;margin-top:4px">' + esc(entry.details) + '</div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// 9. DATABASE SYNC / EXPORT-IMPORT
+// -------------------------------------------------------
+function exportLeadsDatabase() {
+  var data = {
+    exported: new Date().toISOString(),
+    totalLeads: ALL_LEADS.length,
+    leads: ALL_LEADS.map(function(l) { return { id: l.id, name: l.name, email: l.email, phone: l.phone, score: l.score, tags: l.tags, status: l.status, source: l.source }; })
+  };
+
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'leads_export_' + new Date().getTime() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported ' + data.totalLeads + ' leads', 'success');
+}
+
+function importLeadsDatabase() {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      try {
+        var data = JSON.parse(event.target.result);
+        localStorage.setItem('imported_leads', JSON.stringify(data.leads));
+        toast('Imported ' + data.leads.length + ' leads', 'success');
+      } catch(err) {
+        toast('Invalid file format', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// -------------------------------------------------------
+// 10. MOBILE APP SCAFFOLD (React Native placeholder)
+// -------------------------------------------------------
+function showMobileAppInfo() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:500px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Mobile App Coming Soon</h2>';
+  html += '<p style="color:var(--text-secondary);font-size:13px;line-height:1.6">Native iOS/Android app with:</p>';
+  html += '<ul style="color:var(--text-secondary);font-size:12px;margin:12px 0;padding-left:20px">';
+  html += '<li>Real-time lead notifications</li>';
+  html += '<li>Offline mode for viewing contacts</li>';
+  html += '<li>Quick actions (call, email, SMS)</li>';
+  html += '<li>Score & activity tracking</li>';
+  html += '<li>Push notifications for hot leads</li>';
+  html += '</ul>';
+  html += '<button onclick="toast(&#39;Mobile app development started!&#39;, &#39;success&#39;)" style="width:100%;padding:12px;background:var(--brand-primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-top:16px">Get Notified</button>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// PIPELINE KANBAN BOARD
+// -------------------------------------------------------
+function showPipelineKanban() {
+  var stages = [
+    { key: 'new', label: 'New Leads', color: 'var(--brand-secondary)' },
+    { key: 'contacted', label: 'Contacted', color: 'var(--brand-accent)' },
+    { key: 'showing', label: 'Showing', color: '#f59e0b' },
+    { key: 'hot', label: 'Hot / Offer', color: '#00ff55' },
+    { key: 'pipeline', label: 'Pipeline', color: '#8b5cf6' }
+  ];
+
+  var buckets = {};
+  stages.forEach(function(s) { buckets[s.key] = []; });
+
+  ALL_LEADS.forEach(function(lead) {
+    if (lead.tags.includes('pipeline') || lead.tags.includes('pending') || lead.tags.includes('under-contract')) {
+      buckets.pipeline.push(lead);
+    } else if (lead.score >= 75 || lead.tags.includes('hot')) {
+      buckets.hot.push(lead);
+    } else if (lead.matrix.showings > 0 || lead.tags.includes('showing') || lead.tags.includes('showing-request')) {
+      buckets.showing.push(lead);
+    } else if (lead.tags.includes('contacted') || lead.tags.includes('call-connected')) {
+      buckets.contacted.push(lead);
+    } else {
+      buckets['new'].push(lead);
+    }
+  });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:stretch;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--bg);border-radius:16px;width:100%;max-width:1200px;overflow-x:auto;padding:24px;display:flex;flex-direction:column">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h2 style="margin:0;color:var(--text)">Pipeline Kanban</h2><span style="font-size:12px;color:var(--text-secondary)">' + ALL_LEADS.length + ' total leads</span></div>';
+  html += '<div style="display:flex;gap:12px;flex:1;overflow-x:auto;padding-bottom:12px">';
+
+  stages.forEach(function(s) {
+    var leads = buckets[s.key];
+    html += '<div style="flex:1;min-width:200px;background:var(--card);border-radius:12px;border-top:3px solid ' + s.color + ';display:flex;flex-direction:column">';
+    html += '<div style="padding:12px 16px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
+    html += '<span style="font-weight:700;font-size:13px;color:var(--text)">' + s.label + '</span>';
+    html += '<span style="background:' + s.color + ';color:#000;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px">' + leads.length + '</span>';
+    html += '</div>';
+    html += '<div style="flex:1;overflow-y:auto;max-height:60vh;padding:8px">';
+    leads.slice(0, 20).forEach(function(l) {
+      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+      html += '<div onclick="focusLead(&#39;' + l.id + '&#39;)" style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform=&#39;scale(1.02)&#39;" onmouseout="this.style.transform=&#39;scale(1)&#39;">';
+      html += '<div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:4px">' + esc(l.name) + '</div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px">';
+      html += '<span style="color:var(--text-secondary)">' + esc(l.source || 'Unknown') + '</span>';
+      html += '<span style="font-weight:800;color:' + scoreColor + '">' + l.score + '</span>';
+      html += '</div>';
+      html += '</div>';
+    });
+    if (leads.length > 20) html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);padding:8px">+' + (leads.length - 20) + ' more</div>';
+    if (!leads.length) html += '<div style="text-align:center;font-size:11px;color:var(--text-secondary);padding:20px">No leads</div>';
+    html += '</div></div>';
+  });
+
+  html += '</div></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// LIVE SEARCH WITH TYPEAHEAD
+// -------------------------------------------------------
+function initTypeahead() {
+  var searchInput = document.getElementById('searchInput');
+  if (!searchInput) return;
+
+  var dropdown = document.createElement('div');
+  dropdown.id = 'typeaheadDropdown';
+  dropdown.style.cssText = 'display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--card-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:300px;overflow-y:auto;z-index:600;margin-top:4px';
+  searchInput.parentElement.style.position = 'relative';
+  searchInput.parentElement.appendChild(dropdown);
+
+  searchInput.addEventListener('input', function() {
+    var q = this.value.trim().toLowerCase();
+    if (q.length < 2) { dropdown.style.display = 'none'; return; }
+
+    var matches = ALL_LEADS.filter(function(l) {
+      return l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.phone.includes(q);
+    }).slice(0, 8);
+
+    if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+    var html = '';
+    matches.forEach(function(l) {
+      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888';
+      html += '<div onclick="focusLead(&#39;' + l.id + '&#39;);document.getElementById(&#39;typeaheadDropdown&#39;).style.display=&#39;none&#39;" style="padding:10px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border)" onmouseover="this.style.background=&#39;var(--brand-primary)&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
+      html += '<div><div style="font-weight:600;font-size:12px;color:var(--text)">' + esc(l.name) + '</div>';
+      html += '<div style="font-size:11px;color:var(--text-secondary)">' + esc(l.email || l.phone || '') + '</div></div>';
+      html += '<span style="font-weight:800;font-size:14px;color:' + scoreColor + '">' + l.score + '</span>';
+      html += '</div>';
+    });
+    dropdown.innerHTML = html;
+    dropdown.style.display = 'block';
+  });
+
+  searchInput.addEventListener('blur', function() {
+    setTimeout(function() { dropdown.style.display = 'none'; }, 200);
+  });
+}
+
+// -------------------------------------------------------
+// ENHANCED CONTACT COMPARISON (SIDE-BY-SIDE)
+// -------------------------------------------------------
+function compareSelectedContacts() {
+  var ids = Array.from(SELECTED);
+  if (ids.length < 2) { toast('Select at least 2 contacts to compare', 'error'); return; }
+  if (ids.length > 4) { ids = ids.slice(0, 4); toast('Comparing first 4 selected', 'info'); }
+
+  var leads = ids.map(function(id) { return ALL_LEADS.find(function(l) { return l.id === id; }); }).filter(Boolean);
+  if (leads.length < 2) { toast('Not enough valid contacts', 'error'); return; }
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:900px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Contact Comparison</h2>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+
+  var fields = [
+    { label: 'Name', fn: function(l) { return esc(l.name); } },
+    { label: 'Score', fn: function(l) { var c = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888'; return '<span style="font-weight:800;font-size:18px;color:' + c + '">' + l.score + '</span>'; } },
+    { label: 'Status', fn: function(l) { return l.status; } },
+    { label: 'Email', fn: function(l) { return esc(l.email || 'N/A'); } },
+    { label: 'Phone', fn: function(l) { return esc(l.phone || 'N/A'); } },
+    { label: 'Source', fn: function(l) { return esc(l.source || 'N/A'); } },
+    { label: 'Views', fn: function(l) { return l.matrix.views; } },
+    { label: 'Saves', fn: function(l) { return l.matrix.saves; } },
+    { label: 'Searches', fn: function(l) { return l.matrix.searches; } },
+    { label: 'Showings', fn: function(l) { return l.matrix.showings; } },
+    { label: 'Tags', fn: function(l) { return (l.tags || []).slice(0, 5).map(function(t) { return '<span style="background:var(--brand-primary);color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:2px">' + esc(t) + '</span>'; }).join(''); } },
+    { label: 'Added', fn: function(l) { return fmtDate(l.dateAdded); } }
+  ];
+
+  // Header
+  html += '<tr><th style="text-align:left;padding:8px;border-bottom:2px solid var(--card-border);color:var(--text-secondary)">Field</th>';
+  leads.forEach(function(l) {
+    html += '<th style="padding:8px;border-bottom:2px solid var(--card-border);color:var(--text);text-align:center">' + esc(l.name.split(' ')[0]) + '</th>';
+  });
+  html += '</tr>';
+
+  fields.forEach(function(f, i) {
+    var bg = i % 2 === 0 ? 'var(--surface,var(--bg))' : 'transparent';
+    html += '<tr style="background:' + bg + '"><td style="padding:8px;font-weight:600;color:var(--text-secondary)">' + f.label + '</td>';
+    leads.forEach(function(l) {
+      html += '<td style="padding:8px;text-align:center;color:var(--text)">' + f.fn(l) + '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</table></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// AUTOMATED DAILY DIGEST EMAIL (preview generator)
+// -------------------------------------------------------
+function generateDailyDigestEmail() {
+  var hot = ALL_LEADS.filter(function(l) { return l.score >= 75; });
+  var stale = ALL_LEADS.filter(function(l) {
+    var days = Math.floor((Date.now() - new Date(l.dateUpdated || l.dateAdded)) / 864e5);
+    return days > 14 && !l.tags.includes('contacted');
+  });
+  var newLeads = ALL_LEADS.filter(function(l) {
+    return (Date.now() - new Date(l.dateAdded)) < 864e5;
+  });
+  var showings = ALL_LEADS.filter(function(l) { return l.matrix.showings > 0; });
+
+  var emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;padding:20px">';
+  emailHtml += '<div style="background:#0D3B4F;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">';
+  emailHtml += '<h1 style="margin:0;font-size:20px">The Listing Team</h1>';
+  emailHtml += '<p style="margin:4px 0 0;opacity:0.8;font-size:13px">Daily Lead Digest - ' + new Date().toLocaleDateString() + '</p>';
+  emailHtml += '</div>';
+
+  emailHtml += '<div style="background:#fff;padding:24px;border:1px solid #e5e7eb">';
+
+  // Quick Stats
+  emailHtml += '<div style="display:flex;gap:16px;margin-bottom:24px;text-align:center">';
+  [
+    { label: 'Total', value: ALL_LEADS.length, color: '#0D3B4F' },
+    { label: 'Hot', value: hot.length, color: '#22c55e' },
+    { label: 'New Today', value: newLeads.length, color: '#3b82f6' },
+    { label: 'Need Follow-up', value: stale.length, color: '#ef4444' }
+  ].forEach(function(s) {
+    emailHtml += '<div style="flex:1;padding:12px;background:#f9fafb;border-radius:8px">';
+    emailHtml += '<div style="font-size:24px;font-weight:800;color:' + s.color + '">' + s.value + '</div>';
+    emailHtml += '<div style="font-size:11px;color:#6b7280">' + s.label + '</div>';
+    emailHtml += '</div>';
+  });
+  emailHtml += '</div>';
+
+  // Hot Leads
+  if (hot.length) {
+    emailHtml += '<h3 style="color:#0D3B4F;font-size:14px;margin:20px 0 8px">Hot Leads (score 75+)</h3>';
+    hot.slice(0, 5).forEach(function(l) {
+      emailHtml += '<div style="padding:8px 0;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between">';
+      emailHtml += '<span style="font-weight:600;font-size:13px">' + esc(l.name) + '</span>';
+      emailHtml += '<span style="color:#22c55e;font-weight:800">' + l.score + '</span>';
+      emailHtml += '</div>';
+    });
+  }
+
+  // Stale leads needing follow-up
+  if (stale.length) {
+    emailHtml += '<h3 style="color:#ef4444;font-size:14px;margin:20px 0 8px">Needs Follow-up (' + stale.length + ')</h3>';
+    stale.slice(0, 5).forEach(function(l) {
+      emailHtml += '<div style="padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px">' + esc(l.name) + ' - ' + esc(l.source || '') + '</div>';
+    });
+  }
+
+  emailHtml += '</div>';
+  emailHtml += '<div style="background:#f9fafb;padding:16px;text-align:center;border-radius:0 0 12px 12px;border:1px solid #e5e7eb;border-top:none">';
+  emailHtml += '<a href="' + window.location.origin + '/dashboard/ylopo-contacts" style="display:inline-block;padding:10px 24px;background:#0D3B4F;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Open Dashboard</a>';
+  emailHtml += '</div></body></html>';
+
+  var w = window.open('', '_blank');
+  if (w) {
+    w.document.write(emailHtml);
+    w.document.close();
+    toast('Digest email preview opened', 'success');
+  } else {
+    toast('Pop-up blocked', 'error');
+  }
+}
+
+// -------------------------------------------------------
+// LEAD ENGAGEMENT SPARKLINES
+// -------------------------------------------------------
+function renderSparkline(containerId, data, color) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var max = Math.max.apply(null, data) || 1;
+  var width = el.offsetWidth || 80;
+  var height = 24;
+  var stepX = width / (data.length - 1 || 1);
+
+  var points = data.map(function(v, i) {
+    return (i * stepX) + ',' + (height - (v / max * height));
+  }).join(' ');
+
+  el.innerHTML = '<svg width="' + width + '" height="' + height + '" style="display:block"><polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+function addSparklinesToTable() {
+  ALL_LEADS.forEach(function(lead) {
+    var sparkId = 'spark-' + lead.id;
+    var el = document.getElementById(sparkId);
+    if (!el) return;
+
+    // Generate mock weekly data from available metrics
+    var data = [];
+    var base = lead.matrix.views + lead.matrix.saves + lead.matrix.searches;
+    for (var w = 0; w < 8; w++) {
+      data.push(Math.max(0, base + Math.round((Math.random() - 0.5) * base * 0.6)));
+    }
+    var color = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? '#5DADE2' : '#888';
+    renderSparkline(sparkId, data, color);
+  });
+}
+
+// -------------------------------------------------------
+// LEAD SCORE HISTORY TRACKING
+// -------------------------------------------------------
+var SCORE_HISTORY_KEY = 'score_history';
+function recordScoreSnapshot() {
+  var history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY)) || {};
+  var today = new Date().toISOString().split('T')[0];
+  ALL_LEADS.forEach(function(lead) {
+    if (!history[lead.id]) history[lead.id] = [];
+    var last = history[lead.id][history[lead.id].length - 1];
+    if (!last || last.date !== today) {
+      history[lead.id].push({ date: today, score: lead.score });
+      if (history[lead.id].length > 90) history[lead.id].shift();
+    }
+  });
+  localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(history));
+}
+
+function showScoreHistory(leadId) {
+  var lead = ALL_LEADS.find(function(l) { return l.id === leadId; });
+  if (!lead) return;
+  var history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY)) || {};
+  var data = history[leadId] || [{ date: new Date().toISOString().split('T')[0], score: lead.score }];
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var maxScore = Math.max.apply(null, data.map(function(d) { return d.score; })) || 100;
+  var chartWidth = 500;
+  var chartHeight = 150;
+  var stepX = data.length > 1 ? chartWidth / (data.length - 1) : chartWidth;
+
+  var points = data.map(function(d, i) {
+    return Math.round(i * stepX) + ',' + Math.round(chartHeight - (d.score / maxScore * chartHeight));
+  }).join(' ');
+
+  var fillPoints = '0,' + chartHeight + ' ' + points + ' ' + Math.round((data.length - 1) * stepX) + ',' + chartHeight;
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Score History: ' + esc(lead.name) + '</h2>';
+  html += '<div style="font-size:36px;font-weight:800;color:#00ff55;margin-bottom:16px">' + lead.score + ' <span style="font-size:14px;color:var(--text-secondary)">current</span></div>';
+  html += '<svg width="' + chartWidth + '" height="' + (chartHeight + 30) + '" style="width:100%;display:block">';
+  html += '<polygon points="' + fillPoints + '" fill="rgba(0,255,85,0.1)"/>';
+  html += '<polyline points="' + points + '" fill="none" stroke="#00ff55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  data.forEach(function(d, i) {
+    var x = Math.round(i * stepX);
+    var y = Math.round(chartHeight - (d.score / maxScore * chartHeight));
+    html += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="#00ff55"/>';
+    if (i === 0 || i === data.length - 1 || i % Math.ceil(data.length / 6) === 0) {
+      html += '<text x="' + x + '" y="' + (chartHeight + 18) + '" fill="var(--text-secondary)" font-size="9" text-anchor="middle">' + d.date.slice(5) + '</text>';
+    }
+  });
+  html += '</svg>';
+  html += '<div style="margin-top:12px;font-size:11px;color:var(--text-secondary)">' + data.length + ' data points tracked</div>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// AUTO-TAG RULES ENGINE
+// -------------------------------------------------------
+var AUTO_TAG_RULES_KEY = 'auto_tag_rules';
+function getAutoTagRules() {
+  try { return JSON.parse(localStorage.getItem(AUTO_TAG_RULES_KEY)) || []; } catch(e) { return []; }
+}
+
+function showAutoTagRules() {
+  var rules = getAutoTagRules();
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Auto-Tag Rules</h2>';
+  html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Automatically apply tags when conditions are met.</p>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:16px;align-items:end">';
+  html += '<div><label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">When</label>';
+  html += '<select id="autoTagCondition" style="width:100%;padding:6px;border:1px solid var(--card-border);border-radius:6px;background:var(--surface,var(--bg));color:var(--text);font-size:12px">';
+  html += '<option value="score_above">Score above</option><option value="score_below">Score below</option>';
+  html += '<option value="source_is">Source is</option><option value="no_activity">No activity for days</option>';
+  html += '<option value="has_showing">Has showing</option>';
+  html += '</select></div>';
+  html += '<div><label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Value</label>';
+  html += '<input type="text" id="autoTagValue" placeholder="75" style="width:100%;padding:6px;border:1px solid var(--card-border);border-radius:6px;background:var(--surface,var(--bg));color:var(--text);font-size:12px;box-sizing:border-box"></div>';
+  html += '<div><label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Apply Tag</label>';
+  html += '<input type="text" id="autoTagName" placeholder="hot-lead" style="width:100%;padding:6px;border:1px solid var(--card-border);border-radius:6px;background:var(--surface,var(--bg));color:var(--text);font-size:12px;box-sizing:border-box"></div>';
+  html += '<button onclick="addAutoTagRule()" style="padding:6px 12px;background:var(--brand-primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">+ Add</button>';
+  html += '</div>';
+
+  if (rules.length) {
+    rules.forEach(function(r, i) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface,var(--bg));border-radius:8px;margin-bottom:8px">';
+      html += '<div style="font-size:12px;color:var(--text)">When <strong>' + esc(r.condition) + '</strong> = <strong>' + esc(r.value) + '</strong> &rarr; tag: <span style="background:var(--brand-primary);color:#fff;padding:1px 8px;border-radius:4px;font-size:11px">' + esc(r.tag) + '</span></div>';
+      html += '<button onclick="removeAutoTagRule(' + i + ')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px">&#10005;</button>';
+      html += '</div>';
+    });
+    html += '<button onclick="runAutoTagRules()" style="width:100%;padding:10px;background:var(--brand-accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-top:12px">Run Rules Now (' + ALL_LEADS.length + ' leads)</button>';
+  } else {
+    html += '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px">No rules yet. Add one above.</div>';
+  }
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+function addAutoTagRule() {
+  var condition = document.getElementById('autoTagCondition').value;
+  var value = document.getElementById('autoTagValue').value;
+  var tag = document.getElementById('autoTagName').value.trim();
+  if (!tag) { toast('Enter a tag name', 'error'); return; }
+  var rules = getAutoTagRules();
+  rules.push({ condition: condition, value: value, tag: tag });
+  localStorage.setItem(AUTO_TAG_RULES_KEY, JSON.stringify(rules));
+  toast('Rule added', 'success');
+  showAutoTagRules();
+}
+
+function removeAutoTagRule(idx) {
+  var rules = getAutoTagRules();
+  rules.splice(idx, 1);
+  localStorage.setItem(AUTO_TAG_RULES_KEY, JSON.stringify(rules));
+  showAutoTagRules();
+}
+
+function runAutoTagRules() {
+  var rules = getAutoTagRules();
+  var tagged = 0;
+  ALL_LEADS.forEach(function(lead) {
+    rules.forEach(function(r) {
+      var matches = false;
+      if (r.condition === 'score_above' && lead.score > parseInt(r.value)) matches = true;
+      if (r.condition === 'score_below' && lead.score < parseInt(r.value)) matches = true;
+      if (r.condition === 'source_is' && lead.source && lead.source.toLowerCase() === r.value.toLowerCase()) matches = true;
+      if (r.condition === 'has_showing' && lead.matrix.showings > 0) matches = true;
+      if (r.condition === 'no_activity') {
+        var days = Math.floor((Date.now() - new Date(lead.dateUpdated || lead.dateAdded)) / 864e5);
+        if (days >= parseInt(r.value)) matches = true;
+      }
+      if (matches && !lead.tags.includes(r.tag)) {
+        fetch(PROXY_URL + '/contacts/' + lead.id + '/tags', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: [r.tag] })
+        }).then(function() { tagged++; }).catch(function() {});
+      }
+    });
+  });
+  setTimeout(function() {
+    toast('Auto-tag complete: ' + tagged + ' tags applied', 'success');
+    loadData();
+  }, 2000);
+}
+
+// -------------------------------------------------------
+// ACTIVITY HEATMAP CALENDAR (GitHub-style)
+// -------------------------------------------------------
+function showActivityCalendar() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  // Build activity map from lead dates
+  var activityMap = {};
+  ALL_LEADS.forEach(function(lead) {
+    var added = lead.dateAdded ? new Date(lead.dateAdded).toISOString().split('T')[0] : null;
+    var updated = lead.dateUpdated ? new Date(lead.dateUpdated).toISOString().split('T')[0] : null;
+    if (added) activityMap[added] = (activityMap[added] || 0) + 1;
+    if (updated && updated !== added) activityMap[updated] = (activityMap[updated] || 0) + 1;
+  });
+
+  var maxActivity = Math.max.apply(null, Object.values(activityMap).concat([1]));
+  var today = new Date();
+  var weeks = 26; // 6 months
+  var startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - (weeks * 7));
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Activity Calendar</h2>';
+  html += '<div style="display:flex;gap:2px;flex-wrap:wrap">';
+
+  var dayNames = ['S','M','T','W','T','F','S'];
+  html += '<div style="display:flex;flex-direction:column;gap:2px;margin-right:4px">';
+  dayNames.forEach(function(d) {
+    html += '<div style="width:12px;height:12px;font-size:8px;color:var(--text-secondary);display:flex;align-items:center;justify-content:center">' + d + '</div>';
+  });
+  html += '</div>';
+
+  var current = new Date(startDate);
+  // Align to start of week
+  current.setDate(current.getDate() - current.getDay());
+
+  for (var w = 0; w < weeks; w++) {
+    html += '<div style="display:flex;flex-direction:column;gap:2px">';
+    for (var d = 0; d < 7; d++) {
+      var dateStr = current.toISOString().split('T')[0];
+      var count = activityMap[dateStr] || 0;
+      var intensity = count === 0 ? 0 : Math.min(4, Math.ceil(count / maxActivity * 4));
+      var colors = ['var(--card-border)', '#0e4429', '#006d32', '#26a641', '#39d353'];
+      var bg = colors[intensity];
+      var title = dateStr + ': ' + count + ' events';
+      html += '<div style="width:12px;height:12px;border-radius:2px;background:' + bg + '" title="' + title + '"></div>';
+      current.setDate(current.getDate() + 1);
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  html += '<div style="display:flex;align-items:center;gap:4px;margin-top:12px;font-size:10px;color:var(--text-secondary)">Less ';
+  ['var(--card-border)', '#0e4429', '#006d32', '#26a641', '#39d353'].forEach(function(c) {
+    html += '<div style="width:10px;height:10px;border-radius:2px;background:' + c + '"></div>';
+  });
+  html += ' More</div>';
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// LEAD SOURCE ROI CALCULATOR
+// -------------------------------------------------------
+function showSourceROI() {
+  var sourceStats = {};
+  ALL_LEADS.forEach(function(lead) {
+    var src = lead.source || 'Unknown';
+    if (!sourceStats[src]) sourceStats[src] = { total: 0, hot: 0, contacted: 0, pipeline: 0, avgScore: 0, showings: 0 };
+    sourceStats[src].total++;
+    if (lead.score >= 75) sourceStats[src].hot++;
+    if (lead.tags.includes('contacted')) sourceStats[src].contacted++;
+    if (lead.tags.includes('pipeline') || lead.tags.includes('pending')) sourceStats[src].pipeline++;
+    sourceStats[src].avgScore += lead.score;
+    sourceStats[src].showings += lead.matrix.showings;
+  });
+
+  var sources = Object.keys(sourceStats).map(function(src) {
+    var s = sourceStats[src];
+    s.name = src;
+    s.avgScore = Math.round(s.avgScore / (s.total || 1));
+    s.hotRate = s.total > 0 ? Math.round(s.hot / s.total * 100) : 0;
+    s.contactRate = s.total > 0 ? Math.round(s.contacted / s.total * 100) : 0;
+    s.pipelineRate = s.total > 0 ? Math.round(s.pipeline / s.total * 100) : 0;
+    return s;
+  }).sort(function(a, b) { return b.pipelineRate - a.pipelineRate; });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:800px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Lead Source ROI Analysis</h2>';
+
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<tr style="border-bottom:2px solid var(--card-border)">';
+  html += '<th style="text-align:left;padding:8px;color:var(--text-secondary)">Source</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Leads</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Avg Score</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Hot %</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Contact %</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Pipeline %</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Showings</th>';
+  html += '<th style="padding:8px;color:var(--text-secondary)">Grade</th>';
+  html += '</tr>';
+
+  sources.forEach(function(s, i) {
+    var grade = s.pipelineRate >= 10 ? 'A' : s.hotRate >= 30 ? 'B' : s.avgScore >= 40 ? 'C' : 'D';
+    var gradeColor = grade === 'A' ? '#00ff55' : grade === 'B' ? 'var(--brand-accent)' : grade === 'C' ? '#f59e0b' : '#ef4444';
+    var bg = i % 2 === 0 ? 'var(--surface,var(--bg))' : 'transparent';
+    html += '<tr style="background:' + bg + '">';
+    html += '<td style="padding:8px;font-weight:600;color:var(--text)">' + esc(s.name) + '</td>';
+    html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.total + '</td>';
+    html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.avgScore + '</td>';
+    html += '<td style="padding:8px;text-align:center;color:' + (s.hotRate >= 30 ? '#00ff55' : 'var(--text)') + '">' + s.hotRate + '%</td>';
+    html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.contactRate + '%</td>';
+    html += '<td style="padding:8px;text-align:center;color:' + (s.pipelineRate >= 10 ? '#00ff55' : 'var(--text)') + ';font-weight:700">' + s.pipelineRate + '%</td>';
+    html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.showings + '</td>';
+    html += '<td style="padding:8px;text-align:center"><span style="font-weight:800;font-size:16px;color:' + gradeColor + '">' + grade + '</span></td>';
+    html += '</tr>';
+  });
+
+  html += '</table></div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// DATA QUALITY SCORE
+// -------------------------------------------------------
+function showDataQuality() {
+  var qualityData = ALL_LEADS.map(function(lead) {
+    var raw = RAW_CONTACTS[lead.id] || {};
+    var ext = getExtendedData(raw);
+    var score = 0;
+    var fields = 0;
+    var total = 8;
+
+    if (lead.name && lead.name !== 'Unknown') { score++; } fields++;
+    if (lead.email) { score++; } fields++;
+    if (lead.phone) { score++; } fields++;
+    if (ext.address || ext.city) { score++; } fields++;
+    if (lead.source && lead.source !== 'Unknown') { score++; } fields++;
+    if (lead.tags && lead.tags.length > 0) { score++; } fields++;
+    if (ext.beds || ext.baths || ext.price) { score++; } fields++;
+    if (lead.matrix.views > 0 || lead.matrix.saves > 0) { score++; } fields++;
+
+    return { lead: lead, quality: Math.round(score / total * 100), missing: total - score };
+  });
+
+  var avgQuality = Math.round(qualityData.reduce(function(sum, d) { return sum + d.quality; }, 0) / qualityData.length);
+  var poorLeads = qualityData.filter(function(d) { return d.quality < 50; });
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
+  html += '<h2 style="margin:0 0 20px;color:var(--text)">Data Quality Report</h2>';
+
+  var qColor = avgQuality >= 80 ? '#00ff55' : avgQuality >= 60 ? '#f59e0b' : '#ef4444';
+  html += '<div style="text-align:center;margin-bottom:24px">';
+  html += '<div style="font-size:56px;font-weight:800;color:' + qColor + '">' + avgQuality + '%</div>';
+  html += '<div style="font-size:13px;color:var(--text-secondary)">Average Data Quality</div>';
+  html += '</div>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">';
+  var excellent = qualityData.filter(function(d) { return d.quality >= 80; }).length;
+  var good = qualityData.filter(function(d) { return d.quality >= 50 && d.quality < 80; }).length;
+  var poor = poorLeads.length;
+
+  html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#00ff55">' + excellent + '</div><div style="font-size:11px;color:var(--text-secondary)">Excellent (80%+)</div></div>';
+  html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#f59e0b">' + good + '</div><div style="font-size:11px;color:var(--text-secondary)">Good (50-79%)</div></div>';
+  html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#ef4444">' + poor + '</div><div style="font-size:11px;color:var(--text-secondary)">Poor (&lt;50%)</div></div>';
+  html += '</div>';
+
+  if (poorLeads.length) {
+    html += '<h3 style="color:var(--text);font-size:13px;margin-bottom:8px">Incomplete Records (' + poorLeads.length + ')</h3>';
+    poorLeads.slice(0, 10).forEach(function(d) {
+      html += '<div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid var(--card-border);font-size:12px">';
+      html += '<span style="color:var(--text)">' + esc(d.lead.name) + '</span>';
+      html += '<span style="color:#ef4444;font-weight:700">' + d.quality + '% (' + d.missing + ' missing)</span>';
+      html += '</div>';
+    });
+  }
+
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// KEYBOARD SHORTCUTS
+// -------------------------------------------------------
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', function(e) {
+    // Skip if typing in input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      showShortcutsHelp();
+    }
+    if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      loadData();
+    }
+    if (e.key === 'i' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      generateAIInsights();
+    }
+    if (e.key === 'k' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      showPipelineKanban();
+    }
+    if (e.key === 'd' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      showDailyDigest();
+    }
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      var searchEl = document.getElementById('searchInput');
+      if (searchEl) searchEl.focus();
+    }
+    if (e.key === 'Escape') {
+      var overlays = document.querySelectorAll('[style*="position:fixed"][style*="z-index:9999"]');
+      if (overlays.length) overlays[overlays.length - 1].remove();
+    }
+  });
+}
+
+function showShortcutsHelp() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var shortcuts = [
+    { key: '?', desc: 'Show this help' },
+    { key: 'R', desc: 'Refresh data' },
+    { key: 'I', desc: 'AI Insights' },
+    { key: 'K', desc: 'Pipeline Kanban' },
+    { key: 'D', desc: 'Daily Digest' },
+    { key: '/', desc: 'Focus search bar' },
+    { key: 'Esc', desc: 'Close overlay' }
+  ];
+
+  var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:400px;width:100%;padding:24px">';
+  html += '<h2 style="margin:0 0 16px;color:var(--text)">Keyboard Shortcuts</h2>';
+  shortcuts.forEach(function(s) {
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--card-border)">';
+    html += '<span style="font-size:13px;color:var(--text)">' + s.desc + '</span>';
+    html += '<kbd style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:4px;padding:2px 8px;font-family:monospace;font-size:12px;font-weight:700;color:var(--text)">' + s.key + '</kbd>';
+    html += '</div>';
+  });
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+// -------------------------------------------------------
+// WIRE BULK STUBS TO GHL API
+// -------------------------------------------------------
+function bulkAddTag(leadId, tag) {
+  logAuditEvent('Bulk Tag', 'Added tag "' + tag + '" to lead ' + leadId);
+  return fetch(PROXY_URL + '/contacts/' + leadId + '/tags', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tags: [tag] })
+  });
+}
+
+function bulkAdjustScore(leadId, delta) {
+  logAuditEvent('Bulk Score', 'Adjusted score by ' + delta + ' for lead ' + leadId);
+  return fetch(PROXY_URL + '/contacts/' + leadId, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ customField: [{ key: 'lead_score', field_value: String(delta) }] })
+  });
+}
+
+function bulkAssignAgent(leadId, agentName) {
+  var agentId = null;
+  Object.keys(GHL_USER_MAP).forEach(function(id) {
+    if (GHL_USER_MAP[id].toLowerCase().includes(agentName.toLowerCase())) agentId = id;
+  });
+  if (!agentId) { return Promise.resolve(); }
+  logAuditEvent('Bulk Assign', 'Assigned to ' + agentName + ' for lead ' + leadId);
+  return fetch(PROXY_URL + '/contacts/' + leadId, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assignedTo: agentId })
+  });
+}
+
+// -------------------------------------------------------
+// MOBILE-OPTIMIZED VIEW
+// -------------------------------------------------------
+function toggleMobileView() {
+  var body = document.body;
+  if (body.classList.contains('mobile-mode')) {
+    body.classList.remove('mobile-mode');
+    toast('Desktop view restored', 'info');
+  } else {
+    body.classList.add('mobile-mode');
+    toast('Mobile view enabled', 'info');
+  }
+}
+
 // INIT
 // -------------------------------------------------------
 document.addEventListener('DOMContentLoaded', function() {
-  loadGHLTeam().then(function() { loadData(); });
+  var s = loadSettings();
+  PAGE_SIZE = s.pageSize || 25;
+  SORT_KEY = s.defaultSort || 'score_desc';
+  if (s.defaultView === 'cards') setTimeout(function() { setView('cards'); }, 100);
+  setupAutoRefresh(s);
+  connectSSE();
+  renderSmartLists();
+  initTypeahead();
+  initKeyboardShortcuts();
+  loadGHLTeam().then(function() { loadData().then(function() { recordScoreSnapshot(); }); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
@@ -5208,6 +11718,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <div class="page-nav">
       <a href="/dashboard">\u{1F3E0} Hub</a>
       <a href="/dashboard/ylopo-contacts">\u{1F4CB} Contacts</a>
+      <a href="/dashboard/ylopo-contacts#source">\u{1F4C8} Sources</a>
       <a href="/dashboard/priority-leads">\u{1F525} Priority</a>
       <a href="/dashboard/ylopo-analytics" class="active">\u{1F4CA} Analytics</a>
     </div>
@@ -5229,11 +11740,12 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
     </button>
     <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" style="color:#111">30 Days</option>
-      <option value="60" style="color:#111">60 Days</option>
       <option value="30" selected style="color:#111">30 Days</option>
+      <option value="60" style="color:#111">60 Days</option>
+      <option value="90" style="color:#111">90 Days</option>
       <option value="180" style="color:#111">6 Months</option>
       <option value="365" style="color:#111">1 Year</option>
+      <option value="0" style="color:#111">All Time</option>
     </select>
     <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600">60d</span>
     <button class="hdr-btn" title="Refresh Data" onclick="loadData()" style="font-size:16px;background:rgba(34,197,94,0.2)">\u{1F504}</button>
@@ -6225,7 +12737,7 @@ function buildAccordion(lead) {
   const convPct = Math.min(lead.score, 100);
   const cl = convLabel(lead.score);
   const ghlUrl = GHL_CONTACT_BASE + lead.id;
-  // Build Ylopo link — only show if real Ylopo data exists
+  // Build Ylopo link \u2014 only show if real Ylopo data exists
   const ylopoUrl = getYlopoUrl(lead.id);
 
   return \`<div class="detail-inner">
@@ -6540,7 +13052,7 @@ function renderTable() {
       const scoreCls = l.score>=70?'score-high':l.score>=40?'score-mid':'score-low';
       const ghlUrl = GHL_CONTACT_BASE + l.id;
       const contactInfo = \`<div style="font-size:12px;color:var(--text-secondary)">\${l.email?\`<a href="mailto:\${l.email}" style="color:var(--text-secondary);text-decoration:none" title="\${l.email}">\${l.email}</a>\`:''}<br>\${l.phone?\`<a href="tel:\${l.phone}" style="color:var(--text-secondary);text-decoration:none">\${l.phone}</a>\`:''}</div>\`;
-      // Ylopo URL — only show if real Ylopo data exists
+      // Ylopo URL \u2014 only show if real Ylopo data exists
       const yUrl = getYlopoUrl(l.id);
       // Name tooltip
       const showTooltip = l.name.length > 20;
@@ -6802,7 +13314,7 @@ function buildYlopoSellerReportUrl(contact) {
 
 /* =============================== LOCAL STORAGE CACHE =============================== */
 const CACHE_KEY = 'ylopo_analytics_cache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 0; // Always fetch fresh data on page load
 
 function loadFromCache() {
   try {
@@ -6834,17 +13346,10 @@ function isCacheFresh() {
 }
 
 async function loadData(forceRefresh) {
-  // Show cached data instantly if available
-  const hadCache = loadFromCache();
-  if (hadCache && isCacheFresh() && !forceRefresh) {
-    toast('Loaded from cache \u2014 synced with GHL', 'success');
-    return; // Cache is fresh, no need to fetch
-  }
-  if (hadCache) {
-    toast('Showing cached data, syncing with GHL...', 'info');
-  }
+  // Always clear stale cache and fetch fresh data from Ylopo/GHL
+  try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   try {
-    if (!hadCache) toast(\`Fetching last \${LOAD_DAYS} days of leads...\`,'info');
+    toast(LOAD_DAYS > 0 ? \`Fetching last \${LOAD_DAYS} days of leads...\` : 'Fetching all leads...','info');
     const progress = el('loadProgress');
     const fill = el('loadFill');
     const ptext = el('loadText');
@@ -6899,7 +13404,7 @@ async function loadData(forceRefresh) {
 
     // Update date range display
     const rangeEl = el('dateRangeInfo');
-    if(rangeEl) rangeEl.textContent = \`\${LOAD_DAYS}d \xB7 \${ALL_LEADS.length} contacts\`;
+    if(rangeEl) rangeEl.textContent = (LOAD_DAYS > 0 ? \`\${LOAD_DAYS}d\` : 'All') + \` \xB7 \${ALL_LEADS.length} contacts\`;
 
     setTimeout(() => { progress.style.display = 'none'; }, 3000);
   } catch (err) {
@@ -7051,6 +13556,176 @@ function renderSourcePerf(leads) {
       <td><div class="src-bar-wrap"><div class="src-bar" style="width:\${Math.round(s.count/maxCount*100)}%;background:\${colors[i%colors.length]}"></div></div></td>
     </tr>\`).join('')}</tbody>
   </table>\`;
+}
+
+/* =============================== SOURCE TAB (Contacts Page) =============================== */
+var SOURCE_TAB_DATA = [];
+var SOURCE_TAB_SORT = { key: 'count', dir: -1 };
+
+function sortSourceTable(key) {
+  if (SOURCE_TAB_SORT.key === key) SOURCE_TAB_SORT.dir *= -1;
+  else { SOURCE_TAB_SORT.key = key; SOURCE_TAB_SORT.dir = -1; }
+  renderSourceTableBody();
+}
+
+function getSourceColor(name) {
+  var s = (name || '').toLowerCase();
+  if (s.indexOf('ylopo') !== -1) return { bg: 'rgba(234,179,8,0.15)', fg: '#eab308' };
+  if (s.indexOf('zillow') !== -1) return { bg: 'rgba(59,130,246,0.15)', fg: '#3b82f6' };
+  if (s.indexOf('realtor') !== -1) return { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444' };
+  if (s.indexOf('homes') !== -1) return { bg: 'rgba(249,115,22,0.15)', fg: '#f97316' };
+  if (s.indexOf('myplus') !== -1 || s.indexOf('my+') !== -1 || s.indexOf('plus leads') !== -1) return { bg: 'rgba(139,92,246,0.15)', fg: '#8b5cf6' };
+  return { bg: 'rgba(100,116,139,0.15)', fg: '#94a3b8' };
+}
+
+function renderSourceTab() {
+  var leads = FILTERED_CONTACTS && FILTERED_CONTACTS.length ? FILTERED_CONTACTS : (window.ALL_LEADS || []);
+  if (!leads.length) { el('sourceKPIs').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No lead data available</div>'; return; }
+
+  // Build source map
+  var srcMap = {};
+  var now = Date.now();
+  var weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  leads.forEach(function(l) {
+    var s = l.source || 'Unknown';
+    if (!srcMap[s]) srcMap[s] = { name: s, count: 0, totalScore: 0, hot: 0, warm: 0, cold: 0, showings: 0, views: 0, saves: 0, searches: 0, buyers: 0, sellers: 0, recent: 0 };
+    var d = srcMap[s];
+    d.count++;
+    d.totalScore += (l.score || 0);
+    if (l.status === 'HOT') d.hot++;
+    else if (l.status === 'WARM') d.warm++;
+    else d.cold++;
+    var m = l.matrix || {};
+    d.showings += (m.showings || 0);
+    d.views += (m.views || 0);
+    d.saves += (m.saves || 0);
+    d.searches += (m.searches || 0);
+    var pt = (l.propType || '').toLowerCase();
+    if (pt.indexOf('seller') !== -1) d.sellers++;
+    else if (pt.indexOf('buyer') !== -1) d.buyers++;
+    if (l.dateAdded && new Date(l.dateAdded).getTime() > weekAgo) d.recent++;
+  });
+
+  SOURCE_TAB_DATA = Object.values(srcMap).map(function(d) {
+    d.avgScore = d.count ? Math.round(d.totalScore / d.count) : 0;
+    d.hotRate = d.count ? Math.round(d.hot / d.count * 100) : 0;
+    return d;
+  });
+
+  // KPI Cards
+  var totalSources = SOURCE_TAB_DATA.length;
+  var topSource = SOURCE_TAB_DATA.slice().sort(function(a,b) { return b.count - a.count; })[0];
+  var bestQuality = SOURCE_TAB_DATA.slice().sort(function(a,b) { return b.avgScore - a.avgScore; })[0];
+  var mostShowings = SOURCE_TAB_DATA.slice().sort(function(a,b) { return b.showings - a.showings; })[0];
+
+  el('sourceKPIs').innerHTML =
+    '<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + totalSources + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div>' +
+    '</div>' +
+    '<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:28px;font-weight:800;color:var(--green)">' + (topSource ? topSource.count : 0) + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + (topSource ? topSource.name : '\u2014') + '</div>' +
+    '</div>' +
+    '<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:28px;font-weight:800;color:var(--blue)">' + (bestQuality ? bestQuality.avgScore : 0) + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + (bestQuality ? bestQuality.name : '\u2014') + '</div>' +
+    '</div>' +
+    '<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
+      '<div style="font-size:28px;font-weight:800;color:var(--orange)">' + (mostShowings ? mostShowings.showings : 0) + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + (mostShowings ? mostShowings.name : '\u2014') + '</div>' +
+    '</div>';
+
+  renderSourceTableBody();
+  renderSourceCharts();
+}
+
+function renderSourceTableBody() {
+  var data = SOURCE_TAB_DATA.slice().sort(function(a,b) {
+    var av = a[SOURCE_TAB_SORT.key], bv = b[SOURCE_TAB_SORT.key];
+    if (typeof av === 'string') return SOURCE_TAB_SORT.dir * av.localeCompare(bv);
+    return SOURCE_TAB_SORT.dir * (av - bv);
+  });
+  var maxCount = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+
+  el('sourcePerfBody').innerHTML = data.map(function(d) {
+    var c = getSourceColor(d.name);
+    var qualityLabel = d.avgScore >= 70 ? 'Excellent' : d.avgScore >= 50 ? 'Good' : d.avgScore >= 30 ? 'Fair' : 'Low';
+    var qualityColor = d.avgScore >= 70 ? '#22c55e' : d.avgScore >= 50 ? '#3b82f6' : d.avgScore >= 30 ? '#f59e0b' : '#ef4444';
+    var pct = Math.round(d.count / maxCount * 100);
+    return '<tr style="border-bottom:1px solid var(--card-border)">' +
+      '<td style="padding:10px 12px"><span style="display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;background:' + c.bg + ';color:' + c.fg + '">' + d.name + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.count + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:#ef4444">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:#f59e0b">' + d.warm + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:#3b82f6">' + d.cold + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + qualityColor + '22;color:' + qualityColor + '">' + d.avgScore + '</span></td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:600">' + d.showings + '</td>' +
+      '<td style="padding:10px 12px;text-align:center"><span style="font-size:11px;font-weight:600;color:' + qualityColor + '">' + qualityLabel + '</span></td>' +
+      '<td style="padding:10px 12px;width:150px"><div style="background:var(--card-border);border-radius:4px;height:8px;overflow:hidden"><div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + c.fg + ';transition:width 0.3s"></div></div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderSourceCharts() {
+  var data = SOURCE_TAB_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 10);
+  var maxCount = Math.max.apply(null, data.map(function(d) { return d.count; }).concat([1]));
+
+  // Distribution chart
+  el('sourceDistChart').innerHTML = data.map(function(d) {
+    var c = getSourceColor(d.name);
+    var pct = Math.round(d.count / maxCount * 100);
+    return '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + d.name + '</span>' +
+      '<div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden">' +
+        '<div style="width:' + pct + '%;height:100%;border-radius:4px;background:' + c.fg + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.count + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Hot lead rate chart
+  var hotData = data.slice().sort(function(a,b) { return b.hotRate - a.hotRate; });
+  el('sourceHotChart').innerHTML = hotData.map(function(d) {
+    var c = getSourceColor(d.name);
+    var barColor = d.hotRate >= 30 ? '#ef4444' : d.hotRate >= 15 ? '#f59e0b' : '#3b82f6';
+    return '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + d.name + '</span>' +
+      '<div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden">' +
+        '<div style="width:' + Math.max(d.hotRate, 2) + '%;height:100%;border-radius:4px;background:' + barColor + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.hotRate + '%</div>' +
+      '</div>' +
+      '<span style="font-size:11px;color:var(--text-muted);min-width:30px">' + d.hot + '/' + d.count + '</span>' +
+    '</div>';
+  }).join('');
+
+  // Buyer vs Seller chart
+  var typeData = data.filter(function(d) { return d.buyers + d.sellers > 0; }).slice(0, 8);
+  el('sourceTypeChart').innerHTML = typeData.length ? typeData.map(function(d) {
+    var total = d.buyers + d.sellers;
+    var bPct = total ? Math.round(d.buyers / total * 100) : 0;
+    var sPct = 100 - bPct;
+    return '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + d.name + '</span>' +
+      '<div style="flex:1;display:flex;border-radius:4px;height:20px;overflow:hidden">' +
+        (d.buyers ? '<div style="width:' + bPct + '%;height:100%;background:#10b981;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (bPct > 15 ? d.buyers + ' B' : '') + '</div>' : '') +
+        (d.sellers ? '<div style="width:' + sPct + '%;height:100%;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">' + (sPct > 15 ? d.sellers + ' S' : '') + '</div>' : '') +
+      '</div>' +
+      '<span style="font-size:11px;color:var(--text-muted);min-width:50px">' + d.buyers + 'B/' + d.sellers + 'S</span>' +
+    '</div>';
+  }).join('') : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">No buyer/seller type data available</div>';
+
+  // Recent activity chart
+  var recentData = data.slice().sort(function(a,b) { return b.recent - a.recent; });
+  var maxRecent = Math.max.apply(null, recentData.map(function(d) { return d.recent; }).concat([1]));
+  el('sourceRecentChart').innerHTML = recentData.map(function(d) {
+    var c = getSourceColor(d.name);
+    var pct = Math.round(d.recent / maxRecent * 100);
+    return '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="min-width:100px;font-size:12px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + d.name + '</span>' +
+      '<div style="flex:1;background:var(--card-border);border-radius:4px;height:20px;overflow:hidden">' +
+        '<div style="width:' + Math.max(pct, 2) + '%;height:100%;border-radius:4px;background:' + c.fg + ';display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:10px;font-weight:700;color:#fff;min-width:30px">' + d.recent + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 /* =============================== PRICE HISTOGRAM =============================== */
@@ -8516,7 +15191,7 @@ function getYlopoUrl(contactId) {
   // 3. Ylopo Stars link field
   const starsLink = getCF(raw,['ylopo_stars_link_profile_card_link','ylopo_stars_link','fub_ylopo_stars_link','ypriority']);
   if (starsLink && starsLink.startsWith('http')) return starsLink;
-  // No valid Ylopo link found — return empty (no icon shown)
+  // No valid Ylopo link found \u2014 return empty (no icon shown)
   return '';
 }
 
@@ -9761,7 +16436,7 @@ function initCompanyListings() {
 
 /* =============================== LISTING ACTIVITY CARDS =============================== */
 function buildYlopoContactUrl(raw, lead) {
-  // Delegate to central getYlopoUrl — only returns URL if real Ylopo data exists
+  // Delegate to central getYlopoUrl \u2014 only returns URL if real Ylopo data exists
   return getYlopoUrl(lead.id);
 }
 
@@ -11650,7 +18325,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 document.addEventListener('DOMContentLoaded',()=>{
-  loadGHLTeam().then(() => loadData()); // Load team first, then contacts
+  loadGHLTeam().then(() => loadData(true)); // Always fetch fresh on page load
   refreshInterval=setInterval(quickRefresh,60000); // Light refresh thereafter
   initSSE(); // Try SSE connection for live updates
   document.querySelectorAll('.filter-tab[data-filter]').forEach(btn=>{
@@ -11677,15 +18352,15 @@ document.addEventListener('DOMContentLoaded',()=>{
 </html>
 `;
 async function ghl(env, method, path, body = null, useV2 = false) {
-  const base = useV2 ? GHL_V2 : GHL_V1;
-  const token = env.GHL_API_KEY;
+  const base = GHL_V2;
+  const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
   const url = `${base}${path}`;
   const headers = {
     "Authorization": `Bearer ${token}`,
     "Content-Type": "application/json",
     "Version": "2021-07-28"
   };
-  const init = { method, headers };
+  const init = { method, headers, signal: AbortSignal.timeout(15e3) };
   if (body) init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
@@ -11701,6 +18376,7 @@ async function ghl(env, method, path, body = null, useV2 = false) {
   return data;
 }
 __name(ghl, "ghl");
+__name2(ghl, "ghl");
 async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
   try {
     return await ghl(env, method, path, body, useV2);
@@ -11714,6 +18390,7 @@ async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 
   }
 }
 __name(ghlSafe, "ghlSafe");
+__name2(ghlSafe, "ghlSafe");
 async function ghlV2(env, method, path, body = null) {
   const token = env.GHL_V2_TOKEN;
   if (!token) throw { status: 401, data: "GHL_V2_TOKEN not set" };
@@ -11723,16 +18400,21 @@ async function ghlV2(env, method, path, body = null) {
     "Content-Type": "application/json",
     "Version": "2021-07-28"
   };
-  const init = { method, headers };
+  const init = { method, headers, signal: AbortSignal.timeout(15e3) };
   if (body) init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); } catch { data = text; }
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
   if (!res.ok) throw { status: res.status, data };
   return data;
 }
 __name(ghlV2, "ghlV2");
+__name2(ghlV2, "ghlV2");
 var _fieldDefsCache = null;
 var _fieldDefsCachedAt = 0;
 async function getFieldDefs(env) {
@@ -11759,6 +18441,7 @@ async function getFieldDefs(env) {
   }
 }
 __name(getFieldDefs, "getFieldDefs");
+__name2(getFieldDefs, "getFieldDefs");
 async function enrichCustomFields(env, customFields) {
   if (!customFields || customFields.length === 0) return customFields;
   const needsEnrichment = customFields.some((f) => !f.fieldKey && f.id);
@@ -11776,13 +18459,18 @@ async function enrichCustomFields(env, customFields) {
   });
 }
 __name(enrichCustomFields, "enrichCustomFields");
+__name2(enrichCustomFields, "enrichCustomFields");
 async function fetchYlopoEvents(env, contactId) {
   if (!env.GHL_V2_TOKEN) return [];
   const locId = env.GHL_LOCATION_ID || LOC_ID;
   try {
     const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
-      locationId: locId, searchKey: "contact", searchValue: contactId,
-      page: 1, pageLimit: 20, sort: { field: "createdAt", direction: "desc" }
+      locationId: locId,
+      searchKey: "contact",
+      searchValue: contactId,
+      page: 1,
+      pageLimit: 20,
+      sort: { field: "createdAt", direction: "desc" }
     });
     return data.records || data.data || [];
   } catch (e) {
@@ -11791,19 +18479,21 @@ async function fetchYlopoEvents(env, contactId) {
   }
 }
 __name(fetchYlopoEvents, "fetchYlopoEvents");
+__name2(fetchYlopoEvents, "fetchYlopoEvents");
 var _allYlopoEventsCache = null;
 var _allYlopoEventsCachedAt = 0;
 async function fetchAllYlopoEvents(env) {
   if (!env.GHL_V2_TOKEN) return [];
   const now = Date.now();
-  if (_allYlopoEventsCache && now - _allYlopoEventsCachedAt < 6e4) return _allYlopoEventsCache;
   const locId = env.GHL_LOCATION_ID || LOC_ID;
   const allRecords = [];
   let page = 1;
   try {
     while (page <= 20) {
       const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
-        locationId: locId, page, pageLimit: 100
+        locationId: locId,
+        page,
+        pageLimit: 100
       });
       const records = data.records || data.data || [];
       allRecords.push(...records);
@@ -11819,6 +18509,7 @@ async function fetchAllYlopoEvents(env) {
   }
 }
 __name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
+__name2(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 function groupEventsByContact(records) {
   const map = {};
   for (const rec of records) {
@@ -11840,6 +18531,7 @@ function groupEventsByContact(records) {
   return map;
 }
 __name(groupEventsByContact, "groupEventsByContact");
+__name2(groupEventsByContact, "groupEventsByContact");
 function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   if (!ylopoRecords || ylopoRecords.length === 0) return contact;
   const latest = ylopoRecords[0];
@@ -11914,10 +18606,10 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   for (const rec of ylopoRecords) {
     const f = rec.fields || rec.properties || rec;
     let rv = f.views, rs = f.saves;
-    if (typeof rv === 'object' && rv !== null) rv = rv.count || rv.total || rv.value || 0;
-    if (typeof rs === 'object' && rs !== null) rs = rs.count || rs.total || rs.value || 0;
-    if (typeof rv === 'string' && rv.startsWith('[object')) rv = 0;
-    if (typeof rs === 'string' && rs.startsWith('[object')) rs = 0;
+    if (typeof rv === "object" && rv !== null) rv = rv.count || rv.total || rv.value || 0;
+    if (typeof rs === "object" && rs !== null) rs = rs.count || rs.total || rs.value || 0;
+    if (typeof rv === "string" && rv.startsWith("[object")) rv = 0;
+    if (typeof rs === "string" && rs.startsWith("[object")) rs = 0;
     totalViews += Number(rv) || 0;
     totalSaves += Number(rs) || 0;
   }
@@ -11957,6 +18649,7 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   };
 }
 __name(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
+__name2(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
 var YLOPO_TO_GHL_FIELDS = {
   views: "ylopo_last_session_listings_viewed",
   saves: "ylopo_last_session_listings_saved",
@@ -11999,6 +18692,7 @@ async function buildYlopoFieldUpdates(env, ylopoData) {
   return updates;
 }
 __name(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
+__name2(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
 async function lookupByEmail(env, email) {
   try {
     const locId = env.GHL_LOCATION_ID || LOC_ID;
@@ -12013,95 +18707,203 @@ async function lookupByEmail(env, email) {
   }
 }
 __name(lookupByEmail, "lookupByEmail");
+__name2(lookupByEmail, "lookupByEmail");
 var SSE_EVENTS = [];
 function broadcastSSE(event) {
   SSE_EVENTS.push({ ...event, ts: Date.now() });
   if (SSE_EVENTS.length > 100) SSE_EVENTS.shift();
 }
 __name(broadcastSSE, "broadcastSSE");
+__name2(broadcastSSE, "broadcastSSE");
 var index_default = {
   async fetch(request, env) {
+    _currentRequest = request;
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
     const locId = env.GHL_LOCATION_ID || LOC_ID;
     if (method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: corsHeaders({}, request) });
+    }
+    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events") {
+      if (!validateApiKey(request, env)) {
+        return err("Unauthorized", 401);
+      }
+    }
+    if (method === "POST" && path === "/admin/setup-ghl-webhook") {
+      try {
+        const webhookUrl = `${url.protocol}//${url.host}/ghl-webhook`;
+        const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
+        if (!token) return err("No GHL API token configured", 500);
+        const results = { webhookUrl, tokenConfigured: true, steps: [] };
+        let existing = [];
+        try {
+          const listRes = await fetch(`${GHL_V2}/webhooks/?locationId=${locId}`, {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${token}`, "Version": "2021-07-28", "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(1e4)
+          });
+          const listText = await listRes.text();
+          results.steps.push({ step: "list", status: listRes.status, body: listText.substring(0, 500) });
+          try {
+            const listData = JSON.parse(listText);
+            existing = listData.webhooks || listData || [];
+          } catch (e) {
+          }
+        } catch (e) {
+          results.steps.push({ step: "list", error: e.message });
+        }
+        const alreadyExists = Array.isArray(existing) && existing.some(function(w) {
+          return w.url && w.url.includes("/ghl-webhook");
+        });
+        if (alreadyExists) {
+          return json({
+            ok: true,
+            message: "GHL webhook already configured",
+            webhookUrl,
+            existing: existing.filter(function(w) {
+              return w.url && w.url.includes("/ghl-webhook");
+            })
+          });
+        }
+        const webhookEvents = [
+          "ContactCreate",
+          "ContactUpdate",
+          "ContactDelete",
+          "ContactDndUpdate",
+          "ContactTagUpdate",
+          "NoteCreate",
+          "NoteUpdate",
+          "NoteDelete",
+          "TaskCreate",
+          "TaskUpdate",
+          "OpportunityCreate",
+          "OpportunityUpdate",
+          "OpportunityStageUpdate",
+          "InboundMessage",
+          "OutboundMessage"
+        ];
+        const createBody = { url: webhookUrl, events: webhookEvents, locationId: locId };
+        const createRes = await fetch(`${GHL_V2}/webhooks/`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Version": "2021-07-28",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(createBody),
+          signal: AbortSignal.timeout(15e3)
+        });
+        const createText = await createRes.text();
+        results.steps.push({ step: "create", status: createRes.status, body: createText.substring(0, 500) });
+        let createData;
+        try {
+          createData = JSON.parse(createText);
+        } catch (e) {
+          createData = { raw: createText.substring(0, 300) };
+        }
+        if (!createRes.ok) {
+          return json({ ok: false, message: "GHL webhook creation failed", debug: results, response: createData });
+        }
+        return json({
+          ok: true,
+          message: "GHL webhook created successfully! 2-way sync is now active.",
+          webhookUrl,
+          events: webhookEvents,
+          response: createData
+        });
+      } catch (e) {
+        return json({ ok: false, error: "Setup failed: " + (e.message || String(e)), stack: e.stack ? e.stack.substring(0, 300) : null });
+      }
     }
     if (method === "GET" && path === "/health") {
       return json({
         ok: true,
+        status: "ok",
         proxy: "thelistingteamproxy-v8",
-        api: { jwt: "V1 (contacts, fields, tags, notes, tasks)", pit: "V2 (custom objects only)" },
         tokenPresent: !!env.GHL_API_KEY,
         v2TokenPresent: !!env.GHL_V2_TOKEN,
-        features: [
-          "pagination",
-          "fields",
-          "tags",
-          "notes",
-          "tasks",
-          "ylopo-webhook",
-          "ylopo-sync",
-          "ylopo-events"
-        ],
+        attomConfigured: !!env.ATTOM_KEY,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
+    }
+    if (method === "GET" && path === "/health/ghl") {
+      try {
+        const token = env.GHL_API_KEY || env.GHL_V2_TOKEN;
+        if (!token) return json({ status: "down", reason: "No token configured" });
+        const r = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
+          headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28" },
+          signal: AbortSignal.timeout(1e4)
+        });
+        return json({ status: r.ok ? "ok" : "down", code: r.status });
+      } catch (e) {
+        return json({ status: "down", reason: e.message });
+      }
+    }
+    if (method === "GET" && path === "/health/ylopo") {
+      return json({ status: "ok", message: "Webhook endpoint active" });
+    }
+    if (method === "GET" && path === "/health/attom") {
+      return json({ status: env.ATTOM_KEY ? "ok" : "down", configured: !!env.ATTOM_KEY });
     }
     if (method === "GET" && path === "/debug") {
       const results = {};
       const key = env.GHL_API_KEY || "";
       results.keyLength = key.length;
       results.keyPrefix = key.substring(0, 8) + "...";
-      // Test V1
       try {
         const v1Res = await fetch(`${GHL_V1}/contacts/?limit=1`, {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
         });
         const v1Text = await v1Res.text();
         let v1Data;
-        try { v1Data = JSON.parse(v1Text); } catch { v1Data = v1Text.substring(0, 500); }
+        try {
+          v1Data = JSON.parse(v1Text);
+        } catch {
+          v1Data = v1Text.substring(0, 500);
+        }
         results.v1 = { status: v1Res.status, contactCount: v1Data.contacts ? v1Data.contacts.length : "no contacts key", keys: typeof v1Data === "object" ? Object.keys(v1Data) : "not-json" };
       } catch (e) {
         results.v1 = { error: e.message };
       }
-      // Test V2
       try {
         const v2Res = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Version": "2021-07-28" }
         });
         const v2Text = await v2Res.text();
         let v2Data;
-        try { v2Data = JSON.parse(v2Text); } catch { v2Data = v2Text.substring(0, 500); }
+        try {
+          v2Data = JSON.parse(v2Text);
+        } catch {
+          v2Data = v2Text.substring(0, 500);
+        }
         results.v2 = { status: v2Res.status, contactCount: v2Data.contacts ? v2Data.contacts.length : "no contacts key", keys: typeof v2Data === "object" ? Object.keys(v2Data) : "not-json" };
       } catch (e) {
         results.v2 = { error: e.message };
       }
-      // Compare custom fields: V1 (JWT) vs V2 (PIT)
       const pit2 = env.GHL_V2_TOKEN || "";
       try {
         const v1cf = await fetch(`${GHL_V1}/contacts/?limit=1&query=ylopo`, {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
         });
         const v1d = await v1cf.json();
-        const v1fields = (v1d.contacts?.[0]?.customField || []).filter(f => f.value != null && f.value !== "");
+        const v1fields = (v1d.contacts?.[0]?.customField || []).filter((f) => f.value != null && f.value !== "");
         const v2cf = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1&query=ylopo`, {
           headers: { "Authorization": `Bearer ${pit2}`, "Content-Type": "application/json", "Version": "2021-07-28" }
         });
         const v2d = await v2cf.json();
-        const v2fields = (v2d.contacts?.[0]?.customField || []).filter(f => f.value != null && f.value !== "");
+        const v2fields = (v2d.contacts?.[0]?.customField || []).filter((f) => f.value != null && f.value !== "");
         results.fieldComparison = {
           v1FieldCount: v1fields.length,
           v2FieldCount: v2fields.length,
-          v1Sample: v1fields.slice(0, 5).map(f => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
-          v2Sample: v2fields.slice(0, 5).map(f => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
-          v1YlopoFields: v1fields.filter(f => (f.fieldKey||f.key||f.name||"").toLowerCase().includes("ylopo")).map(f => ({ key: f.fieldKey||f.key, val: String(f.value).substring(0, 40) })),
-          v2YlopoFields: v2fields.filter(f => (f.fieldKey||f.key||f.name||"").toLowerCase().includes("ylopo")).map(f => ({ key: f.fieldKey||f.key, val: String(f.value).substring(0, 40) }))
+          v1Sample: v1fields.slice(0, 5).map((f) => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
+          v2Sample: v2fields.slice(0, 5).map((f) => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
+          v1YlopoFields: v1fields.filter((f) => (f.fieldKey || f.key || f.name || "").toLowerCase().includes("ylopo")).map((f) => ({ key: f.fieldKey || f.key, val: String(f.value).substring(0, 40) })),
+          v2YlopoFields: v2fields.filter((f) => (f.fieldKey || f.key || f.name || "").toLowerCase().includes("ylopo")).map((f) => ({ key: f.fieldKey || f.key, val: String(f.value).substring(0, 40) }))
         };
       } catch (e) {
         results.fieldComparison = { error: e.message };
       }
-      // Test V2 PIT token with custom objects
       const pit = env.GHL_V2_TOKEN || "";
       results.pitLength = pit.length;
       results.pitPrefix = pit.substring(0, 12) + "...";
@@ -12113,7 +18915,11 @@ var index_default = {
         });
         const pitText = await pitRes.text();
         let pitData;
-        try { pitData = JSON.parse(pitText); } catch { pitData = pitText.substring(0, 500); }
+        try {
+          pitData = JSON.parse(pitText);
+        } catch {
+          pitData = pitText.substring(0, 500);
+        }
         results.v2pit = { status: pitRes.status, keys: typeof pitData === "object" ? Object.keys(pitData) : "not-json", preview: JSON.stringify(pitData).substring(0, 300) };
       } catch (e) {
         results.v2pit = { error: e.message };
@@ -12198,24 +19004,25 @@ var index_default = {
         const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "20"), 30);
         const query = url.searchParams.get("query") || "";
         const skipYlopo = url.searchParams.get("ylopo") === "false";
-        // Run field defs and Ylopo events in parallel to save time
         const [fieldDefsResult, ylopoEventsResult] = await Promise.all([
           getFieldDefs(env),
           skipYlopo ? Promise.resolve([]) : fetchAllYlopoEvents(env).catch(() => [])
         ]);
         const { map: fieldMap } = fieldDefsResult;
-        // Build contactId -> events map for O(1) lookup
         const ylopoByContact = groupEventsByContact(ylopoEventsResult);
         let allContacts = [];
-        let seenIds = new Set();
+        let seenIds = /* @__PURE__ */ new Set();
         let startAfter = "";
         let startAfterId = "";
-        const deadline = Date.now() + 55000;
+        const deadline = Date.now() + 55e3;
         for (let pg = 0; pg < maxPages; pg++) {
           if (Date.now() > deadline) break;
           const params = new URLSearchParams({ locationId: locId, limit: "100" });
           if (query) params.set("query", query);
-          if (startAfter) { params.set("startAfter", startAfter); params.set("startAfterId", startAfterId); }
+          if (startAfter) {
+            params.set("startAfter", startAfter);
+            params.set("startAfterId", startAfterId);
+          }
           const data = await ghl(env, "GET", `/contacts/?${params.toString()}`);
           const raw = data.contacts || [];
           if (raw.length === 0) break;
@@ -12230,7 +19037,6 @@ var index_default = {
                 return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
               });
             }
-            // Merge Ylopo event data if available for this contact
             const events = ylopoByContact[c.id];
             if (events && events.length > 0) {
               const enriched = mergeYlopoEventIntoContact(c, events);
@@ -12243,7 +19049,9 @@ var index_default = {
           if (meta.startAfter && meta.startAfterId && raw.length >= 100) {
             startAfter = String(meta.startAfter);
             startAfterId = String(meta.startAfterId);
-          } else { break; }
+          } else {
+            break;
+          }
         }
         return json({ contacts: allContacts, meta: { total: allContacts.length, pages: Math.ceil(allContacts.length / 100) } });
       } catch (e) {
@@ -12268,7 +19076,6 @@ var index_default = {
         if (tag) params.set("query", tag);
         const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
-        // Batch enrich: load field defs once, then map synchronously
         const { map: fieldMap } = await getFieldDefs(env);
         const enriched = contacts.map((c) => {
           const cf = c.customField || [];
@@ -12338,6 +19145,15 @@ var index_default = {
       }
     }
     const notesMatch = path.match(/^\/contacts\/([^\/]+)\/notes$/);
+    if (method === "GET" && notesMatch) {
+      const contactId = notesMatch[1];
+      try {
+        const data = await ghlSafe(env, "GET", `/contacts/${contactId}/notes`);
+        return json({ ok: true, notes: data.notes || data });
+      } catch (e) {
+        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+      }
+    }
     if (method === "POST" && notesMatch) {
       const contactId = notesMatch[1];
       try {
@@ -12369,11 +19185,169 @@ var index_default = {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
       }
     }
+    if (method === "GET" && path === "/attom/property") {
+      const attomKey = env.ATTOM_KEY || "";
+      if (!attomKey) return err("ATTOM_KEY not configured", 500);
+      const address1 = (url.searchParams.get("address1") || "").substring(0, 256);
+      const address2 = (url.searchParams.get("address2") || "").substring(0, 128);
+      if (!address1) return err("address1 parameter required", 400);
+      try {
+        const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
+        const resp = await fetch(attomUrl, {
+          headers: { "Accept": "application/json", "apikey": attomKey },
+          signal: AbortSignal.timeout(15e3)
+        });
+        if (!resp.ok) {
+          const errText = await resp.text();
+          console.log(`ATTOM API error ${resp.status}: ${errText}`);
+          return err(`ATTOM API error: ${resp.status}`, resp.status);
+        }
+        const data = await resp.json();
+        const prop = data?.property?.[0] || {};
+        const building = prop.building || {};
+        const rooms = building.rooms || {};
+        const size = building.size || {};
+        const lot = prop.lot || {};
+        const summary = building.summary || {};
+        const assessment = prop.assessment || {};
+        const market = assessment.market || {};
+        const avm = prop.avm || {};
+        const mortgage = prop.sale?.mortgage || {};
+        const result = {
+          beds: rooms.beds || rooms.bedrooms || 0,
+          baths: rooms.bathstotal || rooms.bathsfull || 0,
+          bathsFull: rooms.bathsfull || 0,
+          bathsHalf: rooms.bathshalf || 0,
+          sqft: size.livingsize || size.universalsize || 0,
+          lotSqft: lot.lotsize1 || lot.lotsize2 || 0,
+          lotAcres: lot.lotnum || 0,
+          yearBuilt: summary.yearbuilt || summary.yearbuilteffective || 0,
+          stories: summary.levels || 0,
+          garage: building.parking?.garagetype || "",
+          pool: building.interior?.fplccount > 0 ? "Yes" : "No",
+          fireplace: building.interior?.fplccount || 0,
+          propertyType: prop.summary?.propclass || prop.summary?.proptype || "",
+          propertySubType: prop.summary?.propsubtype || "",
+          assessedValue: assessment.assessed?.assdttlvalue || 0,
+          marketValue: market.mktttlvalue || 0,
+          taxAmount: assessment.tax?.taxamt || 0,
+          avmValue: avm.amount?.value || 0,
+          avmHigh: avm.amount?.high || 0,
+          avmLow: avm.amount?.low || 0,
+          lastSalePrice: prop.sale?.saleshistory?.[0]?.amount?.saleamt || 0,
+          lastSaleDate: prop.sale?.saleshistory?.[0]?.amount?.salerecdate || "",
+          ownerName: prop.assessment?.owner?.owner1?.fullname || "",
+          mailingAddr: prop.assessment?.owner?.mailingaddressoneline || "",
+          address: prop.address?.oneLine || address1,
+          city: prop.address?.locality || "",
+          state: prop.address?.countrySubd || "",
+          zip: prop.address?.postal1 || "",
+          fips: prop.identifier?.fips || "",
+          apn: prop.identifier?.apn || "",
+          raw: prop
+        };
+        return json({ ok: true, property: result });
+      } catch (e) {
+        console.log("ATTOM fetch error:", e);
+        return err(`ATTOM error: ${e.message}`, 500);
+      }
+    }
+    if (method === "POST" && path === "/attom/enrich") {
+      const attomKey = env.ATTOM_KEY || "";
+      if (!attomKey) return err("ATTOM_KEY not configured", 500);
+      try {
+        const parsed = await safeJsonParse(request);
+        if (parsed.error) return err(parsed.error, 400);
+        const body = parsed.data;
+        const contactId = body.contactId;
+        const address1 = body.address1 || "";
+        const address2 = body.address2 || "";
+        if (!contactId) return err("contactId required", 400);
+        if (!address1) return err("address1 required", 400);
+        const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
+        const resp = await fetch(attomUrl, {
+          headers: { "Accept": "application/json", "apikey": attomKey },
+          signal: AbortSignal.timeout(15e3)
+        });
+        if (!resp.ok) return err(`ATTOM API error: ${resp.status}`, resp.status);
+        const data = await resp.json();
+        const prop = data?.property?.[0] || {};
+        const building = prop.building || {};
+        const rooms = building.rooms || {};
+        const size = building.size || {};
+        const summary = building.summary || {};
+        const assessment = prop.assessment || {};
+        const market = assessment.market || {};
+        const avm = prop.avm || {};
+        const lot = prop.lot || {};
+        const beds = rooms.beds || rooms.bedrooms || 0;
+        const baths = rooms.bathstotal || rooms.bathsfull || 0;
+        const sqft = size.livingsize || size.universalsize || 0;
+        const yearBuilt = summary.yearbuilt || 0;
+        const estValue = avm.amount?.value || market.mktttlvalue || assessment.assessed?.assdttlvalue || 0;
+        const lotSize = lot.lotsize1 || lot.lotsize2 || 0;
+        const customFields = [];
+        if (beds) customFields.push({ key: "contact.ylopo_beds", field_value: String(beds) });
+        if (baths) customFields.push({ key: "contact.ylopo_baths", field_value: String(baths) });
+        if (sqft) customFields.push({ key: "contact.ylopo_listing_sqft", field_value: String(sqft) });
+        if (yearBuilt) customFields.push({ key: "contact.ylopo_listing_year_built", field_value: String(yearBuilt) });
+        if (estValue) customFields.push({ key: "estimated_value", field_value: String(estValue) });
+        if (lotSize) customFields.push({ key: "lot_size", field_value: String(lotSize) });
+        if (customFields.length > 0) {
+          await ghl(env, "PUT", `/contacts/${contactId}`, { customFields });
+        }
+        const result = {
+          beds,
+          baths,
+          sqft,
+          yearBuilt,
+          estValue,
+          lotSize,
+          propertyType: prop.summary?.propclass || "",
+          stories: summary.levels || 0,
+          lastSalePrice: prop.sale?.saleshistory?.[0]?.amount?.saleamt || 0,
+          lastSaleDate: prop.sale?.saleshistory?.[0]?.amount?.salerecdate || ""
+        };
+        broadcastSSE({ type: "attom.enriched", contactId, fields: customFields.length });
+        return json({ ok: true, enriched: result, fieldsWritten: customFields.length });
+      } catch (e) {
+        return err(`Enrich error: ${e.message}`, 500);
+      }
+    }
     const GHL_WEBHOOK_FORWARD = "https://services.leadconnectorhq.com/hooks/SeZr4YCwEZ50IcWqylkQ/webhook-trigger/f9245d8e-d706-4e0e-a125-c523a65e3fc5";
+    async function verifyWebhookSignature(rawBody, request2, env2) {
+      const secret = env2.WEBHOOK_SECRET || "";
+      if (!secret) return true;
+      const sig = request2.headers.get("x-webhook-signature") || request2.headers.get("x-signature") || request2.headers.get("x-hub-signature-256") || "";
+      if (!sig) {
+        console.log("Webhook rejected: no signature header");
+        return false;
+      }
+      try {
+        const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+        const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+        const expected = Array.from(new Uint8Array(mac)).map(function(b) {
+          return b.toString(16).padStart(2, "0");
+        }).join("");
+        const provided = sig.replace(/^sha256=/, "");
+        if (expected !== provided) {
+          console.log("Webhook rejected: signature mismatch");
+          return false;
+        }
+        return true;
+      } catch (e) {
+        console.log("Webhook signature verification error:", e);
+        return false;
+      }
+    }
+    __name(verifyWebhookSignature, "verifyWebhookSignature");
     if (method === "POST" && path === "/ylopo-webhook") {
       const rawBody = await request.text();
+      if (env.WEBHOOK_SECRET && !await verifyWebhookSignature(rawBody, request, env)) {
+        return err("Unauthorized: invalid webhook signature", 401);
+      }
       const responsePromise = json({ received: true, proxy: "v8", forwarded: true });
-      const processEvent = /* @__PURE__ */ __name(async () => {
+      const processEvent = /* @__PURE__ */ __name2(async () => {
         try {
           let payload;
           try {
@@ -12386,7 +19360,6 @@ var index_default = {
           const lead = payload.lead || {};
           const listing = payload.listing || {};
           const session = payload.session || payload.additionalData || {};
-          // Forward FLATTENED payload to GHL webhook so workflows get simple values, not objects
           try {
             const flatPayload = {
               eventType: eventType || "",
@@ -12428,7 +19401,7 @@ var index_default = {
               // Messages
               message: payload.message || payload.messagePlainText || "",
               note: payload.notePlainText || payload.note || "",
-              eventDate: payload.eventDate || new Date().toISOString(),
+              eventDate: payload.eventDate || (/* @__PURE__ */ new Date()).toISOString(),
               // Assignment
               assignedWebsite: (payload.assignment || {}).website || lead.assignedWebsite || "",
               assignedLenderName: (payload.assignment || {}).lenderName || "",
@@ -12562,9 +19535,11 @@ var index_default = {
           } catch (objErr) {
             console.warn("Failed to create ylopo_event record:", objErr.message || objErr);
           }
-          const SB_URL = "https://tglbjiehyfyrefxwgmzz.supabase.co";
-          const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnbGJqaWVoeWZ5cmVmeHdnbXp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTk1MTAyOCwiZXhwIjoyMDg3NTI3MDI4fQ.0SpBb_XAmbyp28hYKMmYg7TGJUk0iPAXG3sVc1vYvEU";
-          try {
+          const SB_URL = env.SUPABASE_URL || "";
+          const SB_KEY = env.SUPABASE_KEY || "";
+          if (!SB_URL || !SB_KEY) {
+            console.warn("Supabase secrets not set, skipping event storage");
+          } else try {
             const sbHeaders = {
               "apikey": SB_KEY,
               "Authorization": "Bearer " + SB_KEY,
@@ -12614,6 +19589,57 @@ var index_default = {
       processEvent();
       return responsePromise;
     }
+    if (method === "POST" && path === "/ghl-webhook") {
+      try {
+        const rawBody = await request.text();
+        if (env.WEBHOOK_SECRET && !await verifyWebhookSignature(rawBody, request, env)) {
+          return err("Unauthorized: invalid webhook signature", 401);
+        }
+        let payload;
+        try {
+          payload = JSON.parse(rawBody);
+        } catch {
+          return json({ received: true, error: "invalid JSON" });
+        }
+        const eventType = payload.type || payload.event || payload.eventType || "unknown";
+        const contactId = payload.contactId || payload.id || payload.contact && payload.contact.id || null;
+        const contactEmail = payload.email || payload.contact && payload.contact.email || null;
+        const contactName = payload.name || payload.contactName || ((payload.firstName || payload.contact?.firstName || "") + " " + (payload.lastName || payload.contact?.lastName || "")).trim() || null;
+        console.log(`\u{1F4E5} GHL webhook: ${eventType} contact=${contactId || contactEmail || "unknown"}`);
+        const eventMap = {
+          "ContactCreate": "ghl.contact.created",
+          "ContactUpdate": "ghl.contact.updated",
+          "ContactDelete": "ghl.contact.deleted",
+          "ContactDndUpdate": "ghl.contact.updated",
+          "ContactTagUpdate": "ghl.contact.tagged",
+          "NoteCreate": "ghl.note.created",
+          "NoteUpdate": "ghl.note.updated",
+          "NoteDelete": "ghl.note.deleted",
+          "TaskCreate": "ghl.task.created",
+          "TaskComplete": "ghl.task.completed",
+          "OpportunityCreate": "ghl.opportunity.created",
+          "OpportunityUpdate": "ghl.opportunity.updated",
+          "OpportunityStageUpdate": "ghl.opportunity.stage",
+          "InboundMessage": "ghl.message.inbound",
+          "OutboundMessage": "ghl.message.outbound",
+          "ContactTag": "ghl.contact.tagged",
+          "ContactUntag": "ghl.contact.untagged"
+        };
+        const sseType = eventMap[eventType] || "ghl.event";
+        broadcastSSE({
+          type: sseType,
+          ghlEvent: eventType,
+          contactId,
+          email: contactEmail,
+          name: contactName,
+          summary: `${eventType}: ${contactName || contactEmail || contactId || "unknown"}`
+        });
+        return json({ received: true, event: eventType, contactId, mapped: sseType });
+      } catch (e) {
+        console.error("GHL webhook error:", e);
+        return json({ received: true, error: e.message });
+      }
+    }
     if (method === "POST" && path === "/ylopo-events/backfill") {
       const YLOPO_CONTACT_ASSOCIATION_ID = "6993820513ab7068597962ae";
       try {
@@ -12636,7 +19662,7 @@ var index_default = {
         for (const contact of contacts) {
           const cId = contact.id;
           const cfs = contact.customField || [];
-          const getField = /* @__PURE__ */ __name((keys) => {
+          const getField = /* @__PURE__ */ __name2((keys) => {
             for (const k of keys) {
               const f = cfs.find((cf) => {
                 const cfKey = (cf.key || cf.fieldKey || "").toLowerCase();
@@ -12666,7 +19692,7 @@ var index_default = {
             "ylopo_uuid"
           ]);
           const tags = contact.tags || [];
-          const hasYlopoTag = tags.some(t => {
+          const hasYlopoTag = tags.some((t) => {
             const tl = t.toLowerCase();
             return tl.includes("ylopo") || tl.includes("ypriority") || tl === "hlapps_contact" || tl === "hlapps_sync" || tl.includes("showing request") || tl.includes("saved listing");
           });
@@ -12751,31 +19777,28 @@ var index_default = {
       }
     }
     if (method === "POST" && path === "/ylopo-events/backfill-fields") {
-      // Reads Ylopo Event custom object records from last 48hrs
-      // and writes the real numeric values back to contact custom fields
-      // This fixes [object Object] values from broken GHL workflow serialization
       if (!env.GHL_V2_TOKEN) return err("GHL_V2_TOKEN required for Ylopo Event access", 400);
       try {
         const body = await request.json().catch(() => ({}));
         const dryRun = body.dryRun === true;
-        const hoursBack = Math.min(Number(body.hours) || 48, 168); // max 7 days
-        const cutoff = Date.now() - (hoursBack * 3600000);
+        const hoursBack = Math.min(Number(body.hours) || 48, 168);
+        const cutoff = Date.now() - hoursBack * 36e5;
         const maxPages = Math.min(Number(body.pages) || 10, 20);
-        // 1. Fetch all Ylopo Event records (paginated)
         const allRecords = [];
         let page = 1;
         while (page <= maxPages) {
           const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
-            locationId: locId, page, pageLimit: 20
+            locationId: locId,
+            page,
+            pageLimit: 20
           });
           const records = data.records || data.data || [];
           allRecords.push(...records);
           if (records.length < 20) break;
           page++;
         }
-        // Debug mode: return raw event records to inspect structure
         if (body.debug) {
-          const sample = allRecords.slice(0, 5).map(r => ({
+          const sample = allRecords.slice(0, 5).map((r) => ({
             id: r.id,
             keys: Object.keys(r),
             fields: r.fields || r.properties || null,
@@ -12785,14 +19808,11 @@ var index_default = {
           }));
           return json({ ok: true, debug: true, totalRecords: allRecords.length, sample });
         }
-        // 2. Group by contact — try association first, then match by email
-        // First, build email->contactId lookup from GHL contacts
         const emailToContact = {};
         if (allRecords.length > 0) {
-          // Fetch contacts to build email map (reuse bulk logic)
           const contactParams = new URLSearchParams({ locationId: locId, limit: "100" });
           const contactData = await ghl(env, "GET", `/contacts/?${contactParams.toString()}`);
-          for (const c of (contactData.contacts || [])) {
+          for (const c of contactData.contacts || []) {
             if (c.email) emailToContact[c.email.toLowerCase()] = c.id;
             if (c.phone) emailToContact[c.phone] = c.id;
           }
@@ -12804,26 +19824,21 @@ var index_default = {
           if (createdAt && new Date(createdAt).getTime() < cutoff) continue;
           const assoc = rec.associations || rec.relationships || {};
           let contactId = null;
-          // Try association
           if (assoc.contact) {
             contactId = typeof assoc.contact === "string" ? assoc.contact : assoc.contact?.id || assoc.contact?.[0]?.id || assoc.contact?.[0];
           }
           if (!contactId) contactId = rec.contactId || rec.contact_id;
-          // Try fields
           if (!contactId) {
             const f = rec.fields || rec.properties || {};
             contactId = f.contactId || f.contact_id || f.contact;
           }
-          // Try matching by email from event fields
           if (!contactId) {
             const f = rec.fields || rec.properties || {};
             const email = (f.lead_email || f.email || f.leadEmail || "").toLowerCase();
             if (email && emailToContact[email]) contactId = emailToContact[email];
-            // Try by name
             if (!contactId && f.name) {
               const nameLC = f.name.toLowerCase();
               for (const c of Object.entries(emailToContact)) {
-                // name match is weak, skip
               }
             }
           }
@@ -12834,17 +19849,14 @@ var index_default = {
             unmatchedCount++;
           }
         }
-        // 3. Load field definitions for mapping fieldKey -> field ID
         const { map: fieldMap } = await getFieldDefs(env);
-        // Helper to find field def by key name
-        const findFieldId = (keyName) => {
+        const findFieldId = /* @__PURE__ */ __name((keyName) => {
           const def = fieldMap[keyName.toLowerCase()] || fieldMap[("contact." + keyName).toLowerCase()];
           return def ? def.id : null;
-        };
-        // 4. For each contact, aggregate event data and write to GHL
+        }, "findFieldId");
         const results = [];
         let updated = 0, skippedCount = 0, errCount = 0;
-        const deadline = Date.now() + 55000;
+        const deadline = Date.now() + 55e3;
         for (const [contactId, records] of Object.entries(byContact)) {
           if (Date.now() > deadline) {
             results.push({ status: "deadline_reached", remaining: Object.keys(byContact).length - results.length });
@@ -12852,7 +19864,6 @@ var index_default = {
           }
           const latest = records[0];
           const fields = latest.fields || latest.properties || latest;
-          // Build field updates from Ylopo Event data
           const updates = [];
           const fieldMappings = {
             "ylopo_last_session_listings_viewed": fields.views || fields.lastsessionlistingsviewed,
@@ -12873,19 +19884,18 @@ var index_default = {
             "ylopo_listing_price": fields.listing_price || fields.listingprice,
             "ylopo_lead_type": fields.leadtype || fields.lead_type,
             "ylopo_is_priority": fields.ispriority,
-            "ylopo_event_source": fields.source,
+            "ylopo_event_source": fields.source
           };
-          // Aggregate totals across all records for this contact
           let totalViews = 0, totalSaves = 0, totalShowings = 0;
           for (const r of records) {
             const rf = r.fields || r.properties || r;
             let rv = rf.views, rs = rf.saves, rsh = rf.showings;
-            if (typeof rv === 'object' && rv !== null) rv = rv.count || rv.total || rv.value || 0;
-            if (typeof rs === 'object' && rs !== null) rs = rs.count || rs.total || rs.value || 0;
-            if (typeof rsh === 'object' && rsh !== null) rsh = rsh.count || rsh.total || rsh.value || 0;
-            if (typeof rv === 'string' && rv.startsWith('[object')) rv = 0;
-            if (typeof rs === 'string' && rs.startsWith('[object')) rs = 0;
-            if (typeof rsh === 'string' && rsh.startsWith('[object')) rsh = 0;
+            if (typeof rv === "object" && rv !== null) rv = rv.count || rv.total || rv.value || 0;
+            if (typeof rs === "object" && rs !== null) rs = rs.count || rs.total || rs.value || 0;
+            if (typeof rsh === "object" && rsh !== null) rsh = rsh.count || rsh.total || rsh.value || 0;
+            if (typeof rv === "string" && rv.startsWith("[object")) rv = 0;
+            if (typeof rs === "string" && rs.startsWith("[object")) rs = 0;
+            if (typeof rsh === "string" && rsh.startsWith("[object")) rsh = 0;
             totalViews += Number(rv) || 0;
             totalSaves += Number(rs) || 0;
             totalShowings += Number(rsh) || 0;
@@ -12894,7 +19904,7 @@ var index_default = {
           if (totalSaves > 0) fieldMappings["ylopo_total_favorites"] = String(totalSaves);
           if (totalShowings > 0) fieldMappings["ylopo_total_showing_requests"] = String(totalShowings);
           for (const [ghlKey, val] of Object.entries(fieldMappings)) {
-            if (val === null || val === undefined || val === "") continue;
+            if (val === null || val === void 0 || val === "") continue;
             if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object "))) continue;
             const safeVal = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
             const fId = findFieldId(ghlKey);
@@ -12909,7 +19919,7 @@ var index_default = {
           }
           if (dryRun) {
             updated++;
-            results.push({ contactId, status: "would_update", fields: updates.length, eventCount: records.length, updates: updates.map(u => ({ key: u.key, value: String(u.value).substring(0, 60) })) });
+            results.push({ contactId, status: "would_update", fields: updates.length, eventCount: records.length, updates: updates.map((u) => ({ key: u.key, value: String(u.value).substring(0, 60) })) });
             continue;
           }
           try {
@@ -13010,31 +20020,31 @@ var index_default = {
     if (method === "GET" && (path === "/" || path === "/dashboard")) {
       return new Response(ADMIN_HUB_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/site-matrix") {
       return new Response(SITE_MATRIX_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/priority-leads") {
       return new Response(PRIORITY_LEADS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
       return new Response(YLOPO_CONTACTS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
       return new Response(YLOPO_ANALYTICS_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/idx") {
@@ -13145,6 +20155,7 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
   <div class="header-nav">
     <a href="/dashboard">Hub</a>
     <a href="/dashboard/ylopo-contacts">Contacts</a>
+    <a href="/dashboard/ylopo-contacts#source">Sources</a>
     <a href="/dashboard/ylopo-analytics">Analytics</a>
     <a href="/dashboard/idx" class="active">IDX</a>
   </div>
@@ -13264,7 +20275,6 @@ async function loadData(){
 function processData(){
   var now=Date.now(),d30=30*864e5;
   ACTIVITIES=[];PROPERTIES=[];
-  var cutoffTime=now-d30;
   ALL_CONTACTS.forEach(function(c){
     var name=((c.firstName||'')+' '+(c.lastName||'')).trim()||c.email||'Unknown';
     var views=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
@@ -13278,7 +20288,7 @@ function processData(){
     if(saves>0) ACTIVITIES.push({type:'saved',label:'Saved Property',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
     if(showings>0) ACTIVITIES.push({type:'showing',label:'Showing Request',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
     if(searches>0) ACTIVITIES.push({type:'search',label:'Recent Property Search',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
-    if(added&&new Date(added).getTime()>cutoffTime) ACTIVITIES.push({type:'registration',label:'Registration',name:name,email:c.email||'',id:c.id,time:added,raw:c});
+    if(added&&(now-new Date(added).getTime())<d30) ACTIVITIES.push({type:'registration',label:'Registration',name:name,email:c.email||'',id:c.id,time:added,raw:c});
     // Property cards from saves
     if(saves>0){
       var addr=getCF(c,['ylopo_last_favorite_address','last_saved_address','owner_address','property_address'])||'';
@@ -13289,14 +20299,14 @@ function processData(){
       if(addr||price)PROPERTIES.push({addr:addr,price:price,beds:beds,baths:baths,img:img,name:name,email:c.email||'',phone:c.phone||'',id:c.id,time:updated,views:saves});
     }
   });
-  ACTIVITIES.sort(function(a,b){return new Date(b.time||0).getTime()-new Date(a.time||0).getTime()});
-  PROPERTIES.sort(function(a,b){return new Date(b.time||0).getTime()-new Date(a.time||0).getTime()});
+  ACTIVITIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
+  PROPERTIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
 }
 function renderStats(){
-  var total=ALL_CONTACTS.length,now=Date.now(),d30=30*864e5,cutoffTime=now-d30;
+  var total=ALL_CONTACTS.length,now=Date.now(),d30=30*864e5;
   var newLeads=0,withActivity=0,totalSaves=0,totalSearches=0,anon=0;
   ALL_CONTACTS.forEach(function(c){
-    if(c.dateAdded&&new Date(c.dateAdded).getTime()>cutoffTime)newLeads++;
+    if(c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30)newLeads++;
     var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
     var s=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves'])||0);
     var sr=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
@@ -13318,25 +20328,15 @@ function renderChart(mode){
   if(actChart)actChart.destroy();
   var now=new Date();var labels=[],newData=[],engData=[];
   if(mode==='weekly'){
-    var buckets={};
-    ALL_CONTACTS.forEach(function(c){
-      var added=c.dateAdded?new Date(c.dateAdded):null;
-      var updated=c.dateUpdated?new Date(c.dateUpdated):null;
-      if(added){var k=Math.floor((now-added)/864e5);if(k<7){buckets[k]||(buckets[k]={nc:0,ec:0});buckets[k].nc++}}
-      if(updated){var k=Math.floor((now-updated)/864e5);if(k<7){buckets[k]||(buckets[k]={nc:0,ec:0});buckets[k].ec++}}
-    });
     for(var i=6;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);labels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
-      var b=buckets[i]||{nc:0,ec:0};newData.push(b.nc);engData.push(b.ec)}
+      var dayStart=new Date(d);dayStart.setHours(0,0,0,0);var dayEnd=new Date(d);dayEnd.setHours(23,59,59,999);
+      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0).getTime();if(t>=dayStart&&t<=dayEnd)nc++;var u=new Date(c.dateUpdated||0).getTime();if(u>=dayStart&&u<=dayEnd)ec++});
+      newData.push(nc);engData.push(ec)}
   }else{
-    var buckets={};
-    ALL_CONTACTS.forEach(function(c){
-      var added=c.dateAdded?new Date(c.dateAdded):null;
-      var updated=c.dateUpdated?new Date(c.dateUpdated):null;
-      if(added){var m=Math.floor((now-added)/2592e6);if(m<6){buckets[m]||(buckets[m]={nc:0,ec:0});buckets[m].nc++}}
-      if(updated){var m=Math.floor((now-updated)/2592e6);if(m<6){buckets[m]||(buckets[m]={nc:0,ec:0});buckets[m].ec++}}
-    });
     for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);labels.push(d.toLocaleDateString('en-US',{month:'short'}));
-      var b=buckets[i]||{nc:0,ec:0};newData.push(b.nc);engData.push(b.ec)}
+      var mEnd=new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59);
+      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0);if(t>=d&&t<=mEnd)nc++;var u=new Date(c.dateUpdated||0);if(u>=d&&u<=mEnd)ec++});
+      newData.push(nc);engData.push(ec)}
   }
   var isDark=document.body.classList.contains('dark-mode');
   actChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[
@@ -13351,24 +20351,18 @@ function setChartMode(mode,btn){
 
 function renderQuickStats(){
   var total=ALL_CONTACTS.length||1;
-  var verified=0,active=0,searches=0,saved=0,newLeads=0;
-  var now=Date.now(),d30=30*864e5,cutoffTime=now-d30;
-  ALL_CONTACTS.forEach(function(c){
-    if(c.email)verified++;
-    var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_views'])||0);
-    if(v>0)active++;
-    var sr=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
-    if(sr>0)searches++;
-    var s=Number(getCF(c,['ylopo_total_favorites','ylopo_saves'])||0);
-    if(s>0)saved++;
-    if(c.dateAdded&&new Date(c.dateAdded).getTime()>cutoffTime)newLeads++;
-  });
+  var verified=ALL_CONTACTS.filter(function(c){return c.email}).length;
+  var active=ALL_CONTACTS.filter(function(c){var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_views'])||0);return v>0}).length;
+  var searches=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0)>0}).length;
+  var saved=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_total_favorites','ylopo_saves'])||0)>0}).length;
   var vp=Math.round(verified/total*100),ap=Math.round(active/total*100),sp=Math.round(searches/total*100),pp=Math.round(saved/total*100);
   document.getElementById('pVerified').style.width=vp+'%';document.getElementById('pVerifiedPct').textContent=vp+'%';
   document.getElementById('pActive').style.width=ap+'%';document.getElementById('pActivePct').textContent=ap+'%';
   document.getElementById('pSearches').style.width=sp+'%';document.getElementById('pSearchesPct').textContent=sp+'%';
   document.getElementById('pSaved').style.width=pp+'%';document.getElementById('pSavedPct').textContent=pp+'%';
   document.getElementById('qsSubtitle').textContent='Based on '+ALL_CONTACTS.length.toLocaleString()+' leads';
+  var now=Date.now(),d30=30*864e5;
+  var newLeads=ALL_CONTACTS.filter(function(c){return c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30}).length;
   document.getElementById('analysisBox').innerHTML='\\u{1F4CB} <b>ANALYSIS</b><br>Great job! <strong>'+vp+'%</strong> of your leads are verified. This indicates '+(vp>80?'high':'moderate')+' lead quality. You have <strong>'+newLeads+'</strong> new lead(s) in the last 30 days.'+(ap>10?' Lead engagement is strong!':' Consider nurturing more leads.');
 }
 
@@ -13437,7 +20431,7 @@ loadData();
 <\/script></body></html>`;
       return new Response(IDX_HTML, {
         status: 200,
-        headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" }
       });
     }
     return json({ error: "Not found", path, proxy: "v8" }, 404);
@@ -13446,4 +20440,3 @@ loadData();
 export {
   index_default as default
 };
-//# sourceMappingURL=index.js.map
