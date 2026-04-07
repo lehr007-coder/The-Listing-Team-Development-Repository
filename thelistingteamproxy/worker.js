@@ -13264,6 +13264,7 @@ async function loadData(){
 function processData(){
   var now=Date.now(),d30=30*864e5;
   ACTIVITIES=[];PROPERTIES=[];
+  var cutoffTime=now-d30;
   ALL_CONTACTS.forEach(function(c){
     var name=((c.firstName||'')+' '+(c.lastName||'')).trim()||c.email||'Unknown';
     var views=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
@@ -13277,7 +13278,7 @@ function processData(){
     if(saves>0) ACTIVITIES.push({type:'saved',label:'Saved Property',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
     if(showings>0) ACTIVITIES.push({type:'showing',label:'Showing Request',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
     if(searches>0) ACTIVITIES.push({type:'search',label:'Recent Property Search',name:name,email:c.email||'',id:c.id,time:updated,raw:c});
-    if(added&&(now-new Date(added).getTime())<d30) ACTIVITIES.push({type:'registration',label:'Registration',name:name,email:c.email||'',id:c.id,time:added,raw:c});
+    if(added&&new Date(added).getTime()>cutoffTime) ACTIVITIES.push({type:'registration',label:'Registration',name:name,email:c.email||'',id:c.id,time:added,raw:c});
     // Property cards from saves
     if(saves>0){
       var addr=getCF(c,['ylopo_last_favorite_address','last_saved_address','owner_address','property_address'])||'';
@@ -13288,14 +13289,14 @@ function processData(){
       if(addr||price)PROPERTIES.push({addr:addr,price:price,beds:beds,baths:baths,img:img,name:name,email:c.email||'',phone:c.phone||'',id:c.id,time:updated,views:saves});
     }
   });
-  ACTIVITIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
-  PROPERTIES.sort(function(a,b){return new Date(b.time||0)-new Date(a.time||0)});
+  ACTIVITIES.sort(function(a,b){return new Date(b.time||0).getTime()-new Date(a.time||0).getTime()});
+  PROPERTIES.sort(function(a,b){return new Date(b.time||0).getTime()-new Date(a.time||0).getTime()});
 }
 function renderStats(){
-  var total=ALL_CONTACTS.length,now=Date.now(),d30=30*864e5;
+  var total=ALL_CONTACTS.length,now=Date.now(),d30=30*864e5,cutoffTime=now-d30;
   var newLeads=0,withActivity=0,totalSaves=0,totalSearches=0,anon=0;
   ALL_CONTACTS.forEach(function(c){
-    if(c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30)newLeads++;
+    if(c.dateAdded&&new Date(c.dateAdded).getTime()>cutoffTime)newLeads++;
     var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','properties_viewed_count'])||0);
     var s=Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves'])||0);
     var sr=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
@@ -13317,15 +13318,25 @@ function renderChart(mode){
   if(actChart)actChart.destroy();
   var now=new Date();var labels=[],newData=[],engData=[];
   if(mode==='weekly'){
+    var buckets={};
+    ALL_CONTACTS.forEach(function(c){
+      var added=c.dateAdded?new Date(c.dateAdded):null;
+      var updated=c.dateUpdated?new Date(c.dateUpdated):null;
+      if(added){var k=Math.floor((now-added)/864e5);if(k<7){buckets[k]||(buckets[k]={nc:0,ec:0});buckets[k].nc++}}
+      if(updated){var k=Math.floor((now-updated)/864e5);if(k<7){buckets[k]||(buckets[k]={nc:0,ec:0});buckets[k].ec++}}
+    });
     for(var i=6;i>=0;i--){var d=new Date(now);d.setDate(d.getDate()-i);labels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
-      var dayStart=new Date(d);dayStart.setHours(0,0,0,0);var dayEnd=new Date(d);dayEnd.setHours(23,59,59,999);
-      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0).getTime();if(t>=dayStart&&t<=dayEnd)nc++;var u=new Date(c.dateUpdated||0).getTime();if(u>=dayStart&&u<=dayEnd)ec++});
-      newData.push(nc);engData.push(ec)}
+      var b=buckets[i]||{nc:0,ec:0};newData.push(b.nc);engData.push(b.ec)}
   }else{
+    var buckets={};
+    ALL_CONTACTS.forEach(function(c){
+      var added=c.dateAdded?new Date(c.dateAdded):null;
+      var updated=c.dateUpdated?new Date(c.dateUpdated):null;
+      if(added){var m=Math.floor((now-added)/2592e6);if(m<6){buckets[m]||(buckets[m]={nc:0,ec:0});buckets[m].nc++}}
+      if(updated){var m=Math.floor((now-updated)/2592e6);if(m<6){buckets[m]||(buckets[m]={nc:0,ec:0});buckets[m].ec++}}
+    });
     for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);labels.push(d.toLocaleDateString('en-US',{month:'short'}));
-      var mEnd=new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59);
-      var nc=0,ec=0;ALL_CONTACTS.forEach(function(c){var t=new Date(c.dateAdded||0);if(t>=d&&t<=mEnd)nc++;var u=new Date(c.dateUpdated||0);if(u>=d&&u<=mEnd)ec++});
-      newData.push(nc);engData.push(ec)}
+      var b=buckets[i]||{nc:0,ec:0};newData.push(b.nc);engData.push(b.ec)}
   }
   var isDark=document.body.classList.contains('dark-mode');
   actChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[
@@ -13340,18 +13351,24 @@ function setChartMode(mode,btn){
 
 function renderQuickStats(){
   var total=ALL_CONTACTS.length||1;
-  var verified=ALL_CONTACTS.filter(function(c){return c.email}).length;
-  var active=ALL_CONTACTS.filter(function(c){var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_views'])||0);return v>0}).length;
-  var searches=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0)>0}).length;
-  var saved=ALL_CONTACTS.filter(function(c){return Number(getCF(c,['ylopo_total_favorites','ylopo_saves'])||0)>0}).length;
+  var verified=0,active=0,searches=0,saved=0,newLeads=0;
+  var now=Date.now(),d30=30*864e5,cutoffTime=now-d30;
+  ALL_CONTACTS.forEach(function(c){
+    if(c.email)verified++;
+    var v=Number(getCF(c,['ylopo_total_listing_views','ylopo_views'])||0);
+    if(v>0)active++;
+    var sr=Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches'])||0);
+    if(sr>0)searches++;
+    var s=Number(getCF(c,['ylopo_total_favorites','ylopo_saves'])||0);
+    if(s>0)saved++;
+    if(c.dateAdded&&new Date(c.dateAdded).getTime()>cutoffTime)newLeads++;
+  });
   var vp=Math.round(verified/total*100),ap=Math.round(active/total*100),sp=Math.round(searches/total*100),pp=Math.round(saved/total*100);
   document.getElementById('pVerified').style.width=vp+'%';document.getElementById('pVerifiedPct').textContent=vp+'%';
   document.getElementById('pActive').style.width=ap+'%';document.getElementById('pActivePct').textContent=ap+'%';
   document.getElementById('pSearches').style.width=sp+'%';document.getElementById('pSearchesPct').textContent=sp+'%';
   document.getElementById('pSaved').style.width=pp+'%';document.getElementById('pSavedPct').textContent=pp+'%';
   document.getElementById('qsSubtitle').textContent='Based on '+ALL_CONTACTS.length.toLocaleString()+' leads';
-  var now=Date.now(),d30=30*864e5;
-  var newLeads=ALL_CONTACTS.filter(function(c){return c.dateAdded&&(now-new Date(c.dateAdded).getTime())<d30}).length;
   document.getElementById('analysisBox').innerHTML='\\u{1F4CB} <b>ANALYSIS</b><br>Great job! <strong>'+vp+'%</strong> of your leads are verified. This indicates '+(vp>80?'high':'moderate')+' lead quality. You have <strong>'+newLeads+'</strong> new lead(s) in the last 30 days.'+(ap>10?' Lead engagement is strong!':' Consider nurturing more leads.');
 }
 
