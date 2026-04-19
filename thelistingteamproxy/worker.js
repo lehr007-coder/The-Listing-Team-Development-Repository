@@ -19557,7 +19557,25 @@ var STATUSES = [
 ];
 var CAT_COLORS = {feature:'#3b82f6',bug:'#ef4444',improvement:'#8b5cf6',wishlist:'#ec4899'};
 var PRI_COLORS = {low:'#22c55e',medium:'#eab308',high:'#f97316',critical:'#ef4444'};
-var SETUP_SQL = 'CREATE TABLE IF NOT EXISTS pipeline_items (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  title TEXT NOT NULL,\n  description TEXT,\n  category TEXT DEFAULT \'feature\',\n  priority TEXT DEFAULT \'medium\',\n  status TEXT DEFAULT \'idea\',\n  submitter_name TEXT DEFAULT \'Anonymous\',\n  submitter_email TEXT,\n  screenshot_data TEXT,\n  votes INTEGER DEFAULT 0,\n  admin_notes TEXT,\n  target_date TEXT,\n  is_admin_item BOOLEAN DEFAULT false,\n  created_at TIMESTAMPTZ DEFAULT NOW(),\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
+var SETUP_SQL = "CREATE TABLE IF NOT EXISTS pipeline_items (" +
+  "\\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY," +
+  "\\n  title TEXT NOT NULL," +
+  "\\n  description TEXT," +
+  "\\n  category TEXT DEFAULT 'feature'," +
+  "\\n  priority TEXT DEFAULT 'medium'," +
+  "\\n  status TEXT DEFAULT 'idea'," +
+  "\\n  submitter_name TEXT DEFAULT 'Anonymous'," +
+  "\\n  submitter_email TEXT," +
+  "\\n  screenshot_data TEXT," +
+  "\\n  votes INTEGER DEFAULT 0," +
+  "\\n  admin_notes TEXT," +
+  "\\n  target_date TEXT," +
+  "\\n  is_admin_item BOOLEAN DEFAULT false," +
+  "\\n  created_at TIMESTAMPTZ DEFAULT NOW()," +
+  "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
+  "\\n);" +
+  "\\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;" +
+  '\\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
 
 function g(id){return document.getElementById(id);}
 function esc(s){if(!s&&s!==0)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -19610,7 +19628,7 @@ function buildCard(item){
   var voted=localStorage.getItem('pv_'+item.id)==='1';
   var adminTag=item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin</span>':'';
   var desc=item.description?(item.description.length>90?item.description.slice(0,90)+'...':item.description):'';
-  return '<div class="pipe-card" onclick="openDetail(\''+item.id+'\')">'+
+  return '<div class="pipe-card" onclick="openDetail(&#39;'+item.id+'&#39;)">'+
     '<div class="card-badges">'+
       '<span class="badge" style="background:'+rgba(cc,0.15)+';color:'+cc+'">'+esc(item.category)+'</span>'+
       '<span class="badge" style="background:'+rgba(pc,0.15)+';color:'+pc+'">'+esc(item.priority)+'</span>'+
@@ -19621,7 +19639,7 @@ function buildCard(item){
     (item.screenshot_data?'<img class="card-thumb" src="'+item.screenshot_data+'" alt="">':'')+
     '<div class="card-footer">'+
       '<span class="card-author">'+esc(item.submitter_name||'Anonymous')+'</span>'+
-      '<button class="vote-btn'+(voted?' voted':'')+'" onclick="event.stopPropagation();voteItem(\''+item.id+'\')" title="Upvote">'+
+      '<button class="vote-btn'+(voted?' voted':'')+'" onclick="event.stopPropagation();voteItem(&#39;'+item.id+'&#39;)" title="Upvote">'+
         (voted?'&#9650;':'&#9651;')+' '+(item.votes||0)+
       '</button>'+
     '</div>'+
@@ -19645,8 +19663,8 @@ function openDetail(id){
       '</div>'+
       '<div class="form-group"><label>Admin Notes (shown publicly)</label><textarea id="editAdminNotes" class="form-input" rows="3">'+esc(item.admin_notes||'')+'</textarea></div>'+
       '<div class="form-row">'+
-        '<button class="btn-primary" onclick="saveItem(\''+item.id+'\')">Save Changes</button>'+
-        '<button class="btn-danger" onclick="deleteItem(\''+item.id+'\')">Delete</button>'+
+        '<button class="btn-primary" onclick="saveItem(&#39;'+item.id+'&#39;)">Save Changes</button>'+
+        '<button class="btn-danger" onclick="deleteItem(&#39;'+item.id+'&#39;)">Delete</button>'+
       '</div>'+
     '</div>';
   }
