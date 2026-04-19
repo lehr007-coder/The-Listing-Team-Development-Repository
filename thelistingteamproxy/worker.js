@@ -2465,14 +2465,37 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   body.light-mode .page-btn { border-color: #cbd5e1; color: #475569; }
   body.light-mode .page-btn.active { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
 
-  /* Source badge colors */
+  /* Source badge colors — driven by CSS vars for live customization */
+  :root {
+    --src-ylopo-bg:rgba(234,179,8,0.15);       --src-ylopo-color:#eab308;
+    --src-myplus-bg:rgba(139,92,246,0.15);     --src-myplus-color:#8b5cf6;
+    --src-zillow-bg:rgba(59,130,246,0.15);     --src-zillow-color:#3b82f6;
+    --src-realtor-bg:rgba(239,68,68,0.15);     --src-realtor-color:#ef4444;
+    --src-homes-bg:rgba(249,115,22,0.15);      --src-homes-color:#f97316;
+    --src-default-bg:rgba(100,116,139,0.15);   --src-default-color:#94a3b8;
+  }
   .source-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
-  .source-ylopo { background:rgba(234,179,8,0.15); color:#eab308; }
-  .source-myplusleads,.source-myleads,.source-plusleads { background:rgba(139,92,246,0.15); color:#8b5cf6; }
-  .source-zillow { background:rgba(59,130,246,0.15); color:#3b82f6; }
-  .source-realtor { background:rgba(239,68,68,0.15); color:#ef4444; }
-  .source-homes { background:rgba(249,115,22,0.15); color:#f97316; }
-  .source-default { background:rgba(100,116,139,0.15); color:#94a3b8; }
+  .source-ylopo { background:var(--src-ylopo-bg); color:var(--src-ylopo-color); }
+  .source-myplusleads,.source-myleads,.source-plusleads { background:var(--src-myplus-bg); color:var(--src-myplus-color); }
+  .source-zillow { background:var(--src-zillow-bg); color:var(--src-zillow-color); }
+  .source-realtor { background:var(--src-realtor-bg); color:var(--src-realtor-color); }
+  .source-homes { background:var(--src-homes-bg); color:var(--src-homes-color); }
+  .source-default { background:var(--src-default-bg); color:var(--src-default-color); }
+
+  /* Color customizer panel */
+  .color-panel-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center}
+  .color-panel-overlay.open{display:flex}
+  .color-panel{background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:16px;padding:28px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto}
+  .color-panel h3{font-size:16px;font-weight:700;margin-bottom:20px;color:var(--text,#f1f5f9);display:flex;align-items:center;gap:8px}
+  .color-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;margin-bottom:12px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04)}
+  .color-row label{font-size:13px;font-weight:600;color:var(--text,#f1f5f9)}
+  .color-row input[type=color]{width:36px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:2px;background:transparent}
+  .color-row .preview{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:4px;letter-spacing:.03em;min-width:60px;text-align:center}
+  .color-panel-btns{display:flex;gap:8px;margin-top:20px}
+  .color-panel-btns button{flex:1;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none}
+  .cp-save{background:#3b82f6;color:#fff}
+  .cp-reset{background:rgba(100,116,139,0.2);color:var(--text,#f1f5f9)}
+  .cp-close{background:rgba(239,68,68,0.15);color:#ef4444}
 
   /* Contact type badge colors */
   .type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
@@ -8208,6 +8231,7 @@ document.addEventListener('keydown', function(e) {
   // Escape = close panels
   if (e.key === 'Escape') {
     closeSettingsPanel();
+    closeColorPanel();
     var ap = document.getElementById('activityPanel'); if (ap) ap.style.display = 'none';
   }
   // ? = show shortcuts help
@@ -8354,6 +8378,109 @@ function openSettingsPanel() {
 function closeSettingsPanel() {
   var overlay = document.getElementById('settingsOverlay');
   if (overlay) overlay.style.display = 'none';
+}
+
+// -------------------------------------------------------
+// BADGE COLOR CUSTOMIZER
+// -------------------------------------------------------
+var COLOR_PANEL_KEY = 'ylopo_badge_colors';
+var COLOR_DEFAULTS = {
+  ylopo:   { bg: '#eab308', color: '#eab308' },
+  myplus:  { bg: '#8b5cf6', color: '#8b5cf6' },
+  zillow:  { bg: '#3b82f6', color: '#3b82f6' },
+  realtor: { bg: '#ef4444', color: '#ef4444' },
+  homes:   { bg: '#f97316', color: '#f97316' },
+  def:     { bg: '#94a3b8', color: '#94a3b8' }
+};
+
+function rgbaToHex(rgba) {
+  // converts "rgba(r,g,b,a)" or "#hex" to "#rrggbb"
+  if (!rgba) return '#888888';
+  if (rgba.startsWith('#')) return rgba.substring(0,7);
+  var m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return '#888888';
+  return '#' + [m[1],m[2],m[3]].map(function(x){return ('0'+parseInt(x).toString(16)).slice(-2);}).join('');
+}
+
+function applySingleColor(src, bg, color) {
+  var alpha = '0.15';
+  var r = parseInt(bg.slice(1,3),16), g = parseInt(bg.slice(3,5),16), b = parseInt(bg.slice(5,7),16);
+  document.documentElement.style.setProperty('--src-'+src+'-bg', 'rgba('+r+','+g+','+b+','+alpha+')');
+  document.documentElement.style.setProperty('--src-'+src+'-color', color);
+}
+
+function applyColorSettings(colors) {
+  var srcKey = { ylopo:'ylopo', myplus:'myplus', zillow:'zillow', realtor:'realtor', homes:'homes', def:'default' };
+  Object.keys(srcKey).forEach(function(k) {
+    if (colors[k]) applySingleColor(srcKey[k], colors[k].bg, colors[k].color);
+  });
+}
+
+function loadColorSettings() {
+  try {
+    var saved = JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));
+    if (saved) applyColorSettings(saved);
+  } catch(e) {}
+}
+
+function openColorPanel() {
+  var saved;
+  try { saved = JSON.parse(localStorage.getItem(COLOR_PANEL_KEY)); } catch(e) {}
+  var colors = Object.assign({}, COLOR_DEFAULTS, saved || {});
+  var sources = ['ylopo','myplus','zillow','realtor','homes','def'];
+  sources.forEach(function(src) {
+    var bgEl = document.getElementById('cp-'+src+'-bg');
+    var colorEl = document.getElementById('cp-'+src+'-color');
+    if (bgEl) bgEl.value = colors[src] ? colors[src].bg : COLOR_DEFAULTS[src].bg;
+    if (colorEl) colorEl.value = colors[src] ? colors[src].color : COLOR_DEFAULTS[src].color;
+    previewColor(src);
+  });
+  var overlay = document.getElementById('colorPanelOverlay');
+  if (overlay) overlay.classList.add('open');
+}
+
+function closeColorPanel() {
+  var overlay = document.getElementById('colorPanelOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function previewColor(src) {
+  var bgEl = document.getElementById('cp-'+src+'-bg');
+  var colorEl = document.getElementById('cp-'+src+'-color');
+  var preview = document.getElementById('cp-'+src+'-preview');
+  if (!bgEl || !colorEl || !preview) return;
+  var r = parseInt(bgEl.value.slice(1,3),16), g = parseInt(bgEl.value.slice(3,5),16), b = parseInt(bgEl.value.slice(5,7),16);
+  preview.style.background = 'rgba('+r+','+g+','+b+',0.2)';
+  preview.style.color = colorEl.value;
+}
+
+function saveColorSettings() {
+  var sources = ['ylopo','myplus','zillow','realtor','homes','def'];
+  var colors = {};
+  sources.forEach(function(src) {
+    var bgEl = document.getElementById('cp-'+src+'-bg');
+    var colorEl = document.getElementById('cp-'+src+'-color');
+    colors[src] = { bg: bgEl ? bgEl.value : COLOR_DEFAULTS[src].bg, color: colorEl ? colorEl.value : COLOR_DEFAULTS[src].color };
+  });
+  try { localStorage.setItem(COLOR_PANEL_KEY, JSON.stringify(colors)); } catch(e) {}
+  applyColorSettings(colors);
+  closeColorPanel();
+  toast('Badge colors saved!', 'success');
+}
+
+function resetColorSettings() {
+  try { localStorage.removeItem(COLOR_PANEL_KEY); } catch(e) {}
+  var sources = ['ylopo','myplus','zillow','realtor','homes','def'];
+  var srcKey = { ylopo:'ylopo', myplus:'myplus', zillow:'zillow', realtor:'realtor', homes:'homes', def:'default' };
+  sources.forEach(function(src) {
+    var bgEl = document.getElementById('cp-'+src+'-bg');
+    var colorEl = document.getElementById('cp-'+src+'-color');
+    if (bgEl) bgEl.value = COLOR_DEFAULTS[src].bg;
+    if (colorEl) colorEl.value = COLOR_DEFAULTS[src].color;
+    previewColor(src);
+    applySingleColor(srcKey[src], COLOR_DEFAULTS[src].bg, COLOR_DEFAULTS[src].color);
+  });
+  toast('Badge colors reset to defaults', 'info');
 }
 
 var _autoRefreshTimer = null;
@@ -10752,6 +10879,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderSmartLists();
   initTypeahead();
   initKeyboardShortcuts();
+  loadColorSettings();
   loadGHLTeam().then(function() { loadData().then(function() { recordScoreSnapshot(); }); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
@@ -11724,6 +11852,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     </div>
   </div>
   <div class="header-actions">
+    <button class="hdr-btn" title="Customize Badge Colors" onclick="openColorPanel()" style="font-size:16px">🎨</button>
     <button class="hdr-btn" title="Kanban Board" onclick="toggleKanban()" style="font-size:16px">\u{1F4CB}</button>
     <button class="hdr-btn" title="Follow-Up Queue" onclick="openFollowUpQueue('hot')" style="font-size:16px">\u{1F4DE}</button>
     <button class="hdr-btn" title="Layout Customizer" onclick="toggleLayoutPanel()" style="font-size:16px">\u{1F9E9}</button>
@@ -11769,6 +11898,55 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     <select class="setting-select" id="perPageSelect" onchange="changePerPage()">
       <option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option>
     </select>
+  </div>
+</div>
+
+<!-- COLOR PANEL MODAL -->
+<div class="color-panel-overlay" id="colorPanelOverlay" onclick="if(event.target===this)closeColorPanel()">
+  <div class="color-panel">
+    <h3>&#127912; Customize Badge Colors</h3>
+    <div class="color-row">
+      <label>Ylopo</label>
+      <input type="color" id="cp-ylopo-bg" title="Background" oninput="previewColor('ylopo')">
+      <input type="color" id="cp-ylopo-color" title="Text" oninput="previewColor('ylopo')">
+      <span class="preview" id="cp-ylopo-preview">YLOPO</span>
+    </div>
+    <div class="color-row">
+      <label>MyPlusLeads</label>
+      <input type="color" id="cp-myplus-bg" title="Background" oninput="previewColor('myplus')">
+      <input type="color" id="cp-myplus-color" title="Text" oninput="previewColor('myplus')">
+      <span class="preview" id="cp-myplus-preview">MYPLUS</span>
+    </div>
+    <div class="color-row">
+      <label>Zillow</label>
+      <input type="color" id="cp-zillow-bg" title="Background" oninput="previewColor('zillow')">
+      <input type="color" id="cp-zillow-color" title="Text" oninput="previewColor('zillow')">
+      <span class="preview" id="cp-zillow-preview">ZILLOW</span>
+    </div>
+    <div class="color-row">
+      <label>Realtor</label>
+      <input type="color" id="cp-realtor-bg" title="Background" oninput="previewColor('realtor')">
+      <input type="color" id="cp-realtor-color" title="Text" oninput="previewColor('realtor')">
+      <span class="preview" id="cp-realtor-preview">REALTOR</span>
+    </div>
+    <div class="color-row">
+      <label>Homes / HLApps</label>
+      <input type="color" id="cp-homes-bg" title="Background" oninput="previewColor('homes')">
+      <input type="color" id="cp-homes-color" title="Text" oninput="previewColor('homes')">
+      <span class="preview" id="cp-homes-preview">HOMES</span>
+    </div>
+    <div class="color-row">
+      <label>Default / Other</label>
+      <input type="color" id="cp-default-bg" title="Background" oninput="previewColor('default')">
+      <input type="color" id="cp-default-color" title="Text" oninput="previewColor('default')">
+      <span class="preview" id="cp-default-preview">OTHER</span>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted,#64748b);margin:12px 0 4px">Left picker = background &nbsp;|&nbsp; Right picker = text color</p>
+    <div class="color-panel-btns">
+      <button class="cp-save" onclick="saveColorSettings()">Save Colors</button>
+      <button class="cp-reset" onclick="resetColorSettings()">Reset Defaults</button>
+      <button class="cp-close" onclick="closeColorPanel()">Close</button>
+    </div>
   </div>
 </div>
 
