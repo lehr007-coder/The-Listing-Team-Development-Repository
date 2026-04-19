@@ -8443,15 +8443,6 @@ var COLOR_DEFAULTS = {
   def:     { bg: '#94a3b8', color: '#94a3b8' }
 };
 
-function rgbaToHex(rgba) {
-  // converts "rgba(r,g,b,a)" or "#hex" to "#rrggbb"
-  if (!rgba) return '#888888';
-  if (rgba.startsWith('#')) return rgba.substring(0,7);
-  var m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!m) return '#888888';
-  return '#' + [m[1],m[2],m[3]].map(function(x){return ('0'+parseInt(x).toString(16)).slice(-2);}).join('');
-}
-
 function applySingleColor(src, bg, color) {
   var alpha = '0.15';
   var r = parseInt(bg.slice(1,3),16), g = parseInt(bg.slice(3,5),16), b = parseInt(bg.slice(5,7),16);
