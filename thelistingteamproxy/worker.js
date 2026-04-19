@@ -3084,6 +3084,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <div class="color-row"><label>Seller</label><input type="color" id="cp-type-seller-bg" oninput="cpPrev('type-seller')"><input type="color" id="cp-type-seller-color" oninput="cpPrev('type-seller')"><span class="preview" id="cp-type-seller-preview">SELLER</span></div>
         <div class="color-row"><label>Buyer</label><input type="color" id="cp-type-buyer-bg" oninput="cpPrev('type-buyer')"><input type="color" id="cp-type-buyer-color" oninput="cpPrev('type-buyer')"><span class="preview" id="cp-type-buyer-preview">BUYER</span></div>
         <div class="color-row"><label>Default</label><input type="color" id="cp-type-def-bg" oninput="cpPrev('type-def')"><input type="color" id="cp-type-def-color" oninput="cpPrev('type-def')"><span class="preview" id="cp-type-def-preview">OTHER</span></div>
+        <div id="cpCustomTypes"></div>
+        <div class="cp-add-row">
+          <input type="text" id="cpNewTypeName" placeholder="Type name (e.g. Lead)">
+          <input type="color" id="cpNewTypeColor" value="#8b5cf6">
+          <button class="cp-add-btn" onclick="cpAddType()">+ Add</button>
+        </div>
       </div>
       <div id="cp-status" class="cp-section">
         <div class="color-row"><label>HOT</label><input type="color" id="cp-stat-hot-bg" oninput="cpPrev('stat-hot')"><input type="color" id="cp-stat-hot-color" oninput="cpPrev('stat-hot')"><span class="preview" id="cp-stat-hot-preview">HOT</span></div>
@@ -8532,6 +8538,34 @@ function cpPatchSourceBadge(customs) {
   };
 }
 
+function cpInjectCustomTypeCSS(customTypes) {
+  var el = document.getElementById('cp-custom-type-styles') || document.createElement('style');
+  el.id = 'cp-custom-type-styles';
+  var css = '';
+  (customTypes || []).forEach(function(c) {
+    var r = parseInt(c.bg.slice(1,3),16), g = parseInt(c.bg.slice(3,5),16), b = parseInt(c.bg.slice(5,7),16);
+    css += '.type-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';
+  });
+  el.textContent = css;
+  document.head.appendChild(el);
+}
+
+function cpPatchTypeBadge(customTypes) {
+  if (!customTypes || !customTypes.length || typeof getTypeBadgeClass !== 'function') return;
+  var _orig = getTypeBadgeClass;
+  window.getTypeBadgeClass = function(type) {
+    if (type) {
+      var t = type.toLowerCase();
+      for (var i = 0; i < customTypes.length; i++) {
+        if (t.indexOf(customTypes[i].match.toLowerCase()) !== -1) {
+          return 'type-custom-'+customTypes[i].key;
+        }
+      }
+    }
+    return _orig(type);
+  };
+}
+
 function applyColorSettings(data) {
   Object.keys(COLOR_DEFAULTS).forEach(function(k) {
     var d = COLOR_DEFAULTS[k];
@@ -8541,6 +8575,10 @@ function applyColorSettings(data) {
   if (data && data.customs) {
     cpInjectCustomCSS(data.customs);
     cpPatchSourceBadge(data.customs);
+  }
+  if (data && data.customTypes) {
+    cpInjectCustomTypeCSS(data.customTypes);
+    cpPatchTypeBadge(data.customTypes);
   }
 }
 
@@ -8593,6 +8631,52 @@ function cpPopulate() {
     cpPrev(k);
   });
   cpRenderCustoms((saved && saved.customs) || []);
+  cpRenderCustomTypes((saved && saved.customTypes) || []);
+}
+
+function cpRenderCustomTypes(customTypes) {
+  var container = document.getElementById('cpCustomTypes');
+  if (!container) return;
+  container.innerHTML = (customTypes || []).map(function(c, i) {
+    return '<div class="color-row" id="cptr-'+i+'">' +
+      '<label>'+c.name+'</label>' +
+      '<input type="color" id="cp-ctype-'+i+'-bg" value="'+c.bg+'" oninput="cpPrevCtype('+i+')">' +
+      '<input type="color" id="cp-ctype-'+i+'-color" value="'+c.color+'" oninput="cpPrevCtype('+i+')">' +
+      '<span class="preview" id="cp-ctype-'+i+'-preview" style="background:rgba(0,0,0,0.1);color:'+c.color+'">'+c.name.toUpperCase().slice(0,8)+'</span>' +
+      '<button class="cp-del-btn" onclick="cpDelType('+i+')">&#10005;</button>' +
+    '</div>';
+  }).join('');
+  customTypes.forEach(function(c, i){ cpPrevCtype(i); });
+}
+
+function cpPrevCtype(i) {
+  var b = document.getElementById('cp-ctype-'+i+'-bg');
+  var c = document.getElementById('cp-ctype-'+i+'-color');
+  var p = document.getElementById('cp-ctype-'+i+'-preview');
+  if (!b||!c||!p) return;
+  var r=parseInt(b.value.slice(1,3),16),g=parseInt(b.value.slice(3,5),16),bv=parseInt(b.value.slice(5,7),16);
+  p.style.background='rgba('+r+','+g+','+bv+',0.2)';
+  p.style.color=c.value;
+}
+
+function cpAddType() {
+  var nameEl=document.getElementById('cpNewTypeName'), colorEl=document.getElementById('cpNewTypeColor');
+  if (!nameEl||!nameEl.value.trim()){if(nameEl){nameEl.style.borderColor='#ef4444';setTimeout(function(){nameEl.style.borderColor='';},1500);}return;}
+  var saved; try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}
+  var customTypes=(saved&&saved.customTypes)||[];
+  var name=nameEl.value.trim(), key=name.toLowerCase().replace(/[^a-z0-9]/g,'-');
+  customTypes.push({name:name,match:name,key:key,bg:colorEl?colorEl.value:'#8b5cf6',color:colorEl?colorEl.value:'#8b5cf6'});
+  nameEl.value='';
+  cpRenderCustomTypes(customTypes);
+  try{var s=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s.customTypes=customTypes;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s));}catch(e){}
+}
+
+function cpDelType(i) {
+  var saved; try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}
+  var customTypes=(saved&&saved.customTypes)||[];
+  customTypes.splice(i,1);
+  cpRenderCustomTypes(customTypes);
+  try{var s=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s.customTypes=customTypes;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s));}catch(e){}
 }
 
 function cpRenderCustoms(customs) {
@@ -8679,6 +8763,17 @@ function saveColorSettings() {
     customs.push({ name:prevSaved.name, match:prevSaved.match, key:prevSaved.key, bg: bgEl?bgEl.value:prevSaved.bg, color: colorEl?colorEl.value:prevSaved.color });
   }
   data.customs = customs;
+  var typeCount = (saved && saved.customTypes) ? saved.customTypes.length : 0;
+  var customTypes = [];
+  for (var j = 0; j < typeCount; j++) {
+    var trow = document.getElementById('cptr-'+j);
+    if (!trow) continue;
+    var pts = saved.customTypes[j];
+    var tb = document.getElementById('cp-ctype-'+j+'-bg');
+    var tc = document.getElementById('cp-ctype-'+j+'-color');
+    customTypes.push({ name:pts.name, match:pts.match, key:pts.key, bg:tb?tb.value:pts.bg, color:tc?tc.value:pts.color });
+  }
+  data.customTypes = customTypes;
   try { localStorage.setItem(COLOR_PANEL_KEY, JSON.stringify(data)); } catch(e) {}
   applyColorSettings(data);
   closeColorPanel();
@@ -8691,6 +8786,8 @@ function resetColorSettings() {
   applyColorSettings({});
   var styleEl = document.getElementById('cp-custom-styles');
   if (styleEl) styleEl.textContent = '';
+  var typeStyleEl = document.getElementById('cp-custom-type-styles');
+  if (typeStyleEl) typeStyleEl.textContent = '';
   if (sessionStorage.getItem(CP_ADMIN_KEY)) cpPopulate();
   toast('Reset to defaults', 'info');
 }
@@ -12195,6 +12292,12 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
         <div class="color-row"><label>Seller</label><input type="color" id="cp-type-seller-bg" oninput="cpPrev('type-seller')"><input type="color" id="cp-type-seller-color" oninput="cpPrev('type-seller')"><span class="preview" id="cp-type-seller-preview">SELLER</span></div>
         <div class="color-row"><label>Buyer</label><input type="color" id="cp-type-buyer-bg" oninput="cpPrev('type-buyer')"><input type="color" id="cp-type-buyer-color" oninput="cpPrev('type-buyer')"><span class="preview" id="cp-type-buyer-preview">BUYER</span></div>
         <div class="color-row"><label>Default</label><input type="color" id="cp-type-def-bg" oninput="cpPrev('type-def')"><input type="color" id="cp-type-def-color" oninput="cpPrev('type-def')"><span class="preview" id="cp-type-def-preview">OTHER</span></div>
+        <div id="cpCustomTypes"></div>
+        <div class="cp-add-row">
+          <input type="text" id="cpNewTypeName" placeholder="Type name (e.g. Lead)">
+          <input type="color" id="cpNewTypeColor" value="#8b5cf6">
+          <button class="cp-add-btn" onclick="cpAddType()">+ Add</button>
+        </div>
       </div>
       <div id="cp-status" class="cp-section">
         <div class="color-row"><label>HOT</label><input type="color" id="cp-stat-hot-bg" oninput="cpPrev('stat-hot')"><input type="color" id="cp-stat-hot-color" oninput="cpPrev('stat-hot')"><span class="preview" id="cp-stat-hot-preview">HOT</span></div>
@@ -18779,20 +18882,25 @@ var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMI
 var COLOR_DEFAULTS={'src-ylopo':{bg:'#eab308',color:'#eab308',cssVar:'ylopo',alpha:0.15},'src-myplus':{bg:'#8b5cf6',color:'#8b5cf6',cssVar:'myplus',alpha:0.15},'src-zillow':{bg:'#3b82f6',color:'#3b82f6',cssVar:'zillow',alpha:0.15},'src-realtor':{bg:'#ef4444',color:'#ef4444',cssVar:'realtor',alpha:0.15},'src-homes':{bg:'#f97316',color:'#f97316',cssVar:'homes',alpha:0.15},'src-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'default',alpha:0.15},'type-seller':{bg:'#22c55e',color:'#22c55e',cssVar:'type-seller',alpha:0.2},'type-buyer':{bg:'#10b981',color:'#10b981',cssVar:'type-buyer',alpha:0.15},'type-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'type-def',alpha:0.15},'stat-hot':{bg:'#dc2626',color:'#dc2626',cssVar:'stat-hot',alpha:0.15},'stat-warm':{bg:'#d97706',color:'#d97706',cssVar:'stat-warm',alpha:0.15},'stat-cold':{bg:'#2563eb',color:'#2563eb',cssVar:'stat-cold',alpha:0.15},'stat-new':{bg:'#16a34a',color:'#16a34a',cssVar:'stat-new',alpha:0.15},'beh-visitor':{bg:'#16a34a',color:'#16a34a',cssVar:'beh-visitor',alpha:0.15},'beh-searcher':{bg:'#2563eb',color:'#2563eb',cssVar:'beh-searcher',alpha:0.15},'beh-buyer':{bg:'#d97706',color:'#d97706',cssVar:'beh-buyer',alpha:0.15},'beh-seller':{bg:'#7c3aed',color:'#7c3aed',cssVar:'beh-seller',alpha:0.15},'beh-showing':{bg:'#db2777',color:'#db2777',cssVar:'beh-showing',alpha:0.15},'beh-stale':{bg:'#dc2626',color:'#dc2626',cssVar:'beh-stale',alpha:0.15}};
 function cpSetVar(cssVar,bg,color,alpha){var r=parseInt(bg.slice(1,3),16),g=parseInt(bg.slice(3,5),16),b=parseInt(bg.slice(5,7),16),a=alpha!==undefined?alpha:0.15;document.documentElement.style.setProperty('--'+cssVar+'-bg','rgba('+r+','+g+','+b+','+a+')');document.documentElement.style.setProperty('--'+cssVar+'-color',color);}
 function cpInjectCustomCSS(customs){var el=document.getElementById('cp-custom-styles')||document.createElement('style');el.id='cp-custom-styles';var css='';(customs||[]).forEach(function(c){var r=parseInt(c.bg.slice(1,3),16),g=parseInt(c.bg.slice(3,5),16),b=parseInt(c.bg.slice(5,7),16);css+='.source-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';});el.textContent=css;document.head.appendChild(el);}
-function applyColorSettings(data){Object.keys(COLOR_DEFAULTS).forEach(function(k){var d=COLOR_DEFAULTS[k],v=(data&&data[k])||d;cpSetVar(d.cssVar,v.bg,v.color,d.alpha);});if(data&&data.customs){cpInjectCustomCSS(data.customs);}}
+function cpInjectCustomTypeCSS(customTypes){var el=document.getElementById('cp-custom-type-styles')||document.createElement('style');el.id='cp-custom-type-styles';var css='';(customTypes||[]).forEach(function(c){var r=parseInt(c.bg.slice(1,3),16),g=parseInt(c.bg.slice(3,5),16),b=parseInt(c.bg.slice(5,7),16);css+='.type-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';});el.textContent=css;document.head.appendChild(el);}
+function applyColorSettings(data){Object.keys(COLOR_DEFAULTS).forEach(function(k){var d=COLOR_DEFAULTS[k],v=(data&&data[k])||d;cpSetVar(d.cssVar,v.bg,v.color,d.alpha);});if(data&&data.customs){cpInjectCustomCSS(data.customs);}if(data&&data.customTypes){cpInjectCustomTypeCSS(data.customTypes);}}
 function loadColorSettings(){try{var s=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));if(s)applyColorSettings(s);}catch(e){}}
 function cpUnlock(){var pw=document.getElementById('cpPassword');if(pw&&pw.value===CP_ADMIN_PASS){try{sessionStorage.setItem(CP_ADMIN_KEY,'1');}catch(e){}document.getElementById('cpLock').style.display='none';document.getElementById('cpBody').style.display='block';cpPopulate();}else{if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}}}
 function cpTab(name,btn){document.querySelectorAll('.cp-section').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.cp-tab').forEach(function(b){b.classList.remove('active');});var sec=document.getElementById('cp-'+name);if(sec)sec.classList.add('active');if(btn)btn.classList.add('active');}
 function cpPrev(key){var b=document.getElementById('cp-'+key+'-bg'),c=document.getElementById('cp-'+key+'-color'),p=document.getElementById('cp-'+key+'-preview');if(!b||!c||!p)return;var r=parseInt(b.value.slice(1,3),16),g=parseInt(b.value.slice(3,5),16),bv=parseInt(b.value.slice(5,7),16);p.style.background='rgba('+r+','+g+','+bv+',0.2)';p.style.color=c.value;}
-function cpPopulate(){var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}Object.keys(COLOR_DEFAULTS).forEach(function(k){var v=(saved&&saved[k])||COLOR_DEFAULTS[k];var b=document.getElementById('cp-'+k+'-bg'),c=document.getElementById('cp-'+k+'-color');if(b)b.value=v.bg;if(c)c.value=v.color;cpPrev(k);});cpRenderCustoms((saved&&saved.customs)||[]);}
+function cpPopulate(){var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}Object.keys(COLOR_DEFAULTS).forEach(function(k){var v=(saved&&saved[k])||COLOR_DEFAULTS[k];var b=document.getElementById('cp-'+k+'-bg'),c=document.getElementById('cp-'+k+'-color');if(b)b.value=v.bg;if(c)c.value=v.color;cpPrev(k);});cpRenderCustoms((saved&&saved.customs)||[]);cpRenderCustomTypes((saved&&saved.customTypes)||[]);}
 function cpRenderCustoms(customs){var container=document.getElementById('cpCustomSources');if(!container)return;container.innerHTML=(customs||[]).map(function(c,i){return'<div class="color-row" id="cpcr-'+i+'"><label>'+c.name+'</label><input type="color" id="cp-cust-'+i+'-bg" value="'+c.bg+'" oninput="cpPrevCust('+i+')"><input type="color" id="cp-cust-'+i+'-color" value="'+c.color+'" oninput="cpPrevCust('+i+')"><span class="preview" id="cp-cust-'+i+'-preview" style="color:'+c.color+'">'+c.name.toUpperCase().slice(0,8)+'</span><button class="cp-del-btn" onclick="cpDelSource('+i+')">&#10005;</button></div>';}).join('');customs.forEach(function(c,i){cpPrevCust(i);});}
+function cpRenderCustomTypes(customTypes){var container=document.getElementById('cpCustomTypes');if(!container)return;container.innerHTML=(customTypes||[]).map(function(c,i){return'<div class="color-row" id="cptr-'+i+'"><label>'+c.name+'</label><input type="color" id="cp-ctype-'+i+'-bg" value="'+c.bg+'" oninput="cpPrevCtype('+i+')"><input type="color" id="cp-ctype-'+i+'-color" value="'+c.color+'" oninput="cpPrevCtype('+i+')"><span class="preview" id="cp-ctype-'+i+'-preview" style="color:'+c.color+'">'+c.name.toUpperCase().slice(0,8)+'</span><button class="cp-del-btn" onclick="cpDelType('+i+')">&#10005;</button></div>';}).join('');customTypes.forEach(function(c,i){cpPrevCtype(i);});}
 function cpPrevCust(i){var b=document.getElementById('cp-cust-'+i+'-bg'),c=document.getElementById('cp-cust-'+i+'-color'),p=document.getElementById('cp-cust-'+i+'-preview');if(!b||!c||!p)return;var r=parseInt(b.value.slice(1,3),16),g=parseInt(b.value.slice(3,5),16),bv=parseInt(b.value.slice(5,7),16);p.style.background='rgba('+r+','+g+','+bv+',0.2)';p.style.color=c.value;}
+function cpPrevCtype(i){var b=document.getElementById('cp-ctype-'+i+'-bg'),c=document.getElementById('cp-ctype-'+i+'-color'),p=document.getElementById('cp-ctype-'+i+'-preview');if(!b||!c||!p)return;var r=parseInt(b.value.slice(1,3),16),g=parseInt(b.value.slice(3,5),16),bv=parseInt(b.value.slice(5,7),16);p.style.background='rgba('+r+','+g+','+bv+',0.2)';p.style.color=c.value;}
 function cpAddSource(){var nameEl=document.getElementById('cpNewSrcName'),colorEl=document.getElementById('cpNewSrcColor');if(!nameEl||!nameEl.value.trim()){if(nameEl){nameEl.style.borderColor='#ef4444';setTimeout(function(){nameEl.style.borderColor='';},1500);}return;}var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var customs=(saved&&saved.customs)||[];var name=nameEl.value.trim(),key=name.toLowerCase().replace(/[^a-z0-9]/g,'-');customs.push({name:name,match:name,key:key,bg:colorEl?colorEl.value:'#3b82f6',color:colorEl?colorEl.value:'#3b82f6'});nameEl.value='';cpRenderCustoms(customs);try{var s2=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s2.customs=customs;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s2));}catch(e){}}
+function cpAddType(){var nameEl=document.getElementById('cpNewTypeName'),colorEl=document.getElementById('cpNewTypeColor');if(!nameEl||!nameEl.value.trim()){if(nameEl){nameEl.style.borderColor='#ef4444';setTimeout(function(){nameEl.style.borderColor='';},1500);}return;}var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var customTypes=(saved&&saved.customTypes)||[];var name=nameEl.value.trim(),key=name.toLowerCase().replace(/[^a-z0-9]/g,'-');customTypes.push({name:name,match:name,key:key,bg:colorEl?colorEl.value:'#8b5cf6',color:colorEl?colorEl.value:'#8b5cf6'});nameEl.value='';cpRenderCustomTypes(customTypes);try{var s2=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s2.customTypes=customTypes;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s2));}catch(e){}}
 function cpDelSource(i){var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var customs=(saved&&saved.customs)||[];customs.splice(i,1);cpRenderCustoms(customs);try{var s2=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s2.customs=customs;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s2));}catch(e){}}
+function cpDelType(i){var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var customTypes=(saved&&saved.customTypes)||[];customTypes.splice(i,1);cpRenderCustomTypes(customTypes);try{var s2=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY))||{};s2.customTypes=customTypes;localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(s2));}catch(e){}}
 function openColorPanel(){var overlay=document.getElementById('colorPanelOverlay');if(!overlay)return;var isAdmin=sessionStorage.getItem(CP_ADMIN_KEY)==='1';document.getElementById('cpLock').style.display=isAdmin?'none':'';document.getElementById('cpBody').style.display=isAdmin?'block':'none';if(isAdmin)cpPopulate();overlay.classList.add('open');}
 function closeColorPanel(){var overlay=document.getElementById('colorPanelOverlay');if(overlay)overlay.classList.remove('open');}
-function saveColorSettings(){var data={};Object.keys(COLOR_DEFAULTS).forEach(function(k){var b=document.getElementById('cp-'+k+'-bg'),c=document.getElementById('cp-'+k+'-color');data[k]={bg:b?b.value:COLOR_DEFAULTS[k].bg,color:c?c.value:COLOR_DEFAULTS[k].color};});var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var custCount=(saved&&saved.customs)?saved.customs.length:0,customs=[];for(var i=0;i<custCount;i++){var row=document.getElementById('cpcr-'+i);if(!row)continue;var ps=saved.customs[i],b2=document.getElementById('cp-cust-'+i+'-bg'),c2=document.getElementById('cp-cust-'+i+'-color');customs.push({name:ps.name,match:ps.match,key:ps.key,bg:b2?b2.value:ps.bg,color:c2?c2.value:ps.color});}data.customs=customs;try{localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(data));}catch(e){}applyColorSettings(data);closeColorPanel();el('toast')&&toast('Badge colors saved!','success');}
-function resetColorSettings(){if(!confirm('Reset ALL badge colors to defaults?'))return;try{localStorage.removeItem(COLOR_PANEL_KEY);}catch(e){}applyColorSettings({});var styleEl=document.getElementById('cp-custom-styles');if(styleEl)styleEl.textContent='';if(sessionStorage.getItem(CP_ADMIN_KEY))cpPopulate();}
+function saveColorSettings(){var data={};Object.keys(COLOR_DEFAULTS).forEach(function(k){var b=document.getElementById('cp-'+k+'-bg'),c=document.getElementById('cp-'+k+'-color');data[k]={bg:b?b.value:COLOR_DEFAULTS[k].bg,color:c?c.value:COLOR_DEFAULTS[k].color};});var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}var custCount=(saved&&saved.customs)?saved.customs.length:0,customs=[];for(var i=0;i<custCount;i++){var row=document.getElementById('cpcr-'+i);if(!row)continue;var ps=saved.customs[i],b2=document.getElementById('cp-cust-'+i+'-bg'),c2=document.getElementById('cp-cust-'+i+'-color');customs.push({name:ps.name,match:ps.match,key:ps.key,bg:b2?b2.value:ps.bg,color:c2?c2.value:ps.color});}data.customs=customs;var typeCount=(saved&&saved.customTypes)?saved.customTypes.length:0,customTypes=[];for(var j=0;j<typeCount;j++){var trow=document.getElementById('cptr-'+j);if(!trow)continue;var pts=saved.customTypes[j],tb=document.getElementById('cp-ctype-'+j+'-bg'),tc=document.getElementById('cp-ctype-'+j+'-color');customTypes.push({name:pts.name,match:pts.match,key:pts.key,bg:tb?tb.value:pts.bg,color:tc?tc.value:pts.color});}data.customTypes=customTypes;try{localStorage.setItem(COLOR_PANEL_KEY,JSON.stringify(data));}catch(e){}applyColorSettings(data);closeColorPanel();el('toast')&&toast('Badge colors saved!','success');}
+function resetColorSettings(){if(!confirm('Reset ALL badge colors to defaults?'))return;try{localStorage.removeItem(COLOR_PANEL_KEY);}catch(e){}applyColorSettings({});var styleEl=document.getElementById('cp-custom-styles');if(styleEl)styleEl.textContent='';var typeStyleEl=document.getElementById('cp-custom-type-styles');if(typeStyleEl)typeStyleEl.textContent='';if(sessionStorage.getItem(CP_ADMIN_KEY))cpPopulate();}
 
 document.addEventListener('DOMContentLoaded',()=>{
   loadColorSettings();
