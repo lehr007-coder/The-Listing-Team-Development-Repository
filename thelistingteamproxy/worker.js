@@ -218,8 +218,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F680}</div>
         <div class="card-body">
-          <div class="card-title">Pipeline &amp; Wishlist</div>
-          <div class="card-desc">Submit feature requests, bug reports, and wishlist items. Track progress from idea to done on a kanban board.</div>
+          <div class="card-title">Pipeline Ideas</div>
+          <div class="card-desc">Submit ideas, feature requests, and suggestions. Track progress from idea to done on a kanban board.</div>
           <div class="card-tag">Idea \u2192 Planned \u2192 Done</div>
         </div>
       </a>
@@ -19304,7 +19304,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Listing Team \u2014 Pipeline &amp; Wishlist</title>
+<title>The Listing Team \u2014 Pipeline Ideas</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -19400,12 +19400,12 @@ textarea.form-input{resize:vertical;min-height:80px}
 </head>
 <body>
 <div class="hbar">
-  <div class="hbar-logo">The Listing Team <span>&#128640; Pipeline</span></div>
+  <div class="hbar-logo">The Listing Team <span>&#128640; Pipeline Ideas</span></div>
   <nav class="hnav">
     <a href="/dashboard">&#127968; Hub</a>
     <a href="/dashboard/ylopo-contacts">&#128203; Contacts</a>
     <a href="/dashboard/ylopo-analytics">&#128202; Analytics</a>
-    <a href="/dashboard/pipeline" class="active">&#128640; Pipeline</a>
+    <a href="/dashboard/pipeline" class="active">&#128640; Pipeline Ideas</a>
   </nav>
   <div class="hbar-right">
     <div class="admin-badge" id="adminBadge">&#11088; Admin</div>
