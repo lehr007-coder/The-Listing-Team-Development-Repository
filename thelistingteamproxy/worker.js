@@ -3023,6 +3023,55 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <!-- Toast container -->
 <div id="toast-container"></div>
 
+<!-- COLOR PANEL MODAL -->
+<div class="color-panel-overlay" id="colorPanelOverlay" onclick="if(event.target===this)closeColorPanel()">
+  <div class="color-panel">
+    <h3>&#127912; Customize Badge Colors</h3>
+    <div class="color-row">
+      <label>Ylopo</label>
+      <input type="color" id="cp-ylopo-bg" title="Background" oninput="previewColor('ylopo')">
+      <input type="color" id="cp-ylopo-color" title="Text" oninput="previewColor('ylopo')">
+      <span class="preview" id="cp-ylopo-preview">YLOPO</span>
+    </div>
+    <div class="color-row">
+      <label>MyPlusLeads</label>
+      <input type="color" id="cp-myplus-bg" title="Background" oninput="previewColor('myplus')">
+      <input type="color" id="cp-myplus-color" title="Text" oninput="previewColor('myplus')">
+      <span class="preview" id="cp-myplus-preview">MYPLUS</span>
+    </div>
+    <div class="color-row">
+      <label>Zillow</label>
+      <input type="color" id="cp-zillow-bg" title="Background" oninput="previewColor('zillow')">
+      <input type="color" id="cp-zillow-color" title="Text" oninput="previewColor('zillow')">
+      <span class="preview" id="cp-zillow-preview">ZILLOW</span>
+    </div>
+    <div class="color-row">
+      <label>Realtor</label>
+      <input type="color" id="cp-realtor-bg" title="Background" oninput="previewColor('realtor')">
+      <input type="color" id="cp-realtor-color" title="Text" oninput="previewColor('realtor')">
+      <span class="preview" id="cp-realtor-preview">REALTOR</span>
+    </div>
+    <div class="color-row">
+      <label>Homes / HLApps</label>
+      <input type="color" id="cp-homes-bg" title="Background" oninput="previewColor('homes')">
+      <input type="color" id="cp-homes-color" title="Text" oninput="previewColor('homes')">
+      <span class="preview" id="cp-homes-preview">HOMES</span>
+    </div>
+    <div class="color-row">
+      <label>Default / Other</label>
+      <input type="color" id="cp-default-bg" title="Background" oninput="previewColor('default')">
+      <input type="color" id="cp-default-color" title="Text" oninput="previewColor('default')">
+      <span class="preview" id="cp-default-preview">OTHER</span>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin:12px 0 4px">Left picker = background &nbsp;|&nbsp; Right picker = text color</p>
+    <div class="color-panel-btns">
+      <button class="cp-save" onclick="saveColorSettings()">Save Colors</button>
+      <button class="cp-reset" onclick="resetColorSettings()">Reset Defaults</button>
+      <button class="cp-close" onclick="closeColorPanel()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Diagnostics Modal -->
 <div class="modal-overlay" id="diagModal">
   <div class="modal">
@@ -3078,6 +3127,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     <div class="toolbar-dropdown">
       <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
       <div class="toolbar-dropdown-content">
+        <button onclick="openColorPanel()">&#127912; Customize Badge Colors</button>
         <button onclick="openSettingsPanel()">&#9881; Settings</button>
         <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
         <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
