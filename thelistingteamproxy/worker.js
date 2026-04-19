@@ -2480,6 +2480,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --stat-warm-bg:rgba(234,179,8,0.15);       --stat-warm-color:#d97706;
     --stat-cold-bg:rgba(59,130,246,0.15);      --stat-cold-color:#2563eb;
     --stat-new-bg:rgba(34,197,94,0.15);        --stat-new-color:#16a34a;
+    --beh-visitor-bg:rgba(22,163,106,0.15);    --beh-visitor-color:#16a34a;
+    --beh-searcher-bg:rgba(37,99,235,0.15);    --beh-searcher-color:#2563eb;
+    --beh-buyer-bg:rgba(217,119,6,0.15);       --beh-buyer-color:#d97706;
+    --beh-seller-bg:rgba(124,58,237,0.15);     --beh-seller-color:#7c3aed;
+    --beh-showing-bg:rgba(219,39,119,0.15);    --beh-showing-color:#db2777;
+    --beh-stale-bg:rgba(220,38,38,0.15);       --beh-stale-color:#dc2626;
   }
   .source-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
   .source-ylopo { background:var(--src-ylopo-bg); color:var(--src-ylopo-color); }
@@ -2734,7 +2740,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .badge-cold { background: var(--stat-cold-bg); color: var(--stat-cold-color); }
   .badge-new { background: var(--stat-new-bg); color: var(--stat-new-color); }
   .badge-ylopo { background: var(--accent-soft); color: var(--accent); }
-  .badge-showing { background: var(--accent2-soft); color: var(--accent2); }
+  .badge-showing { background: var(--beh-showing-bg); color: var(--beh-showing-color); }
 
   /* matrix mini */
   .matrix-mini { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -3058,6 +3064,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <button class="cp-tab active" onclick="cpTab('sources',this)">Sources</button>
         <button class="cp-tab" onclick="cpTab('types',this)">Types</button>
         <button class="cp-tab" onclick="cpTab('status',this)">Status</button>
+        <button class="cp-tab" onclick="cpTab('behavior',this)">Behavior</button>
       </div>
       <div id="cp-sources" class="cp-section active">
         <div class="color-row"><label>Ylopo</label><input type="color" id="cp-src-ylopo-bg" oninput="cpPrev('src-ylopo')"><input type="color" id="cp-src-ylopo-color" oninput="cpPrev('src-ylopo')"><span class="preview" id="cp-src-ylopo-preview">YLOPO</span></div>
@@ -3083,6 +3090,14 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <div class="color-row"><label>Warm</label><input type="color" id="cp-stat-warm-bg" oninput="cpPrev('stat-warm')"><input type="color" id="cp-stat-warm-color" oninput="cpPrev('stat-warm')"><span class="preview" id="cp-stat-warm-preview">WARM</span></div>
         <div class="color-row"><label>Cold</label><input type="color" id="cp-stat-cold-bg" oninput="cpPrev('stat-cold')"><input type="color" id="cp-stat-cold-color" oninput="cpPrev('stat-cold')"><span class="preview" id="cp-stat-cold-preview">COLD</span></div>
         <div class="color-row"><label>New</label><input type="color" id="cp-stat-new-bg" oninput="cpPrev('stat-new')"><input type="color" id="cp-stat-new-color" oninput="cpPrev('stat-new')"><span class="preview" id="cp-stat-new-preview">NEW</span></div>
+      </div>
+      <div id="cp-behavior" class="cp-section">
+        <div class="color-row"><label>Visitor</label><input type="color" id="cp-beh-visitor-bg" oninput="cpPrev('beh-visitor')"><input type="color" id="cp-beh-visitor-color" oninput="cpPrev('beh-visitor')"><span class="preview" id="cp-beh-visitor-preview">VISITOR</span></div>
+        <div class="color-row"><label>Searcher</label><input type="color" id="cp-beh-searcher-bg" oninput="cpPrev('beh-searcher')"><input type="color" id="cp-beh-searcher-color" oninput="cpPrev('beh-searcher')"><span class="preview" id="cp-beh-searcher-preview">SEARCHER</span></div>
+        <div class="color-row"><label>Buyer</label><input type="color" id="cp-beh-buyer-bg" oninput="cpPrev('beh-buyer')"><input type="color" id="cp-beh-buyer-color" oninput="cpPrev('beh-buyer')"><span class="preview" id="cp-beh-buyer-preview">BUYER</span></div>
+        <div class="color-row"><label>Seller</label><input type="color" id="cp-beh-seller-bg" oninput="cpPrev('beh-seller')"><input type="color" id="cp-beh-seller-color" oninput="cpPrev('beh-seller')"><span class="preview" id="cp-beh-seller-preview">SELLER</span></div>
+        <div class="color-row"><label>Showing</label><input type="color" id="cp-beh-showing-bg" oninput="cpPrev('beh-showing')"><input type="color" id="cp-beh-showing-color" oninput="cpPrev('beh-showing')"><span class="preview" id="cp-beh-showing-preview">SHOWING</span></div>
+        <div class="color-row"><label>Stale</label><input type="color" id="cp-beh-stale-bg" oninput="cpPrev('beh-stale')"><input type="color" id="cp-beh-stale-color" oninput="cpPrev('beh-stale')"><span class="preview" id="cp-beh-stale-preview">STALE</span></div>
       </div>
       <p style="font-size:11px;color:var(--text-muted,#64748b);margin:10px 0 4px">Left = background color &nbsp;|&nbsp; Right = text color</p>
       <div class="color-panel-btns">
@@ -8457,7 +8472,7 @@ function closeSettingsPanel() {
 // -------------------------------------------------------
 var COLOR_PANEL_KEY = 'tlt_badge_colors_v2';
 var CP_ADMIN_KEY    = 'tlt_color_admin';
-var CP_ADMIN_PASS   = 'TLT2024!';
+var CP_ADMIN_PASS   = 'TeamListing2027!';
 
 var COLOR_DEFAULTS = {
   'src-ylopo':   { bg:'#eab308', color:'#eab308', cssVar:'ylopo',   alpha:0.15 },
@@ -8472,7 +8487,13 @@ var COLOR_DEFAULTS = {
   'stat-hot':    { bg:'#dc2626', color:'#dc2626', cssVar:'stat-hot',  alpha:0.15 },
   'stat-warm':   { bg:'#d97706', color:'#d97706', cssVar:'stat-warm', alpha:0.15 },
   'stat-cold':   { bg:'#2563eb', color:'#2563eb', cssVar:'stat-cold', alpha:0.15 },
-  'stat-new':    { bg:'#16a34a', color:'#16a34a', cssVar:'stat-new',  alpha:0.15 }
+  'stat-new':    { bg:'#16a34a', color:'#16a34a', cssVar:'stat-new',  alpha:0.15 },
+  'beh-visitor': { bg:'#16a34a', color:'#16a34a', cssVar:'beh-visitor',  alpha:0.15 },
+  'beh-searcher':{ bg:'#2563eb', color:'#2563eb', cssVar:'beh-searcher', alpha:0.15 },
+  'beh-buyer':   { bg:'#d97706', color:'#d97706', cssVar:'beh-buyer',    alpha:0.15 },
+  'beh-seller':  { bg:'#7c3aed', color:'#7c3aed', cssVar:'beh-seller',   alpha:0.15 },
+  'beh-showing': { bg:'#db2777', color:'#db2777', cssVar:'beh-showing',  alpha:0.15 },
+  'beh-stale':   { bg:'#dc2626', color:'#dc2626', cssVar:'beh-stale',    alpha:0.15 }
 };
 
 function cpSetVar(cssVar, bg, color, alpha) {
@@ -11215,11 +11236,11 @@ tbody tr.lead-row:hover{background:rgba(34,197,94,0.04)}
 .name-cell .name-tooltip{display:none;position:absolute;left:0;top:100%;background:var(--text);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;z-index:20;box-shadow:var(--shadow-md);pointer-events:none}
 .name-cell:hover .name-tooltip{display:block}
 .name-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap}
-.badge-visitor{background:#dcfce7;color:#16a34a}
-.badge-searcher{background:#dbeafe;color:#2563eb}
-.badge-buyer{background:#fef3c7;color:#d97706}
-.badge-seller{background:#ede9fe;color:#7c3aed}
-.badge-showing{background:#fce7f3;color:#db2777}
+.badge-visitor{background:var(--beh-visitor-bg);color:var(--beh-visitor-color)}
+.badge-searcher{background:var(--beh-searcher-bg);color:var(--beh-searcher-color)}
+.badge-buyer{background:var(--beh-buyer-bg);color:var(--beh-buyer-color)}
+.badge-seller{background:var(--beh-seller-bg);color:var(--beh-seller-color)}
+.badge-showing{background:var(--beh-showing-bg);color:var(--beh-showing-color)}
 
 /* Score cell */
 .score-pill{display:inline-flex;align-items:center;justify-content:center;width:36px;height:28px;border-radius:var(--radius-xs);font-weight:700;font-size:13px}
@@ -11243,6 +11264,12 @@ tbody tr.lead-row:hover{background:rgba(34,197,94,0.04)}
   --stat-warm-bg:rgba(234,179,8,0.15);--stat-warm-color:#d97706;
   --stat-cold-bg:rgba(59,130,246,0.15);--stat-cold-color:#2563eb;
   --stat-new-bg:rgba(34,197,94,0.15);--stat-new-color:#16a34a;
+  --beh-visitor-bg:rgba(22,163,106,0.15);--beh-visitor-color:#16a34a;
+  --beh-searcher-bg:rgba(37,99,235,0.15);--beh-searcher-color:#2563eb;
+  --beh-buyer-bg:rgba(217,119,6,0.15);--beh-buyer-color:#d97706;
+  --beh-seller-bg:rgba(124,58,237,0.15);--beh-seller-color:#7c3aed;
+  --beh-showing-bg:rgba(219,39,119,0.15);--beh-showing-color:#db2777;
+  --beh-stale-bg:rgba(220,38,38,0.15);--beh-stale-color:#dc2626;
 }
 .status-new{background:var(--stat-new-bg);color:var(--stat-new-color)}
 .status-warm{background:var(--stat-warm-bg);color:var(--stat-warm-color)}
@@ -11414,7 +11441,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .toast.info{background:var(--blue);color:#fff}
 
 /* ===== STALE BADGE ===== */
-.badge-stale{background:#fee2e2;color:#dc2626;animation:stale-pulse 2s ease-in-out infinite}
+.badge-stale{background:var(--beh-stale-bg);color:var(--beh-stale-color);animation:stale-pulse 2s ease-in-out infinite}
 @keyframes stale-pulse{0%,100%{opacity:1}50%{opacity:0.6}}
 
 /* ===== ANALYTICS GRID ===== */
@@ -12148,6 +12175,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
         <button class="cp-tab active" onclick="cpTab('sources',this)">Sources</button>
         <button class="cp-tab" onclick="cpTab('types',this)">Types</button>
         <button class="cp-tab" onclick="cpTab('status',this)">Status</button>
+        <button class="cp-tab" onclick="cpTab('behavior',this)">Behavior</button>
       </div>
       <div id="cp-sources" class="cp-section active">
         <div class="color-row"><label>Ylopo</label><input type="color" id="cp-src-ylopo-bg" oninput="cpPrev('src-ylopo')"><input type="color" id="cp-src-ylopo-color" oninput="cpPrev('src-ylopo')"><span class="preview" id="cp-src-ylopo-preview">YLOPO</span></div>
@@ -12173,6 +12201,14 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
         <div class="color-row"><label>Warm</label><input type="color" id="cp-stat-warm-bg" oninput="cpPrev('stat-warm')"><input type="color" id="cp-stat-warm-color" oninput="cpPrev('stat-warm')"><span class="preview" id="cp-stat-warm-preview">WARM</span></div>
         <div class="color-row"><label>Cold</label><input type="color" id="cp-stat-cold-bg" oninput="cpPrev('stat-cold')"><input type="color" id="cp-stat-cold-color" oninput="cpPrev('stat-cold')"><span class="preview" id="cp-stat-cold-preview">COLD</span></div>
         <div class="color-row"><label>New</label><input type="color" id="cp-stat-new-bg" oninput="cpPrev('stat-new')"><input type="color" id="cp-stat-new-color" oninput="cpPrev('stat-new')"><span class="preview" id="cp-stat-new-preview">NEW</span></div>
+      </div>
+      <div id="cp-behavior" class="cp-section">
+        <div class="color-row"><label>Visitor</label><input type="color" id="cp-beh-visitor-bg" oninput="cpPrev('beh-visitor')"><input type="color" id="cp-beh-visitor-color" oninput="cpPrev('beh-visitor')"><span class="preview" id="cp-beh-visitor-preview">VISITOR</span></div>
+        <div class="color-row"><label>Searcher</label><input type="color" id="cp-beh-searcher-bg" oninput="cpPrev('beh-searcher')"><input type="color" id="cp-beh-searcher-color" oninput="cpPrev('beh-searcher')"><span class="preview" id="cp-beh-searcher-preview">SEARCHER</span></div>
+        <div class="color-row"><label>Buyer</label><input type="color" id="cp-beh-buyer-bg" oninput="cpPrev('beh-buyer')"><input type="color" id="cp-beh-buyer-color" oninput="cpPrev('beh-buyer')"><span class="preview" id="cp-beh-buyer-preview">BUYER</span></div>
+        <div class="color-row"><label>Seller</label><input type="color" id="cp-beh-seller-bg" oninput="cpPrev('beh-seller')"><input type="color" id="cp-beh-seller-color" oninput="cpPrev('beh-seller')"><span class="preview" id="cp-beh-seller-preview">SELLER</span></div>
+        <div class="color-row"><label>Showing</label><input type="color" id="cp-beh-showing-bg" oninput="cpPrev('beh-showing')"><input type="color" id="cp-beh-showing-color" oninput="cpPrev('beh-showing')"><span class="preview" id="cp-beh-showing-preview">SHOWING</span></div>
+        <div class="color-row"><label>Stale</label><input type="color" id="cp-beh-stale-bg" oninput="cpPrev('beh-stale')"><input type="color" id="cp-beh-stale-color" oninput="cpPrev('beh-stale')"><span class="preview" id="cp-beh-stale-preview">STALE</span></div>
       </div>
       <p style="font-size:11px;color:#64748b;margin:10px 0 4px">Left = background &nbsp;|&nbsp; Right = text color</p>
       <div class="color-panel-btns">
@@ -18739,8 +18775,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 // -------------------------------------------------------
 // BADGE COLOR CUSTOMIZER — analytics page
 // -------------------------------------------------------
-var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMIN_PASS='TLT2024!';
-var COLOR_DEFAULTS={'src-ylopo':{bg:'#eab308',color:'#eab308',cssVar:'ylopo',alpha:0.15},'src-myplus':{bg:'#8b5cf6',color:'#8b5cf6',cssVar:'myplus',alpha:0.15},'src-zillow':{bg:'#3b82f6',color:'#3b82f6',cssVar:'zillow',alpha:0.15},'src-realtor':{bg:'#ef4444',color:'#ef4444',cssVar:'realtor',alpha:0.15},'src-homes':{bg:'#f97316',color:'#f97316',cssVar:'homes',alpha:0.15},'src-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'default',alpha:0.15},'type-seller':{bg:'#22c55e',color:'#22c55e',cssVar:'type-seller',alpha:0.2},'type-buyer':{bg:'#10b981',color:'#10b981',cssVar:'type-buyer',alpha:0.15},'type-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'type-def',alpha:0.15},'stat-hot':{bg:'#dc2626',color:'#dc2626',cssVar:'stat-hot',alpha:0.15},'stat-warm':{bg:'#d97706',color:'#d97706',cssVar:'stat-warm',alpha:0.15},'stat-cold':{bg:'#2563eb',color:'#2563eb',cssVar:'stat-cold',alpha:0.15},'stat-new':{bg:'#16a34a',color:'#16a34a',cssVar:'stat-new',alpha:0.15}};
+var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMIN_PASS='TeamListing2027!';
+var COLOR_DEFAULTS={'src-ylopo':{bg:'#eab308',color:'#eab308',cssVar:'ylopo',alpha:0.15},'src-myplus':{bg:'#8b5cf6',color:'#8b5cf6',cssVar:'myplus',alpha:0.15},'src-zillow':{bg:'#3b82f6',color:'#3b82f6',cssVar:'zillow',alpha:0.15},'src-realtor':{bg:'#ef4444',color:'#ef4444',cssVar:'realtor',alpha:0.15},'src-homes':{bg:'#f97316',color:'#f97316',cssVar:'homes',alpha:0.15},'src-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'default',alpha:0.15},'type-seller':{bg:'#22c55e',color:'#22c55e',cssVar:'type-seller',alpha:0.2},'type-buyer':{bg:'#10b981',color:'#10b981',cssVar:'type-buyer',alpha:0.15},'type-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'type-def',alpha:0.15},'stat-hot':{bg:'#dc2626',color:'#dc2626',cssVar:'stat-hot',alpha:0.15},'stat-warm':{bg:'#d97706',color:'#d97706',cssVar:'stat-warm',alpha:0.15},'stat-cold':{bg:'#2563eb',color:'#2563eb',cssVar:'stat-cold',alpha:0.15},'stat-new':{bg:'#16a34a',color:'#16a34a',cssVar:'stat-new',alpha:0.15},'beh-visitor':{bg:'#16a34a',color:'#16a34a',cssVar:'beh-visitor',alpha:0.15},'beh-searcher':{bg:'#2563eb',color:'#2563eb',cssVar:'beh-searcher',alpha:0.15},'beh-buyer':{bg:'#d97706',color:'#d97706',cssVar:'beh-buyer',alpha:0.15},'beh-seller':{bg:'#7c3aed',color:'#7c3aed',cssVar:'beh-seller',alpha:0.15},'beh-showing':{bg:'#db2777',color:'#db2777',cssVar:'beh-showing',alpha:0.15},'beh-stale':{bg:'#dc2626',color:'#dc2626',cssVar:'beh-stale',alpha:0.15}};
 function cpSetVar(cssVar,bg,color,alpha){var r=parseInt(bg.slice(1,3),16),g=parseInt(bg.slice(3,5),16),b=parseInt(bg.slice(5,7),16),a=alpha!==undefined?alpha:0.15;document.documentElement.style.setProperty('--'+cssVar+'-bg','rgba('+r+','+g+','+b+','+a+')');document.documentElement.style.setProperty('--'+cssVar+'-color',color);}
 function cpInjectCustomCSS(customs){var el=document.getElementById('cp-custom-styles')||document.createElement('style');el.id='cp-custom-styles';var css='';(customs||[]).forEach(function(c){var r=parseInt(c.bg.slice(1,3),16),g=parseInt(c.bg.slice(3,5),16),b=parseInt(c.bg.slice(5,7),16);css+='.source-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';});el.textContent=css;document.head.appendChild(el);}
 function applyColorSettings(data){Object.keys(COLOR_DEFAULTS).forEach(function(k){var d=COLOR_DEFAULTS[k],v=(data&&data[k])||d;cpSetVar(d.cssVar,v.bg,v.color,d.alpha);});if(data&&data.customs){cpInjectCustomCSS(data.customs);}}
