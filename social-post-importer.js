@@ -1703,32 +1703,28 @@ var HTML_PAGE = `<!DOCTYPE html>
                         }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition bg-white">
                         <option value="">-- Select a domain --</option>
-                        {selectedLocationDomains && (
-                          <optgroup label={'📍 ' + (selectedLocationDomains.name || 'Selected Location')}>
-                            {selectedLocationDomains.website && (
+                        {selectedLocationDomains && selectedLocationDomains.domains && selectedLocationDomains.domains.length > 0 && (
+                          <optgroup label={'Selected: ' + (selectedLocationDomains.name || 'Location')}>
+                            {selectedLocationDomains.domains.map(function(d,i) {
+                              return <option key={'sel-'+i} value={d.url}>{d.url} ({d.type})</option>;
+                            })}
+                            {selectedLocationDomains.website && !selectedLocationDomains.domains.find(function(d){return d.url===selectedLocationDomains.website}) && (
                               <option value={selectedLocationDomains.website}>{selectedLocationDomains.website} (website)</option>
                             )}
-                            {selectedLocationDomains.domain && selectedLocationDomains.domain !== selectedLocationDomains.website && (
-                              <option value={selectedLocationDomains.domain}>{selectedLocationDomains.domain} (custom domain)</option>
-                            )}
-                            {selectedLocationDomains.domains?.filter(d => d.url !== selectedLocationDomains.website && d.url !== selectedLocationDomains.domain).map((d,i) => (
-                              <option key={'sel-'+i} value={d.url}>{d.url} ({d.type})</option>
-                            ))}
                           </optgroup>
                         )}
-                        {domainData.filter(d => d.locationId !== selectedLocationId && (d.website || d.domain || d.domains?.length > 0)).length > 0 && (
-                          <optgroup label="🌐 All Locations">
-                            {domainData.filter(d => d.locationId !== selectedLocationId).map(loc => [
-                              loc.website ? <option key={loc.locationId+'-w'} value={loc.website}>{loc.name}: {loc.website} (website)</option> : null,
-                              loc.domain && loc.domain !== loc.website ? <option key={loc.locationId+'-d'} value={loc.domain}>{loc.name}: {loc.domain} (custom domain)</option> : null,
-                              ...(loc.domains?.filter(d => d.url !== loc.website && d.url !== loc.domain).map((d,i) => (
-                                <option key={loc.locationId+'-'+i} value={d.url}>{loc.name}: {d.url} ({d.type})</option>
-                              )) || [])
-                            ])}
-                          </optgroup>
-                        )}
-                        <optgroup label="─────────────────">
-                          <option value="__custom__">✏️ Enter custom URL...</option>
+                        <optgroup label="All Locations">
+                          {domainData.filter(function(d){return d.domains && d.domains.length > 0 || d.website}).map(function(loc) {
+                            var items = [];
+                            if (loc.website) items.push(<option key={loc.locationId+'-w'} value={loc.website}>{loc.name}: {loc.website} (website)</option>);
+                            if (loc.domains) loc.domains.forEach(function(d,i) {
+                              if (d.url !== loc.website) items.push(<option key={loc.locationId+'-'+i} value={d.url}>{loc.name}: {d.url} ({d.type})</option>);
+                            });
+                            return items;
+                          })}
+                        </optgroup>
+                        <optgroup label="---">
+                          <option value="__custom__">Enter custom URL...</option>
                         </optgroup>
                       </select>
                     )}
@@ -2090,32 +2086,28 @@ var BLOG_PAGE = `<!DOCTYPE html>
                         }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition bg-white">
                         <option value="">-- Select a domain --</option>
-                        {selectedLocationDomains && (
-                          <optgroup label={'📍 ' + (selectedLocationDomains.name || 'Selected Location')}>
-                            {selectedLocationDomains.website && (
+                        {selectedLocationDomains && selectedLocationDomains.domains && selectedLocationDomains.domains.length > 0 && (
+                          <optgroup label={'Selected: ' + (selectedLocationDomains.name || 'Location')}>
+                            {selectedLocationDomains.domains.map(function(d,i) {
+                              return <option key={'sel-'+i} value={d.url}>{d.url} ({d.type})</option>;
+                            })}
+                            {selectedLocationDomains.website && !selectedLocationDomains.domains.find(function(d){return d.url===selectedLocationDomains.website}) && (
                               <option value={selectedLocationDomains.website}>{selectedLocationDomains.website} (website)</option>
                             )}
-                            {selectedLocationDomains.domain && selectedLocationDomains.domain !== selectedLocationDomains.website && (
-                              <option value={selectedLocationDomains.domain}>{selectedLocationDomains.domain} (custom domain)</option>
-                            )}
-                            {selectedLocationDomains.domains?.filter(d => d.url !== selectedLocationDomains.website && d.url !== selectedLocationDomains.domain).map((d,i) => (
-                              <option key={'sel-'+i} value={d.url}>{d.url} ({d.type})</option>
-                            ))}
                           </optgroup>
                         )}
-                        {domainData.filter(d => d.locationId !== selectedLocationId && (d.website || d.domain || d.domains?.length > 0)).length > 0 && (
-                          <optgroup label="🌐 All Locations">
-                            {domainData.filter(d => d.locationId !== selectedLocationId).map(loc => [
-                              loc.website ? <option key={loc.locationId+'-w'} value={loc.website}>{loc.name}: {loc.website} (website)</option> : null,
-                              loc.domain && loc.domain !== loc.website ? <option key={loc.locationId+'-d'} value={loc.domain}>{loc.name}: {loc.domain} (custom domain)</option> : null,
-                              ...(loc.domains?.filter(d => d.url !== loc.website && d.url !== loc.domain).map((d,i) => (
-                                <option key={loc.locationId+'-'+i} value={d.url}>{loc.name}: {d.url} ({d.type})</option>
-                              )) || [])
-                            ])}
-                          </optgroup>
-                        )}
-                        <optgroup label="─────────────────">
-                          <option value="__custom__">✏️ Enter custom URL...</option>
+                        <optgroup label="All Locations">
+                          {domainData.filter(function(d){return d.domains && d.domains.length > 0 || d.website}).map(function(loc) {
+                            var items = [];
+                            if (loc.website) items.push(<option key={loc.locationId+'-w'} value={loc.website}>{loc.name}: {loc.website} (website)</option>);
+                            if (loc.domains) loc.domains.forEach(function(d,i) {
+                              if (d.url !== loc.website) items.push(<option key={loc.locationId+'-'+i} value={d.url}>{loc.name}: {d.url} ({d.type})</option>);
+                            });
+                            return items;
+                          })}
+                        </optgroup>
+                        <optgroup label="---">
+                          <option value="__custom__">Enter custom URL...</option>
                         </optgroup>
                       </select>
                     )}
