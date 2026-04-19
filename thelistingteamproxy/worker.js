@@ -214,6 +214,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">IDX + Ylopo</div>
         </div>
       </a>
+      <a href="/dashboard/pipeline" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F680}</div>
+        <div class="card-body">
+          <div class="card-title">Pipeline &amp; Wishlist</div>
+          <div class="card-desc">Submit feature requests, bug reports, and wishlist items. Track progress from idea to done on a kanban board.</div>
+          <div class="card-tag">Idea \u2192 Planned \u2192 Done</div>
+        </div>
+      </a>
     </div>
   </div>
 
@@ -19287,6 +19296,499 @@ async function lookupByEmail(env, email) {
 }
 __name(lookupByEmail, "lookupByEmail");
 __name2(lookupByEmail, "lookupByEmail");
+// =============================================================
+// PIPELINE & WISHLIST PAGE
+// =============================================================
+var PIPELINE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team \u2014 Pipeline &amp; Wishlist</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+a{color:#3b82f6;text-decoration:none}
+.hbar{background:linear-gradient(135deg,#0f2137,#1a3a6b,#1e4d9e);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
+.hbar-logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
+.hbar-logo span{color:#60a5fa}
+.hnav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);transition:all .15s}
+.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.hbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hbtn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.hbtn:hover{background:rgba(255,255,255,0.15)}
+.hbtn-green{background:#16a34a;border-color:#16a34a}
+.hbtn-green:hover{background:#15803d}
+.admin-badge{display:none;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:rgba(234,179,8,0.18);color:#eab308;font-size:11px;font-weight:700;border:1px solid rgba(234,179,8,0.3)}
+.main{padding:24px;max-width:1600px;margin:0 auto}
+.stats-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.stat-chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.stat-chip b{font-size:15px;font-weight:800}
+.board-wrap{overflow-x:auto;padding-bottom:12px}
+.board{display:flex;gap:14px;min-width:max-content}
+.col{width:290px;flex-shrink:0;display:flex;flex-direction:column}
+.col-hdr{padding:10px 14px;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border:1px solid #334155;border-bottom:none}
+.col-count{margin-left:auto;min-width:20px;height:20px;border-radius:10px;background:rgba(255,255,255,0.1);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.col-body{background:#131f33;border:1px solid #334155;border-top:none;border-radius:0 0 10px 10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:180px}
+.col-idea .col-hdr{background:rgba(234,179,8,0.1);border-color:rgba(234,179,8,0.25);color:#eab308}
+.col-idea .col-body{border-color:rgba(234,179,8,0.15)}
+.col-planned .col-hdr{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.25);color:#60a5fa}
+.col-planned .col-body{border-color:rgba(59,130,246,0.15)}
+.col-inprogress .col-hdr{background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.25);color:#a78bfa}
+.col-inprogress .col-body{border-color:rgba(139,92,246,0.15)}
+.col-done .col-hdr{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.25);color:#4ade80}
+.col-done .col-body{border-color:rgba(34,197,94,0.15)}
+.col-wontdo .col-hdr{background:rgba(100,116,139,0.1);border-color:rgba(100,116,139,0.2);color:#94a3b8}
+.col-wontdo .col-body{border-color:rgba(100,116,139,0.12)}
+.pipe-card{background:#1e2d42;border:1px solid #2d3f58;border-radius:10px;padding:12px;cursor:pointer;transition:all .15s}
+.pipe-card:hover{border-color:#3b82f6;background:#1e3554;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.35)}
+.card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.badge-admin{background:rgba(234,179,8,0.18);color:#eab308;border:1px solid rgba(234,179,8,0.3)}
+.card-title{font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:5px;line-height:1.4}
+.card-desc{font-size:11px;color:#94a3b8;line-height:1.5;margin-bottom:8px}
+.card-thumb{width:100%;max-height:90px;object-fit:cover;border-radius:6px;margin-bottom:8px;border:1px solid #334155}
+.card-footer{display:flex;align-items:center;justify-content:space-between}
+.card-author{font-size:11px;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+.vote-btn{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;border:1px solid #2d3f58;background:transparent;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.vote-btn:hover{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,0.08)}
+.vote-btn.voted{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,0.12)}
+.col-empty{text-align:center;padding:28px 12px;color:#334155;font-size:12px;font-style:italic}
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;gap:12px;color:#64748b;font-size:13px}
+.spinner{width:22px;height:22px;border:2px solid #1e293b;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:26px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto}
+.modal-wide{max-width:620px}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-hdr h3{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;line-height:1;padding:2px}
+.form-group{margin-bottom:13px}
+.form-group label{display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.form-input{width:100%;padding:9px 12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#f1f5f9;font-family:inherit;font-size:13px;transition:border .15s;outline:none}
+.form-input:focus{border-color:#3b82f6}
+.form-input::placeholder{color:#334155}
+textarea.form-input{resize:vertical;min-height:80px}
+.form-row{display:flex;gap:8px;margin-top:14px}
+.form-row>*{flex:1}
+.btn-primary{padding:9px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center}
+.btn-primary:hover{background:#2563eb}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{padding:9px;border:1px solid #334155;border-radius:8px;background:transparent;color:#94a3b8;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center}
+.btn-secondary:hover{border-color:#64748b;color:#e2e8f0}
+.btn-danger{padding:9px;border:1px solid rgba(239,68,68,0.3);border-radius:8px;background:rgba(239,68,68,0.1);color:#ef4444;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center}
+.btn-danger:hover{background:rgba(239,68,68,0.2)}
+.detail-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.detail-title{font-size:18px;font-weight:700;line-height:1.3;margin-bottom:14px}
+.detail-desc{color:#cbd5e1;line-height:1.7;margin-bottom:12px;white-space:pre-wrap;font-size:13px}
+.detail-img{width:100%;max-height:280px;object-fit:contain;border-radius:8px;border:1px solid #334155;margin-bottom:12px;background:#0f172a}
+.detail-meta{font-size:12px;color:#64748b;margin-bottom:5px}
+.detail-note{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px 14px;font-size:13px;color:#93c5fd;margin-bottom:12px}
+.admin-panel{background:rgba(234,179,8,0.04);border:1px solid rgba(234,179,8,0.15);border-radius:10px;padding:16px;margin-top:16px}
+.admin-panel-hdr{font-size:11px;font-weight:700;color:#eab308;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.setup-box{background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px;margin-top:14px;text-align:left}
+.setup-sql{background:#0a1120;border:1px solid #1e2d42;border-radius:6px;padding:10px;font-family:'Courier New',monospace;font-size:10px;color:#64748b;white-space:pre;overflow-x:auto;margin-top:8px;line-height:1.6}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:9000;opacity:0;pointer-events:none;transition:all .3s;white-space:nowrap}
+.toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:#22c55e;color:#fff}
+.toast.error{background:#ef4444;color:#fff}
+.toast.info{background:#3b82f6;color:#fff}
+</style>
+</head>
+<body>
+<div class="hbar">
+  <div class="hbar-logo">The Listing Team <span>&#128640; Pipeline</span></div>
+  <nav class="hnav">
+    <a href="/dashboard">&#127968; Hub</a>
+    <a href="/dashboard/ylopo-contacts">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-analytics">&#128202; Analytics</a>
+    <a href="/dashboard/pipeline" class="active">&#128640; Pipeline</a>
+  </nav>
+  <div class="hbar-right">
+    <div class="admin-badge" id="adminBadge">&#11088; Admin</div>
+    <button class="hbtn" id="adminBtn" onclick="openAdminModal()">&#128274; Admin</button>
+    <button class="hbtn hbtn-green" onclick="openSubmit()">&#43; New Request</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats-row" id="statsRow">
+    <div class="stat-chip">&#128640; Loading&hellip;</div>
+  </div>
+  <div class="loading" id="loadingEl"><div class="spinner"></div> Loading pipeline&hellip;</div>
+  <div id="boardWrap" style="display:none">
+    <div class="board-wrap">
+      <div class="board">
+        <div class="col col-idea">
+          <div class="col-hdr">&#128161; Idea <span class="col-count" id="cnt-idea">0</span></div>
+          <div class="col-body" id="col-idea"></div>
+        </div>
+        <div class="col col-planned">
+          <div class="col-hdr">&#128203; Planned <span class="col-count" id="cnt-planned">0</span></div>
+          <div class="col-body" id="col-planned"></div>
+        </div>
+        <div class="col col-inprogress">
+          <div class="col-hdr">&#128296; In Progress <span class="col-count" id="cnt-in-progress">0</span></div>
+          <div class="col-body" id="col-in-progress"></div>
+        </div>
+        <div class="col col-done">
+          <div class="col-hdr">&#9989; Done <span class="col-count" id="cnt-done">0</span></div>
+          <div class="col-body" id="col-done"></div>
+        </div>
+        <div class="col col-wontdo">
+          <div class="col-hdr">&#10060; Won't Do <span class="col-count" id="cnt-wont-do">0</span></div>
+          <div class="col-body" id="col-wont-do"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Modal -->
+<div class="modal-overlay" id="submitModal" onclick="if(event.target===this)closeSubmit()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>&#128640; Submit a Request</h3>
+      <button class="modal-close" onclick="closeSubmit()">&#10005;</button>
+    </div>
+    <form id="submitForm" onsubmit="event.preventDefault();submitItem()">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="newTitle" class="form-input" placeholder="What do you want to see?" maxlength="140" required>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="newDesc" class="form-input" placeholder="More detail — why it matters, how it should work..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="form-group" style="flex:1">
+          <label>Category</label>
+          <select id="newCategory" class="form-input">
+            <option value="feature">Feature</option>
+            <option value="improvement">Improvement</option>
+            <option value="bug">Bug Fix</option>
+            <option value="wishlist">Wishlist</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Priority</label>
+          <select id="newPriority" class="form-input">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="form-group" style="flex:1">
+          <label>Your Name</label>
+          <input type="text" id="newName" class="form-input" placeholder="Anonymous">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Email (optional)</label>
+          <input type="email" id="newEmail" class="form-input" placeholder="For updates">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Screenshot (optional, max 1MB)</label>
+        <input type="file" id="newScreenshot" class="form-input" accept="image/*" onchange="handleScreenshot(this)" style="padding:6px">
+        <div id="screenshotPreview"></div>
+      </div>
+      <div class="form-row">
+        <button type="submit" class="btn-primary" id="submitBtn">Submit Request</button>
+        <button type="button" class="btn-secondary" onclick="closeSubmit()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeDetail()">
+  <div class="modal modal-wide">
+    <div class="modal-hdr">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b">Request Detail</span>
+      <button class="modal-close" onclick="closeDetail()">&#10005;</button>
+    </div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="adminModal" onclick="if(event.target===this)closeAdminModal()">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div class="modal-hdr" style="justify-content:center">
+      <h3>&#128274; Admin Access</h3>
+    </div>
+    <p style="color:#64748b;font-size:13px;margin-bottom:18px">Enter your admin password to manage pipeline items, change statuses, and set timelines.</p>
+    <div class="form-group">
+      <input type="password" id="adminPassword" class="form-input" placeholder="Admin password" style="text-align:center" onkeydown="if(event.key==='Enter')adminUnlock()">
+    </div>
+    <div class="form-row" style="margin-top:0">
+      <button class="btn-primary" onclick="adminUnlock()">Unlock</button>
+      <button class="btn-secondary" onclick="closeAdminModal()">Cancel</button>
+    </div>
+    <div class="setup-box" id="setupBox" style="display:none">
+      <div style="font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:6px">&#9889; First-time Supabase Setup</div>
+      <p style="font-size:11px;color:#94a3b8;margin-bottom:6px">Run this SQL in your Supabase SQL editor to create the pipeline table:</p>
+      <div class="setup-sql" id="setupSql"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var PIPE_API = '/api/pipeline';
+var PIPE_ADMIN = 'TeamListing2027!';
+var PIPE_SESSION = 'tlt_pipe_admin';
+var items = [];
+var isAdmin = false;
+var screenshotData = null;
+var STATUSES = [
+  {key:'idea',        label:'Idea',        color:'#eab308'},
+  {key:'planned',     label:'Planned',     color:'#3b82f6'},
+  {key:'in-progress', label:'In Progress', color:'#8b5cf6'},
+  {key:'done',        label:'Done',        color:'#22c55e'},
+  {key:'wont-do',     label:"Won't Do",    color:'#64748b'}
+];
+var CAT_COLORS = {feature:'#3b82f6',bug:'#ef4444',improvement:'#8b5cf6',wishlist:'#ec4899'};
+var PRI_COLORS = {low:'#22c55e',medium:'#eab308',high:'#f97316',critical:'#ef4444'};
+var SETUP_SQL = 'CREATE TABLE IF NOT EXISTS pipeline_items (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  title TEXT NOT NULL,\n  description TEXT,\n  category TEXT DEFAULT \'feature\',\n  priority TEXT DEFAULT \'medium\',\n  status TEXT DEFAULT \'idea\',\n  submitter_name TEXT DEFAULT \'Anonymous\',\n  submitter_email TEXT,\n  screenshot_data TEXT,\n  votes INTEGER DEFAULT 0,\n  admin_notes TEXT,\n  target_date TEXT,\n  is_admin_item BOOLEAN DEFAULT false,\n  created_at TIMESTAMPTZ DEFAULT NOW(),\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
+
+function g(id){return document.getElementById(id);}
+function esc(s){if(!s&&s!==0)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function rgba(hex,a){if(!hex||hex.length<7)return 'rgba(100,116,139,'+a+')';var r=parseInt(hex.slice(1,3),16),gr=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+gr+','+b+','+a+')';}
+function showToast(msg,type){var t=g('toast');if(!t)return;t.textContent=msg;t.className='toast visible '+(type||'success');clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},3000);}
+
+async function loadItems(){
+  g('loadingEl').style.display='flex';
+  g('boardWrap').style.display='none';
+  try{
+    var r=await fetch(PIPE_API);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var d=await r.json();
+    items=Array.isArray(d.items)?d.items:[];
+    renderStats();renderBoard();
+    g('loadingEl').style.display='none';
+    g('boardWrap').style.display='block';
+  }catch(e){
+    g('loadingEl').innerHTML='<p style="color:#ef4444">Failed to load pipeline. Make sure the Supabase table is set up (see Admin panel).</p>';
+    g('setupBox').style.display='block';
+  }
+}
+
+function renderStats(){
+  var total=items.length;
+  var wip=items.filter(function(i){return i.status==='in-progress';}).length;
+  var done=items.filter(function(i){return i.status==='done';}).length;
+  g('statsRow').innerHTML=
+    '<div class="stat-chip">&#128640; <b>'+total+'</b> Total</div>'+
+    '<div class="stat-chip" style="color:#a78bfa">&#128296; <b>'+wip+'</b> In Progress</div>'+
+    '<div class="stat-chip" style="color:#4ade80">&#9989; <b>'+done+'</b> Done</div>';
+}
+
+function renderBoard(){
+  STATUSES.forEach(function(s){
+    var col=g('col-'+s.key);
+    var cnt=g('cnt-'+s.key);
+    if(!col)return;
+    var list=items.filter(function(i){return i.status===s.key;});
+    list.sort(function(a,b){return (b.votes||0)-(a.votes||0);});
+    if(cnt)cnt.textContent=list.length;
+    if(!list.length){col.innerHTML='<div class="col-empty">No items yet</div>';return;}
+    col.innerHTML=list.map(buildCard).join('');
+  });
+}
+
+function buildCard(item){
+  var cc=CAT_COLORS[item.category]||'#64748b';
+  var pc=PRI_COLORS[item.priority]||'#64748b';
+  var voted=localStorage.getItem('pv_'+item.id)==='1';
+  var adminTag=item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin</span>':'';
+  var desc=item.description?(item.description.length>90?item.description.slice(0,90)+'...':item.description):'';
+  return '<div class="pipe-card" onclick="openDetail(\''+item.id+'\')">'+
+    '<div class="card-badges">'+
+      '<span class="badge" style="background:'+rgba(cc,0.15)+';color:'+cc+'">'+esc(item.category)+'</span>'+
+      '<span class="badge" style="background:'+rgba(pc,0.15)+';color:'+pc+'">'+esc(item.priority)+'</span>'+
+      adminTag+
+    '</div>'+
+    '<div class="card-title">'+esc(item.title)+'</div>'+
+    (desc?'<div class="card-desc">'+esc(desc)+'</div>':'')+
+    (item.screenshot_data?'<img class="card-thumb" src="'+item.screenshot_data+'" alt="">':'')+
+    '<div class="card-footer">'+
+      '<span class="card-author">'+esc(item.submitter_name||'Anonymous')+'</span>'+
+      '<button class="vote-btn'+(voted?' voted':'')+'" onclick="event.stopPropagation();voteItem(\''+item.id+'\')" title="Upvote">'+
+        (voted?'&#9650;':'&#9651;')+' '+(item.votes||0)+
+      '</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function openDetail(id){
+  var item=items.find(function(i){return i.id===id;});
+  if(!item)return;
+  var st=STATUSES.find(function(s){return s.key===item.status;})||STATUSES[0];
+  var cc=CAT_COLORS[item.category]||'#64748b';
+  var pc=PRI_COLORS[item.priority]||'#64748b';
+  var stOpts=STATUSES.map(function(s){return '<option value="'+s.key+'"'+(s.key===item.status?' selected':'')+'>'+s.label+'</option>';}).join('');
+  var adminHtml='';
+  if(isAdmin){
+    adminHtml='<div class="admin-panel">'+
+      '<div class="admin-panel-hdr">&#128274; Admin Controls</div>'+
+      '<div style="display:flex;gap:10px">'+
+        '<div class="form-group" style="flex:1"><label>Status</label><select id="editStatus" class="form-input">'+stOpts+'</select></div>'+
+        '<div class="form-group" style="flex:1"><label>Target Date</label><input type="date" id="editTargetDate" class="form-input" value="'+esc(item.target_date||'')+'"></div>'+
+      '</div>'+
+      '<div class="form-group"><label>Admin Notes (shown publicly)</label><textarea id="editAdminNotes" class="form-input" rows="3">'+esc(item.admin_notes||'')+'</textarea></div>'+
+      '<div class="form-row">'+
+        '<button class="btn-primary" onclick="saveItem(\''+item.id+'\')">Save Changes</button>'+
+        '<button class="btn-danger" onclick="deleteItem(\''+item.id+'\')">Delete</button>'+
+      '</div>'+
+    '</div>';
+  }
+  g('detailContent').innerHTML=
+    '<div class="detail-badges">'+
+      '<span class="badge" style="background:'+rgba(st.color,0.15)+';color:'+st.color+'">'+esc(st.label)+'</span>'+
+      '<span class="badge" style="background:'+rgba(cc,0.15)+';color:'+cc+'">'+esc(item.category)+'</span>'+
+      '<span class="badge" style="background:'+rgba(pc,0.15)+';color:'+pc+'">'+esc(item.priority)+'</span>'+
+      (item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin Item</span>':'')+
+    '</div>'+
+    '<div class="detail-title">'+esc(item.title)+'</div>'+
+    (item.description?'<div class="detail-desc">'+esc(item.description)+'</div>':'')+
+    (item.screenshot_data?'<img class="detail-img" src="'+item.screenshot_data+'" alt="Screenshot">':'')+
+    (item.admin_notes?'<div class="detail-note">&#128204; <strong>Note:</strong> '+esc(item.admin_notes)+'</div>':'')+
+    (item.target_date?'<div class="detail-meta">&#128197; <strong>Target:</strong> '+esc(item.target_date)+'</div>':'')+
+    '<div class="detail-meta">&#128100; <strong>By:</strong> '+esc(item.submitter_name||'Anonymous')+(item.submitter_email?' &lt;'+esc(item.submitter_email)+'&gt;':'')+'</div>'+
+    '<div class="detail-meta">&#128197; <strong>Submitted:</strong> '+new Date(item.created_at).toLocaleDateString()+'</div>'+
+    '<div class="detail-meta">&#128077; <strong>Votes:</strong> '+(item.votes||0)+'</div>'+
+    adminHtml;
+  g('detailModal').classList.add('open');
+}
+function closeDetail(){g('detailModal').classList.remove('open');}
+
+function openSubmit(){g('submitModal').classList.add('open');}
+function closeSubmit(){
+  g('submitModal').classList.remove('open');
+  g('submitForm').reset();
+  g('screenshotPreview').innerHTML='';
+  screenshotData=null;
+}
+
+function handleScreenshot(input){
+  var file=input.files&&input.files[0];
+  if(!file)return;
+  if(file.size>1048576){alert('Image must be under 1MB. Please resize before uploading.');input.value='';return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    screenshotData=e.target.result;
+    g('screenshotPreview').innerHTML='<img src="'+screenshotData+'" style="max-width:100%;max-height:120px;border-radius:6px;margin-top:8px;border:1px solid #334155">';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitItem(){
+  var title=g('newTitle').value.trim();
+  if(!title){g('newTitle').focus();return;}
+  var btn=g('submitBtn');
+  btn.disabled=true;btn.textContent='Submitting...';
+  try{
+    var r=await fetch(PIPE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      title:title,
+      description:g('newDesc').value.trim()||null,
+      category:g('newCategory').value,
+      priority:g('newPriority').value,
+      submitter_name:g('newName').value.trim()||'Anonymous',
+      submitter_email:g('newEmail').value.trim()||null,
+      screenshot_data:screenshotData||null,
+      is_admin_item:isAdmin
+    })});
+    var d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Failed');
+    items.unshift(d.item);
+    renderStats();renderBoard();
+    closeSubmit();
+    showToast('Request submitted! &#127881;','success');
+  }catch(e){showToast('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Submit Request';}
+}
+
+async function saveItem(id){
+  var status=g('editStatus')&&g('editStatus').value;
+  var notes=g('editAdminNotes')&&g('editAdminNotes').value;
+  var td=g('editTargetDate')&&g('editTargetDate').value;
+  try{
+    var r=await fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':PIPE_ADMIN},
+      body:JSON.stringify({id:id,status:status,admin_notes:notes,target_date:td||null})});
+    var d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Failed');
+    var idx=items.findIndex(function(i){return i.id===id;});
+    if(idx!==-1)items[idx]=d.item;
+    renderStats();renderBoard();closeDetail();
+    showToast('Saved!','success');
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function deleteItem(id){
+  if(!confirm('Delete this item permanently?'))return;
+  try{
+    var r=await fetch(PIPE_API,{method:'DELETE',headers:{'Content-Type':'application/json','X-Pipeline-Admin':PIPE_ADMIN},body:JSON.stringify({id:id})});
+    if(!r.ok)throw new Error('Delete failed');
+    items=items.filter(function(i){return i.id!==id;});
+    renderStats();renderBoard();closeDetail();
+    showToast('Deleted','info');
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function voteItem(id){
+  if(localStorage.getItem('pv_'+id)==='1')return;
+  try{
+    var r=await fetch(PIPE_API+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});
+    var d=await r.json();
+    if(!r.ok)throw new Error(d.error||'Failed');
+    localStorage.setItem('pv_'+id,'1');
+    var item=items.find(function(i){return i.id===id;});
+    if(item)item.votes=d.votes;
+    renderBoard();
+  }catch(e){console.error('Vote error:',e);}
+}
+
+function openAdminModal(){
+  g('adminModal').classList.add('open');
+  setTimeout(function(){var p=g('adminPassword');if(p){p.value='';p.focus();}},80);
+}
+function closeAdminModal(){g('adminModal').classList.remove('open');}
+function adminUnlock(){
+  var pw=g('adminPassword');
+  if(pw&&pw.value===PIPE_ADMIN){
+    isAdmin=true;
+    try{sessionStorage.setItem(PIPE_SESSION,'1');}catch(e){}
+    closeAdminModal();
+    g('adminBadge').style.display='inline-flex';
+    g('adminBtn').style.display='none';
+    showToast('&#11088; Admin mode active','success');
+  }else{
+    if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
+  }
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  var sq=g('setupSql');if(sq)sq.textContent=SETUP_SQL;
+  if(sessionStorage.getItem(PIPE_SESSION)==='1'){
+    isAdmin=true;
+    var ab=g('adminBadge'),btn=g('adminBtn');
+    if(ab)ab.style.display='inline-flex';
+    if(btn)btn.style.display='none';
+  }
+  loadItems().catch(function(){g('setupBox').style.display='block';});
+});
+</script>
+</body>
+</html>`;
+
 var SSE_EVENTS = [];
 function broadcastSSE(event) {
   SSE_EVENTS.push({ ...event, ts: Date.now() });
@@ -19304,11 +19806,127 @@ var index_default = {
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders({}, request) });
     }
-    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events") {
+    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
       }
     }
+    // -------------------------------------------------------
+    // PIPELINE API
+    // -------------------------------------------------------
+    if (path.startsWith("/api/pipeline")) {
+      const SB_URL = env.SUPABASE_URL || "";
+      const SB_KEY = env.SUPABASE_KEY || "";
+      if (!SB_URL || !SB_KEY) {
+        return json({ error: "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY environment variables." }, 503);
+      }
+      const sbH = {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      };
+      const TABLE = SB_URL + "/rest/v1/pipeline_items";
+
+      // POST /api/pipeline/vote
+      if (method === "POST" && path === "/api/pipeline/vote") {
+        try {
+          const body = await request.json();
+          if (!body.id) return json({ error: "Missing id" }, 400);
+          const getRes = await fetch(TABLE + "?id=eq." + body.id + "&select=votes", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
+          const rows = await getRes.json().catch(() => []);
+          const currentVotes = (rows[0] && rows[0].votes) || 0;
+          const patchRes = await fetch(TABLE + "?id=eq." + body.id, {
+            method: "PATCH",
+            headers: sbH,
+            body: JSON.stringify({ votes: currentVotes + 1 })
+          });
+          const data = await patchRes.json().catch(() => []);
+          const newVotes = (Array.isArray(data) && data[0]) ? data[0].votes : currentVotes + 1;
+          return json({ votes: newVotes });
+        } catch(e) {
+          return json({ error: e.message }, 500);
+        }
+      }
+
+      // GET /api/pipeline
+      if (method === "GET" && path === "/api/pipeline") {
+        try {
+          const res = await fetch(TABLE + "?order=created_at.desc", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
+          const items = await res.json().catch(() => []);
+          return json({ items: Array.isArray(items) ? items : [] });
+        } catch(e) {
+          return json({ error: e.message }, 500);
+        }
+      }
+
+      // POST /api/pipeline — create item
+      if (method === "POST" && path === "/api/pipeline") {
+        try {
+          const body = await request.json();
+          if (!body.title || !body.title.trim()) return json({ error: "Title required" }, 400);
+          const VALID_CATS = ["feature", "improvement", "bug", "wishlist"];
+          const VALID_PRIS = ["low", "medium", "high", "critical"];
+          const item = {
+            title: String(body.title).slice(0, 140),
+            description: body.description ? String(body.description).slice(0, 2000) : null,
+            category: VALID_CATS.includes(body.category) ? body.category : "feature",
+            priority: VALID_PRIS.includes(body.priority) ? body.priority : "medium",
+            status: "idea",
+            submitter_name: body.submitter_name ? String(body.submitter_name).slice(0, 80) : "Anonymous",
+            submitter_email: body.submitter_email ? String(body.submitter_email).slice(0, 120) : null,
+            screenshot_data: body.screenshot_data ? String(body.screenshot_data).slice(0, 2000000) : null,
+            is_admin_item: body.is_admin_item === true,
+            votes: 0
+          };
+          const res = await fetch(TABLE, { method: "POST", headers: sbH, body: JSON.stringify(item) });
+          const data = await res.json().catch(() => null);
+          const created = Array.isArray(data) ? data[0] : data;
+          if (!res.ok) return json({ error: "Database error", detail: data }, res.status);
+          return json({ item: created }, 201);
+        } catch(e) {
+          return json({ error: e.message }, 500);
+        }
+      }
+
+      // PATCH /api/pipeline — update item (admin)
+      if (method === "PATCH" && path === "/api/pipeline") {
+        const adminPass = request.headers.get("X-Pipeline-Admin");
+        if (adminPass !== (env.PIPELINE_ADMIN_PASS || "TeamListing2027!")) return json({ error: "Unauthorized" }, 401);
+        try {
+          const body = await request.json();
+          if (!body.id) return json({ error: "Missing id" }, 400);
+          const VALID_STATUSES = ["idea", "planned", "in-progress", "done", "wont-do"];
+          const updates = { updated_at: new Date().toISOString() };
+          if (body.status && VALID_STATUSES.includes(body.status)) updates.status = body.status;
+          if (body.admin_notes !== undefined) updates.admin_notes = body.admin_notes || null;
+          if (body.target_date !== undefined) updates.target_date = body.target_date || null;
+          if (body.priority) updates.priority = body.priority;
+          const res = await fetch(TABLE + "?id=eq." + body.id, { method: "PATCH", headers: sbH, body: JSON.stringify(updates) });
+          const data = await res.json().catch(() => []);
+          const updated = Array.isArray(data) ? data[0] : data;
+          if (!res.ok) return json({ error: "Database error" }, res.status);
+          return json({ item: updated });
+        } catch(e) {
+          return json({ error: e.message }, 500);
+        }
+      }
+
+      // DELETE /api/pipeline — delete item (admin)
+      if (method === "DELETE" && path === "/api/pipeline") {
+        const adminPass = request.headers.get("X-Pipeline-Admin");
+        if (adminPass !== (env.PIPELINE_ADMIN_PASS || "TeamListing2027!")) return json({ error: "Unauthorized" }, 401);
+        try {
+          const body = await request.json();
+          if (!body.id) return json({ error: "Missing id" }, 400);
+          await fetch(TABLE + "?id=eq." + body.id, { method: "DELETE", headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
+          return json({ success: true });
+        } catch(e) {
+          return json({ error: e.message }, 500);
+        }
+      }
+    }
+
     if (method === "POST" && path === "/admin/setup-ghl-webhook") {
       try {
         const webhookUrl = `${url.protocol}//${url.host}/ghl-webhook`;
@@ -20624,6 +21242,12 @@ var index_default = {
       return new Response(YLOPO_ANALYTICS_HTML, {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/pipeline") {
+      return new Response(PIPELINE_HTML, {
+        status: 200,
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/idx") {
