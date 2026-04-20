@@ -223,6 +223,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Idea \u2192 Planned \u2192 Done</div>
         </div>
       </a>
+      <a href="https://tlt-support-tickets-staging.lehr007.workers.dev/" target="_blank" class="card purple">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3AB}</div>
+        <div class="card-body">
+          <div class="card-title">Support Tickets</div>
+          <div class="card-desc">Submit a support ticket, track open issues, and manage customer requests. Full ticket lifecycle with admin controls.</div>
+          <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
+        </div>
+      </a>
     </div>
   </div>
 
