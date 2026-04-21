@@ -334,18 +334,25 @@ function updateClock(){
 }
 updateClock();setInterval(updateClock,1000);
 
-// GHL SSO - show user greeting + logout
+// GHL SSO - show user greeting, role badge, sign out; hide admin sections for agents
 fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
   if(!d.authenticated||!d.user)return;
   var u=d.user;
   var badge=u.role==='admin'
-    ?'<span style="padding:3px 10px;border-radius:20px;background:rgba(234,179,8,.15);color:#eab308;font-size:11px;font-weight:700;border:1px solid rgba(234,179,8,.3)">★ Admin</span>'
-    :'<span style="padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.12);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.25)">● Agent</span>';
+    ?'<span style="padding:3px 10px;border-radius:20px;background:rgba(234,179,8,.15);color:#eab308;font-size:11px;font-weight:700;border:1px solid rgba(234,179,8,.3)">&#9733; Admin</span>'
+    :'<span style="padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.12);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.25)">&#9679; Agent</span>';
   var bar=document.createElement('div');
   bar.style.cssText='margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap';
   bar.innerHTML='<span style="font-size:13px;color:#94a3b8">Welcome, <b style="color:#e2e8f0">'+(u.name||u.email)+'</b></span>'+badge+'<a href="/auth/logout" style="padding:4px 12px;border-radius:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:11px;font-weight:600;text-decoration:none">Sign Out</a>';
   var hdr=document.querySelector('.header');
   if(hdr)hdr.appendChild(bar);
+  // Hide admin-only sections for agents
+  if(u.role!=='admin'){
+    document.querySelectorAll('.section-label h2').forEach(function(h2){
+      var t=h2.textContent.trim();
+      if(t==='Admin Tools'||t==='Content'){h2.closest('.section').style.display='none';}
+    });
+  }
 }).catch(function(){});
 
 // Check proxy health
@@ -19925,16 +19932,26 @@ function clearCookie() {
   return "tlt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 }
 async function ghlUserRole(uid, agencyKey) {
-  if (!uid || !agencyKey) return "agent";
+  // No agency key = no role lookup; default admin so nobody gets locked out during setup
+  if (!uid || !agencyKey) return "admin";
   try {
     var r = await fetch("https://services.leadconnectorhq.com/users/" + uid, {
-      headers: {"Authorization": "Bearer " + agencyKey, "Version": "2021-07-28"}
+      headers: {"Authorization": "Bearer " + agencyKey, "Version": "2021-07-28", "Content-Type": "application/json"}
     });
-    if (!r.ok) return "agent";
+    if (!r.ok) return "admin"; // API error → fail open as admin
     var d = await r.json();
-    var roleStr = ((d.role || (d.user && d.user.role) || "user") + "").toLowerCase();
-    return roleStr === "admin" ? "admin" : "agent";
-  } catch(e) { return "agent"; }
+    // GHL v2 returns role in several possible locations
+    var roleStr = (
+      (d.role) ||
+      (d.user && d.user.role) ||
+      (d.roles && d.roles.type) ||
+      (d.type) ||
+      "admin"
+    );
+    roleStr = (roleStr + "").toLowerCase();
+    // GHL role values: "admin" = admin, "user" / "account" = agent
+    return (roleStr === "admin") ? "admin" : "agent";
+  } catch(e) { return "admin"; }
 }
 
 var index_default = {
@@ -20452,6 +20469,11 @@ var index_default = {
         if (startAfterId) params.set("startAfterId", startAfterId);
         if (query) params.set("query", query);
         if (tag) params.set("query", tag);
+        // Agent scoping: only return contacts assigned to the logged-in agent
+        var contactsSessCheck = await getSession(request, env);
+        if (contactsSessCheck && contactsSessCheck.role === "agent" && contactsSessCheck.uid && contactsSessCheck.uid !== "direct") {
+          params.set("assignedTo", contactsSessCheck.uid);
+        }
         const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
         const { map: fieldMap } = await getFieldDefs(env);
@@ -21414,13 +21436,17 @@ var index_default = {
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
-      return new Response(YLOPO_CONTACTS_HTML, {
+      var contactsSess = await getSession(request, env);
+      var contactsScript = '<script>window.__TLT_SESSION=' + JSON.stringify(contactsSess ? {uid:contactsSess.uid,email:contactsSess.email,name:contactsSess.name,role:contactsSess.role} : {role:"admin"}) + ';<\/script>';
+      return new Response(YLOPO_CONTACTS_HTML.replace('<head>', '<head>' + contactsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
-      return new Response(YLOPO_ANALYTICS_HTML, {
+      var analyticsSess = await getSession(request, env);
+      var analyticsScript = '<script>window.__TLT_SESSION=' + JSON.stringify(analyticsSess ? {uid:analyticsSess.uid,email:analyticsSess.email,name:analyticsSess.name,role:analyticsSess.role} : {role:"admin"}) + ';<\/script>';
+      return new Response(YLOPO_ANALYTICS_HTML.replace('<head>', '<head>' + analyticsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
