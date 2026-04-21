@@ -238,6 +238,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div class="section">
     <div class="section-label"><h2>Admin Tools</h2><hr></div>
     <div class="cards">
+      <a href="/dashboard/admin" class="card rose">
+        <span class="arrow">→</span>
+        <div class="icon-wrap">\u{1F465}</div>
+        <div class="card-body">
+          <div class="card-title">Admin Module</div>
+          <div class="card-desc">Team member management, user roles, system stats, and feature access controls powered by GHL.</div>
+          <div class="card-tag">Team management</div>
+        </div>
+      </a>
       <a href="https://ghl-brand-injector.lehr007.workers.dev/__admin" target="_blank" class="card purple">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F3A8}</div>
@@ -19936,6 +19945,187 @@ async function sendNotifyEmail(env, subject, htmlBody) {
     });
   } catch (e) { /* best-effort */ }
 }
+// =============================================================
+// ADMIN MODULE PAGE
+// =============================================================
+var ADMIN_MODULE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team — Admin Module</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
+a{color:#3b82f6;text-decoration:none}
+.hbar{background:linear-gradient(135deg,#0f2137,#1a3a6b,#1e4d9e);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
+.hbar-logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
+.hbar-logo span{color:#60a5fa}
+.hnav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);transition:all .15s}
+.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.main{padding:24px;max-width:1200px;margin:0 auto}
+.page-hdr{margin-bottom:28px}
+.page-hdr h1{font-size:24px;font-weight:800;letter-spacing:-0.02em;margin-bottom:4px}
+.page-hdr p{font-size:13px;color:#64748b}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:32px}
+.stat-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;text-align:center}
+.stat-card .icon{font-size:24px;margin-bottom:8px}
+.stat-card .val{font-size:28px;font-weight:800;color:#e2e8f0}
+.stat-card .lbl{font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.section-title{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.section-title hr{flex:1;border:none;border-top:1px solid #1e293b}
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:32px}
+.user-card{background:#1e293b;border:1px solid #334155;border-radius:14px;padding:20px;transition:all .15s}
+.user-card:hover{border-color:#3b82f6;background:#1e3554}
+.user-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.user-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:15px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-email{font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
+.role-admin{background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3)}
+.role-agent{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.user-details{display:flex;flex-wrap:wrap;gap:8px}
+.user-detail{font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px}
+.user-actions{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #334155}
+.action-btn{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;border:1px solid #334155;background:rgba(255,255,255,.04);color:#94a3b8;cursor:pointer;font-family:inherit;transition:all .15s}
+.action-btn:hover{color:#e2e8f0;border-color:#64748b;background:rgba(255,255,255,.08)}
+.empty{text-align:center;padding:48px;color:#475569;font-size:13px}
+.spinner{width:24px;height:24px;border:3px solid #1e293b;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.activity-list{display:flex;flex-direction:column;gap:8px;margin-bottom:32px}
+.activity-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#1e293b;border:1px solid #334155;border-radius:10px;font-size:12px;color:#94a3b8}
+.activity-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.activity-item .time{margin-left:auto;font-size:11px;color:#475569;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="hbar">
+  <div class="hbar-logo">The Listing Team <span>\\u{1F465} Admin</span></div>
+  <div class="hnav">
+    <a href="/dashboard">\\u{1F3E0} Hub</a>
+    <a href="/dashboard/ylopo-contacts">\\u{1F4CB} Contacts</a>
+    <a href="/dashboard/ylopo-analytics">\\u{1F4CA} Analytics</a>
+    <a href="/dashboard/pipeline">\\u{1F680} Pipeline</a>
+    <a href="/dashboard/admin" class="active">\\u{1F465} Admin</a>
+  </div>
+</div>
+<div class="main">
+  <div class="page-hdr">
+    <h1>\\u{1F465} Admin Module</h1>
+    <p>Manage team members, view system stats, and monitor activity across all modules.</p>
+  </div>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="icon">\\u{1F465}</div><div class="val" id="statUsers">-</div><div class="lbl">Team Members</div></div>
+    <div class="stat-card"><div class="icon">\\u{1F4CB}</div><div class="val" id="statContacts">-</div><div class="lbl">Total Contacts</div></div>
+    <div class="stat-card"><div class="icon">\\u{1F3AB}</div><div class="val" id="statTickets">-</div><div class="lbl">Open Tickets</div></div>
+    <div class="stat-card"><div class="icon">\\u{1F680}</div><div class="val" id="statIdeas">-</div><div class="lbl">Pipeline Ideas</div></div>
+    <div class="stat-card"><div class="icon">\\u{1F525}</div><div class="val" id="statPriority">-</div><div class="lbl">Priority Leads</div></div>
+    <div class="stat-card"><div class="icon">\\u2705</div><div class="val" id="statResolved">-</div><div class="lbl">Resolved Tickets</div></div>
+  </div>
+
+  <div class="section-title"><span>\\u{1F465} Team Members</span><hr></div>
+  <div id="userGrid" class="user-grid"><div class="spinner"></div></div>
+
+  <div class="section-title"><span>\\u{1F4CB} Recent Activity</span><hr></div>
+  <div id="activityList" class="activity-list"><div class="empty">Loading activity...</div></div>
+</div>
+<script>
+var COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#ec4899'];
+function initials(name){if(!name)return'?';var p=name.trim().split(/\\s+/);return (p[0]?p[0][0]:'')+(p[1]?p[1][0]:'');}
+function hashColor(s){var h=0;for(var i=0;i<(s||'').length;i++){h=s.charCodeAt(i)+((h<<5)-h);}return COLORS[Math.abs(h)%COLORS.length];}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function fmtTime(s){if(!s)return'';var d=new Date(s);return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+
+async function loadUsers(){
+  var grid=document.getElementById('userGrid');
+  try{
+    var r=await fetch('/api/users');
+    var d=await r.json();
+    if(!r.ok||!d.users){grid.innerHTML='<div class="empty">Failed to load team members. Check GHL API key.</div>';return;}
+    document.getElementById('statUsers').textContent=d.users.length;
+    if(!d.users.length){grid.innerHTML='<div class="empty">No team members found.</div>';return;}
+    var html='';
+    d.users.forEach(function(u){
+      var color=hashColor(u.email||u.name);
+      var role=(u.role||'user').toLowerCase();
+      var isAdmin=role==='admin';
+      html+='<div class="user-card">'+
+        '<div class="user-top">'+
+          '<div class="user-avatar" style="background:'+color+'">'+esc(initials(u.name))+'</div>'+
+          '<div class="user-info"><div class="user-name">'+esc(u.name||'Unknown')+'</div><div class="user-email">'+esc(u.email||'No email')+'</div></div>'+
+          '<span class="role-badge '+(isAdmin?'role-admin':'role-agent')+'">'+(isAdmin?'\\u2605 Admin':'\\u25CF Agent')+'</span>'+
+        '</div>'+
+        '<div class="user-details">'+
+          (u.phone?'<span class="user-detail">\\u{1F4DE} '+esc(u.phone)+'</span>':'')+
+          '<span class="user-detail">\\u{1F4C5} Joined '+fmtDate(u.createdAt||u.dateAdded)+'</span>'+
+        '</div>'+
+        '<div class="user-actions">'+
+          '<button class="action-btn" onclick="viewContacts(\\x27'+esc(u.id)+'\\x27)">\\u{1F4CB} View Contacts</button>'+
+          '<button class="action-btn" onclick="viewActivity(\\x27'+esc(u.id)+'\\x27)">\\u{1F4CA} Activity</button>'+
+        '</div>'+
+      '</div>';
+    });
+    grid.innerHTML=html;
+  }catch(e){grid.innerHTML='<div class="empty">Error: '+esc(e.message)+'</div>';}
+}
+
+async function loadStats(){
+  try{
+    var r=await fetch('/contacts?limit=1');
+    var d=await r.json();
+    if(d.meta&&d.meta.total)document.getElementById('statContacts').textContent=d.meta.total.toLocaleString();
+    else if(d.contacts)document.getElementById('statContacts').textContent=d.contacts.length+'+';
+  }catch(e){}
+  try{
+    var r2=await fetch('/api/pipeline?status=idea');
+    var d2=await r2.json();
+    if(d2.items)document.getElementById('statIdeas').textContent=d2.items.length;
+  }catch(e){}
+}
+
+async function loadActivity(){
+  var list=document.getElementById('activityList');
+  try{
+    var items=[];
+    try{
+      var r=await fetch('https://tlt-support-tickets-staging.lehr007.workers.dev/api/tickets?email=all');
+      var d=await r.json();
+      (d.tickets||[]).slice(0,10).forEach(function(t){
+        items.push({type:'ticket',text:'Ticket '+t.ticket_ref+': '+t.title,status:t.status,time:t.created_at,color:t.status==='open'?'#ef4444':'#22c55e'});
+      });
+    }catch(e){}
+    try{
+      var r2=await fetch('/api/pipeline');
+      var d2=await r2.json();
+      (d2.items||[]).slice(0,10).forEach(function(i){
+        items.push({type:'idea',text:'Pipeline: '+i.title,status:i.status,time:i.created_at,color:'#3b82f6'});
+      });
+    }catch(e){}
+    items.sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+    if(!items.length){list.innerHTML='<div class="empty">No recent activity.</div>';return;}
+    var html='';
+    items.slice(0,15).forEach(function(it){
+      html+='<div class="activity-item"><span class="dot" style="background:'+it.color+'"></span><span>'+esc(it.text)+'</span><span style="padding:2px 8px;border-radius:4px;background:rgba(100,116,139,.15);font-size:10px;font-weight:600;text-transform:uppercase">'+esc(it.status)+'</span><span class="time">'+fmtDate(it.time)+' '+fmtTime(it.time)+'</span></div>';
+    });
+    list.innerHTML=html;
+  }catch(e){list.innerHTML='<div class="empty">Error loading activity.</div>';}
+}
+
+function viewContacts(uid){window.location.href='/dashboard/ylopo-contacts?assignedTo='+uid;}
+function viewActivity(uid){window.location.href='/dashboard/ylopo-analytics?userId='+uid;}
+
+loadUsers();
+loadStats();
+loadActivity();
+<\/script>
+</body>
+</html>`;
+
 function mkCookie(token) {
   return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400";
 }
@@ -20020,6 +20210,31 @@ var index_default = {
         return err("Unauthorized", 401);
       }
     }
+    // -------------------------------------------------------
+    // USERS API (GHL team members)
+    // -------------------------------------------------------
+    if (method === "GET" && path === "/api/users") {
+      var agencyKey = env.GHL_AGENCY_KEY || "";
+      if (!agencyKey) return json({ users: [], error: "GHL_AGENCY_KEY not configured" });
+      try {
+        var usersRes = await fetch("https://services.leadconnectorhq.com/users/search?companyId=" + (env.GHL_COMPANY_ID || "") + "&locationId=" + locId, {
+          headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28" }
+        });
+        if (!usersRes.ok) {
+          var usersRes2 = await fetch("https://services.leadconnectorhq.com/users/?locationId=" + locId, {
+            headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28" }
+          });
+          if (!usersRes2.ok) return json({ users: [], error: "GHL API error: " + usersRes2.status });
+          var ud2 = await usersRes2.json();
+          return json({ users: ud2.users || ud2 || [] });
+        }
+        var usersData = await usersRes.json();
+        return json({ users: usersData.users || usersData || [] });
+      } catch(e) {
+        return json({ users: [], error: e.message });
+      }
+    }
+
     // -------------------------------------------------------
     // PIPELINE API
     // -------------------------------------------------------
@@ -21482,6 +21697,12 @@ var index_default = {
     }
     if (method === "GET" && path === "/dashboard/pipeline") {
       return new Response(PIPELINE_HTML, {
+        status: 200,
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;" }
+      });
+    }
+    if (method === "GET" && path === "/dashboard/admin") {
+      return new Response(ADMIN_MODULE_HTML, {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;" }
       });
