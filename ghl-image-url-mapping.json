@@ -1,0 +1,1170 @@
+[
+  {
+    "name": "test_upload.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6d16c769-8560-457d-a5fa-ba406aa9799a.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6d16c769-8560-457d-a5fa-ba406aa9799a.png",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6d16c769-8560-457d-a5fa-ba406aa9799a.png",
+    "status": "small_skip",
+    "size": 70
+  },
+  {
+    "name": "67e71eeab60b77066b5bfbef.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/19eb0537-6301-4336-a4a8-cd457f9a7933.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/af7821c7-b295-408f-8b04-18d7f46c88a2.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-67e71eeab60b77066b5bfbef",
+    "old_size": 511790,
+    "status": "optimized"
+  },
+  {
+    "name": "Scott Lehr Head Shot .jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69bb20b5dac5846958da1412.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/daf75649-1798-4829-a499-f3bba433c876.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-scott-lehr-head-shot",
+    "old_size": 2508179,
+    "status": "optimized"
+  },
+  {
+    "name": "St Patricks Day.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69b80eb69379cf5669b47dd1.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/64a14a87-cec9-495d-8acd-7970c0d4c7b7.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-st-patricks-day",
+    "old_size": 157015,
+    "status": "optimized"
+  },
+  {
+    "name": "dayloght savings.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aeda737c270258aa307f3e.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/7f31c542-1d86-44e4-ae24-1f0f90965051.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-dayloght-savings",
+    "old_size": 1215313,
+    "status": "optimized"
+  },
+  {
+    "name": "flatmls4.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa1181bffadf39c0bf7a1f.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c9b65d08-147a-44da-9678-2701c8e00f88.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flatmls4",
+    "old_size": 409629,
+    "status": "optimized"
+  },
+  {
+    "name": "flatmls3.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa118136702f0091fd0858.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/adc7a3b3-461c-4047-b17b-e3c025784ffc.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flatmls3",
+    "old_size": 269516,
+    "status": "optimized"
+  },
+  {
+    "name": "flatmls2.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa1181de2e7d5469770818.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa1181de2e7d5469770818.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flatmls2",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "flatmls1.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa1181c1e3285029cd893c.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/0efafff6-1574-4552-be65-e65726981986.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flatmls1",
+    "old_size": 322763,
+    "status": "optimized"
+  },
+  {
+    "name": "Flat Fee Mls Ad 3.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa0cbdc1e32873cbccf063.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/8be8f32d-4003-4459-ba43-9287a5c3f9c4.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flat-fee-mls-ad-3",
+    "old_size": 407848,
+    "status": "optimized"
+  },
+  {
+    "name": "Flat Fee Mls Ad 1.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa0cbd36702f252bfc7252.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6e5c5c17-0e85-41d4-b67b-277b6ff3b701.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flat-fee-mls-ad-1",
+    "old_size": 369322,
+    "status": "optimized"
+  },
+  {
+    "name": "Flat Fee Mls Ad 2.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69aa0cbdb003fa1274cd8624.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/f6e4d192-31f4-402c-a590-0470f4339d55.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-flat-fee-mls-ad-2",
+    "old_size": 406735,
+    "status": "optimized"
+  },
+  {
+    "name": "step-1-hero-0Dd9OPWmEO.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/step-1-hero-0Dd9OPWmEO.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/0c212dc4-01ad-4ab9-8fa4-07f16c0b1bf3.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-step-1-hero-0dd9opwmeo",
+    "old_size": 1071277,
+    "status": "optimized"
+  },
+  {
+    "name": "he-is-happiest.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69988152e92bc17e1de8b1f0.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a95a0789-592e-472d-8b7b-7e7907723e50.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-he-is-happiest",
+    "old_size": 386779,
+    "status": "optimized"
+  },
+  {
+    "name": "67f0bcdd2a19962a954dcb5b.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c389b865-76fb-4ef8-90f7-a62cd9903dd1.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9c96b28c-bb0c-473d-945b-f622e47eb5b5.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-67f0bcdd2a19962a954dcb5b",
+    "old_size": 372996,
+    "status": "optimized"
+  },
+  {
+    "name": "hero-SWwqZ1t345.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/hero-SWwqZ1t345.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/b6490e19-491e-450a-a193-53e9ca2b845d.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-hero-swwqz1t345",
+    "old_size": 998820,
+    "status": "optimized"
+  },
+  {
+    "name": "6900f186f63ac8848d500386.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/2096cb0a-bf90-41e6-8e0a-ef396598fe1b.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/48c23522-3bdb-4517-ae72-19133a84a75b.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-6900f186f63ac8848d500386",
+    "old_size": 1784617,
+    "status": "optimized"
+  },
+  {
+    "name": "south beach.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6980d53a1fd8273492bc33ca.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/95205f8f-4ad3-4beb-b42e-895fc48fff58.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-south-beach",
+    "old_size": 1799865,
+    "status": "optimized"
+  },
+  {
+    "name": "coconut grove.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6980d5351311f626a9c0a784.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6fd4a06b-8a99-4139-bfa3-2ea2c26294db.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-coconut-grove",
+    "old_size": 2368350,
+    "status": "optimized"
+  },
+  {
+    "name": "miami boat show .png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6980d5321311f66f56c0a72a.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/8283b8b0-e1f5-4296-94ec-e828b98984f7.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-miami-boat-show",
+    "old_size": 1580109,
+    "status": "optimized"
+  },
+  {
+    "name": "miami.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6980d52f7675771a6e3adaae.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/92b97b77-1c4f-4a67-9539-4ff95013ab64.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-miami",
+    "old_size": 2524622,
+    "status": "optimized"
+  },
+  {
+    "name": "Jazz Festival .png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6980d52c18ecce2b6b22d51e.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/1f9d9d18-0786-48ab-b197-b5dbb6284508.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-jazz-festival",
+    "old_size": 665303,
+    "status": "optimized"
+  },
+  {
+    "name": "website banner.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6979366d4d506d552d6644ef.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6979366d4d506d552d6644ef.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-website-banner",
+    "status": "small_skip",
+    "size": 29760
+  },
+  {
+    "name": "Header for webpage Ylopo Matrix.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69792f969511715e8f0d8894.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c3bd3fec-ee7e-4924-90b0-771365aa1a6f.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-header-for-webpage-ylopo-matrix",
+    "old_size": 746937,
+    "status": "optimized"
+  },
+  {
+    "name": "Listing Team Logo : RESF Transparrent.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/696ab198820f033cb68afc8e.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/62770744-7920-4596-b361-3e990b8bcb0d.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-listing-team-logo--resf-transparrent",
+    "old_size": 589992,
+    "status": "optimized"
+  },
+  {
+    "name": "ylopo-logo.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/696ab15d2ed1fb33ba247d3a.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/696ab15d2ed1fb33ba247d3a.webp",
+    "server_url": "https://images.reallistingteam.com/images/ghl-ylopo-logo",
+    "status": "small_skip",
+    "size": 66686
+  },
+  {
+    "name": "social-proof-FWA4gysPGW.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/social-proof-FWA4gysPGW.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6b335a0c-15bb-4fb1-a8ad-cefb1a2b8c0e.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-social-proof-fwa4gyspgw",
+    "old_size": 2116995,
+    "status": "optimized"
+  },
+  {
+    "name": "social-proof-gTP846U5cC.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/social-proof-gTP846U5cC.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/7db353f4-db4d-4b72-81ec-0a8f74bd8312.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-social-proof-gtp846u5cc",
+    "old_size": 2111171,
+    "status": "optimized"
+  },
+  {
+    "name": "hero-n10_yMyBkw.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/hero-n10_yMyBkw.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/92fed644-cc60-4882-b346-d4e10191baab.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-hero-n10-ymybkw",
+    "old_size": 2093693,
+    "status": "optimized"
+  },
+  {
+    "name": "social-proof-6-NVzurY5d.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/social-proof-6-NVzurY5d.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9267c0d4-71a2-42f4-a19f-6a1fe14a93c3.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-social-proof-6-nvzury5d",
+    "old_size": 2122199,
+    "status": "optimized"
+  },
+  {
+    "name": "footer-NsjCehuK8j.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/footer-NsjCehuK8j.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/7b324a43-5416-4553-bab3-a32c4d1da4a7.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-footer-nsjcehuk8j",
+    "old_size": 2112017,
+    "status": "optimized"
+  },
+  {
+    "name": "logos-trust-FTkMZq2G6A.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/logos-trust-FTkMZq2G6A.png",
+    "new_ghl_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/logos-trust-FTkMZq2G6A.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-logos-trust-ftkmzq2g6a",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "hero-9UVMmuq-9P.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/hero-9UVMmuq-9P.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/044ba73b-07f8-4a78-9d09-ce6b18c2bdf4.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-hero-9uvmmuq-9p",
+    "old_size": 2087143,
+    "status": "optimized"
+  },
+  {
+    "name": "logos-trust-CDxSDvnqBo.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/logos-trust-CDxSDvnqBo.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/205fbaee-ab27-4f8c-bb7c-55d3a0fc0f88.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-logos-trust-cdxsdvnqbo",
+    "old_size": 2115619,
+    "status": "optimized"
+  },
+  {
+    "name": "logos-trust-Z601yiiciE.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/logos-trust-Z601yiiciE.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/f8b18688-50e8-47fe-bb9d-921d9a8fc1e6.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-logos-trust-z601yiicie",
+    "old_size": 1606580,
+    "status": "optimized"
+  },
+  {
+    "name": "apply-FdUNvwGrSw.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/apply-FdUNvwGrSw.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d2137946-142c-45e3-8c77-b2e5557f16ea.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-apply-fdunvwgrsw",
+    "old_size": 2082310,
+    "status": "optimized"
+  },
+  {
+    "name": "trust-logos-XVNRMxetHM.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/trust-logos-XVNRMxetHM.png",
+    "new_ghl_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/trust-logos-XVNRMxetHM.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-trust-logos-xvnrmxethm",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "trust-logos-yn6T_ig9YH.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/trust-logos-yn6T_ig9YH.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/0a5eeb36-58e9-47f0-9392-9e767efb8c98.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-trust-logos-yn6t-ig9yh",
+    "old_size": 2096459,
+    "status": "optimized"
+  },
+  {
+    "name": "trust-logos-3HsO1BCLbo.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/trust-logos-3HsO1BCLbo.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/3939b46d-b0cf-4c5b-aa35-ac541fb35817.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-trust-logos-3hso1bclbo",
+    "old_size": 2130380,
+    "status": "optimized"
+  },
+  {
+    "name": "trust-logos-hI2bYkf8QU.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/trust-logos-hI2bYkf8QU.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/e2de6bfa-16ed-4741-8645-0c553035bb29.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-trust-logos-hi2bykf8qu",
+    "old_size": 2136422,
+    "status": "optimized"
+  },
+  {
+    "name": "68d309794b657636b832cbbf.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d188bd9e-0c79-49fd-9134-38bea7268aea.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/0ca37112-0572-4577-9049-79ca68fe5a80.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-68d309794b657636b832cbbf",
+    "old_size": 1757931,
+    "status": "optimized"
+  },
+  {
+    "name": "uUzIWTwL8OorzQBKT_01D.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/uUzIWTwL8OorzQBKT_01D.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/f8b26b2a-cd57-411e-b100-44fa684a9989.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-uuziwtwl8oorzqbkt-01d",
+    "old_size": 1855253,
+    "status": "optimized"
+  },
+  {
+    "name": "n3sgwLFmwiJkE2Mz_5_ju.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/n3sgwLFmwiJkE2Mz_5_ju.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d317183d-be59-4a3f-8d66-984710eaf202.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-n3sgwlfmwijke2mz-5-ju",
+    "old_size": 1461398,
+    "status": "optimized"
+  },
+  {
+    "name": "WHs5PTUInWSHEI_w6obPC.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/WHs5PTUInWSHEI_w6obPC.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/7720acc5-28fd-4caf-8f0c-00c84a13b682.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-whs5ptuinwshei-w6obpc",
+    "old_size": 772621,
+    "status": "optimized"
+  },
+  {
+    "name": "-a8GA4qu-vTWtpL8bG4Cx.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/-a8GA4qu-vTWtpL8bG4Cx.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9b48dc7b-085a-4d32-b204-c848cd9f765b.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl--a8ga4qu-vtwtpl8bg4cx",
+    "old_size": 257761,
+    "status": "optimized"
+  },
+  {
+    "name": "TkP4pdyJzlRZNAbpFaPCB.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/TkP4pdyJzlRZNAbpFaPCB.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/573d82e7-461c-4028-a286-dcf76c658941.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-tkp4pdyjzlrznabpfapcb",
+    "old_size": 1171388,
+    "status": "optimized"
+  },
+  {
+    "name": "8XKiG-iSGzC90hCDE1OX-.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/8XKiG-iSGzC90hCDE1OX-.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/ee2195a9-de7d-4ce6-a7ca-1641f6563885.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-8xkig-isgzc90hcde1ox",
+    "old_size": 962466,
+    "status": "optimized"
+  },
+  {
+    "name": "JbGzPJWwM-vzUYYUYwEg5.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/JbGzPJWwM-vzUYYUYwEg5.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c1c5e208-9236-40d9-ab33-74b2084729f3.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-jbgzpjwwm-vzuyyuyweg5",
+    "old_size": 1197730,
+    "status": "optimized"
+  },
+  {
+    "name": "rH-f1Vh_O5sRrXlct-DRI.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/rH-f1Vh_O5sRrXlct-DRI.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/2ea439d6-2e58-4a4b-b5d7-ffd0d4112356.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-rh-f1vh-o5srrxlct-dri",
+    "old_size": 934764,
+    "status": "optimized"
+  },
+  {
+    "name": "ppLOGE2sCIh_0CpB-CMAV.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/ppLOGE2sCIh_0CpB-CMAV.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c5677e23-7163-4687-b955-f78dd0736f03.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-pploge2scih-0cpb-cmav",
+    "old_size": 1955044,
+    "status": "optimized"
+  },
+  {
+    "name": "nmvRodHfMcSffqyLOZ4ql.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/nmvRodHfMcSffqyLOZ4ql.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c9032687-9887-4d23-8f4f-ef00e5bc0688.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-nmvrodhfmcsffqyloz4ql",
+    "old_size": 1416631,
+    "status": "optimized"
+  },
+  {
+    "name": "MmUeX3ddd_KBYrUaW3qvQ.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/MmUeX3ddd_KBYrUaW3qvQ.png",
+    "new_ghl_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/MmUeX3ddd_KBYrUaW3qvQ.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-mmuex3ddd-kbyruaw3qvq",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "0y3EIcyu0MGsgO_CLP-Vp.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/0y3EIcyu0MGsgO_CLP-Vp.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/94eb2657-19eb-49fb-bccf-2a062a3a29d7.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-0y3eicyu0mgsgo-clp-vp",
+    "old_size": 756300,
+    "status": "optimized"
+  },
+  {
+    "name": "bmscP4aUwlKTadAw1oCEN.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/bmscP4aUwlKTadAw1oCEN.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/5cef8dd6-b3a0-425f-ad1c-c1cd4b408f17.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-bmscp4auwlktadaw1ocen",
+    "old_size": 748635,
+    "status": "optimized"
+  },
+  {
+    "name": "leK2b91GXbsRv_psZdDEh.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/leK2b91GXbsRv_psZdDEh.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/146ebb54-4a54-49b2-bb49-0541660ac718.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-lek2b91gxbsrv-pszddeh",
+    "old_size": 707066,
+    "status": "optimized"
+  },
+  {
+    "name": "e7gvE8QShqAyskMKulRN1.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/e7gvE8QShqAyskMKulRN1.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d6208c20-9644-44d6-9253-848a327a0d0d.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-e7gve8qshqayskmkulrn1",
+    "old_size": 2231961,
+    "status": "optimized"
+  },
+  {
+    "name": "N2SE86kK-xh7Ji4bLUXf5.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/N2SE86kK-xh7Ji4bLUXf5.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/4e48715f-2901-4965-aed1-991d31733556.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-n2se86kk-xh7ji4bluxf5",
+    "old_size": 1713906,
+    "status": "optimized"
+  },
+  {
+    "name": "dY-uX1USfFhIuo5C9RXdv.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/dY-uX1USfFhIuo5C9RXdv.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/42411c73-9ed0-4a78-a9f1-6e6b5c19f2d0.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-dy-ux1usffhiuo5c9rxdv",
+    "old_size": 1291013,
+    "status": "optimized"
+  },
+  {
+    "name": "f0-YwFSI0IBfS0FbAc3Us.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/f0-YwFSI0IBfS0FbAc3Us.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c7fbfb34-a6f3-481c-ba50-6fadb9155413.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-f0-ywfsi0ibfs0fbac3us",
+    "old_size": 1571611,
+    "status": "optimized"
+  },
+  {
+    "name": "7hVOtDuFltPOfgvvfWj1G.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/7hVOtDuFltPOfgvvfWj1G.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/356bb12e-e971-476b-959e-6fec2fce73ba.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-7hvotdufltpofgvvfwj1g",
+    "old_size": 1683594,
+    "status": "optimized"
+  },
+  {
+    "name": "G9nreh1LsjrWPn07IdaA2.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/G9nreh1LsjrWPn07IdaA2.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/056e4988-ec72-4975-9bd1-f7bb2a5c0b5f.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-g9nreh1lsjrwpn07idaa2",
+    "old_size": 1643805,
+    "status": "optimized"
+  },
+  {
+    "name": "KVHzjppzpu4qs5HPVLsYY.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/KVHzjppzpu4qs5HPVLsYY.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a41937bf-32c3-447b-9025-919ece3437c3.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-kvhzjppzpu4qs5hpvlsyy",
+    "old_size": 1740979,
+    "status": "optimized"
+  },
+  {
+    "name": "MEieCoZEUEiYeHLWsEgDm.png",
+    "old_url": "https://storage.googleapis.com/funnel-ai-production/image-generation/SeZr4YCwEZ50IcWqylkQ/MEieCoZEUEiYeHLWsEgDm.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/709d35bc-b1ed-47fc-a046-35a7f3683988.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-meiecozeueiyehlwsegdm",
+    "old_size": 814053,
+    "status": "optimized"
+  },
+  {
+    "name": "tinywow_WebPage (dragged)_76594740_1 2.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945dfc3106fdcecb7107c89.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945dfc3106fdcecb7107c89.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-tinywow-webpage-dragged-76594740-1-2",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "tinywow_WebPage (dragged)_76594740_1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945dfa4aad3601de2861229.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/72dab0c4-7f0d-4731-87d6-e5ca1da9cedd.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-tinywow-webpage-dragged-76594740-1",
+    "old_size": 242491,
+    "status": "optimized"
+  },
+  {
+    "name": "2025-plusvalia-estadisticas-miami.jpg.png.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945df3c0fb2964a9867a802.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/3dbabc4b-c452-4212-8eb8-3f1235bea752.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-2025-plusvalia-estadisticas-miami.jpg.png",
+    "old_size": 910842,
+    "status": "optimized"
+  },
+  {
+    "name": "download.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d9969a634f358e28f3e0.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d9969a634f358e28f3e0.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-download",
+    "status": "small_skip",
+    "size": 6098
+  },
+  {
+    "name": "Webhostngs.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d91eaca6ab6ca89ff5f8.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d91eaca6ab6ca89ff5f8.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-webhostngs",
+    "status": "small_skip",
+    "size": 5689
+  },
+  {
+    "name": "Cleaning Service Image.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d8c60fb2969d4266f9a8.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d8c60fb2969d4266f9a8.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-cleaning-service-image",
+    "status": "small_skip",
+    "size": 6651
+  },
+  {
+    "name": "Money in hand.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d87b59a0a635f9f3d32d.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6945d87b59a0a635f9f3d32d.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-money-in-hand",
+    "status": "small_skip",
+    "size": 4790
+  },
+  {
+    "name": "IDX Property Search Results Banner.gif",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69444d3e59a0a6667fbf32ae.gif",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/69444d3e59a0a6667fbf32ae.gif",
+    "server_url": "https://images.reallistingteam.com/images/ghl-idx-property-search-results-banner",
+    "status": "small_skip",
+    "size": 71035
+  },
+  {
+    "name": "Complete Choice Title Videos2.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487ce03e9d27bd7a323c.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/8256b99f-5398-447a-8e29-27e8c7c9453c.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos2",
+    "old_size": 381193,
+    "status": "optimized"
+  },
+  {
+    "name": "Complete Choice Title Videos3.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487c35652be75604c9d1.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/4597cc7e-b5c9-40ad-bfa2-a3c06dce58e4.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos3",
+    "old_size": 383470,
+    "status": "optimized"
+  },
+  {
+    "name": "Complete Choice Title Videos1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487c169a4273fbebfcdf.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/347df8d2-614b-482a-89cf-6ca452250532.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos1",
+    "old_size": 232617,
+    "status": "optimized"
+  },
+  {
+    "name": "Complete Choice Title Videos5.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487cfb91d07154391a78.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9f7de605-1c63-436a-9aec-55ea566341cc.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos5",
+    "old_size": 509515,
+    "status": "optimized"
+  },
+  {
+    "name": "Complete Choice Title Videos4.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487c169a42d9f9ebfce4.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/f9c4b0a3-6f2b-40cb-a244-b0538b31d0af.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos4",
+    "old_size": 611468,
+    "status": "optimized"
+  },
+  {
+    "name": "Complete Choice Title Videos0.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6938487ce03e9defd17a3231.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/3aa390c4-c4a9-4ec0-9e74-35c8e5346c82.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-complete-choice-title-videos0",
+    "old_size": 234242,
+    "status": "optimized"
+  },
+  {
+    "name": "Avoiding Common Pitfalls When Moving to Florida From Up North.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/690cc5121aab93550b1ef623.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/690cc5121aab93550b1ef623.jpg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/690cc5121aab93550b1ef623.jpg",
+    "status": "small_skip",
+    "size": 36177
+  },
+  {
+    "name": "1.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6e01e3c17cca2d8c8b875.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/17dee8ab-67c5-45df-9c73-0aa33f5a2266.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-1",
+    "old_size": 814422,
+    "status": "optimized"
+  },
+  {
+    "name": "704788-1_03.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6dee1761554e99fb63dc0.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/04c4afce-28d9-4027-b522-2215e0ffc4d4.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-704788-1-03",
+    "old_size": 505619,
+    "status": "optimized"
+  },
+  {
+    "name": "origin.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6de196fe1a543c0f1575e.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6de196fe1a543c0f1575e.webp",
+    "server_url": "https://images.reallistingteam.com/images/ghl-origin",
+    "status": "small_skip",
+    "size": 94204
+  },
+  {
+    "name": "ezgif.com-speed.gif",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6dc8e412620add0826dfc.gif",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/97c034a5-d8ed-4d1a-bcba-cd7393b061b0.gif",
+    "server_url": "https://images.reallistingteam.com/images/ghl-ezgif.com-speed",
+    "old_size": 6128527,
+    "status": "optimized"
+  },
+  {
+    "name": "6923 Queenferry Circle.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6cf743c17cc4763b59681.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c99d25ff-9cc5-4a34-851e-6f74992df116.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-6923-queenferry-circle",
+    "old_size": 1275164,
+    "status": "optimized"
+  },
+  {
+    "name": "7000 Lions Head Lane.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6cf71f838e2405cd0f687.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/5f5d351a-a6e0-4ec0-987c-a2fdefea717e.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-7000-lions-head-lane",
+    "old_size": 289563,
+    "status": "optimized"
+  },
+  {
+    "name": "https---cdn.rechat.com-52a72e35ee58943426be3774b61b5de4.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6cebd7b6cc06f3cb972cd.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a09a3726-fee4-4e2e-a5df-b1761b95bbc2.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-https---cdn.rechat.com-52a72e35ee58943426be3774b61b5de4",
+    "old_size": 1210138,
+    "status": "optimized"
+  },
+  {
+    "name": "Areia+Advisers+-+Property+For+Sale+-+Grand+Loft+Avenida+-+Loft+L+-+33.jpg.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6ca776fe1a57238cf0947.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6ca776fe1a57238cf0947.webp",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6ca776fe1a57238cf0947.webp",
+    "status": "small_skip",
+    "size": 15110
+  },
+  {
+    "name": "46e39847b48c807bbb526d07a110c0198f56d472_big.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6c4537615544d5385a455.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/0883b6af-90a5-49f6-8606-3bfa9020760e.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-46e39847b48c807bbb526d07a110c0198f56d472-big",
+    "old_size": 225567,
+    "status": "optimized"
+  },
+  {
+    "name": "945ce3f442ef24ac8fde2a5684ced6889a709f36_big.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6c3336fe1a554fcbb2e13.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/b649fea9-30ae-482c-80da-da8e48640604.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-945ce3f442ef24ac8fde2a5684ced6889a709f36-big",
+    "old_size": 169854,
+    "status": "optimized"
+  },
+  {
+    "name": "f590017b4bb7a3d592b977f6151eedffd60759c6_big.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68d6b2a5f838e21e957d6d7a.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/b558441b-35bc-4ff7-be60-0f0be35a3be7.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-f590017b4bb7a3d592b977f6151eedffd60759c6-big",
+    "old_size": 224560,
+    "status": "optimized"
+  },
+  {
+    "name": "IDX Property Search Results Banner.gif",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68cc3268d74f6bc52353098a.gif",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68cc3268d74f6bc52353098a.gif",
+    "server_url": "https://images.reallistingteam.com/images/ghl-idx-property-search-results-banner",
+    "status": "small_skip",
+    "size": 71035
+  },
+  {
+    "name": "Scott Lehr Email Signature.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68c867df1708d0919dc2947b.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/c76effb0-15d2-4a80-83a6-5ff5b6214651.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-scott-lehr-email-signature",
+    "old_size": 137532,
+    "status": "optimized"
+  },
+  {
+    "name": "counts-as-debt.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68c81983a5001718335daf7e.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/2e1cb4e1-2f1e-47ad-a066-aaba45203f13.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-counts-as-debt",
+    "old_size": 176717,
+    "status": "optimized"
+  },
+  {
+    "name": "MinutemenFlagpoles-421791-home-patio-flag-image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68add21f9f32d8242e20218c.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/78e81b1a-f6ea-493c-8989-ebe45abf4aea.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-minutemenflagpoles-421791-home-patio-flag-image1",
+    "old_size": 195492,
+    "status": "optimized"
+  },
+  {
+    "name": "WestparkLoans-415301-Investment-Property-Financial-IMAGE-1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68adcff03ba6180a69c9f0f1.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68adcff03ba6180a69c9f0f1.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68adcff03ba6180a69c9f0f1.jpeg",
+    "status": "small_skip",
+    "size": 90373
+  },
+  {
+    "name": "How College Towns Influence Michigan Real Estate Beyond Campus (2).jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68a780625727bdf9d7a3a29a.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9184a92b-a3c3-4c4c-a43e-ee85bd03e37f.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-how-college-towns-influence-michigan-real-estate-beyond",
+    "old_size": 143077,
+    "status": "optimized"
+  },
+  {
+    "name": "ariteconstructionandroofing-379783-door-with-house-keychain-image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68a5ee43821cc7e05ae9ce6c.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68a5ee43821cc7e05ae9ce6c.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68a5ee43821cc7e05ae9ce6c.jpeg",
+    "status": "small_skip",
+    "size": 36744
+  },
+  {
+    "name": "MtnMod-405465-Outdoor-Living-Area-Image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/689cc2461f951e25d474ea82.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/22e67f86-6f2b-490c-9875-31cdf7feeb23.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-mtnmod-405465-outdoor-living-area-image1",
+    "old_size": 132481,
+    "status": "optimized"
+  },
+  {
+    "name": "photo-1570129477492-45c003edd2be.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6894ddb4a30eaa4da2128fe7.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/446cc96e-5ab4-4bc6-93fb-418e82c8e334.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-photo-1570129477492-45c003edd2be",
+    "old_size": 235690,
+    "status": "optimized"
+  },
+  {
+    "name": "The Psychology Behind Florida\u2019s Love Affair With Security Communities (1).jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6893dca3eedaf8fc2fc0d5f5.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a03a90fa-ddc9-4e57-a6f4-5d2e548357d6.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-the-psychology-behind-floridas-love-affair-with-security",
+    "old_size": 424467,
+    "status": "optimized"
+  },
+  {
+    "name": "crdumpstarsllc-377681-luxury-apartment-interior-image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68913009ec5b3dccdacff25d.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/cacca2f8-ddc0-4f92-9fa9-588b6889205a.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-crdumpstarsllc-377681-luxury-apartment-interior-image1",
+    "old_size": 116460,
+    "status": "optimized"
+  },
+  {
+    "name": "uploads_4000103_4000818889_processed_r-JoiNZ5fU9Rm5MCvvj5D0VFulDmXQEmnQpssi7Oc6.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6890cc69746eb82ca55edd74.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d22edced-ac8d-4aa7-90a9-2b1feba057ab.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-uploads-4000103-4000818889-processed-r-joinz5fu9rm5mcvvj",
+    "old_size": 425593,
+    "status": "optimized"
+  },
+  {
+    "name": "2025-high-joy-scores.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/688b8eeaea6d0f06820e97d2.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/ee9e7e77-2f5c-46c9-ab38-b45cae9332a2.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-2025-high-joy-scores",
+    "old_size": 554514,
+    "status": "optimized"
+  },
+  {
+    "name": "FestaSunEnterprises-373419-Woman-Bucket-Dehumidifier-Image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68712201ccdcf826b3ae295b.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68712201ccdcf826b3ae295b.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68712201ccdcf826b3ae295b.jpeg",
+    "status": "small_skip",
+    "size": 87682
+  },
+  {
+    "name": "AllAroundArbor-371837-Outdoor-Landscaping-Lights-Image1.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/687121b9efdc1e6a8a0fa40a.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/8425ce76-0f9c-43d8-982a-d121de61dc56.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-allaroundarbor-371837-outdoor-landscaping-lights-image1",
+    "old_size": 222437,
+    "status": "optimized"
+  },
+  {
+    "name": "City of Sunrise.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6866e4d09ca6fbded017b641.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6866e4d09ca6fbded017b641.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-city-of-sunrise",
+    "status": "small_skip",
+    "size": 8974
+  },
+  {
+    "name": "d8491038-dfad-4e66-93e7-4cbe9455931d.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6838b807af7b3c75a7de2d72.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6c24b7a3-68cb-47f2-aaa6-d9a5bdffb758.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-d8491038-dfad-4e66-93e7-4cbe9455931d",
+    "old_size": 1690772,
+    "status": "optimized"
+  },
+  {
+    "name": "featureed products wiht S.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6838b2fab7fe703b85043178.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6838b2fab7fe703b85043178.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-featureed-products-wiht-s",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "featureed products.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6838b28a6ae59cef26949d5b.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/753b10ce-a2f0-4605-8813-cec7379c9a58.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-featureed-products",
+    "old_size": 2128428,
+    "status": "optimized"
+  },
+  {
+    "name": "featureed products.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6838b1fb66722b0b63791728.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/86d29147-dbe3-4081-8330-9a04d20a3169.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-featureed-products",
+    "old_size": 1640726,
+    "status": "optimized"
+  },
+  {
+    "name": "Listing Team Logo _ RESF Transparrent White.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png",
+    "server_url": "https://images.reallistingteam.com/images/listing-team-logo-resf-transparent-white",
+    "status": "small_skip",
+    "size": 21179
+  },
+  {
+    "name": "property_image",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/ac59c137-443b-454a-8cd8-c9ceaa83ce4a.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/8efa8628-d739-4177-9dd2-f774eb98ef58.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-property-image",
+    "old_size": 542591,
+    "status": "optimized"
+  },
+  {
+    "name": "property_image",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/736a24be-88f2-4dd7-a7e3-14ff527e6e12.jpg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/cff810b7-d13c-489f-9cd1-096df8ee445b.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-property-image",
+    "old_size": 224190,
+    "status": "optimized"
+  },
+  {
+    "name": " 9125 SW 77th Ave, #103, Miami, FL 331565.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e1f1399482b7bbdbe0.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e1f1399482b7bbdbe0.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e1f1399482b7bbdbe0.jpeg",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": " 9125 SW 77th Ave, #103, Miami, FL 331561.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e14f87ea4282d90b60.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e14f87ea4282d90b60.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e14f87ea4282d90b60.jpeg",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "IMG_1574.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e182db0939e2786f62.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/9ae79937-098d-437e-90b0-5a6324ffb579.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-img-1574",
+    "old_size": 1910205,
+    "status": "optimized"
+  },
+  {
+    "name": " 9125 SW 77th Ave, #103, Miami, FL 331566.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e0694f31f5484c6580.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e0694f31f5484c6580.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e0694f31f5484c6580.jpeg",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": " 9125 SW 77th Ave, #103, Miami, FL 331560.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e00a6217c91ace1203.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e00a6217c91ace1203.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67f3e1e00a6217c91ace1203.jpeg",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "DJI_0282.JPG",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eed68fe416f16b9ca4d1e9.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/1fbfeca5-8eae-4eab-8b12-57f58cfb9291.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-dji-0282",
+    "old_size": 6130415,
+    "status": "optimized"
+  },
+  {
+    "name": "4975 Tradewinds Tr 73.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eed5bf391ca15ba0d5b05d.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/365d5398-1b7a-4ae0-814e-c1066edd52ee.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-4975-tradewinds-tr-73",
+    "old_size": 6966458,
+    "status": "optimized"
+  },
+  {
+    "name": "4975 Tradewinds Tr 40.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eed5b658590257b2804871.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/b43d5549-9990-4a74-9bcc-e836e1b921e8.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-4975-tradewinds-tr-40",
+    "old_size": 2312846,
+    "status": "optimized"
+  },
+  {
+    "name": "4975 Tradewinds Tr 9.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eed5b6391ca1a2b8d5b056.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a3d5d277-ec6b-48f8-9593-08314f55553d.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-4975-tradewinds-tr-9",
+    "old_size": 3955528,
+    "status": "optimized"
+  },
+  {
+    "name": "4975 Tradewinds Tr 67.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eed59f39379a155d003200.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/82f8efc8-3440-44f1-809c-0510ee978ab1.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-4975-tradewinds-tr-67",
+    "old_size": 9123208,
+    "status": "optimized"
+  },
+  {
+    "name": "DJI_0279.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2daead8baa34c85fef9.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2daead8baa34c85fef9.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-dji-0279",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "4975 Tradewinds Tr 67.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2bc2c105a9044547576.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/219764ec-e0f9-4641-9270-8642a66c6409.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-4975-tradewinds-tr-67",
+    "old_size": 230045,
+    "status": "optimized"
+  },
+  {
+    "name": "3051 N COURSE DR APT 70532.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2936afab32c11d3cb06.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/68f6e262-190f-449f-9586-c0230accdd05.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-3051-n-course-dr-apt-70532",
+    "old_size": 303300,
+    "status": "optimized"
+  },
+  {
+    "name": "1211 Pennsylvania Ave Apt B119.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab27533030a5fe2be0227.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/37beb8be-a544-4c7a-87ab-96b39d443b25.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-1211-pennsylvania-ave-apt-b119",
+    "old_size": 1222269,
+    "status": "optimized"
+  },
+  {
+    "name": "IMG_1094.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab25f13c4b632fd1837c9.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/80ebb321-ff37-433d-9df1-7dca36d35793.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-img-1094",
+    "old_size": 7674425,
+    "status": "optimized"
+  },
+  {
+    "name": " 9125 SW 77th Ave, #103, Miami, FL 3315611.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2413792948678ec9767.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2413792948678ec9767.jpeg",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67eab2413792948678ec9767.jpeg",
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "name": "Sunrise.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67e44bb17146feb05d4f45c6.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/b5b093cb-60c0-4906-9716-888f326dfa0f.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-sunrise",
+    "old_size": 819273,
+    "status": "optimized"
+  },
+  {
+    "name": "Master Team Logo Transpapprent.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67e4238c625f83f9ead283b2.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67e4238c625f83f9ead283b2.png",
+    "server_url": "https://images.reallistingteam.com/images/master-team-logo-transpapprent-c0h7",
+    "status": "small_skip",
+    "size": 46267
+  },
+  {
+    "name": "Master Team Logo Transpapprent.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67e422372be3f702bc21e19d.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67e422372be3f702bc21e19d.png",
+    "server_url": "https://images.reallistingteam.com/images/master-team-logo-transpapprent-c0h7",
+    "status": "small_skip",
+    "size": 20714
+  },
+  {
+    "name": "Scot+Lehr+New+Head+Shot.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67db3e3d4ea66c82c19aee96.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67db3e3d4ea66c82c19aee96.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-scotlehrnewheadshot",
+    "status": "small_skip",
+    "size": 44003
+  },
+  {
+    "name": "logar-village-logo.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67bca0309e155376de98fbf0.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67bca0309e155376de98fbf0.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-logar-village-logo",
+    "status": "small_skip",
+    "size": 17957
+  },
+  {
+    "name": "Current Real Estate News.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67b12a427c33f4487e5c346c.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/bc20e60a-e7d5-46bf-b1ed-9f99636fa5ff.png",
+    "server_url": "https://images.reallistingteam.com/images/ghl-current-real-estate-news",
+    "old_size": 1596941,
+    "status": "optimized"
+  },
+  {
+    "name": "c5ede437-b829-435b-b5f8-939997abdb3f.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67b12a3511feb936d4d1b7d4.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/3e48e83c-5c25-4a40-9c9f-07951917c6e3.webp",
+    "server_url": "https://images.reallistingteam.com/images/ghl-c5ede437-b829-435b-b5f8-939997abdb3f",
+    "old_size": 237678,
+    "status": "optimized"
+  },
+  {
+    "name": "c1f64e70-ad2a-4499-b80a-c233fbc4ca08.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67b12a357c33f4e0f55c3467.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/29880aba-b105-474d-bc65-c2a4ff8cc5e3.webp",
+    "server_url": "https://images.reallistingteam.com/images/ghl-c1f64e70-ad2a-4499-b80a-c233fbc4ca08",
+    "old_size": 193684,
+    "status": "optimized"
+  },
+  {
+    "name": "Scott Lehr Avatar.webp",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67b12a2911feb916ccd1b7d1.webp",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/d9372b0d-6059-4951-810f-b5134acbedd5.webp",
+    "server_url": "https://images.reallistingteam.com/images/ghl-scott-lehr-avatar",
+    "old_size": 217816,
+    "status": "optimized"
+  },
+  {
+    "name": " Hanukkah.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/676dc3a0e312e00dd5dcf374.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/676dc3a0e312e00dd5dcf374.png",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/676dc3a0e312e00dd5dcf374.png",
+    "status": "small_skip",
+    "size": 86398
+  },
+  {
+    "name": "doral.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761fc4454689974ccafefd5.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761fc4454689974ccafefd5.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-doral",
+    "status": "small_skip",
+    "size": 85105
+  },
+  {
+    "name": "kendall.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761fc4463c0fe401cd5ba86.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/88432264-23ee-492a-8323-cc2b2a4bf006.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-kendall",
+    "old_size": 143683,
+    "status": "optimized"
+  },
+  {
+    "name": "Listing.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761ada070f32d7fee2a4c4c.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761ada070f32d7fee2a4c4c.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-listing",
+    "status": "small_skip",
+    "size": 98822
+  },
+  {
+    "name": "commissionj.jpeg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761aa2d546f8f41735211eb.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/37af22f2-7a96-4997-a813-e9a5f97addc8.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-commissionj",
+    "old_size": 142546,
+    "status": "optimized"
+  },
+  {
+    "name": "luxury property.jpg",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761a85200f328322d8d00ac.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/6761a85200f328322d8d00ac.jpeg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-luxury-property",
+    "status": "small_skip",
+    "size": 82812
+  },
+  {
+    "name": "IMG_5676.JPG",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/673e9fa1e03c110ce2cb8745.jpeg",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/a6195921-82ae-4812-b1b4-23cf01690473.jpg",
+    "server_url": "https://images.reallistingteam.com/images/ghl-img-5676",
+    "old_size": 6289677,
+    "status": "optimized"
+  },
+  {
+    "name": "RESF  TLT Logo Transparrent.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba23a8d111ca25f7422.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba23a8d111ca25f7422.png",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba23a8d111ca25f7422.png",
+    "status": "small_skip",
+    "size": 34137
+  },
+  {
+    "name": "RESF  TLT Logo Backround.png",
+    "old_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba289ecaef0f5228e61.png",
+    "new_ghl_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba289ecaef0f5228e61.png",
+    "server_url": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/67351ba289ecaef0f5228e61.png",
+    "status": "small_skip",
+    "size": 32230
+  }
+]
