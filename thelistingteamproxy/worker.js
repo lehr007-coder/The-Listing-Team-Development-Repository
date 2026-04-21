@@ -20214,24 +20214,16 @@ var index_default = {
     // USERS API (GHL team members)
     // -------------------------------------------------------
     if (method === "GET" && path === "/api/users") {
-      var agencyKey = env.GHL_AGENCY_KEY || "";
-      if (!agencyKey) return json({ users: [], error: "GHL_AGENCY_KEY not configured" });
       try {
-        var usersRes = await fetch("https://services.leadconnectorhq.com/users/search?companyId=" + (env.GHL_COMPANY_ID || "") + "&locationId=" + locId, {
-          headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28" }
-        });
-        if (!usersRes.ok) {
-          var usersRes2 = await fetch("https://services.leadconnectorhq.com/users/?locationId=" + locId, {
-            headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28" }
-          });
-          if (!usersRes2.ok) return json({ users: [], error: "GHL API error: " + usersRes2.status });
-          var ud2 = await usersRes2.json();
-          return json({ users: ud2.users || ud2 || [] });
+        var usersData = await ghlSafe(env, "GET", "/users/search?locationId=" + locId);
+        var usersList = usersData.users || usersData || [];
+        if (!Array.isArray(usersList) || !usersList.length) {
+          var usersData2 = await ghlSafe(env, "GET", "/users/?locationId=" + locId);
+          usersList = usersData2.users || usersData2 || [];
         }
-        var usersData = await usersRes.json();
-        return json({ users: usersData.users || usersData || [] });
+        return json({ users: Array.isArray(usersList) ? usersList : [] });
       } catch(e) {
-        return json({ users: [], error: e.message });
+        return json({ users: [], error: "GHL API: " + (e.message || e.status || "unknown error"), debug: { status: e.status, data: e.data } });
       }
     }
 
