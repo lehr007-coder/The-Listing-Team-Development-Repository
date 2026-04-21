@@ -349,7 +349,7 @@ fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
   var u=d.user;
   var badge=u.role==='admin'
     ?'<span style="padding:3px 10px;border-radius:20px;background:rgba(234,179,8,.15);color:#eab308;font-size:11px;font-weight:700;border:1px solid rgba(234,179,8,.3)">&#9733; Admin</span>'
-    :'<span style="padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.12);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.25)">&#9679; Agent</span>';
+    :'<span style="padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.12);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.25)">&#9679; User</span>';
   var bar=document.createElement('div');
   bar.style.cssText='margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap';
   bar.innerHTML='<span style="font-size:13px;color:#94a3b8">Welcome, <b style="color:#e2e8f0">'+(u.name||u.email)+'</b></span>'+badge+'<a href="/auth/logout" style="padding:4px 12px;border-radius:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:11px;font-weight:600;text-decoration:none">Sign Out</a>';
@@ -19908,7 +19908,7 @@ async function _hmacSign(payload, secret) {
   return [...new Uint8Array(sig)].map(function(b){return b.toString(16).padStart(2,"0");}).join("");
 }
 async function createSessionToken(user, secret) {
-  var data = {uid:user.uid||"",email:user.email||"",name:user.name||"",role:user.role||"agent",loc:user.loc||"",exp:Date.now()+86400000};
+  var data = {uid:user.uid||"",email:user.email||"",name:user.name||"",role:user.role||"user",loc:user.loc||"",exp:Date.now()+86400000};
   var payload = btoa(JSON.stringify(data));
   var sig = await _hmacSign(payload, secret);
   return payload + "." + sig;
@@ -19986,7 +19986,7 @@ a{color:#3b82f6;text-decoration:none}
 .user-email{font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .role-badge{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
 .role-admin{background:rgba(234,179,8,.15);color:#eab308;border:1px solid rgba(234,179,8,.3)}
-.role-agent{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.role-user{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
 .user-details{display:flex;flex-wrap:wrap;gap:8px}
 .user-detail{font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px}
 .user-actions{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #334155}
@@ -20058,7 +20058,7 @@ async function loadUsers(){
         '<div class="user-top">'+
           '<div class="user-avatar" style="background:'+color+'">'+esc(initials(u.name))+'</div>'+
           '<div class="user-info"><div class="user-name">'+esc(u.name||'Unknown')+'</div><div class="user-email">'+esc(u.email||'No email')+'</div></div>'+
-          '<span class="role-badge '+(isAdmin?'role-admin':'role-agent')+'">'+(isAdmin?'\\u2605 Admin':'\\u25CF Agent')+'</span>'+
+          '<span class="role-badge '+(isAdmin?'role-admin':'role-user')+'">'+(isAdmin?'\\u2605 Admin':'\\u25CF User')+'</span>'+
         '</div>'+
         '<div class="user-details">'+
           (u.phone?'<span class="user-detail">\\u{1F4DE} '+esc(u.phone)+'</span>':'')+
@@ -20151,7 +20151,7 @@ async function ghlUserRole(uid, agencyKey) {
     );
     roleStr = (roleStr + "").toLowerCase();
     // GHL role values: "admin" = admin, "user" / "account" = agent
-    return (roleStr === "admin") ? "admin" : "agent";
+    return (roleStr === "admin") ? "admin" : "user";
   } catch(e) { return "admin"; }
 }
 
@@ -20715,7 +20715,7 @@ var index_default = {
         if (tag) params.set("query", tag);
         // Agent scoping: only return contacts assigned to the logged-in agent
         var contactsSessCheck = await getSession(request, env);
-        if (contactsSessCheck && contactsSessCheck.role === "agent" && contactsSessCheck.uid && contactsSessCheck.uid !== "direct") {
+        if (contactsSessCheck && contactsSessCheck.role === "user" && contactsSessCheck.uid && contactsSessCheck.uid !== "direct") {
           params.set("assignedTo", contactsSessCheck.uid);
         }
         const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
