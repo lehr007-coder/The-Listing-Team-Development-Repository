@@ -334,6 +334,20 @@ function updateClock(){
 }
 updateClock();setInterval(updateClock,1000);
 
+// GHL SSO - show user greeting + logout
+fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
+  if(!d.authenticated||!d.user)return;
+  var u=d.user;
+  var badge=u.role==='admin'
+    ?'<span style="padding:3px 10px;border-radius:20px;background:rgba(234,179,8,.15);color:#eab308;font-size:11px;font-weight:700;border:1px solid rgba(234,179,8,.3)">★ Admin</span>'
+    :'<span style="padding:3px 10px;border-radius:20px;background:rgba(59,130,246,.12);color:#60a5fa;font-size:11px;font-weight:700;border:1px solid rgba(59,130,246,.25)">● Agent</span>';
+  var bar=document.createElement('div');
+  bar.style.cssText='margin-top:16px;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap';
+  bar.innerHTML='<span style="font-size:13px;color:#94a3b8">Welcome, <b style="color:#e2e8f0">'+(u.name||u.email)+'</b></span>'+badge+'<a href="/auth/logout" style="padding:4px 12px;border-radius:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:11px;font-weight:600;text-decoration:none">Sign Out</a>';
+  var hdr=document.querySelector('.header');
+  if(hdr)hdr.appendChild(bar);
+}).catch(function(){});
+
 // Check proxy health
 fetch('/health').then(r=>r.json()).then(d=>{
   if(!d.ok||!d.tokenPresent){
@@ -19823,6 +19837,106 @@ function broadcastSSE(event) {
 }
 __name(broadcastSSE, "broadcastSSE");
 __name2(broadcastSSE, "broadcastSSE");
+// =============================================================
+// GHL SSO — Authentication Layer
+// =============================================================
+var LOGIN_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Listing Team — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0e1a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.wrap{width:100%;max-width:420px;padding:24px}
+.card{background:#111827;border:1px solid #1e293b;border-radius:20px;padding:40px}
+.logo{font-size:22px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
+.logo span{background:linear-gradient(135deg,#3b82f6,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{font-size:13px;color:#64748b;margin-bottom:28px;line-height:1.5}
+.hint{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.18);border-radius:12px;padding:16px;font-size:12px;color:#93c5fd;line-height:1.7;margin-bottom:24px}
+.hint b{color:#60a5fa}
+.or{display:flex;align-items:center;gap:12px;color:#334155;font-size:12px;margin:0 0 20px}
+.or::before,.or::after{content:'';flex:1;border-top:1px solid #1e293b}
+.lbl{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.inp{width:100%;padding:11px 14px;border:1px solid #1e293b;border-radius:10px;background:#0a0e1a;color:#f1f5f9;font-size:13px;font-family:inherit;outline:none;transition:border .15s;margin-bottom:12px}
+.inp:focus{border-color:#3b82f6}
+.btn{width:100%;padding:12px;border:none;border-radius:10px;background:#3b82f6;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s}
+.btn:hover{background:#2563eb}
+.err{color:#ef4444;font-size:12px;margin-top:10px;min-height:18px}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <div class="logo">The Listing Team <span>&#9889;</span></div>
+  <div class="sub">Sign in to access the Command Center</div>
+  <div class="hint"><b>&#128279; Recommended:</b> Open this dashboard from the <b>GoHighLevel left navigation</b> to sign in automatically with your GHL identity and role.</div>
+  <div class="or">or sign in with password</div>
+  <div class="lbl">Email</div>
+  <input type="email" id="em" class="inp" placeholder="your@email.com">
+  <div class="lbl">Password</div>
+  <input type="password" id="pw" class="inp" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn" onclick="doLogin()">Sign In</button>
+  <div class="err" id="err"></div>
+</div></div>
+<script>
+async function doLogin(){
+  var em=document.getElementById('em').value.trim(),pw=document.getElementById('pw').value,er=document.getElementById('err');
+  er.textContent='';
+  if(!em||!pw){er.textContent='Email and password required';return;}
+  var r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,pass:pw})});
+  if(r.ok){var p=new URLSearchParams(window.location.search);window.location.href=p.get('redirect')||'/dashboard';}
+  else er.textContent='Invalid email or password.';
+}
+<\/script>
+</body></html>`;
+
+async function _hmacSign(payload, secret) {
+  var enc = new TextEncoder();
+  var key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC",hash:"SHA-256"}, false, ["sign"]);
+  var sig = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
+  return [...new Uint8Array(sig)].map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+}
+async function createSessionToken(user, secret) {
+  var data = {uid:user.uid||"",email:user.email||"",name:user.name||"",role:user.role||"agent",loc:user.loc||"",exp:Date.now()+86400000};
+  var payload = btoa(JSON.stringify(data));
+  var sig = await _hmacSign(payload, secret);
+  return payload + "." + sig;
+}
+async function parseSessionToken(token, secret) {
+  if (!token) return null;
+  var idx = token.lastIndexOf(".");
+  if (idx < 0) return null;
+  var payload = token.slice(0, idx), sig = token.slice(idx + 1);
+  if (await _hmacSign(payload, secret) !== sig) return null;
+  try { var d = JSON.parse(atob(payload)); return d.exp < Date.now() ? null : d; } catch(e) { return null; }
+}
+async function getSession(request, env) {
+  var cookies = request.headers.get("Cookie") || "";
+  var m = cookies.match(/tlt_session=([^;]+)/);
+  if (!m) return null;
+  return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET || "tlt-sess-2027");
+}
+function mkCookie(token) {
+  return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400";
+}
+function clearCookie() {
+  return "tlt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+}
+async function ghlUserRole(uid, agencyKey) {
+  if (!uid || !agencyKey) return "agent";
+  try {
+    var r = await fetch("https://services.leadconnectorhq.com/users/" + uid, {
+      headers: {"Authorization": "Bearer " + agencyKey, "Version": "2021-07-28"}
+    });
+    if (!r.ok) return "agent";
+    var d = await r.json();
+    var roleStr = ((d.role || (d.user && d.user.role) || "user") + "").toLowerCase();
+    return roleStr === "admin" ? "admin" : "agent";
+  } catch(e) { return "agent"; }
+}
+
 var index_default = {
   async fetch(request, env) {
     _currentRequest = request;
@@ -19833,6 +19947,46 @@ var index_default = {
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders({}, request) });
     }
+
+    // ---- AUTH ROUTES (GHL SSO) ----
+    if (path === "/login") {
+      return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
+    }
+    if (path === "/auth/logout") {
+      return new Response(null, {status:302, headers:{"Location":"/login","Set-Cookie":clearCookie(),"Cache-Control":"no-store"}});
+    }
+    if (path === "/auth/me") {
+      var meSession = await getSession(request, env);
+      if (!meSession) return json({authenticated:false}, 401);
+      return json({authenticated:true, user:{uid:meSession.uid, email:meSession.email, name:meSession.name, role:meSession.role}});
+    }
+    if (path === "/auth/ghl") {
+      var ghlUid = url.searchParams.get("uid") || url.searchParams.get("user_id") || "";
+      var ghlEmail = url.searchParams.get("email") || "";
+      var ghlName = url.searchParams.get("name") || url.searchParams.get("firstName") || "";
+      var ghlLoc = url.searchParams.get("loc") || url.searchParams.get("location_id") || locId;
+      var ghlRedirect = url.searchParams.get("redirect") || "/dashboard";
+      if (!ghlUid && !ghlEmail) {
+        return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
+      }
+      var agencyKey = env.GHL_AGENCY_KEY || "";
+      var sessSecret = env.SESSION_SECRET || "tlt-sess-2027";
+      var ghlRole = await ghlUserRole(ghlUid, agencyKey);
+      var ghlToken = await createSessionToken({uid:ghlUid, email:ghlEmail, name:ghlName, role:ghlRole, loc:ghlLoc}, sessSecret);
+      return new Response(null, {status:302, headers:{"Location":ghlRedirect,"Set-Cookie":mkCookie(ghlToken),"Cache-Control":"no-store"}});
+    }
+    if (path === "/auth/login" && method === "POST") {
+      try {
+        var loginBody = await safeJsonParse(request);
+        if (!loginBody || !loginBody.email || !loginBody.pass) return json({error:"Missing fields"}, 400);
+        var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
+        if (loginBody.pass !== adminPass) return json({error:"Invalid"}, 401);
+        var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
+        var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:locId}, loginSecret);
+        return new Response(JSON.stringify({ok:true}), {status:200, headers:{"Content-Type":"application/json","Set-Cookie":mkCookie(loginToken)}});
+      } catch(e) { return json({error:"Server error"}, 500); }
+    }
+
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
