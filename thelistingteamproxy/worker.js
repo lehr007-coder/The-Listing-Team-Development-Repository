@@ -256,15 +256,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">10 sub-accounts</div>
         </div>
       </a>
-      <a href="https://ylopo-marketplace.lehr007.workers.dev" target="_blank" class="card amber">
-        <span class="arrow">\u2192</span>
-        <div class="icon-wrap">\u{1F6D2}</div>
-        <div class="card-body">
-          <div class="card-title">Ylopo Marketplace</div>
-          <div class="card-desc">Ylopo integration marketplace for GHL \u2014 custom objects, workflows, and event processing.</div>
-          <div class="card-tag">Marketplace</div>
-        </div>
-      </a>
       <a href="https://social-post-importer.lehr007.workers.dev" target="_blank" class="card orange">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4F1}</div>
@@ -304,6 +295,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div class="section">
     <div class="section-label"><h2>System</h2><hr></div>
     <div class="cards">
+      <a href="https://ylopo-marketplace.lehr007.workers.dev" target="_blank" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F6D2}</div>
+        <div class="card-body">
+          <div class="card-title">Ylopo Marketplace</div>
+          <div class="card-desc">Ylopo integration marketplace for GHL \u2014 custom objects, workflows, and event processing.</div>
+          <div class="card-tag">Marketplace</div>
+        </div>
+      </a>
       <a href="/health" class="card green" target="_blank">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F3E5}</div>
