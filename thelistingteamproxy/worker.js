@@ -19963,6 +19963,108 @@ async function sendNotifyEmail(env, subject, htmlBody) {
     });
   } catch (e) { /* best-effort */ }
 }
+
+// =============================================================
+// LOGIN RATE LIMIT (in-memory, per-isolate)
+// Intentionally simple: bypassable across CF colos, but raises
+// brute-force cost from $0 to "actually have to try multiple edges".
+// Upgrade path: move to KV binding (env.RATE_LIMIT_KV).
+// =============================================================
+var _loginAttempts = new Map(); // key=hashed IP, value={count, resetAt}
+var LOGIN_MAX_ATTEMPTS = 5;
+var LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 min
+
+async function _hashIp(ip) {
+  try {
+    var enc = new TextEncoder();
+    var hash = await crypto.subtle.digest("SHA-256", enc.encode(ip || ""));
+    return [...new Uint8Array(hash)].slice(0, 10).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+  } catch(e) { return String(ip || "").slice(0, 32); }
+}
+async function checkLoginRateLimit(request) {
+  var ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Real-IP") || "unknown";
+  var key = await _hashIp(ip);
+  var now = Date.now();
+  var entry = _loginAttempts.get(key);
+  if (entry && entry.resetAt > now) {
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      var retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      return { ok: false, retryAfter: retryAfter };
+    }
+  } else {
+    _loginAttempts.set(key, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
+    entry = _loginAttempts.get(key);
+  }
+  return { ok: true, key: key, entry: entry };
+}
+function noteFailedLogin(key, entry) {
+  if (!key || !entry) return;
+  entry.count = (entry.count || 0) + 1;
+  _loginAttempts.set(key, entry);
+}
+function clearLoginAttempts(key) {
+  if (key) _loginAttempts.delete(key);
+}
+
+// =============================================================
+// ERROR OBSERVABILITY
+// If env.SENTRY_DSN is set, forward unhandled errors to Sentry's
+// HTTP envelope endpoint. Otherwise log to console (picked up by
+// Cloudflare Tail / Logpush).
+// =============================================================
+async function reportError(err, context, env) {
+  try {
+    var msg = (err && err.message) || String(err);
+    var stack = (err && err.stack) || "";
+    console.error("[error]", context || "unknown", msg, stack);
+    var dsn = env && env.SENTRY_DSN;
+    if (!dsn) return;
+    var m = dsn.match(/^https:\/\/([^@]+)@([^/]+)\/(\d+)$/);
+    if (!m) return;
+    var publicKey = m[1], host = m[2], projectId = m[3];
+    var envelope = JSON.stringify({ event_id: crypto.randomUUID().replace(/-/g,""), sent_at: new Date().toISOString(), dsn: dsn }) + "\n"
+      + JSON.stringify({ type: "event" }) + "\n"
+      + JSON.stringify({
+          message: msg,
+          exception: { values: [{ type: (err && err.name) || "Error", value: msg, stacktrace: { frames: [] } }] },
+          tags: { worker: "thelistingteamproxy", context: String(context || "unknown") },
+          extra: { stack: stack },
+          platform: "javascript",
+          timestamp: Date.now() / 1000
+        }) + "\n";
+    await fetch("https://" + host + "/api/" + projectId + "/envelope/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-sentry-envelope",
+        "X-Sentry-Auth": "Sentry sentry_version=7, sentry_key=" + publicKey + ", sentry_client=tlt-worker/1.0"
+      },
+      body: envelope
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+// =============================================================
+// HEALTH CHECK
+// =============================================================
+async function runHealthCheck(env) {
+  var checks = { worker: "ok" };
+  var supaUrl = env.SUPABASE_URL || "";
+  var supaKey = env.SUPABASE_KEY || "";
+  if (supaUrl && supaKey) {
+    try {
+      var r = await fetch(supaUrl + "/rest/v1/user_permissions?select=id&limit=1", {
+        headers: { "apikey": supaKey, "Authorization": "Bearer " + supaKey },
+        signal: AbortSignal.timeout(3000)
+      });
+      checks.supabase = r.ok ? "ok" : ("error " + r.status);
+    } catch (e) { checks.supabase = "timeout"; }
+  } else {
+    checks.supabase = "unconfigured";
+  }
+  var overall = Object.values(checks).every(function(v){ return v === "ok" || v === "unconfigured"; }) ? "ok" : "degraded";
+  return { status: overall, checks: checks, ts: new Date().toISOString() };
+}
+
 // =============================================================
 // ADMIN MODULE PAGE
 // =============================================================
@@ -20236,6 +20338,20 @@ var index_default = {
       return new Response(null, { status: 204, headers: corsHeaders({}, request) });
     }
 
+    // ---- HEALTH CHECK (safe for uptime monitors) ----
+    if (method === "GET" && (path === "/healthz" || path === "/health")) {
+      try {
+        var hc = await runHealthCheck(env);
+        return new Response(JSON.stringify(hc), {
+          status: hc.status === "ok" ? 200 : 503,
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
+        });
+      } catch (e) {
+        await reportError(e, "healthz", env);
+        return new Response(JSON.stringify({ status: "error", error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
+      }
+    }
+
     // ---- AUTH ROUTES (GHL SSO) ----
     if (path === "/login") {
       return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
@@ -20265,17 +20381,36 @@ var index_default = {
     }
     if (path === "/auth/login" && method === "POST") {
       try {
+        // Rate limit: 5 failed attempts per 15min per (hashed) IP
+        var rl = await checkLoginRateLimit(request);
+        if (!rl.ok) {
+          return new Response(JSON.stringify({error:"Too many attempts"}), {
+            status: 429,
+            headers: {"Content-Type":"application/json", "Retry-After": String(rl.retryAfter || 60)}
+          });
+        }
         var loginBody = await safeJsonParse(request);
-        if (!loginBody || !loginBody.email || !loginBody.pass) return json({error:"Missing fields"}, 400);
+        if (!loginBody || !loginBody.email || !loginBody.pass) {
+          noteFailedLogin(rl.key, rl.entry);
+          return json({error:"Missing fields"}, 400);
+        }
         var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
-        if (loginBody.pass !== adminPass) return json({error:"Invalid"}, 401);
+        if (loginBody.pass !== adminPass) {
+          noteFailedLogin(rl.key, rl.entry);
+          return json({error:"Invalid"}, 401);
+        }
+        // Success — clear attempts for this IP
+        clearLoginAttempts(rl.key);
         var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
         var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:locId}, loginSecret);
         return new Response(JSON.stringify({ok:true}), {status:200, headers:{"Content-Type":"application/json","Set-Cookie":mkCookie(loginToken)}});
-      } catch(e) { return json({error:"Server error"}, 500); }
+      } catch(e) {
+        await reportError(e, "auth/login", env);
+        return json({error:"Server error"}, 500);
+      }
     }
 
-    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline")) {
+    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
       }
@@ -20328,6 +20463,33 @@ var index_default = {
 
     // Save user permissions
     if (method === "POST" && path === "/api/users/permissions") {
+      // Require a valid session OR API key. Either path ensures this
+      // isn't a drive-by mutation.
+      var permsSess = await getSession(request, env);
+      var hasApiKey = validateApiKey(request, env);
+      if (!permsSess && !hasApiKey) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      // Under strict auth, the caller must also have can_admin (or legacy direct login)
+      if (env.REQUIRE_AUTH === "true" && permsSess && permsSess.uid && permsSess.uid !== "direct") {
+        try {
+          var sbCheckUrl = env.SUPABASE_URL || "";
+          var sbCheckKey = env.SUPABASE_KEY || "";
+          if (sbCheckUrl && sbCheckKey) {
+            var permCheck = await fetch(sbCheckUrl + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(permsSess.uid) + "&select=can_admin", {
+              headers: { "apikey": sbCheckKey, "Authorization": "Bearer " + sbCheckKey },
+              signal: AbortSignal.timeout(3000)
+            });
+            var permCheckRows = await permCheck.json().catch(function(){ return []; });
+            if (!(Array.isArray(permCheckRows) && permCheckRows[0] && permCheckRows[0].can_admin === true)) {
+              return json({ error: "Forbidden" }, 403);
+            }
+          }
+        } catch (e) {
+          await reportError(e, "perms-admin-check", env);
+          // Fall through — don't lock out on transient DB errors
+        }
+      }
       var SB_URL_P = env.SUPABASE_URL || "";
       var SB_KEY_P = env.SUPABASE_KEY || "";
       if (!SB_URL_P || !SB_KEY_P) return json({ error: "Supabase not configured" }, 503);
@@ -21831,6 +21993,34 @@ var index_default = {
       });
     }
     if (method === "GET" && path === "/dashboard/admin") {
+      // Conditional strict auth: when env.REQUIRE_AUTH === "true",
+      // require a valid session with can_admin. Staging leaves this
+      // unset so dev access stays frictionless.
+      if (env.REQUIRE_AUTH === "true") {
+        var adminSess = await getSession(request, env);
+        if (!adminSess) {
+          return new Response(null, { status: 302, headers: { "Location": "/login?redirect=/dashboard/admin" } });
+        }
+        // Look up can_admin from Supabase if configured
+        var adminSupaUrl = env.SUPABASE_URL || "";
+        var adminSupaKey = env.SUPABASE_KEY || "";
+        if (adminSupaUrl && adminSupaKey && adminSess.uid && adminSess.uid !== "direct") {
+          try {
+            var permLookup = await fetch(adminSupaUrl + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(adminSess.uid) + "&select=can_admin", {
+              headers: { "apikey": adminSupaKey, "Authorization": "Bearer " + adminSupaKey },
+              signal: AbortSignal.timeout(3000)
+            });
+            var permRows = await permLookup.json().catch(function(){ return []; });
+            var isAdmin = Array.isArray(permRows) && permRows[0] && permRows[0].can_admin === true;
+            if (!isAdmin && adminSess.role !== "admin") {
+              return new Response("Forbidden", { status: 403 });
+            }
+          } catch (e) {
+            await reportError(e, "admin-permission-check", env);
+            // Fall through — don't lock out on transient DB errors
+          }
+        }
+      }
       return new Response(ADMIN_MODULE_HTML, {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;" }
