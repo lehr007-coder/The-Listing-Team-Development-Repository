@@ -22489,7 +22489,7 @@ loadData();
 <\/script></body></html>`;
       return new Response(IDX_HTML, {
         status: 200,
-        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; frame-ancestors 'self' https://*.gohighlevel.com https://*.leadconnectorhq.com https://app.gohighlevel.com" }
+        headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; frame-ancestors 'self' https://*.gohighlevel.com https://*.leadconnectorhq.com https://app.gohighlevel.com https://*.reallistingteam.com https://dash.reallistingteam.com" }
       });
     }
     return json({ error: "Not found", path, proxy: "v8" }, 404);
