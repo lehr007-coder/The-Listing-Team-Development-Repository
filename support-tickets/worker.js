@@ -55,6 +55,9 @@ a{color:#3b82f6;text-decoration:none}
 .hbar{background:linear-gradient(135deg,#0f2137,#1a3a6b,#1e4d9e);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
 .hbar-logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
 .hbar-logo span{color:#60a5fa}
+.hnav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);transition:all .15s;text-decoration:none}
+.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
 .hbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .hbtn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
 .hbtn:hover{background:rgba(255,255,255,0.15)}
@@ -128,6 +131,13 @@ textarea.form-input{resize:vertical;min-height:90px}
 <body>
 <div class="hbar">
   <div class="hbar-logo">The Listing Team <span>🎟 Support</span></div>
+  <div class="hnav">
+    <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard">🏠 Hub</a>
+    <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/ylopo-contacts">📋 Contacts</a>
+    <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/ylopo-analytics">📊 Analytics</a>
+    <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/pipeline">🚀 Pipeline</a>
+    <a href="/" class="active">🎟 Support</a>
+  </div>
   <div class="hbar-right">
     <div class="admin-badge" id="adminBadge">⭐ Admin</div>
     <button class="hbtn" id="adminBtn" onclick="openAdminModal()">🔒 Admin</button>

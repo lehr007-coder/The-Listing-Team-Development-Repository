@@ -334,7 +334,7 @@ function updateClock(){
 }
 updateClock();setInterval(updateClock,1000);
 
-// GHL SSO - show user greeting, role badge, sign out; hide admin sections for agents
+// GHL SSO - show user greeting, role badge, sign out
 fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
   if(!d.authenticated||!d.user)return;
   var u=d.user;
@@ -346,13 +346,6 @@ fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
   bar.innerHTML='<span style="font-size:13px;color:#94a3b8">Welcome, <b style="color:#e2e8f0">'+(u.name||u.email)+'</b></span>'+badge+'<a href="/auth/logout" style="padding:4px 12px;border-radius:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:11px;font-weight:600;text-decoration:none">Sign Out</a>';
   var hdr=document.querySelector('.header');
   if(hdr)hdr.appendChild(bar);
-  // Hide admin-only sections for agents
-  if(u.role!=='admin'){
-    document.querySelectorAll('.section-label h2').forEach(function(h2){
-      var t=h2.textContent.trim();
-      if(t==='Admin Tools'||t==='Content'){h2.closest('.section').style.display='none';}
-    });
-  }
 }).catch(function(){});
 
 // Check proxy health
