@@ -20510,6 +20510,17 @@ var index_default = {
           can_media: permBody.can_media === true,
           updated_at: new Date().toISOString()
         };
+        // Fetch the before state so we can log what changed
+        var beforeState = null;
+        try {
+          var beforeRes = await fetch(SB_URL_P + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(permBody.ghl_user_id) + "&select=*", {
+            headers: { "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P },
+            signal: AbortSignal.timeout(3000)
+          });
+          var beforeRows = await beforeRes.json().catch(function(){ return []; });
+          beforeState = Array.isArray(beforeRows) && beforeRows.length ? beforeRows[0] : null;
+        } catch (e) { /* best-effort */ }
+
         var upsertRes = await fetch(SB_URL_P + "/rest/v1/user_permissions?on_conflict=ghl_user_id", {
           method: "POST",
           headers: {
@@ -20520,9 +20531,77 @@ var index_default = {
         });
         var saved = await upsertRes.json().catch(function(){ return null; });
         if (!upsertRes.ok) return json({ error: "Database error", detail: saved }, upsertRes.status);
+
+        // Write audit log row (fire-and-forget, never block the response)
+        try {
+          var AUDIT_FIELDS = ["user_role","can_contacts","can_analytics","can_pipeline","can_tickets","can_admin","can_brand_injector","can_social","can_blog","can_media"];
+          var changed = [];
+          for (var k = 0; k < AUDIT_FIELDS.length; k++) {
+            var f = AUDIT_FIELDS[k];
+            var beforeVal = beforeState ? beforeState[f] : null;
+            var afterVal = permItem[f];
+            if (beforeVal !== afterVal) changed.push(f);
+          }
+          if (changed.length || !beforeState) {
+            var auditIp = request.headers.get("CF-Connecting-IP") || "";
+            var auditIpHash = auditIp ? await _hashIp(auditIp) : null;
+            var auditRow = {
+              actor_uid: permsSess ? permsSess.uid : null,
+              actor_email: permsSess ? permsSess.email : null,
+              actor_role: permsSess ? permsSess.role : (hasApiKey ? "api-key" : null),
+              target_uid: permBody.ghl_user_id,
+              before_state: beforeState,
+              after_state: permItem,
+              changed_fields: changed,
+              ip_hash: auditIpHash,
+              user_agent: (request.headers.get("User-Agent") || "").slice(0, 500)
+            };
+            // Don't await — let it write in the background
+            fetch(SB_URL_P + "/rest/v1/permission_audit_log", {
+              method: "POST",
+              headers: {
+                "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P,
+                "Content-Type": "application/json", "Prefer": "return=minimal"
+              },
+              body: JSON.stringify(auditRow)
+            }).catch(function(e){ /* best-effort, logged via reportError if caller cares */ });
+          }
+        } catch (auditErr) {
+          await reportError(auditErr, "permission-audit-log", env);
+        }
+
         return json({ ok: true, permission: Array.isArray(saved) ? saved[0] : saved });
       } catch(e) {
+        await reportError(e, "save-permissions", env);
         return json({ error: e.message }, 500);
+      }
+    }
+
+    // Audit log readonly endpoint (admins see who changed what)
+    if (method === "GET" && path === "/api/users/permissions/audit") {
+      var auditSess = await getSession(request, env);
+      var auditApiKey = validateApiKey(request, env);
+      if (!auditSess && !auditApiKey) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      var SB_URL_A = env.SUPABASE_URL || "";
+      var SB_KEY_A = env.SUPABASE_KEY || "";
+      if (!SB_URL_A || !SB_KEY_A) return json({ error: "Supabase not configured" }, 503);
+      try {
+        var targetFilter = url.searchParams.get("target_uid");
+        var actorFilter = url.searchParams.get("actor_uid");
+        var limitParam = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 500);
+        var auditQuery = "/rest/v1/permission_audit_log?select=*&order=created_at.desc&limit=" + limitParam;
+        if (targetFilter) auditQuery += "&target_uid=eq." + encodeURIComponent(targetFilter);
+        if (actorFilter) auditQuery += "&actor_uid=eq." + encodeURIComponent(actorFilter);
+        var auditRes = await fetch(SB_URL_A + auditQuery, {
+          headers: { "apikey": SB_KEY_A, "Authorization": "Bearer " + SB_KEY_A }
+        });
+        var auditRows = await auditRes.json().catch(function(){ return []; });
+        return json({ entries: Array.isArray(auditRows) ? auditRows : [] });
+      } catch (e) {
+        await reportError(e, "audit-query", env);
+        return json({ error: "Failed to fetch audit log" }, 500);
       }
     }
 

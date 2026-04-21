@@ -27,12 +27,50 @@ Monorepo for The Listing Team's Cloudflare Workers platform, plus the Supabase s
 
 ## Data layer (Supabase)
 
-Two projects exist in the org:
+Two projects are in use today — they are split **by workload**, not by environment:
 
-- **`tglbjiehyfyrefxwgmzz` — ylopo-intelligence (LIVE).** This is the project the workers actually read/write. Tables: `pipeline_items`, `user_permissions`, `support_tickets`, `leads`, `events`, `listings`, `scoring_log`.
-- **`xejjouzoskjgivuadiqa` — The Listing Team (unused so far).** Created Apr 20 2026, currently empty. Candidate for a future production/environment split, but nothing points at it today.
+| Project ID | Nickname | Used by | Tables |
+|---|---|---|---|
+| `tglbjiehyfyrefxwgmzz` | ylopo-intelligence | `thelistingteamproxy` | `events`, `leads`, `listings`, `scoring_log`, `pipeline_items`, `user_permissions`, `permission_audit_log` |
+| `xejjouzoskjgivuadiqa` | The Listing Team | `support-tickets` | `support_tickets`, `pipeline_items` (schema mirror of proxy's, unused), plus mirrored `user_permissions` + `permission_audit_log` (ready for future prod-proxy) |
 
-Worker secrets `SUPABASE_URL` and `SUPABASE_KEY` point at the live project.
+### Real environment separation
+
+Today staging and prod for the same worker share the same Supabase project. To actually split envs you need a third Supabase project — e.g. `thelistingteamproxy-prod`. Steps:
+
+1. Create a new Supabase project in the same org.
+2. Apply the full schema:
+   ```sql
+   -- copy from tglbjiehyfyrefxwgmzz: user_permissions, permission_audit_log,
+   -- pipeline_items, events, leads, listings, scoring_log (structure only)
+   ```
+   The generator in this session used `information_schema.columns` against the staging project; you can re-run it anytime.
+3. Set prod worker secrets to point at the new project:
+   ```sh
+   cd thelistingteamproxy
+   wrangler secret put SUPABASE_URL --config wrangler.toml   # paste new project URL
+   wrangler secret put SUPABASE_KEY --config wrangler.toml   # paste service-role key
+   ```
+4. Seed admin rows in the prod project (the 3 Scott Lehr uids, or whoever).
+5. Deploy prod via `gh workflow run deploy-production.yml -f confirm=DEPLOY`.
+
+The `xejjouzoskjgivuadiqa` project has `user_permissions` + `permission_audit_log` + `pipeline_items` mirrored today so it can serve as the prod target if you'd rather not create a fourth project — just add `events`, `leads`, `listings`, `scoring_log` when you're ready.
+
+### Permission audit log
+
+Every write to `user_permissions` via the worker produces a row in `permission_audit_log`:
+
+| Column | What |
+|---|---|
+| `actor_uid` / `actor_email` / `actor_role` | Who made the change (from session), or `"api-key"` if via `PROXY_API_KEY` |
+| `target_uid` | `ghl_user_id` whose permissions changed |
+| `before_state` / `after_state` | Full row before and after (jsonb) |
+| `changed_fields` | `text[]` of exactly which fields flipped |
+| `ip_hash` | SHA-256(IP), first 10 bytes — good enough for "same person or different" |
+| `user_agent` | Truncated to 500 chars |
+| `created_at` | Server-set |
+
+Read via `GET /api/users/permissions/audit?target_uid=XXX&limit=50` (requires session or API key).
 
 ### `user_permissions` schema
 
