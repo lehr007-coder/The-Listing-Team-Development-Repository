@@ -19609,6 +19609,24 @@ var SETUP_SQL = "CREATE TABLE IF NOT EXISTS pipeline_items (" +
   "\\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;" +
   '\\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
 
+var PERMS_SETUP_SQL = "CREATE TABLE IF NOT EXISTS user_permissions (" +
+  "\\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY," +
+  "\\n  ghl_user_id TEXT UNIQUE NOT NULL," +
+  "\\n  user_role TEXT DEFAULT 'user'," +
+  "\\n  can_contacts BOOLEAN DEFAULT true," +
+  "\\n  can_analytics BOOLEAN DEFAULT true," +
+  "\\n  can_pipeline BOOLEAN DEFAULT true," +
+  "\\n  can_tickets BOOLEAN DEFAULT true," +
+  "\\n  can_admin BOOLEAN DEFAULT false," +
+  "\\n  can_brand_injector BOOLEAN DEFAULT false," +
+  "\\n  can_social BOOLEAN DEFAULT false," +
+  "\\n  can_blog BOOLEAN DEFAULT false," +
+  "\\n  can_media BOOLEAN DEFAULT false," +
+  "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
+  "\\n);" +
+  "\\nALTER TABLE user_permissions ENABLE ROW LEVEL SECURITY;" +
+  '\\nCREATE POLICY "allow_all_perms" ON user_permissions FOR ALL USING (true) WITH CHECK (true);';
+
 function g(id){return document.getElementById(id);}
 function esc(s){if(!s&&s!==0)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function rgba(hex,a){if(!hex||hex.length<7)return 'rgba(100,116,139,'+a+')';var r=parseInt(hex.slice(1,3),16),gr=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 'rgba('+r+','+gr+','+b+','+a+')';}
@@ -20041,23 +20059,47 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function fmtTime(s){if(!s)return'';var d=new Date(s);return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
 
+var FEATURES = [
+  {key:'can_contacts',label:'Contacts'},
+  {key:'can_analytics',label:'Analytics'},
+  {key:'can_pipeline',label:'Pipeline'},
+  {key:'can_tickets',label:'Tickets'},
+  {key:'can_admin',label:'Admin'},
+  {key:'can_brand_injector',label:'Brand Injector'},
+  {key:'can_social',label:'Social'},
+  {key:'can_blog',label:'Blog'},
+  {key:'can_media',label:'Media'}
+];
+var allPerms = {};
+
 async function loadUsers(){
   var grid=document.getElementById('userGrid');
   try{
     var r=await fetch('/api/users');
     var d=await r.json();
-    if(!r.ok||!d.users){grid.innerHTML='<div class="empty">Failed to load team members. Check GHL API key.</div>';return;}
+    if(!r.ok||!d.users){grid.innerHTML='<div class="empty">Failed to load team members. Check GHL API key. '+(d.error?esc(d.error):'')+'</div>';return;}
+    allPerms = d.permissions || {};
     document.getElementById('statUsers').textContent=d.users.length;
-    if(!d.users.length){grid.innerHTML='<div class="empty">No team members found.</div>';return;}
+    if(!d.users.length){grid.innerHTML='<div class="empty">No team members found in this GHL location.</div>';return;}
     var html='';
     d.users.forEach(function(u){
+      var uid = u.id || u.userId || '';
       var color=hashColor(u.email||u.name);
-      var role=(u.role||'user').toLowerCase();
+      var role=(u.role||u.type||'user').toLowerCase();
       var isAdmin=role==='admin';
-      html+='<div class="user-card">'+
+      var perm = allPerms[uid] || {};
+      var togglesHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #334155">';
+      FEATURES.forEach(function(f){
+        var isOn = perm[f.key] !== undefined ? perm[f.key] : (isAdmin ? true : (f.key==='can_admin'||f.key==='can_brand_injector'||f.key==='can_social'||f.key==='can_blog'||f.key==='can_media') ? false : true);
+        togglesHtml += '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:'+(isOn?'#22c55e':'#64748b')+';cursor:pointer;user-select:none">' +
+          '<input type="checkbox" data-uid="'+esc(uid)+'" data-key="'+f.key+'" '+(isOn?'checked':'')+' onchange="togglePerm(this)" style="accent-color:#22c55e;width:13px;height:13px;cursor:pointer">' +
+          f.label+'</label>';
+      });
+      togglesHtml += '</div>';
+      html+='<div class="user-card" id="uc-'+esc(uid)+'">'+
         '<div class="user-top">'+
-          '<div class="user-avatar" style="background:'+color+'">'+esc(initials(u.name))+'</div>'+
-          '<div class="user-info"><div class="user-name">'+esc(u.name||'Unknown')+'</div><div class="user-email">'+esc(u.email||'No email')+'</div></div>'+
+          '<div class="user-avatar" style="background:'+color+'">'+esc(initials(u.name||u.firstName))+'</div>'+
+          '<div class="user-info"><div class="user-name">'+esc(u.name||((u.firstName||'')+ ' '+(u.lastName||'')).trim()||'Unknown')+'</div><div class="user-email">'+esc(u.email||'No email')+'</div></div>'+
           '<span class="role-badge '+(isAdmin?'role-admin':'role-user')+'">'+(isAdmin?'&#9733; Admin':'&#9679; User')+'</span>'+
         '</div>'+
         '<div class="user-details">'+
@@ -20065,13 +20107,41 @@ async function loadUsers(){
           '<span class="user-detail">&#128197; Joined '+fmtDate(u.createdAt||u.dateAdded)+'</span>'+
         '</div>'+
         '<div class="user-actions">'+
-          '<button class="action-btn" onclick="viewContacts(\\x27'+esc(u.id)+'\\x27)">&#128203; View Contacts</button>'+
-          '<button class="action-btn" onclick="viewActivity(\\x27'+esc(u.id)+'\\x27)">&#128202; Activity</button>'+
+          '<button class="action-btn" onclick="viewContacts(\\x27'+esc(uid)+'\\x27)">&#128203; Contacts</button>'+
+          '<button class="action-btn" onclick="viewActivity(\\x27'+esc(uid)+'\\x27)">&#128202; Activity</button>'+
+          '<button class="action-btn" onclick="savePerms(\\x27'+esc(uid)+'\\x27)" style="margin-left:auto;color:#22c55e;border-color:rgba(34,197,94,.3)">&#9989; Save</button>'+
         '</div>'+
+        togglesHtml+
       '</div>';
     });
     grid.innerHTML=html;
   }catch(e){grid.innerHTML='<div class="empty">Error: '+esc(e.message)+'</div>';}
+}
+
+function togglePerm(el){
+  el.parentElement.style.color=el.checked?'#22c55e':'#64748b';
+}
+
+async function savePerms(uid){
+  var card=document.getElementById('uc-'+uid);
+  if(!card)return;
+  var checks=card.querySelectorAll('input[type=checkbox]');
+  var data={ghl_user_id:uid};
+  checks.forEach(function(c){data[c.dataset.key]=c.checked;});
+  try{
+    var r=await fetch('/api/users/permissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var d=await r.json();
+    if(r.ok){showToast('Permissions saved for user','success');}
+    else{showToast('Error: '+(d.error||'Save failed'),'error');}
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+function showToast(msg,type){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:9000;color:#fff;background:'+(type==='error'?'#ef4444':'#22c55e');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();},3000);
 }
 
 async function loadStats(){
@@ -20214,16 +20284,83 @@ var index_default = {
     // USERS API (GHL team members)
     // -------------------------------------------------------
     if (method === "GET" && path === "/api/users") {
+      var ghlToken = env.GHL_V2_TOKEN || env.GHL_API_KEY || "";
+      var usersList = [];
+      // Try v1 API first (works with location API key)
       try {
-        var usersData = await ghlSafe(env, "GET", "/users/search?locationId=" + locId);
-        var usersList = usersData.users || usersData || [];
-        if (!Array.isArray(usersList) || !usersList.length) {
-          var usersData2 = await ghlSafe(env, "GET", "/users/?locationId=" + locId);
-          usersList = usersData2.users || usersData2 || [];
+        var v1Res = await fetch(GHL_V1 + "/users/", {
+          headers: { "Authorization": "Bearer " + ghlToken },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (v1Res.ok) {
+          var v1Data = await v1Res.json();
+          usersList = v1Data.users || v1Data || [];
         }
-        return json({ users: Array.isArray(usersList) ? usersList : [] });
+      } catch(e) {}
+      // Fallback to v2 API
+      if (!usersList.length) {
+        try {
+          var v2Data = await ghlSafe(env, "GET", "/users/search?locationId=" + locId);
+          usersList = v2Data.users || v2Data || [];
+        } catch(e) {}
+      }
+      if (!usersList.length) {
+        try {
+          var v2Data2 = await ghlSafe(env, "GET", "/users/?locationId=" + locId);
+          usersList = v2Data2.users || v2Data2 || [];
+        } catch(e) {}
+      }
+      // Load permissions from Supabase if available
+      var permMap = {};
+      var SB_URL_U = env.SUPABASE_URL || "";
+      var SB_KEY_U = env.SUPABASE_KEY || "";
+      if (SB_URL_U && SB_KEY_U) {
+        try {
+          var permRes = await fetch(SB_URL_U + "/rest/v1/user_permissions?select=*", {
+            headers: { "apikey": SB_KEY_U, "Authorization": "Bearer " + SB_KEY_U }
+          });
+          var perms = await permRes.json().catch(function(){ return []; });
+          if (Array.isArray(perms)) perms.forEach(function(p){ permMap[p.ghl_user_id] = p; });
+        } catch(e) {}
+      }
+      return json({ users: Array.isArray(usersList) ? usersList : [], permissions: permMap });
+    }
+
+    // Save user permissions
+    if (method === "POST" && path === "/api/users/permissions") {
+      var SB_URL_P = env.SUPABASE_URL || "";
+      var SB_KEY_P = env.SUPABASE_KEY || "";
+      if (!SB_URL_P || !SB_KEY_P) return json({ error: "Supabase not configured" }, 503);
+      try {
+        var permBody = await safeJsonParse(request);
+        if (!permBody || !permBody.ghl_user_id) return json({ error: "Missing ghl_user_id" }, 400);
+        var permItem = {
+          ghl_user_id: permBody.ghl_user_id,
+          user_role: permBody.user_role || "user",
+          can_contacts: permBody.can_contacts !== false,
+          can_analytics: permBody.can_analytics !== false,
+          can_pipeline: permBody.can_pipeline !== false,
+          can_tickets: permBody.can_tickets !== false,
+          can_admin: permBody.can_admin === true,
+          can_brand_injector: permBody.can_brand_injector === true,
+          can_social: permBody.can_social === true,
+          can_blog: permBody.can_blog === true,
+          can_media: permBody.can_media === true,
+          updated_at: new Date().toISOString()
+        };
+        var upsertRes = await fetch(SB_URL_P + "/rest/v1/user_permissions?on_conflict=ghl_user_id", {
+          method: "POST",
+          headers: {
+            "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P,
+            "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=representation"
+          },
+          body: JSON.stringify(permItem)
+        });
+        var saved = await upsertRes.json().catch(function(){ return null; });
+        if (!upsertRes.ok) return json({ error: "Database error", detail: saved }, upsertRes.status);
+        return json({ ok: true, permission: Array.isArray(saved) ? saved[0] : saved });
       } catch(e) {
-        return json({ users: [], error: "GHL API: " + (e.message || e.status || "unknown error"), debug: { status: e.status, data: e.data } });
+        return json({ error: e.message }, 500);
       }
     }
 
