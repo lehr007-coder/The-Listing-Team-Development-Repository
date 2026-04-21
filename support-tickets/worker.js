@@ -672,6 +672,29 @@ export default {
       });
     }
 
+    // Debug endpoint - shows Supabase config without exposing key
+    if (path === "/api/debug") {
+      var SB_URL_D = env.SUPABASE_URL || "";
+      var SB_KEY_D = env.SUPABASE_KEY || "";
+      var TABLE_D = SB_URL_D + "/rest/v1/support_tickets";
+      var testRes = null, testBody = null;
+      try {
+        testRes = await fetch(TABLE_D + "?limit=1", {
+          headers: { "apikey": SB_KEY_D, "Authorization": "Bearer " + SB_KEY_D }
+        });
+        testBody = await testRes.text();
+      } catch(e) { testBody = e.message; }
+      return json({
+        sb_url_set: !!SB_URL_D,
+        sb_url_value: SB_URL_D,
+        sb_key_set: !!SB_KEY_D,
+        sb_key_prefix: SB_KEY_D ? SB_KEY_D.slice(0,20) + "..." : "NOT SET",
+        table_url: TABLE_D,
+        supabase_status: testRes ? testRes.status : "fetch_failed",
+        supabase_response: testBody
+      }, 200, request);
+    }
+
     // API routes
     if (path.startsWith("/api/tickets")) {
       var SB_URL = env.SUPABASE_URL || "";
