@@ -20003,34 +20003,34 @@ a{color:#3b82f6;text-decoration:none}
 </head>
 <body>
 <div class="hbar">
-  <div class="hbar-logo">The Listing Team <span>\\u{1F465} Admin</span></div>
+  <div class="hbar-logo">The Listing Team <span>&#128101; Admin</span></div>
   <div class="hnav">
-    <a href="/dashboard">\\u{1F3E0} Hub</a>
-    <a href="/dashboard/ylopo-contacts">\\u{1F4CB} Contacts</a>
-    <a href="/dashboard/ylopo-analytics">\\u{1F4CA} Analytics</a>
-    <a href="/dashboard/pipeline">\\u{1F680} Pipeline</a>
-    <a href="/dashboard/admin" class="active">\\u{1F465} Admin</a>
+    <a href="/dashboard">&#127968; Hub</a>
+    <a href="/dashboard/ylopo-contacts">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-analytics">&#128202; Analytics</a>
+    <a href="/dashboard/pipeline">&#128640; Pipeline</a>
+    <a href="/dashboard/admin" class="active">&#128101; Admin</a>
   </div>
 </div>
 <div class="main">
   <div class="page-hdr">
-    <h1>\\u{1F465} Admin Module</h1>
+    <h1>&#128101; Admin Module</h1>
     <p>Manage team members, view system stats, and monitor activity across all modules.</p>
   </div>
 
   <div class="stats-grid" id="statsGrid">
-    <div class="stat-card"><div class="icon">\\u{1F465}</div><div class="val" id="statUsers">-</div><div class="lbl">Team Members</div></div>
-    <div class="stat-card"><div class="icon">\\u{1F4CB}</div><div class="val" id="statContacts">-</div><div class="lbl">Total Contacts</div></div>
-    <div class="stat-card"><div class="icon">\\u{1F3AB}</div><div class="val" id="statTickets">-</div><div class="lbl">Open Tickets</div></div>
-    <div class="stat-card"><div class="icon">\\u{1F680}</div><div class="val" id="statIdeas">-</div><div class="lbl">Pipeline Ideas</div></div>
-    <div class="stat-card"><div class="icon">\\u{1F525}</div><div class="val" id="statPriority">-</div><div class="lbl">Priority Leads</div></div>
-    <div class="stat-card"><div class="icon">\\u2705</div><div class="val" id="statResolved">-</div><div class="lbl">Resolved Tickets</div></div>
+    <div class="stat-card"><div class="icon">&#128101;</div><div class="val" id="statUsers">-</div><div class="lbl">Team Members</div></div>
+    <div class="stat-card"><div class="icon">&#128203;</div><div class="val" id="statContacts">-</div><div class="lbl">Total Contacts</div></div>
+    <div class="stat-card"><div class="icon">&#127915;</div><div class="val" id="statTickets">-</div><div class="lbl">Open Tickets</div></div>
+    <div class="stat-card"><div class="icon">&#128640;</div><div class="val" id="statIdeas">-</div><div class="lbl">Pipeline Ideas</div></div>
+    <div class="stat-card"><div class="icon">&#128293;</div><div class="val" id="statPriority">-</div><div class="lbl">Priority Leads</div></div>
+    <div class="stat-card"><div class="icon">&#9989;</div><div class="val" id="statResolved">-</div><div class="lbl">Resolved Tickets</div></div>
   </div>
 
-  <div class="section-title"><span>\\u{1F465} Team Members</span><hr></div>
+  <div class="section-title"><span>&#128101; Team Members</span><hr></div>
   <div id="userGrid" class="user-grid"><div class="spinner"></div></div>
 
-  <div class="section-title"><span>\\u{1F4CB} Recent Activity</span><hr></div>
+  <div class="section-title"><span>&#128203; Recent Activity</span><hr></div>
   <div id="activityList" class="activity-list"><div class="empty">Loading activity...</div></div>
 </div>
 <script>
@@ -20058,15 +20058,15 @@ async function loadUsers(){
         '<div class="user-top">'+
           '<div class="user-avatar" style="background:'+color+'">'+esc(initials(u.name))+'</div>'+
           '<div class="user-info"><div class="user-name">'+esc(u.name||'Unknown')+'</div><div class="user-email">'+esc(u.email||'No email')+'</div></div>'+
-          '<span class="role-badge '+(isAdmin?'role-admin':'role-user')+'">'+(isAdmin?'\\u2605 Admin':'\\u25CF User')+'</span>'+
+          '<span class="role-badge '+(isAdmin?'role-admin':'role-user')+'">'+(isAdmin?'&#9733; Admin':'&#9679; User')+'</span>'+
         '</div>'+
         '<div class="user-details">'+
-          (u.phone?'<span class="user-detail">\\u{1F4DE} '+esc(u.phone)+'</span>':'')+
-          '<span class="user-detail">\\u{1F4C5} Joined '+fmtDate(u.createdAt||u.dateAdded)+'</span>'+
+          (u.phone?'<span class="user-detail">&#128222; '+esc(u.phone)+'</span>':'')+
+          '<span class="user-detail">&#128197; Joined '+fmtDate(u.createdAt||u.dateAdded)+'</span>'+
         '</div>'+
         '<div class="user-actions">'+
-          '<button class="action-btn" onclick="viewContacts(\\x27'+esc(u.id)+'\\x27)">\\u{1F4CB} View Contacts</button>'+
-          '<button class="action-btn" onclick="viewActivity(\\x27'+esc(u.id)+'\\x27)">\\u{1F4CA} Activity</button>'+
+          '<button class="action-btn" onclick="viewContacts(\\x27'+esc(u.id)+'\\x27)">&#128203; View Contacts</button>'+
+          '<button class="action-btn" onclick="viewActivity(\\x27'+esc(u.id)+'\\x27)">&#128202; Activity</button>'+
         '</div>'+
       '</div>';
     });
