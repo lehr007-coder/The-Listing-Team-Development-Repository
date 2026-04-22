@@ -20187,7 +20187,7 @@ async function loadUsers(){
     d.users.forEach(function(u){
       var uid = u.id || u.userId || '';
       var color=hashColor(u.email||u.name);
-      var role=(u.role||u.type||'user').toLowerCase();
+      var role=((u.roles&&u.roles.role)||u.role||u.type||'user').toLowerCase();
       var isAdmin=role==='admin';
       var perm = allPerms[uid] || {};
       var togglesHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #334155">';
@@ -20315,10 +20315,10 @@ async function ghlUserRole(uid, agencyKey) {
     var d = await r.json();
     // GHL v2 returns role in several possible locations
     var roleStr = (
+      (d.roles && d.roles.role) ||
       (d.role) ||
       (d.user && d.user.role) ||
-      (d.roles && d.roles.type) ||
-      (d.type) ||
+      (d.user && d.user.roles && d.user.roles.role) ||
       "admin"
     );
     roleStr = (roleStr + "").toLowerCase();
