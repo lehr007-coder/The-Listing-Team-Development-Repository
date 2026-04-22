@@ -20419,31 +20419,51 @@ var index_default = {
     // USERS API (GHL team members)
     // -------------------------------------------------------
     if (method === "GET" && path === "/api/users") {
-      var ghlToken = env.GHL_V2_TOKEN || env.GHL_API_KEY || "";
+      var v1Key = env.GHL_API_KEY || "";
+      var v2Key = env.GHL_V2_TOKEN || env.GHL_API_KEY || "";
       var usersList = [];
-      // Try v1 API first (works with location API key)
-      try {
-        var v1Res = await fetch(GHL_V1 + "/users/", {
-          headers: { "Authorization": "Bearer " + ghlToken },
-          signal: AbortSignal.timeout(10000)
-        });
-        if (v1Res.ok) {
-          var v1Data = await v1Res.json();
-          usersList = v1Data.users || v1Data || [];
-        }
-      } catch(e) {}
-      // Fallback to v2 API
-      if (!usersList.length) {
+      var debugInfo = [];
+      // Try v1 API with JWT location key
+      if (v1Key) {
         try {
-          var v2Data = await ghlSafe(env, "GET", "/users/search?locationId=" + locId);
-          usersList = v2Data.users || v2Data || [];
-        } catch(e) {}
+          var v1Res = await fetch(GHL_V1 + "/users/", {
+            headers: { "Authorization": "Bearer " + v1Key },
+            signal: AbortSignal.timeout(10000)
+          });
+          var v1Body = await v1Res.json().catch(function(){ return {}; });
+          debugInfo.push({endpoint:"v1/users", status:v1Res.status, count:(v1Body.users||[]).length});
+          if (v1Res.ok && v1Body.users && v1Body.users.length) {
+            usersList = v1Body.users;
+          }
+        } catch(e) { debugInfo.push({endpoint:"v1/users", error:e.message}); }
       }
-      if (!usersList.length) {
+      // Try v2 /users/search with locationId
+      if (!usersList.length && v2Key) {
         try {
-          var v2Data2 = await ghlSafe(env, "GET", "/users/?locationId=" + locId);
-          usersList = v2Data2.users || v2Data2 || [];
-        } catch(e) {}
+          var v2Res = await fetch(GHL_V2 + "/users/search?locationId=" + locId, {
+            headers: { "Authorization": "Bearer " + v2Key, "Version": "2021-07-28" },
+            signal: AbortSignal.timeout(10000)
+          });
+          var v2Body = await v2Res.json().catch(function(){ return {}; });
+          debugInfo.push({endpoint:"v2/users/search", status:v2Res.status, count:(v2Body.users||[]).length});
+          if (v2Res.ok && v2Body.users && v2Body.users.length) {
+            usersList = v2Body.users;
+          }
+        } catch(e) { debugInfo.push({endpoint:"v2/users/search", error:e.message}); }
+      }
+      // Try v2 /users/ with locationId
+      if (!usersList.length && v2Key) {
+        try {
+          var v2Res2 = await fetch(GHL_V2 + "/users/?locationId=" + locId, {
+            headers: { "Authorization": "Bearer " + v2Key, "Version": "2021-07-28" },
+            signal: AbortSignal.timeout(10000)
+          });
+          var v2Body2 = await v2Res2.json().catch(function(){ return {}; });
+          debugInfo.push({endpoint:"v2/users", status:v2Res2.status, count:(v2Body2.users||v2Body2||[]).length});
+          if (v2Res2.ok) {
+            usersList = v2Body2.users || v2Body2 || [];
+          }
+        } catch(e) { debugInfo.push({endpoint:"v2/users", error:e.message}); }
       }
       // Load permissions from Supabase if available
       var permMap = {};
@@ -20458,7 +20478,7 @@ var index_default = {
           if (Array.isArray(perms)) perms.forEach(function(p){ permMap[p.ghl_user_id] = p; });
         } catch(e) {}
       }
-      return json({ users: Array.isArray(usersList) ? usersList : [], permissions: permMap });
+      return json({ users: Array.isArray(usersList) ? usersList : [], permissions: permMap, debug: debugInfo });
     }
 
     // Save user permissions
