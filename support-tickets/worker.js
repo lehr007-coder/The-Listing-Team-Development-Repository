@@ -39,24 +39,23 @@ function json(data, status, request) {
 }
 
 // -------------------------------------------------------------------
-// Email notification helper (uses Resend API)
+// GHL Webhook notification
 // -------------------------------------------------------------------
-async function sendNotifyEmail(env, subject, htmlBody) {
-  var apiKey = env.RESEND_API_KEY || "";
-  var notifyTo = env.NOTIFY_EMAIL || "";
-  if (!apiKey || !notifyTo) return;
+async function sendNotification(env, eventType, data) {
+  var webhookUrl = env.GHL_NOTIFY_WEBHOOK || "";
+  if (!webhookUrl) return;
   try {
-    await fetch("https://api.resend.com/emails", {
+    await fetch(webhookUrl, {
       method: "POST",
-      headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "TLT Notifications <notifications@" + (env.RESEND_DOMAIN || "resend.dev") + ">",
-        to: [notifyTo],
-        subject: subject,
-        html: htmlBody
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        source: "tlt-support-tickets",
+        ...data
       })
     });
-  } catch (e) { /* email is best-effort, don't break the request */ }
+  } catch (e) { /* best-effort */ }
 }
 
 // -------------------------------------------------------------------
@@ -805,17 +804,15 @@ export default {
           var data = await res3.json().catch(function () { return null; });
           var created = Array.isArray(data) ? data[0] : data;
           if (!res3.ok) return json({ error: "Database error", detail: data }, res3.status, request);
-          // Email notification — new ticket
-          sendNotifyEmail(env,
-            "[TLT Support] New Ticket: " + ref2 + " — " + item.title,
-            "<h2>New Support Ticket</h2>" +
-            "<p><b>Ref:</b> " + ref2 + "</p>" +
-            "<p><b>Subject:</b> " + item.title + "</p>" +
-            "<p><b>From:</b> " + item.submitter_name + " &lt;" + item.submitter_email + "&gt;</p>" +
-            "<p><b>Category:</b> " + item.category + " | <b>Priority:</b> " + item.priority + "</p>" +
-            (item.description ? "<p><b>Description:</b><br>" + item.description.replace(/</g,"&lt;").slice(0,500) + "</p>" : "") +
-            "<hr><p><a href='https://tlt-support-tickets-staging.lehr007.workers.dev/'>Open Support Dashboard</a></p>"
-          );
+          sendNotification(env, "ticket.created", {
+            ticket_ref: ref2,
+            title: item.title,
+            submitter_name: item.submitter_name,
+            submitter_email: item.submitter_email,
+            category: item.category,
+            priority: item.priority,
+            description: (item.description || "").slice(0, 500)
+          });
           return json({ ticket: created, ticket_ref: ref2 }, 201, request);
         } catch (e) {
           return json({ error: e.message }, 500, request);
@@ -840,16 +837,12 @@ export default {
           var d2 = await res4.json().catch(function () { return []; });
           var updated = Array.isArray(d2) ? d2[0] : d2;
           if (!res4.ok) return json({ error: "Database error" }, res4.status, request);
-          // Email notification — ticket updated
-          sendNotifyEmail(env,
-            "[TLT Support] Ticket Updated: " + (updated && updated.ticket_ref || b2.id),
-            "<h2>Support Ticket Updated</h2>" +
-            "<p><b>Ref:</b> " + (updated && updated.ticket_ref || b2.id) + "</p>" +
-            (upd.status ? "<p><b>Status changed to:</b> " + upd.status + "</p>" : "") +
-            (upd.priority ? "<p><b>Priority changed to:</b> " + upd.priority + "</p>" : "") +
-            (upd.admin_notes ? "<p><b>Admin note:</b> " + upd.admin_notes.replace(/</g,"&lt;").slice(0,500) + "</p>" : "") +
-            "<hr><p><a href='https://tlt-support-tickets-staging.lehr007.workers.dev/'>Open Support Dashboard</a></p>"
-          );
+          sendNotification(env, "ticket.updated", {
+            ticket_ref: (updated && updated.ticket_ref) || b2.id,
+            status: upd.status || "",
+            priority: upd.priority || "",
+            admin_notes: (upd.admin_notes || "").slice(0, 500)
+          });
           return json({ ticket: updated }, 200, request);
         } catch (e) {
           return json({ error: e.message }, 500, request);

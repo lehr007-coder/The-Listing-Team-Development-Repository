@@ -19946,19 +19946,18 @@ async function getSession(request, env) {
   return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET || "tlt-sess-2027");
 }
 
-async function sendNotifyEmail(env, subject, htmlBody) {
-  var apiKey = env.RESEND_API_KEY || "";
-  var notifyTo = env.NOTIFY_EMAIL || "";
-  if (!apiKey || !notifyTo) return;
+async function sendNotification(env, eventType, data) {
+  var webhookUrl = env.GHL_NOTIFY_WEBHOOK || "";
+  if (!webhookUrl) return;
   try {
-    await fetch("https://api.resend.com/emails", {
+    await fetch(webhookUrl, {
       method: "POST",
-      headers: { "Authorization": "Bearer " + apiKey, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "TLT Notifications <notifications@" + (env.RESEND_DOMAIN || "resend.dev") + ">",
-        to: [notifyTo],
-        subject: subject,
-        html: htmlBody
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        source: "tlt-command-center",
+        ...data
       })
     });
   } catch (e) { /* best-effort */ }
@@ -20699,15 +20698,14 @@ var index_default = {
           const data = await res.json().catch(() => null);
           const created = Array.isArray(data) ? data[0] : data;
           if (!res.ok) return json({ error: "Database error", detail: data }, res.status);
-          sendNotifyEmail(env,
-            "[TLT Pipeline] New Idea: " + item.title,
-            "<h2>New Pipeline Idea</h2>" +
-            "<p><b>Title:</b> " + item.title + "</p>" +
-            "<p><b>From:</b> " + (item.submitter_name || "Anonymous") + (item.submitter_email ? " &lt;" + item.submitter_email + "&gt;" : "") + "</p>" +
-            "<p><b>Category:</b> " + item.category + " | <b>Priority:</b> " + item.priority + "</p>" +
-            (item.description ? "<p><b>Description:</b><br>" + item.description.replace(/</g,"&lt;").slice(0,500) + "</p>" : "") +
-            "<hr><p><a href='https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/pipeline'>Open Pipeline Dashboard</a></p>"
-          );
+          sendNotification(env, "pipeline.created", {
+            title: item.title,
+            submitter_name: item.submitter_name || "Anonymous",
+            submitter_email: item.submitter_email || "",
+            category: item.category,
+            priority: item.priority,
+            description: (item.description || "").slice(0, 500)
+          });
           return json({ item: created }, 201);
         } catch(e) {
           return json({ error: e.message }, 500);
@@ -20731,15 +20729,12 @@ var index_default = {
           const data = await res.json().catch(() => []);
           const updated = Array.isArray(data) ? data[0] : data;
           if (!res.ok) return json({ error: "Database error" }, res.status);
-          sendNotifyEmail(env,
-            "[TLT Pipeline] Idea Updated: " + (updated && updated.title || body.id),
-            "<h2>Pipeline Idea Updated</h2>" +
-            "<p><b>Title:</b> " + (updated && updated.title || body.id) + "</p>" +
-            (updates.status ? "<p><b>Status changed to:</b> " + updates.status + "</p>" : "") +
-            (updates.priority ? "<p><b>Priority changed to:</b> " + updates.priority + "</p>" : "") +
-            (updates.admin_notes ? "<p><b>Admin note:</b> " + updates.admin_notes.replace(/</g,"&lt;").slice(0,500) + "</p>" : "") +
-            "<hr><p><a href='https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/pipeline'>Open Pipeline Dashboard</a></p>"
-          );
+          sendNotification(env, "pipeline.updated", {
+            title: (updated && updated.title) || body.id,
+            status: updates.status || "",
+            priority: updates.priority || "",
+            admin_notes: (updates.admin_notes || "").slice(0, 500)
+          });
           return json({ item: updated });
         } catch(e) {
           return json({ error: e.message }, 500);
