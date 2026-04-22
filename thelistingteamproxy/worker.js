@@ -20184,7 +20184,7 @@ async function loadUsers(){
     document.getElementById('statUsers').textContent=d.users.length;
     if(!d.users.length){grid.innerHTML='<div class="empty">No team members found in this GHL location.</div>';return;}
     var html='';
-    d.users.forEach(function(u){
+    d.users.filter(function(u){return !u.deleted && (u.id||u.userId);}).forEach(function(u){
       var uid = u.id || u.userId || '';
       var color=hashColor(u.email||u.name);
       var role=((u.roles&&u.roles.role)||u.role||u.type||'user').toLowerCase();
@@ -20225,10 +20225,12 @@ function togglePerm(el){
 }
 
 async function savePerms(uid){
+  if(!uid){showToast('No user ID found','error');return;}
   var card=document.getElementById('uc-'+uid);
-  if(!card)return;
+  if(!card){showToast('User card not found','error');return;}
   var checks=card.querySelectorAll('input[type=checkbox]');
-  var data={ghl_user_id:uid};
+  var role=card.querySelector('.role-badge');
+  var data={ghl_user_id:uid, user_role:(role&&role.textContent.indexOf('Admin')!==-1)?'admin':'user'};
   checks.forEach(function(c){data[c.dataset.key]=c.checked;});
   try{
     var r=await fetch('/api/users/permissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
