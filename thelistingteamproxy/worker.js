@@ -20516,7 +20516,7 @@ var index_default = {
       var SB_KEY_P = env.SUPABASE_KEY || "";
       if (!SB_URL_P || !SB_KEY_P) return json({ error: "Supabase not configured" }, 503);
       try {
-        var permBody = await safeJsonParse(request);
+        var permBody = await request.json().catch(function(){ return null; });
         if (!permBody || !permBody.ghl_user_id) return json({ error: "Missing ghl_user_id" }, 400);
         var permItem = {
           ghl_user_id: permBody.ghl_user_id,
