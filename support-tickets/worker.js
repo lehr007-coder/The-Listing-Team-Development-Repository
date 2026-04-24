@@ -711,41 +711,6 @@ export default {
       });
     }
 
-    // Debug endpoint — admin-only, and NEVER echoes env values or response bodies
-    if (path === "/api/debug") {
-      var ADMIN_PASS_D = env.SUPPORT_ADMIN_PASS || "TeamListing2027!";
-      if (request.headers.get("X-Support-Admin") !== ADMIN_PASS_D) {
-        return json({ error: "Unauthorized" }, 401, request);
-      }
-      var SB_URL_D = env.SUPABASE_URL || "";
-      var SB_KEY_D = env.SUPABASE_KEY || "";
-      var urlLooksValid = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SB_URL_D.replace(/\/$/, ""));
-      var keyLooksValid = !!SB_KEY_D && (SB_KEY_D.startsWith("eyJ") || SB_KEY_D.startsWith("sb_"));
-      var testStatus = null, testOk = null;
-      if (urlLooksValid && keyLooksValid) {
-        try {
-          var testRes = await fetch(SB_URL_D.replace(/\/$/, "") + "/rest/v1/support_tickets?limit=1", {
-            headers: { "apikey": SB_KEY_D, "Authorization": "Bearer " + SB_KEY_D }
-          });
-          testStatus = testRes.status;
-          testOk = testRes.ok;
-        } catch (e) {
-          console.error("[debug] supabase reachability check failed:", e && (e.message || e));
-          testStatus = "fetch_failed";
-          testOk = false;
-        }
-      }
-      return json({
-        sb_url_set: !!SB_URL_D,
-        sb_url_valid_shape: urlLooksValid,
-        sb_key_set: !!SB_KEY_D,
-        sb_key_valid_shape: keyLooksValid,
-        sb_key_length: SB_KEY_D ? SB_KEY_D.length : 0,
-        supabase_reachable: testOk,
-        supabase_status: testStatus
-      }, 200, request);
-    }
-
     // API routes
     if (path.startsWith("/api/tickets")) {
       var SB_URL = env.SUPABASE_URL || "";
