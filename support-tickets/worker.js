@@ -39,6 +39,15 @@ function json(data, status, request) {
 }
 
 // -------------------------------------------------------------------
+// Safe error helper — logs full detail, returns generic message.
+// Never echoes env values, URLs, or raw fetch errors to the client.
+// -------------------------------------------------------------------
+function safeError(e, context, request) {
+  try { console.error("[" + (context || "worker") + "]", e && (e.stack || e.message || e)); } catch (_) {}
+  return json({ error: "Internal server error" }, 500, request);
+}
+
+// -------------------------------------------------------------------
 // GHL Webhook notification
 // -------------------------------------------------------------------
 async function sendNotification(env, eventType, data) {
@@ -702,26 +711,38 @@ export default {
       });
     }
 
-    // Debug endpoint - shows Supabase config without exposing key
+    // Debug endpoint — admin-only, and NEVER echoes env values or response bodies
     if (path === "/api/debug") {
+      var ADMIN_PASS_D = env.SUPPORT_ADMIN_PASS || "TeamListing2027!";
+      if (request.headers.get("X-Support-Admin") !== ADMIN_PASS_D) {
+        return json({ error: "Unauthorized" }, 401, request);
+      }
       var SB_URL_D = env.SUPABASE_URL || "";
       var SB_KEY_D = env.SUPABASE_KEY || "";
-      var TABLE_D = SB_URL_D + "/rest/v1/support_tickets";
-      var testRes = null, testBody = null;
-      try {
-        testRes = await fetch(TABLE_D + "?limit=1", {
-          headers: { "apikey": SB_KEY_D, "Authorization": "Bearer " + SB_KEY_D }
-        });
-        testBody = await testRes.text();
-      } catch(e) { testBody = e.message; }
+      var urlLooksValid = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SB_URL_D.replace(/\/$/, ""));
+      var keyLooksValid = !!SB_KEY_D && (SB_KEY_D.startsWith("eyJ") || SB_KEY_D.startsWith("sb_"));
+      var testStatus = null, testOk = null;
+      if (urlLooksValid && keyLooksValid) {
+        try {
+          var testRes = await fetch(SB_URL_D.replace(/\/$/, "") + "/rest/v1/support_tickets?limit=1", {
+            headers: { "apikey": SB_KEY_D, "Authorization": "Bearer " + SB_KEY_D }
+          });
+          testStatus = testRes.status;
+          testOk = testRes.ok;
+        } catch (e) {
+          console.error("[debug] supabase reachability check failed:", e && (e.message || e));
+          testStatus = "fetch_failed";
+          testOk = false;
+        }
+      }
       return json({
         sb_url_set: !!SB_URL_D,
-        sb_url_value: SB_URL_D,
+        sb_url_valid_shape: urlLooksValid,
         sb_key_set: !!SB_KEY_D,
-        sb_key_prefix: SB_KEY_D ? SB_KEY_D.slice(0,20) + "..." : "NOT SET",
-        table_url: TABLE_D,
-        supabase_status: testRes ? testRes.status : "fetch_failed",
-        supabase_response: testBody
+        sb_key_valid_shape: keyLooksValid,
+        sb_key_length: SB_KEY_D ? SB_KEY_D.length : 0,
+        supabase_reachable: testOk,
+        supabase_status: testStatus
       }, 200, request);
     }
 
@@ -761,7 +782,7 @@ export default {
           var tickets = await res.json().catch(function () { return []; });
           return json({ tickets: Array.isArray(tickets) ? tickets : [] }, 200, request);
         } catch (e) {
-          return json({ error: e.message }, 500, request);
+          return safeError(e, "GET /api/tickets", request);
         }
       }
 
@@ -775,7 +796,7 @@ export default {
           var all = await res2.json().catch(function () { return []; });
           return json({ tickets: Array.isArray(all) ? all : [] }, 200, request);
         } catch (e) {
-          return json({ error: e.message }, 500, request);
+          return safeError(e, "GET /api/tickets/all", request);
         }
       }
 
@@ -803,7 +824,10 @@ export default {
           var res3 = await fetch(TABLE, { method: "POST", headers: sbH, body: JSON.stringify(item) });
           var data = await res3.json().catch(function () { return null; });
           var created = Array.isArray(data) ? data[0] : data;
-          if (!res3.ok) return json({ error: "Database error", detail: data }, res3.status, request);
+          if (!res3.ok) {
+            console.error("[POST /api/tickets] DB error status=" + res3.status + " body=", data);
+            return json({ error: "Database error" }, res3.status, request);
+          }
           sendNotification(env, "ticket.created", {
             ticket_ref: ref2,
             title: item.title,
@@ -815,7 +839,7 @@ export default {
           });
           return json({ ticket: created, ticket_ref: ref2 }, 201, request);
         } catch (e) {
-          return json({ error: e.message }, 500, request);
+          return safeError(e, "POST /api/tickets", request);
         }
       }
 
@@ -836,7 +860,10 @@ export default {
           var res4 = await fetch(TABLE + "?id=eq." + b2.id, { method: "PATCH", headers: sbH, body: JSON.stringify(upd) });
           var d2 = await res4.json().catch(function () { return []; });
           var updated = Array.isArray(d2) ? d2[0] : d2;
-          if (!res4.ok) return json({ error: "Database error" }, res4.status, request);
+          if (!res4.ok) {
+            console.error("[PATCH /api/tickets] DB error status=" + res4.status + " body=", d2);
+            return json({ error: "Database error" }, res4.status, request);
+          }
           sendNotification(env, "ticket.updated", {
             ticket_ref: (updated && updated.ticket_ref) || b2.id,
             status: upd.status || "",
@@ -845,7 +872,7 @@ export default {
           });
           return json({ ticket: updated }, 200, request);
         } catch (e) {
-          return json({ error: e.message }, 500, request);
+          return safeError(e, "PATCH /api/tickets", request);
         }
       }
 
@@ -861,10 +888,13 @@ export default {
             method: "DELETE",
             headers: Object.assign({}, sbH, { "Prefer": "return=minimal" })
           });
-          if (!res5.ok) return json({ error: "Delete failed" }, res5.status, request);
+          if (!res5.ok) {
+            console.error("[DELETE /api/tickets] DB error status=" + res5.status);
+            return json({ error: "Delete failed" }, res5.status, request);
+          }
           return json({ ok: true }, 200, request);
         } catch (e) {
-          return json({ error: e.message }, 500, request);
+          return safeError(e, "DELETE /api/tickets", request);
         }
       }
     }
