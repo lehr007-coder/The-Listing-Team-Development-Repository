@@ -1,0 +1,44 @@
+name: Deploy Staging Workers
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+
+jobs:
+  deploy-proxy:
+    name: Deploy thelistingteamproxy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: thelistingteamproxy
+          command: deploy --config wrangler.staging.toml
+
+  deploy-support-tickets:
+    name: Deploy tlt-support-tickets-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: support-tickets
+          command: deploy --config wrangler.staging.toml
+
+  deploy-brand-injector:
+    name: Deploy ghl-brand-injector-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: ghl-brand-injector
+          command: deploy --config wrangler.staging.toml

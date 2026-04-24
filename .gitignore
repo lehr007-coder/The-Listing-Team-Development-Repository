@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cloudflare Wrangler build output
+.wrangler/
+**/.wrangler/
+dist/
+**/dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary / scratch
+.tmp.driveupload/
+*.log
+.cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

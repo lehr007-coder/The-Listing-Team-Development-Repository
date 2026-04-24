@@ -1,0 +1,274 @@
+{
+  "tlt": {
+    "name": "The Listing Team",
+    "ids": [
+      "SeZr4YCwEZ50IcWqylkQ"
+    ],
+    "colors": {
+      "gradLeft": "#4779a9",
+      "gradMid": "#3285d2",
+      "gradRight": "#1978d2",
+      "gradUnderline": "#afd036",
+      "chipGreen": "#afd036",
+      "surfaceBlue": "#f0f5e0",
+      "textStrong": "#0c1c2b",
+      "textMuted": "#545453"
+    },
+    "logo": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png",
+    "ghlSync": {
+      "locationId": "SeZr4YCwEZ50IcWqylkQ",
+      "locationName": "The Home Owners Listing Team",
+      "businessLogo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/ba188d8f-b673-4d81-b914-9e89c0767fb7.png",
+      "syncedAt": "2026-03-27T19:30:00.000Z",
+      "website": "https://www.reallistingagent.com/",
+      "email": "thehomeownerlistingteam@gmail.com",
+      "phone": "+19543426180"
+    },
+    "key": "tlt",
+    "ghlApiKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2NhdGlvbl9pZCI6IlNlWnI0WUN3RVo1MEljV3F5bGtRIiwidmVyc2lvbiI6MSwiaWF0IjoxNzY5NTM1OTkxNDE3LCJzdWIiOiJVRjU0a2phTlU0RDFiOVFUUW9rayJ9.ByZx3VLQ_q-Hpv7Cruoo2JFOeCkUkT2e2JwOjqrX3c8"
+  },
+  "brand": {
+    "ghlApiKey": "pit-b4af49fb-3b7f-4881-b8a9-076e0beb26de",
+    "name": "1st Financial | Jorge Grand",
+    "ids": [
+      "977HOLxKJ5cNKJh8OVb0"
+    ],
+    "colors": {
+      "gradLeft": "#0D2B4E",
+      "gradMid": "#1A5C8A",
+      "gradRight": "#2E86C1",
+      "gradUnderline": "#1A5C8A",
+      "chipGreen": "#2E86C1",
+      "surfaceBlue": "#E8F0FE",
+      "textStrong": "#0D2B4E",
+      "textMuted": "#424242"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/04b421b1-0e98-4ace-b9bc-33084e89a010.jpg",
+    "key": "brand"
+  },
+  "takiteztiki": {
+    "name": "TakitezTiki",
+    "ids": [
+      "G2jPKHKTjA0Cbtcu4kwF"
+    ],
+    "colors": {
+      "gradLeft": "#eb720f",
+      "gradMid": "#fffdff",
+      "gradRight": "#fefdfe",
+      "gradUnderline": "#FF5722",
+      "chipGreen": "#4CAF50",
+      "surfaceBlue": "#E0F2F1",
+      "textStrong": "#004D40",
+      "textMuted": "#455A64"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/7ff32db9-9b0e-4186-adf9-be316625758f.jpg",
+    "ghlSync": {
+      "locationId": "G2jPKHKTjA0Cbtcu4kwF",
+      "locationName": "Tak it Ez Tiki",
+      "businessLogo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/7ff32db9-9b0e-4186-adf9-be316625758f.jpg",
+      "syncedAt": "2026-03-27T18:14:15.873Z",
+      "website": "http://www.takiteztiki.com/",
+      "email": "brad@mail.takiiteztiki.com",
+      "phone": "+19545010581"
+    },
+    "key": "takiteztiki"
+  },
+  "tejeda": {
+    "ghlApiKey": "pit-b3612ba7-e2b1-4cb6-8c1c-26b1010c8681",
+    "name": "Tejeda Realty",
+    "ids": [
+      "kleUkEt0lBuPK6YezWV8"
+    ],
+    "colors": {
+      "gradLeft": "#ffffff",
+      "gradMid": "#dac696",
+      "gradRight": "#ebd8b5",
+      "gradUnderline": "#FF6F00",
+      "chipGreen": "#3F51B5",
+      "surfaceBlue": "#E8EAF6",
+      "textStrong": "#1A237E",
+      "textMuted": "#424242"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/f456950a-144c-4057-9cd2-1b9f9ef674f0.jpg",
+    "key": "tejeda"
+  },
+  "nps": {
+    "name": "Next Phase Solar",
+    "ids": [
+      "qpfdd6rnb2qUHIURVuvd"
+    ],
+    "colors": {
+      "gradLeft": "#000000",
+      "gradMid": "#f6be1c",
+      "gradRight": "#f5bd1c",
+      "gradUnderline": "#FF6F00",
+      "chipGreen": "#FFC400",
+      "surfaceBlue": "#FFF3E0",
+      "textStrong": "#1A237E",
+      "textMuted": "#424242"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/ea2e8cee-5758-429e-873d-7a2d8f21ee0f.png",
+    "ghlSync": {
+      "locationId": "qpfdd6rnb2qUHIURVuvd",
+      "locationName": "NextPhase Solar",
+      "businessLogo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/ea2e8cee-5758-429e-873d-7a2d8f21ee0f.png",
+      "syncedAt": "2026-03-27T18:14:15.595Z",
+      "website": "",
+      "email": "ericat.solar@gmail.com",
+      "phone": "+17868771717"
+    },
+    "key": "nps"
+  },
+  "onestop": {
+    "name": "OneStop Trucks",
+    "ids": [
+      "SVNbbdAPJLmldKSHRy1V"
+    ],
+    "colors": {
+      "gradLeft": "#000000",
+      "gradMid": "#e73a1d",
+      "gradRight": "#fffefe",
+      "gradUnderline": "#2E7D32",
+      "chipGreen": "#66BB6A",
+      "surfaceBlue": "#E0F2F1",
+      "textStrong": "#004D40",
+      "textMuted": "#455A64"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/2328bf6b-1f2f-4059-9d3d-2a698b573cb8.png",
+    "ghlSync": {
+      "locationId": "SVNbbdAPJLmldKSHRy1V",
+      "locationName": "1 Stop Truck & Parts",
+      "businessLogo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/2328bf6b-1f2f-4059-9d3d-2a698b573cb8.png",
+      "syncedAt": "2026-03-27T18:14:17.708Z",
+      "website": "https://onestoptrucknparts.com/",
+      "email": "info@onestoptrucknparts.com",
+      "phone": "+13058858484"
+    },
+    "key": "onestop",
+    "ghlApiKey": "pit-dddc6406-855a-4d18-8b9e-7fd88ece54ad"
+  },
+  "scottlehr": {
+    "name": "Scott Lehr, PA",
+    "ids": [
+      "Q4q1WV7WUS11V3AWEpAZ"
+    ],
+    "colors": {
+      "gradLeft": "#ffffff",
+      "gradMid": "#e6e6e6",
+      "gradRight": "#f7f7f7",
+      "gradUnderline": "#1B5E20",
+      "chipGreen": "#43A047",
+      "surfaceBlue": "#E3F2FD",
+      "textStrong": "#0D47A1",
+      "textMuted": "#37474F"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/24a7533a-aad9-4425-9b2d-e2e81cabd849.png",
+    "ghlSync": {
+      "locationId": "Q4q1WV7WUS11V3AWEpAZ",
+      "locationName": "Scott Lehr, PA",
+      "businessLogo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/24a7533a-aad9-4425-9b2d-e2e81cabd849.png",
+      "syncedAt": "2026-03-27T18:14:17.359Z",
+      "website": "http://www.reallistingagent.com",
+      "email": "lehr007@gmail.com",
+      "phone": "+13059924674"
+    },
+    "key": "scottlehr",
+    "ghlApiKey": "pit-3298899b-d7a4-48ba-a0d7-c39ac790011c"
+  },
+  "houserealty": {
+    "name": "House Realty",
+    "ids": [
+      "TV1OqxyXM7YHSLC1ekMh"
+    ],
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/0ac39bb6-1a71-4ece-a3ac-a60d8a4ca30b.png",
+    "colors": {
+      "gradLeft": "#6d6f73",
+      "gradMid": "#6e6f72",
+      "gradRight": "#ececed",
+      "gradUnderline": "#00838F",
+      "chipGreen": "#0097A7",
+      "surfaceBlue": "#E0F7FA",
+      "textStrong": "#0D47A1",
+      "textMuted": "#424242"
+    },
+    "ghlApiKey": "pit-a00cec5d-1f57-43d4-b697-0dfdb72be875",
+    "key": "houserealty"
+  },
+  "aldecoa": {
+    "ghlApiKey": "pit-db080ccf-148a-4954-84b0-3b58419d52eb",
+    "name": "Aldecoa Realty",
+    "ids": [
+      "6v5gpkt26Eta20eZRpb1"
+    ],
+    "colors": {
+      "gradLeft": "#000000",
+      "gradMid": "#d8ebd8",
+      "gradRight": "#99a555",
+      "gradUnderline": "#F57F17",
+      "chipGreen": "#8BC34A",
+      "surfaceBlue": "#FFFDE7",
+      "textStrong": "#33691E",
+      "textMuted": "#616161"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/d0e8f831-534f-4b4e-87f9-d99b1e01b02a.png",
+    "key": "aldecoa"
+  },
+  "cct": {
+    "ghlApiKey": "pit-abc6c8e6-ca74-49e5-a5d9-ae8089a2ec93",
+    "name": "Complete Choice Title",
+    "ids": [
+      "6QJMf2T1hCm4Mtzbr1Ta"
+    ],
+    "colors": {
+      "gradLeft": "#2077be",
+      "gradMid": "#1A5C8A",
+      "gradRight": "#2077be",
+      "gradUnderline": "#00838F",
+      "chipGreen": "#0097A7",
+      "surfaceBlue": "#E0F7FA",
+      "textStrong": "#0D47A1",
+      "textMuted": "#424242"
+    },
+    "logo": "https://msgsndr-private.storage.googleapis.com/locationPhotos/d515b50d-98b7-45d1-bbe6-88c39e63842c.jpg",
+    "key": "cct"
+  },
+  "A": {
+    "key": "A",
+    "name": "Ai IntelliCall Solutions",
+    "ids": [
+      "rQSgx0HLhOeskFvylmA1"
+    ],
+    "logo": "https://assets.cdn.filesafe.space/rQSgx0HLhOeskFvylmA1/media/6837485183c329be30b6ab67.png",
+    "ghlApiKey": "pit-a3bed47d-3c34-4a5e-acea-95c57e3f87bd",
+    "colors": {
+      "gradLeft": "#000000",
+      "gradMid": "#004c95",
+      "gradRight": "#003366"
+    }
+  },
+  "thehomeownerslisting": {
+    "name": "The Home Owners Listing Team",
+    "ids": [
+      "SeZr4YCwEZ50IcWqylkQ"
+    ],
+    "logo": "https://assets.cdn.filesafe.space/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png",
+    "colors": {
+      "gradLeft": "#000000",
+      "gradMid": "#afd035",
+      "gradRight": "#aed037",
+      "gradUnderline": "#e94560",
+      "chipGreen": "#0f3460",
+      "surfaceBlue": "#E8F0FE",
+      "textStrong": "#1a1a2e",
+      "textMuted": "#424242"
+    },
+    "ghlSync": {
+      "SeZr4YCwEZ50IcWqylkQ": {
+        "syncedAt": "2026-03-27T19:29:42.580Z",
+        "name": "The Home Owners Listing Team",
+        "autoDetected": true
+      }
+    },
+    "key": "thehomeownerslisting"
+  }
+}

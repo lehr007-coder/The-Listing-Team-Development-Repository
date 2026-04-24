@@ -1,0 +1,18 @@
+{
+  "name": "tlt-image-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Image hosting server with admin portal on Cloudflare Workers + R2 + D1",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute tlt-images-db --file=./migrations/001_create_tables.sql",
+    "db:migrate:local": "wrangler d1 execute tlt-images-db --local --file=./migrations/001_create_tables.sql"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
+}
