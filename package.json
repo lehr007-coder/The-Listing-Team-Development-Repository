@@ -10,7 +10,7 @@
     "db:migrate:local": "wrangler d1 execute tlt-images-db --local --file=./migrations/001_create_tables.sql"
   },
   "dependencies": {
-    "hono": "^4.6.0"
+    "hono": "^4.12.14"
   },
   "devDependencies": {
     "wrangler": "^3.99.0"
