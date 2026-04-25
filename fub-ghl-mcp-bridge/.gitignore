@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.wrangler/
+.env
+.env.local
+.env.*.local
+wrangler.toml.local
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml

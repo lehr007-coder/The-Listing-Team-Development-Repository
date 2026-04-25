@@ -1,0 +1,31 @@
+{
+  "name": "fub-ghl-mcp-bridge",
+  "version": "1.0.0",
+  "description": "MCP server bridging Follow Up Boss and GoHighLevel",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "test": "node --test dist/**/*.test.js",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "follow-up-boss",
+    "go-high-level",
+    "cloudflare",
+    "worker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.28.2"
+  }
+}

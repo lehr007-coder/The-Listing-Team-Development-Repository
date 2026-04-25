@@ -1,0 +1,43 @@
+name = "fub-ghl-mcp-bridge"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "fub-ghl-mcp-bridge"
+route = "https://fub-ghl-mcp-bridge.example.com/*"
+zone_id = ""
+
+[[env.production.routes]]
+pattern = "fub-ghl-mcp-bridge.example.com/*"
+zone_name = "example.com"
+
+[build]
+command = "npm run build"
+cwd = "./"
+watch_paths = ["src/**/*.ts"]
+
+[build.upload]
+format = "modules"
+main = "./dist/index.js"
+
+[vars]
+# Public variables (non-sensitive)
+RATE_LIMIT_REQUESTS = "100"
+RATE_LIMIT_WINDOW = "60"
+REQUEST_TIMEOUT = "15000"
+LOG_LEVEL = "info"
+
+# Environment-specific bindings will be set via environment variables or Wrangler secrets
+# These must be added during deployment:
+# wrangler secret put FUB_API_KEY
+# wrangler secret put FUB_X_SYSTEM
+# wrangler secret put FUB_X_SYSTEM_KEY
+# wrangler secret put GHL_PRIVATE_TOKEN
+# wrangler secret put GHL_LOCATION_ID
+
+[triggers]
+crons = []
+
+[observability]
+enabled = true

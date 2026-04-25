@@ -1,0 +1,205 @@
+{
+  "mcpServers": {
+    "fub-ghl-bridge": {
+      "command": "node",
+      "args": ["mcp-client.js"],
+      "env": {
+        "MCP_SERVER_URL": "https://fub-ghl-mcp-bridge.example.com",
+        "MCP_REQUEST_TIMEOUT": "30000"
+      }
+    }
+  },
+  "tools": {
+    "search_fub_person": {
+      "category": "follow-up-boss",
+      "description": "Search for Follow Up Boss contacts by email, phone, or name",
+      "longDescription": "Search the Follow Up Boss database for person records matching the provided criteria. Returns normalized person data including contact details, stage, source, tags, and assignment information.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address to search for"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number to search for (can be formatted or unformatted)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name or partial name to search for"
+          }
+        },
+        "required": []
+      },
+      "examples": [
+        {
+          "name": "Search by email",
+          "params": {
+            "email": "john.doe@example.com"
+          }
+        },
+        {
+          "name": "Search by phone",
+          "params": {
+            "phone": "+1-555-123-4567"
+          }
+        },
+        {
+          "name": "Search by name",
+          "params": {
+            "name": "John Doe"
+          }
+        }
+      ]
+    },
+    "get_fub_person": {
+      "category": "follow-up-boss",
+      "description": "Retrieve detailed information about a specific Follow Up Boss person",
+      "longDescription": "Get comprehensive details for a Follow Up Boss person record including email, phone, name, stage, source, tags, assigned agent, and notes.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The Follow Up Boss person ID"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Get person by ID",
+          "params": {
+            "personId": "12345"
+          }
+        }
+      ]
+    },
+    "create_or_update_ghl_contact": {
+      "category": "go-high-level",
+      "description": "Create a new GoHighLevel contact or update an existing one",
+      "longDescription": "Create a new contact in GoHighLevel or update an existing contact if found by email or phone match. Returns the contact ID and indicates whether the contact was created or updated.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "Contact first name (required)"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Contact last name (required)"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contact email address"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Contact phone number"
+          },
+          "source": {
+            "type": "string",
+            "description": "Lead source (default: 'Follow Up Boss')"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of tags to assign to the contact"
+          },
+          "customFields": {
+            "type": "object",
+            "description": "Custom field key-value pairs"
+          }
+        },
+        "required": ["firstName", "lastName"]
+      },
+      "examples": [
+        {
+          "name": "Create contact from FUB person",
+          "params": {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john@example.com",
+            "phone": "+1-555-123-4567",
+            "source": "Follow Up Boss",
+            "tags": ["fub-sync", "lead"],
+            "customFields": {
+              "fubPersonId": "12345"
+            }
+          }
+        }
+      ]
+    },
+    "sync_fub_person_to_ghl": {
+      "category": "synchronization",
+      "description": "Sync a Follow Up Boss person to GoHighLevel with automatic tagging",
+      "longDescription": "Completely synchronize a Follow Up Boss person record to GoHighLevel. Creates or updates the GHL contact, applies automatic tags based on FUB stage and source, adds a sync note, and stores the FUB person ID for reference.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The Follow Up Boss person ID to sync"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Sync person to GHL",
+          "params": {
+            "personId": "12345"
+          }
+        }
+      ]
+    },
+    "create_ghl_opportunity_from_fub_deal": {
+      "category": "synchronization",
+      "description": "Create a GoHighLevel opportunity from a Follow Up Boss deal",
+      "longDescription": "Create a new opportunity in GoHighLevel from a Follow Up Boss deal. First syncs the associated person to GHL, then creates an opportunity with the deal details. Prevents duplicate opportunities by checking for existing matches.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The Follow Up Boss person ID (required)"
+          },
+          "dealId": {
+            "type": "string",
+            "description": "The Follow Up Boss deal ID (optional)"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Create opportunity from deal",
+          "params": {
+            "personId": "12345",
+            "dealId": "67890"
+          }
+        }
+      ]
+    },
+    "health_check": {
+      "category": "system",
+      "description": "Check the health and status of the MCP bridge service",
+      "longDescription": "Verify that the FUB-GHL MCP bridge service is operational and responding correctly.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "examples": [
+        {
+          "name": "Check service health",
+          "params": {}
+        }
+      ]
+    }
+  }
+}
