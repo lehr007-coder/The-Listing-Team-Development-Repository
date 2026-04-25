@@ -92,14 +92,14 @@ async function handleMCPRequest(
       }
 
       case "get_fub_person": {
-        const input = params as GetFUBPersonInput;
+        const input = params as unknown as GetFUBPersonInput;
         const result = await toolHandler.getFUBPerson(input);
         logger.info("get_fub_person completed", { requestId, id });
         return createMCPResponse(id, result);
       }
 
       case "create_or_update_ghl_contact": {
-        const input = params as CreateOrUpdateGHLContactInput;
+        const input = params as unknown as CreateOrUpdateGHLContactInput;
         const result = await toolHandler.createOrUpdateGHLContact(input);
         logger.info("create_or_update_ghl_contact completed", {
           requestId,
@@ -109,14 +109,14 @@ async function handleMCPRequest(
       }
 
       case "sync_fub_person_to_ghl": {
-        const input = params as SyncFUBPersonToGHLInput;
+        const input = params as unknown as SyncFUBPersonToGHLInput;
         const result = await toolHandler.syncFUBPersonToGHL(input);
         logger.info("sync_fub_person_to_ghl completed", { requestId, id });
         return createMCPResponse(id, result);
       }
 
       case "create_ghl_opportunity_from_fub_deal": {
-        const input = params as CreateGHLOpportunityFromFUBDealInput;
+        const input = params as unknown as CreateGHLOpportunityFromFUBDealInput;
         const result = await toolHandler.createGHLOpportunityFromFUBDeal(input);
         logger.info("create_ghl_opportunity_from_fub_deal completed", {
           requestId,

@@ -70,7 +70,7 @@ export interface GHLContact {
 export interface GHLOpportunity {
   id?: string;
   contactId: string;
-  locationId: string;
+  locationId?: string;
   pipelineId?: string;
   name?: string;
   value?: number;
@@ -97,8 +97,8 @@ export interface APIClientConfig {
 
 // Logging
 export interface LogContext {
-  requestId: string;
-  timestamp: string;
+  requestId?: string;
+  timestamp?: string;
   [key: string]: unknown;
 }
 
