@@ -1,0 +1,339 @@
+{
+  "name": "FUB-GHL MCP Bridge",
+  "description": "MCP server for syncing Follow Up Boss to GoHighLevel",
+  "version": "1.0.0",
+  "mcpServers": {
+    "fub-ghl-bridge": {
+      "command": "fetch",
+      "url": "https://fub-ghl-mcp-bridge.example.workers.dev",
+      "timeout": 30000,
+      "retries": 3,
+      "description": "Follow Up Boss to GoHighLevel sync bridge"
+    }
+  },
+  "tools": [
+    {
+      "id": "search_fub_person",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Search Follow Up Boss Person",
+      "category": "follow-up-boss",
+      "description": "Search for Follow Up Boss contacts by email, phone, or name. Returns a list of matching person records.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address to search for (optional)"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number to search for (optional, can be formatted or unformatted)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name or partial name to search for (optional)"
+          }
+        },
+        "required": []
+      },
+      "examples": [
+        {
+          "name": "Search by email",
+          "input": {
+            "email": "john@example.com"
+          },
+          "expectedOutput": {
+            "persons": [
+              {
+                "id": "person_123",
+                "firstName": "John",
+                "lastName": "Doe",
+                "email": "john@example.com",
+                "phone": "+1-555-1234",
+                "stage": "lead",
+                "source": "website"
+              }
+            ],
+            "count": 1
+          }
+        },
+        {
+          "name": "Search by phone",
+          "input": {
+            "phone": "555-1234"
+          },
+          "expectedOutput": {
+            "persons": [],
+            "count": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "get_fub_person",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Get Follow Up Boss Person Details",
+      "category": "follow-up-boss",
+      "description": "Retrieve detailed information about a specific Follow Up Boss person including contact details, stage, source, tags, and assigned agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The unique Follow Up Boss person ID"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Get person details",
+          "input": {
+            "personId": "person_123"
+          },
+          "expectedOutput": {
+            "id": "person_123",
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john@example.com",
+            "phone": "+1-555-1234",
+            "stage": "lead",
+            "source": "website",
+            "tags": ["hot", "premium"],
+            "notes": "Very interested in service",
+            "assignedTo": "agent@example.com"
+          }
+        }
+      ]
+    },
+    {
+      "id": "create_or_update_ghl_contact",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Create or Update GoHighLevel Contact",
+      "category": "go-high-level",
+      "description": "Create a new GoHighLevel contact or update an existing one. Searches by email/phone first to avoid duplicates.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "description": "Contact first name (required)"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Contact last name (required)"
+          },
+          "email": {
+            "type": "string",
+            "description": "Contact email address (optional)"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Contact phone number (optional)"
+          },
+          "source": {
+            "type": "string",
+            "description": "Lead source (optional, default: 'Follow Up Boss')"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of tags to assign (optional)"
+          },
+          "customFields": {
+            "type": "object",
+            "description": "Custom field key-value pairs (optional)"
+          }
+        },
+        "required": ["firstName", "lastName"]
+      },
+      "examples": [
+        {
+          "name": "Create new contact",
+          "input": {
+            "firstName": "Jane",
+            "lastName": "Smith",
+            "email": "jane@example.com",
+            "phone": "+1-555-5678",
+            "tags": ["fub-sync", "lead"],
+            "customFields": {
+              "fubPersonId": "person_456"
+            }
+          },
+          "expectedOutput": {
+            "contactId": "ghl_contact_123",
+            "created": true,
+            "updated": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "sync_fub_person_to_ghl",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Sync FUB Person to GoHighLevel",
+      "category": "synchronization",
+      "description": "Completely synchronize a Follow Up Boss person to GoHighLevel. Creates or updates the contact, applies automatic tags (fub-sync, fub-{stage}, fub-{source}), adds a sync note, and stores the FUB person ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The Follow Up Boss person ID to sync"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Sync person to GHL",
+          "input": {
+            "personId": "person_123"
+          },
+          "expectedOutput": {
+            "personId": "person_123",
+            "contactId": "ghl_contact_123",
+            "synced": true,
+            "created": false,
+            "updated": true,
+            "tagsApplied": [
+              "fub-sync",
+              "fub-imported",
+              "fub-lead",
+              "fub-website"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "create_ghl_opportunity_from_fub_deal",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Create GHL Opportunity from FUB Deal",
+      "category": "synchronization",
+      "description": "Create a GoHighLevel opportunity from a Follow Up Boss deal. First syncs the person to GHL, then creates the opportunity with deal details.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "string",
+            "description": "The Follow Up Boss person ID (required)"
+          },
+          "dealId": {
+            "type": "string",
+            "description": "The Follow Up Boss deal ID (optional but recommended)"
+          }
+        },
+        "required": ["personId"]
+      },
+      "examples": [
+        {
+          "name": "Create opportunity from deal",
+          "input": {
+            "personId": "person_123",
+            "dealId": "deal_456"
+          },
+          "expectedOutput": {
+            "opportunityId": "ghl_opp_789",
+            "created": true,
+            "updated": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "health_check",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Health Check",
+      "category": "system",
+      "description": "Check the health and operational status of the FUB-GHL MCP bridge service.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "examples": [
+        {
+          "name": "Check service health",
+          "input": {},
+          "expectedOutput": {
+            "status": "ok",
+            "service": "fub-ghl-mcp-bridge",
+            "timestamp": "2024-12-01T12:00:00.000Z",
+            "version": "1.0.0"
+          }
+        }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "sync-fub-to-ghl-workflow",
+      "name": "Sync FUB Contact to GHL",
+      "description": "Search for a Follow Up Boss contact and sync them to GoHighLevel",
+      "steps": [
+        {
+          "name": "Search FUB",
+          "toolId": "search_fub_person",
+          "input": {
+            "email": "{{userEmail}}"
+          },
+          "outputVar": "fubResults"
+        },
+        {
+          "name": "Check results",
+          "condition": "fubResults.count > 0",
+          "onTrue": [
+            {
+              "name": "Sync to GHL",
+              "toolId": "sync_fub_person_to_ghl",
+              "input": {
+                "personId": "{{fubResults.persons[0].id}}"
+              },
+              "outputVar": "syncResult"
+            },
+            {
+              "name": "Report success",
+              "output": "Successfully synced {{syncResult.contactId}} to GoHighLevel with tags: {{syncResult.tagsApplied}}"
+            }
+          ],
+          "onFalse": [
+            {
+              "name": "Report not found",
+              "output": "No Follow Up Boss contact found for {{userEmail}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sync-deal-to-opportunity",
+      "name": "Create Opportunity from FUB Deal",
+      "description": "Create a GoHighLevel opportunity from a Follow Up Boss deal",
+      "steps": [
+        {
+          "name": "Create opportunity",
+          "toolId": "create_ghl_opportunity_from_fub_deal",
+          "input": {
+            "personId": "{{fubPersonId}}",
+            "dealId": "{{fubDealId}}"
+          },
+          "outputVar": "oppResult"
+        },
+        {
+          "name": "Report result",
+          "output": "Created opportunity {{oppResult.opportunityId}} in GoHighLevel"
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "timeout": 30000,
+    "retryPolicy": "exponential",
+    "maxRetries": 3,
+    "logLevel": "info",
+    "cacheResponses": true,
+    "cacheDuration": 300000
+  }
+}

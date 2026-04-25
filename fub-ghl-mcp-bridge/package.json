@@ -9,7 +9,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:prod": "wrangler deploy --env production",
-    "test": "node --test dist/**/*.test.js",
+    "test": "npm run build && node dist/tests.js",
+    "test:watch": "tsc --watch",
+    "monitor": "npm run build && node dist/monitoring.js",
     "lint": "tsc --noEmit"
   },
   "keywords": [

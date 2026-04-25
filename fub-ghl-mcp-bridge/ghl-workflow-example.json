@@ -1,0 +1,352 @@
+{
+  "name": "Follow Up Boss Integration Workflow",
+  "description": "Example workflows for GHL AI Agent Studio using the FUB-GHL MCP bridge",
+  "version": "1.0.0",
+  "workflows": [
+    {
+      "id": "workflow_sync_fub_lead",
+      "name": "Sync FUB Lead to GHL",
+      "description": "Search Follow Up Boss for a lead by email and sync to GoHighLevel",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "contactEmail",
+          "type": "string",
+          "description": "Email address of the contact to search"
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_1_search",
+          "name": "Search Follow Up Boss",
+          "type": "mcp_call",
+          "tool": "search_fub_person",
+          "description": "Search for a person in Follow Up Boss by email",
+          "input": {
+            "email": "{{contactEmail}}"
+          },
+          "outputVariable": "fubSearchResult",
+          "errorHandling": "continue"
+        },
+        {
+          "id": "step_2_validate",
+          "name": "Validate Search Results",
+          "type": "conditional",
+          "condition": "fubSearchResult.count > 0",
+          "description": "Check if we found any matching contacts",
+          "onTrue": [
+            {
+              "id": "step_3_get_details",
+              "name": "Get FUB Person Details",
+              "type": "mcp_call",
+              "tool": "get_fub_person",
+              "description": "Retrieve full details of the found person",
+              "input": {
+                "personId": "{{fubSearchResult.persons[0].id}}"
+              },
+              "outputVariable": "fubPerson",
+              "errorHandling": "continue"
+            },
+            {
+              "id": "step_4_sync",
+              "name": "Sync to GoHighLevel",
+              "type": "mcp_call",
+              "tool": "sync_fub_person_to_ghl",
+              "description": "Synchronize the FUB person to GHL with automatic tagging",
+              "input": {
+                "personId": "{{fubSearchResult.persons[0].id}}"
+              },
+              "outputVariable": "syncResult",
+              "errorHandling": "continue"
+            },
+            {
+              "id": "step_5_success",
+              "name": "Send Success Message",
+              "type": "action",
+              "action": "send_message",
+              "description": "Confirm the sync was successful",
+              "parameters": {
+                "message": "✅ Successfully synced {{fubPerson.firstName}} {{fubPerson.lastName}} from Follow Up Boss to GoHighLevel.\n\nGHL Contact ID: {{syncResult.contactId}}\nTags Applied: {{syncResult.tagsApplied}}\nCreated: {{syncResult.created}}\nUpdated: {{syncResult.updated}}"
+              }
+            }
+          ],
+          "onFalse": [
+            {
+              "id": "step_6_not_found",
+              "name": "Contact Not Found",
+              "type": "action",
+              "action": "send_message",
+              "description": "Inform user that no contact was found",
+              "parameters": {
+                "message": "❌ No Follow Up Boss contact found with email: {{contactEmail}}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workflow_sync_fub_deal",
+      "name": "Sync FUB Deal to GHL Opportunity",
+      "description": "Create a GoHighLevel opportunity from a Follow Up Boss deal",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "personId",
+          "type": "string",
+          "description": "Follow Up Boss person ID"
+        },
+        {
+          "name": "dealId",
+          "type": "string",
+          "description": "Follow Up Boss deal ID"
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_1_create_opp",
+          "name": "Create GHL Opportunity",
+          "type": "mcp_call",
+          "tool": "create_ghl_opportunity_from_fub_deal",
+          "description": "Create an opportunity in GoHighLevel from the FUB deal",
+          "input": {
+            "personId": "{{personId}}",
+            "dealId": "{{dealId}}"
+          },
+          "outputVariable": "opportunityResult",
+          "errorHandling": "stop"
+        },
+        {
+          "id": "step_2_confirm",
+          "name": "Confirm Opportunity Created",
+          "type": "action",
+          "action": "send_message",
+          "description": "Send confirmation of opportunity creation",
+          "parameters": {
+            "message": "✅ Created GoHighLevel opportunity {{opportunityResult.opportunityId}} from FUB deal {{dealId}}\n\nCreated: {{opportunityResult.created}}\nUpdated: {{opportunityResult.updated}}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "workflow_batch_sync_fub_contacts",
+      "name": "Batch Sync FUB Contacts to GHL",
+      "description": "Sync multiple Follow Up Boss contacts to GoHighLevel in bulk",
+      "trigger": "scheduled",
+      "schedule": "0 */4 * * *",
+      "description_schedule": "Every 4 hours",
+      "inputVariables": [
+        {
+          "name": "personIds",
+          "type": "array",
+          "itemType": "string",
+          "description": "Array of Follow Up Boss person IDs to sync"
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_1_health",
+          "name": "Check Service Health",
+          "type": "mcp_call",
+          "tool": "health_check",
+          "description": "Verify MCP bridge is operational",
+          "input": {},
+          "outputVariable": "healthStatus",
+          "errorHandling": "stop"
+        },
+        {
+          "id": "step_2_sync_loop",
+          "name": "Sync Each Contact",
+          "type": "loop",
+          "description": "Loop through each person ID and sync",
+          "loopVariable": "personId",
+          "loopArray": "{{personIds}}",
+          "steps": [
+            {
+              "id": "step_2_1_sync",
+              "name": "Sync Person",
+              "type": "mcp_call",
+              "tool": "sync_fub_person_to_ghl",
+              "description": "Sync individual person",
+              "input": {
+                "personId": "{{personId}}"
+              },
+              "outputVariable": "syncResult_{{@index}}",
+              "errorHandling": "continue"
+            }
+          ]
+        },
+        {
+          "id": "step_3_summary",
+          "name": "Send Summary",
+          "type": "action",
+          "action": "send_message",
+          "description": "Send summary of batch sync",
+          "parameters": {
+            "message": "✅ Batch sync completed. {{personIds.length}} contacts processed."
+          }
+        }
+      ]
+    },
+    {
+      "id": "workflow_health_monitor",
+      "name": "Monitor FUB-GHL Bridge Health",
+      "description": "Periodically check the health of the MCP bridge",
+      "trigger": "scheduled",
+      "schedule": "*/15 * * * *",
+      "description_schedule": "Every 15 minutes",
+      "steps": [
+        {
+          "id": "step_1_check",
+          "name": "Health Check",
+          "type": "mcp_call",
+          "tool": "health_check",
+          "description": "Check service status",
+          "input": {},
+          "outputVariable": "health",
+          "errorHandling": "continue"
+        },
+        {
+          "id": "step_2_validate",
+          "name": "Validate Health",
+          "type": "conditional",
+          "condition": "health.result.status == 'ok'",
+          "onTrue": [
+            {
+              "id": "step_2a_ok",
+              "name": "Log OK",
+              "type": "action",
+              "action": "log",
+              "parameters": {
+                "level": "info",
+                "message": "FUB-GHL Bridge health check passed at {{health.result.timestamp}}"
+              }
+            }
+          ],
+          "onFalse": [
+            {
+              "id": "step_2b_alert",
+              "name": "Send Alert",
+              "type": "action",
+              "action": "send_alert",
+              "parameters": {
+                "severity": "high",
+                "title": "FUB-GHL Bridge Health Issue",
+                "message": "Health check failed. Service may be unavailable."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workflow_search_and_create",
+      "name": "Search FUB and Create GHL Contact",
+      "description": "Search Follow Up Boss by email and create corresponding GHL contact if not found",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "email",
+          "type": "string",
+          "description": "Email to search for"
+        },
+        {
+          "name": "firstName",
+          "type": "string",
+          "description": "First name if contact not found in FUB"
+        },
+        {
+          "name": "lastName",
+          "type": "string",
+          "description": "Last name if contact not found in FUB"
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_1_search",
+          "name": "Search Follow Up Boss",
+          "type": "mcp_call",
+          "tool": "search_fub_person",
+          "input": {
+            "email": "{{email}}"
+          },
+          "outputVariable": "fubResult",
+          "errorHandling": "continue"
+        },
+        {
+          "id": "step_2_check",
+          "name": "Check Results",
+          "type": "conditional",
+          "condition": "fubResult.count > 0",
+          "onTrue": [
+            {
+              "id": "step_2a_sync",
+              "name": "Sync FUB to GHL",
+              "type": "mcp_call",
+              "tool": "sync_fub_person_to_ghl",
+              "input": {
+                "personId": "{{fubResult.persons[0].id}}"
+              },
+              "outputVariable": "syncResult",
+              "errorHandling": "continue"
+            },
+            {
+              "id": "step_2a_msg",
+              "name": "Report FUB Found",
+              "type": "action",
+              "action": "send_message",
+              "parameters": {
+                "message": "✅ Found in Follow Up Boss and synced to GHL as contact {{syncResult.contactId}}"
+              }
+            }
+          ],
+          "onFalse": [
+            {
+              "id": "step_2b_create",
+              "name": "Create New GHL Contact",
+              "type": "mcp_call",
+              "tool": "create_or_update_ghl_contact",
+              "input": {
+                "firstName": "{{firstName}}",
+                "lastName": "{{lastName}}",
+                "email": "{{email}}",
+                "source": "Manual Entry",
+                "tags": ["manual-entry"]
+              },
+              "outputVariable": "createResult",
+              "errorHandling": "continue"
+            },
+            {
+              "id": "step_2b_msg",
+              "name": "Report Created",
+              "type": "action",
+              "action": "send_message",
+              "parameters": {
+                "message": "✅ Not found in FUB, created new GHL contact {{createResult.contactId}}"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "mcpBridge": {
+      "url": "https://fub-ghl-mcp-bridge.example.workers.dev",
+      "timeout": 30000,
+      "retryPolicy": "exponential",
+      "maxRetries": 3
+    },
+    "errorNotification": {
+      "enabled": true,
+      "notifyOn": ["step_failure", "workflow_failure"],
+      "notifyVia": ["slack", "email"]
+    },
+    "logging": {
+      "enabled": true,
+      "level": "info",
+      "retentionDays": 30
+    }
+  },
+  "notes": "These are example workflows. Customize them according to your business needs. The MCP bridge does not modify any existing GHL workflows or infrastructure."
+}
