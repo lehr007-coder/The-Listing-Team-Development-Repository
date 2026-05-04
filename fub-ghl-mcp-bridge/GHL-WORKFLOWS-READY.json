@@ -1,0 +1,80 @@
+{
+  "name": "Follow Up Boss Integration Workflows",
+  "description": "Production-ready workflows for GHL AI Agent Studio",
+  "version": "1.0.0",
+  "workflows": [
+    {
+      "id": "workflow_sync_fub_lead",
+      "name": "Sync FUB Lead to GHL",
+      "description": "Search Follow Up Boss for a lead by email and sync to GoHighLevel",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "contactEmail",
+          "type": "string",
+          "description": "Email address of the contact to search"
+        }
+      ]
+    },
+    {
+      "id": "workflow_sync_fub_deal",
+      "name": "Sync FUB Deal to GHL Opportunity",
+      "description": "Convert a Follow Up Boss deal into a GoHighLevel opportunity",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "personId",
+          "type": "string",
+          "description": "FUB person ID"
+        },
+        {
+          "name": "dealId",
+          "type": "string",
+          "description": "FUB deal ID"
+        }
+      ]
+    },
+    {
+      "id": "workflow_batch_sync",
+      "name": "Batch Sync FUB Contacts",
+      "description": "Sync multiple FUB contacts to GHL automatically",
+      "trigger": "scheduled",
+      "schedule": "every 4 hours"
+    },
+    {
+      "id": "workflow_health_monitor",
+      "name": "Monitor FUB-GHL Bridge Health",
+      "description": "Periodic health check of the MCP bridge",
+      "trigger": "scheduled",
+      "schedule": "every 15 minutes"
+    },
+    {
+      "id": "workflow_search_create",
+      "name": "Search FUB and Create GHL Contact",
+      "description": "Search FUB for contact; create in GHL if not found",
+      "trigger": "manual",
+      "inputVariables": [
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "firstName",
+          "type": "string"
+        },
+        {
+          "name": "lastName",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "mcpBridge": {
+      "url": "https://fub-ghl-mcp-bridge.lehr007.workers.dev",
+      "timeout": 30000,
+      "retryPolicy": "exponential",
+      "maxRetries": 3
+    }
+  }
+}

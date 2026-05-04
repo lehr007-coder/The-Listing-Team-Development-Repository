@@ -1,0 +1,75 @@
+{
+  "name": "FUB-GHL MCP Bridge",
+  "description": "MCP server for syncing Follow Up Boss to GoHighLevel",
+  "version": "1.0.0",
+  "mcpServers": {
+    "fub-ghl-bridge": {
+      "command": "fetch",
+      "url": "https://fub-ghl-mcp-bridge.lehr007.workers.dev",
+      "timeout": 30000,
+      "retries": 3,
+      "description": "Follow Up Boss to GoHighLevel sync bridge"
+    }
+  },
+  "tools": [
+    {
+      "id": "search_fub_person",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Search Follow Up Boss Person",
+      "category": "follow-up-boss",
+      "description": "Search for Follow Up Boss contacts by email, phone, or name. Returns a list of matching person records.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address to search for"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number to search for (formatted or unformatted)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name or partial name to search for"
+          }
+        }
+      }
+    },
+    {
+      "id": "get_fub_person",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Get Follow Up Boss Person Details",
+      "category": "follow-up-boss",
+      "description": "Retrieve detailed information about a specific Follow Up Boss person"
+    },
+    {
+      "id": "create_or_update_ghl_contact",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Create or Update GHL Contact",
+      "category": "gohighlevel",
+      "description": "Create a new contact in GoHighLevel or update an existing one based on email/phone"
+    },
+    {
+      "id": "sync_fub_person_to_ghl",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Sync FUB Person to GHL",
+      "category": "integration",
+      "description": "Full sync of a Follow Up Boss person to GoHighLevel with automatic tagging and field mapping"
+    },
+    {
+      "id": "create_ghl_opportunity_from_fub_deal",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Create GHL Opportunity from FUB Deal",
+      "category": "integration",
+      "description": "Create a GoHighLevel opportunity from a Follow Up Boss deal"
+    },
+    {
+      "id": "health_check",
+      "serverRef": "fub-ghl-bridge",
+      "name": "Health Check",
+      "category": "utility",
+      "description": "Check the health and status of the MCP bridge service"
+    }
+  ]
+}
