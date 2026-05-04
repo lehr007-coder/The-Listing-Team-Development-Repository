@@ -3,14 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-[env.production]
-name = "fub-ghl-mcp-bridge"
-route = "https://fub-ghl-mcp-bridge.example.com/*"
-zone_id = ""
-
-[[env.production.routes]]
-pattern = "fub-ghl-mcp-bridge.example.com/*"
-zone_name = "example.com"
+# Production environment configuration (optional, for custom domains)
+# [env.production]
+# Uncomment and configure if using a custom domain instead of workers.dev
 
 [build]
 command = "npm run build"
@@ -19,7 +14,6 @@ watch_paths = ["src/**/*.ts"]
 
 [build.upload]
 format = "modules"
-main = "./dist/index.js"
 
 [vars]
 # Public variables (non-sensitive)

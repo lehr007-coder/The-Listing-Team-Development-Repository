@@ -332,7 +332,7 @@
   ],
   "configuration": {
     "mcpBridge": {
-      "url": "https://fub-ghl-mcp-bridge.example.workers.dev",
+      "url": "https://fub-ghl-mcp-bridge.lehr007.workers.dev",
       "timeout": 30000,
       "retryPolicy": "exponential",
       "maxRetries": 3

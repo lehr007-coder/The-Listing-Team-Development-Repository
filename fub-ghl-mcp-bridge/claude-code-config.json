@@ -5,7 +5,7 @@
   "mcpServers": {
     "fub-ghl-bridge": {
       "command": "fetch",
-      "url": "https://fub-ghl-mcp-bridge.example.workers.dev",
+      "url": "https://fub-ghl-mcp-bridge.lehr007.workers.dev",
       "timeout": 30000,
       "retries": 3,
       "description": "Follow Up Boss to GoHighLevel sync bridge"
