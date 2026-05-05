@@ -20,14 +20,16 @@ export default async function LeaderboardPage() {
   for (const u of users ?? []) {
     board.set(u.id, { name: u.name ?? u.email, won: 0, value: 0 });
   }
-  for (const r of (rows ?? []) as Array<{
-    user_id: string;
-    contacts: { status: string | null; value_cents: number | null } | null;
-  }>) {
+  type ContactRel = { status: string | null; value_cents: number | null };
+  type Row = { user_id: string; contacts: ContactRel | ContactRel[] | null };
+  for (const r of (rows ?? []) as Row[]) {
     const e = board.get(r.user_id);
     if (!e || !r.contacts) continue;
-    e.value += r.contacts.value_cents ?? 0;
-    if (r.contacts.status === "won") e.won += 1;
+    const list = Array.isArray(r.contacts) ? r.contacts : [r.contacts];
+    for (const c of list) {
+      e.value += c.value_cents ?? 0;
+      if (c.status === "won") e.won += 1;
+    }
   }
 
   const sorted = [...board.entries()].sort((a, b) => b[1].value - a[1].value);

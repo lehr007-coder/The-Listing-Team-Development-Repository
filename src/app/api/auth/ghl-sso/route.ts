@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "User upsert failed" }, { status: 500 });
   }
 
-  const cookie = encodeSession({
+  const cookie = await encodeSession({
     userId: user.id,
     ghlUserId: payload.userId,
     ghlLocationId: user.ghl_location_id,

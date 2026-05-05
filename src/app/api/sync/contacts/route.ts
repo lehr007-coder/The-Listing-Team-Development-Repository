@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const contactRows = ghlContacts.map((c) => ({
     ghl_contact_id: c.id,
     ghl_location_id: locationId,
-        name: (c.contactName ?? [c.firstName, c.lastName].filter(Boolean).join(" ")) || null,
+    name: (c.contactName ?? [c.firstName, c.lastName].filter(Boolean).join(" ")) || null,
     email: c.email ?? null,
     phone: c.phone ?? null,
     status: null,

@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { cookies } from "next/headers";
 
 const COOKIE = "lt_session";
@@ -19,26 +18,60 @@ function secret() {
   return s;
 }
 
-function sign(value: string) {
-  return crypto.createHmac("sha256", secret()).update(value).digest("base64url");
+// Web Crypto so this works in both the Node and Edge runtimes (middleware
+// runs on Edge and can't use node:crypto).
+async function hmacKey() {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
 }
 
-export function encodeSession(s: Omit<Session, "iat">): string {
+function b64url(bytes: ArrayBuffer | Uint8Array) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = "";
+  for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromB64url(s: string): Uint8Array {
+  const pad = "=".repeat((4 - (s.length % 4)) % 4);
+  const b = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  const u8 = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u8[i] = b.charCodeAt(i);
+  return u8;
+}
+
+async function sign(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value) as unknown as BufferSource;
+  const sig = await crypto.subtle.sign("HMAC", await hmacKey(), data);
+  return b64url(sig);
+}
+
+export async function encodeSession(s: Omit<Session, "iat">): Promise<string> {
   const payload = JSON.stringify({ ...s, iat: Date.now() });
-  const body = Buffer.from(payload, "utf8").toString("base64url");
-  return `${body}.${sign(body)}`;
+  const body = b64url(new TextEncoder().encode(payload));
+  const sig = await sign(body);
+  return `${body}.${sig}`;
 }
 
-export function decodeSession(raw: string | undefined): Session | null {
+export async function decodeSession(raw: string | undefined): Promise<Session | null> {
   if (!raw) return null;
   const [body, sig] = raw.split(".");
   if (!body || !sig) return null;
-  const expected = sign(body);
-  // timingSafeEqual requires equal length
-  if (sig.length !== expected.length) return null;
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  const ok = await crypto.subtle.verify(
+    "HMAC",
+    await hmacKey(),
+    fromB64url(sig) as unknown as BufferSource,
+    new TextEncoder().encode(body) as unknown as BufferSource,
+  );
+  if (!ok) return null;
   try {
-    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Session;
+    const json = new TextDecoder().decode(fromB64url(body));
+    const parsed = JSON.parse(json) as Session;
     if (Date.now() - parsed.iat > MAX_AGE * 1000) return null;
     return parsed;
   } catch {
