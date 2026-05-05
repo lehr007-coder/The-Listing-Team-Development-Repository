@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth/session";
 import { supabaseForSession } from "@/lib/supabase/server";
 import { PermissionToggle } from "./PermissionToggle";
+import { SyncButton } from "./SyncButton";
 
 const PAGES = ["analytics", "contacts", "leaderboard", "admin"] as const;
 const ROLES = ["admin", "agent"] as const;
@@ -66,6 +67,11 @@ export default async function AdminPage() {
           ))}
         </tbody>
       </table>
+      <SyncButton />
+      <p className="mt-4 text-xs text-slate-500">
+        Not connected yet?{" "}
+        <a className="underline" href="/api/auth/ghl-oauth/install">Install the GHL app</a>.
+      </p>
     </div>
   );
 }
