@@ -3,11 +3,11 @@ import { createElement, useEffect, useState } from "react";
 export default function SsoHandshake() {
   const [status, setStatus] = useState("Connecting to GoHighLevel...");
   useEffect(() => {
-    const handler = (event) => {
+    const handler = (event: MessageEvent) => {
       console.log("[sso] msg", event.origin, event.data);
-      const data = event.data;
+      const data: any = event.data;
       if (!data) return;
-      let token;
+      let token: string | undefined;
       if (typeof data === "string" && data.length > 20) token = data;
       else if (typeof data === "object") {
         token = data.payload || data.token || data.ssoSession || data.sso;
