@@ -67,7 +67,18 @@ export async function refreshLocation(locationId: string) {
 }
 
 async function persistTokens(t: TokenResponse) {
-  if (!t.locationId) throw new Error("Token response missing locationId");
+  if (!t.locationId) {
+    // GHL Marketplace fires the OAuth callback twice on install:
+    // once at the location level (locationId present) and once at the
+    // company/agency level (companyId only, no locationId). The
+    // location-level call already wrote ghl_oauth_tokens, so the
+    // agency-level callback is a benign no-op — not a user-facing 500.
+    console.log("[ghl-oauth] token response without locationId; skipping persist", {
+      hasCompanyId: !!t.companyId,
+      scope: t.scope,
+    });
+    return;
+  }
   const expiresAt = new Date(Date.now() + (t.expires_in - 60) * 1000).toISOString();
   await supabaseAdmin()
     .from("ghl_oauth_tokens")
