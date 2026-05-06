@@ -1,0 +1,178 @@
+// HeyGen pipeline: render-trigger + callback.
+//
+// POST /v1/heygen/render
+//   Body: {
+//     contact_id: "...",                  // required
+//     video_type: "seller_valuation"      // required (one of HEYGEN_VIDEO_TYPES)
+//                | "fsbo_outreach"
+//                | "buyer_activity"
+//                | "showing_request"
+//                | "appointment_reminder"
+//                | "lead_nurture"
+//                | "priority_lead",
+//     trigger_reason: "string",
+//     priority_score: 0-100 (optional),
+//     delivery_channels: ["sms","email","conversation"] (default ["email"]),
+//     overrides: { script?, avatar_id?, voice_id? } (optional)
+//   }
+//
+// POST /v1/heygen/callback
+//   HeyGen → us. Body shape per HeyGen docs:
+//     { event_type: "avatar_video.success", event_data: { video_id, url, callback_id, ... } }
+//   We verify HMAC if HEYGEN_CALLBACK_SECRET is set.
+
+import { json, error, readJson, newJobId, nowIso, verifyHmacSignature } from "../lib/util.js";
+import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
+import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
+import { invokeAgent } from "../lib/agents.js";
+import { createAvatarVideo } from "../lib/heygen.js";
+
+const HEYGEN_VIDEO_TYPES = new Set([
+  "seller_valuation",
+  "fsbo_outreach",
+  "buyer_activity",
+  "showing_request",
+  "appointment_reminder",
+  "lead_nurture",
+  "priority_lead",
+]);
+
+export default async function heygenRoute(request, env, ctx, url) {
+  const method = request.method;
+  const path = url.pathname.replace(/^\/v1\/heygen/, "") || "/";
+
+  if (method === "POST" && path === "/render")   return handleRender(request, env);
+  if (method === "POST" && path === "/callback") return handleCallback(request, env);
+  if (method === "GET"  && path.startsWith("/jobs/")) {
+    const jobId = path.split("/")[2];
+    const job = await getVideoJob(env, jobId);
+    return job ? json(job) : error(404, "not_found", `job ${jobId} not found`);
+  }
+
+  return error(404, "not_found", `No HeyGen route: ${method} ${path}`);
+}
+
+async function handleRender(request, env) {
+  const { body } = await readJson(request);
+  if (!body) return error(400, "bad_json");
+
+  const { contact_id, video_type, trigger_reason, priority_score = 50,
+          delivery_channels = ["email"], overrides = {} } = body;
+
+  if (!contact_id) return error(400, "missing_contact_id");
+  if (!HEYGEN_VIDEO_TYPES.has(video_type)) {
+    return error(400, "invalid_video_type", `video_type must be one of ${[...HEYGEN_VIDEO_TYPES].join(",")}`);
+  }
+
+  // Idempotency: if there's an active job for this contact + type, return it.
+  const existing = await findActiveJobForContact(env, contact_id, video_type);
+  if (existing) return json({ job_id: existing.id, status: existing.status, deduped: true });
+
+  const contact = await getContact(env, contact_id);
+  const intelligence = readLeadIntelligence(contact);
+  const [events, lead, scoring] = await Promise.all([
+    getRecentEvents(env, contact_id, 25),
+    getLead(env, contact_id),
+    getScoringLog(env, contact_id, 10),
+  ]);
+
+  // Invoke the HeyGen Script Agent
+  const script = overrides.script
+    ? { script: overrides.script, sms_copy: "", email_subject: "", email_html: "", cta_text: "" }
+    : await invokeAgent(env, "heygen_script", {
+        intelligence, events, lead, scoring, video_type, trigger_reason,
+      });
+
+  const jobId = newJobId("vj");
+  const callbackUrl = `${env.BASE_URL}/v1/heygen/callback?job=${jobId}`;
+
+  // Submit to HeyGen
+  const heygen = await createAvatarVideo(env, {
+    script: script.script,
+    avatarId: overrides.avatar_id,
+    voiceId: overrides.voice_id,
+    callbackUrl,
+    metadata: { job_id: jobId },
+  });
+
+  await insertVideoJob(env, {
+    id: jobId,
+    contact_id,
+    video_type,
+    render_engine: "HEYGEN",
+    distribution: "private",
+    status: "rendering",
+    trigger_reason,
+    priority_score,
+    delivery_channels,
+    script: script.script,
+    script_meta: script,
+    heygen_video_id: heygen.heygenVideoId,
+    created_at: nowIso(),
+  });
+
+  await writeOwnedFields(env, contact_id, {
+    ai_video_type: video_type,
+    ai_video_script: script.script,
+    video_render_engine: "HEYGEN",
+    video_priority_score: String(priority_score),
+    video_trigger_reason: trigger_reason || "",
+    video_status: "rendering",
+    video_render_job_id: jobId,
+  });
+
+  return json({ job_id: jobId, status: "rendering", heygen_video_id: heygen.heygenVideoId });
+}
+
+async function handleCallback(request, env) {
+  const { text, body } = await readJson(request);
+
+  // Optional HMAC verification
+  if (env.HEYGEN_CALLBACK_SECRET) {
+    const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
+    const ok = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
+    if (!ok) return error(401, "bad_signature");
+  }
+
+  if (!body) return error(400, "bad_json");
+
+  const eventType = body.event_type || body.type;
+  const data = body.event_data || body.data || {};
+  const jobId = data.callback_id || new URL(request.url).searchParams.get("job");
+
+  if (!jobId) return error(400, "missing_job_id");
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "job_not_found");
+
+  // Idempotency: KV dedupe by HeyGen video_id + event_type
+  const dedupeKey = `cb:heygen:${data.video_id || jobId}:${eventType}`;
+  const seen = await env.VIDEO_KV.get(dedupeKey);
+  if (seen) return json({ ok: true, deduped: true });
+  await env.VIDEO_KV.put(dedupeKey, "1", { expirationTtl: 60 * 60 * 24 });
+
+  if (eventType === "avatar_video.fail" || eventType === "video.fail") {
+    await updateVideoJob(env, jobId, {
+      status: "failed",
+      error: data.message || "heygen reported failure",
+      failed_at: nowIso(),
+    });
+    if (job.contact_id) {
+      await writeOwnedFields(env, job.contact_id, { video_status: "failed" });
+    }
+    return json({ ok: true, status: "failed" });
+  }
+
+  if (eventType === "avatar_video.success" || eventType === "video.success") {
+    const sourceMp4Url = data.url || data.video_url;
+    if (!sourceMp4Url) return error(400, "missing_video_url");
+
+    // Push into the post-process queue (R2 copy + Stream upload + delivery)
+    await env.RENDER_QUEUE.send({
+      jobId, sourceMp4Url, kind: "heygen",
+    });
+
+    return json({ ok: true, queued: true });
+  }
+
+  return json({ ok: true, ignored: eventType });
+}

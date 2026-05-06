@@ -1,0 +1,27 @@
+name: Deploy ai-video-system Staging
+
+# Separate workflow file (not added to deploy-staging.yml) so that any future
+# rollback of the AI Video sidecar can simply disable this file without
+# touching the existing 3-worker staging pipeline.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'ai-video-system/**'
+      - '.github/workflows/deploy-ai-video-staging.yml'
+
+jobs:
+  deploy-ai-video:
+    name: Deploy ai-video-system-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: ai-video-system
+          command: deploy --config wrangler.staging.toml

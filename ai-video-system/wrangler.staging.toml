@@ -1,0 +1,32 @@
+name = "ai-video-system-staging"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+ENVIRONMENT = "staging"
+BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+MEDIA_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev/media"
+CDN_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev/cdn"
+HOSTED_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+DEFAULT_BRAND = "the-listing-team"
+
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "tlt-ai-video-staging"
+
+[[r2_buckets]]
+binding = "PREVIEW_BUCKET"
+bucket_name = "tlt-ai-video-previews-staging"
+
+[[kv_namespaces]]
+binding = "VIDEO_KV"
+id = "REPLACE_WITH_STAGING_KV_ID"
+
+[[queues.producers]]
+queue = "ai-video-render-staging"
+binding = "RENDER_QUEUE"
+
+[[queues.consumers]]
+queue = "ai-video-render-staging"
+max_batch_size = 10
+max_batch_timeout = 30

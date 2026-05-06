@@ -1,0 +1,68 @@
+// AI VIDEO SYSTEM — sidecar worker
+//
+// Isolated companion to thelistingteamproxy. Does NOT modify any existing
+// workflow, webhook, automation, custom field, or routing in the production
+// ecosystem. Read-only against existing GHL + Ylopo state; write-only into
+// its own video_jobs / video_events tables and its own GHL custom fields.
+//
+// Routes live under /v1/* (api) and /v/* (public hosted pages + tracking).
+
+import { json, error, requireApiKey, cors, corsResponse } from "./lib/util.js";
+
+import healthRoute from "./routes/health.js";
+import heygenRoute from "./routes/heygen.js";
+import fcpxmlRoute from "./routes/fcpxml.js";
+import deliveryRoute from "./routes/delivery.js";
+import socialRoute from "./routes/social.js";
+import analyticsRoute from "./routes/analytics.js";
+import hostedRoute from "./routes/hosted.js";
+import mediaRoute from "./routes/media.js";
+
+import { processRenderQueueBatch } from "./lib/queue-consumer.js";
+
+const ROUTES = [
+  { prefix: "/v1/health",     auth: false, handler: healthRoute },
+  { prefix: "/v1/heygen",     auth: true,  handler: heygenRoute },
+  { prefix: "/v1/fcpxml",     auth: true,  handler: fcpxmlRoute },
+  { prefix: "/v1/delivery",   auth: true,  handler: deliveryRoute },
+  { prefix: "/v1/social",     auth: true,  handler: socialRoute },
+  { prefix: "/v1/analytics",  auth: false, handler: analyticsRoute }, // pixels are unauthenticated
+  { prefix: "/v",             auth: false, handler: hostedRoute },    // public hosted pages
+  { prefix: "/media",         auth: false, handler: mediaRoute },     // public CDN passthrough
+];
+
+export default {
+  async fetch(request, env, ctx) {
+    if (request.method === "OPTIONS") return corsResponse();
+
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    // Root health
+    if (path === "/" || path === "/v1") {
+      return json({ service: "ai-video-system", env: env.ENVIRONMENT, ok: true });
+    }
+
+    for (const route of ROUTES) {
+      if (path === route.prefix || path.startsWith(route.prefix + "/")) {
+        if (route.auth) {
+          const authErr = requireApiKey(request, env);
+          if (authErr) return authErr;
+        }
+        try {
+          const res = await route.handler(request, env, ctx, url);
+          return cors(res);
+        } catch (e) {
+          console.error(`[${route.prefix}]`, e.stack || e.message);
+          return cors(error(500, "internal_error", e.message));
+        }
+      }
+    }
+
+    return cors(error(404, "not_found", `No route for ${path}`));
+  },
+
+  async queue(batch, env, ctx) {
+    return processRenderQueueBatch(batch, env, ctx);
+  },
+};

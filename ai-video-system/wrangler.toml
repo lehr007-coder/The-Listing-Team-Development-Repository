@@ -1,0 +1,46 @@
+name = "ai-video-system"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+# ── Production worker config ──
+# Secrets are set via `wrangler secret put <NAME> --config wrangler.toml`.
+# See README.md for the full secret list.
+
+[vars]
+ENVIRONMENT = "production"
+BASE_URL = "https://videos.reallistingteam.com"
+MEDIA_BASE_URL = "https://media.reallistingteam.com"
+CDN_BASE_URL = "https://cdn.reallistingteam.com"
+HOSTED_BASE_URL = "https://videos.reallistingteam.com"
+DEFAULT_BRAND = "the-listing-team"
+
+# ── R2: rendered video assets (MP4 originals) ──
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "tlt-ai-video"
+
+# ── R2: GIF previews + thumbnails ──
+[[r2_buckets]]
+binding = "PREVIEW_BUCKET"
+bucket_name = "tlt-ai-video-previews"
+
+# ── KV: render job state, callback dedupe, short-url maps ──
+[[kv_namespaces]]
+binding = "VIDEO_KV"
+id = "REPLACE_WITH_PROD_KV_ID"
+
+# ── Queue: render jobs awaiting HeyGen / FCPXML completion ──
+[[queues.producers]]
+queue = "ai-video-render"
+binding = "RENDER_QUEUE"
+
+[[queues.consumers]]
+queue = "ai-video-render"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# ── Custom domain for hosted video pages ──
+# Bind in Cloudflare Dashboard:
+#   ai-video-system → Settings → Triggers → Custom Domains
+#   • videos.reallistingteam.com  (hosted player + tracking pixels)
+#   • media.reallistingteam.com   (R2 MP4/GIF/JPG passthrough)
