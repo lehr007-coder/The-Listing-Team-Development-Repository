@@ -22,6 +22,7 @@ import { json, error, readJson, newJobId, nowIso, verifyHmacSignature } from "..
 import { getListing, insertVideoJob, updateVideoJob, getVideoJob } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { submitFcpxmlRender } from "../lib/fcpxml.js";
+import { enqueueOrInline } from "../lib/queue-producer.js";
 
 const FCPXML_VIDEO_TYPES = new Set([
   "luxury_listing",
@@ -37,7 +38,7 @@ export default async function fcpxmlRoute(request, env, ctx, url) {
   const path = url.pathname.replace(/^\/v1\/fcpxml/, "") || "/";
 
   if (method === "POST" && path === "/render")   return handleRender(request, env);
-  if (method === "POST" && path === "/callback") return handleCallback(request, env);
+  if (method === "POST" && path === "/callback") return handleCallback(request, env, ctx);
   if (method === "GET" && path.startsWith("/jobs/")) {
     const jobId = path.split("/")[2];
     const job = await getVideoJob(env, jobId);
@@ -108,7 +109,7 @@ async function handleRender(request, env) {
   return json({ job_id: jobId, status: "rendering", fcpxml_job_id: sub.fcpxmlJobId });
 }
 
-async function handleCallback(request, env) {
+async function handleCallback(request, env, ctx) {
   const { text, body } = await readJson(request);
 
   if (env.FCPXML_CALLBACK_SECRET) {
@@ -142,12 +143,11 @@ async function handleCallback(request, env) {
     const sourceMp4Url = body.mp4_url || body.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    await env.RENDER_QUEUE.send({
+    const dispatch = await enqueueOrInline(env, ctx, {
       jobId, sourceMp4Url, kind: "fcpxml",
       vertical_crops: body.vertical_crops || null,
     });
-
-    return json({ ok: true, queued: true });
+    return json({ ok: true, ...dispatch });
   }
 
   return json({ ok: true, ignored: body.status });

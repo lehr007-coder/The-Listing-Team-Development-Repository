@@ -26,6 +26,7 @@ import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.j
 import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
+import { enqueueOrInline } from "../lib/queue-producer.js";
 
 const HEYGEN_VIDEO_TYPES = new Set([
   "seller_valuation",
@@ -42,7 +43,7 @@ export default async function heygenRoute(request, env, ctx, url) {
   const path = url.pathname.replace(/^\/v1\/heygen/, "") || "/";
 
   if (method === "POST" && path === "/render")   return handleRender(request, env);
-  if (method === "POST" && path === "/callback") return handleCallback(request, env);
+  if (method === "POST" && path === "/callback") return handleCallback(request, env, ctx);
   if (method === "GET"  && path.startsWith("/jobs/")) {
     const jobId = path.split("/")[2];
     const job = await getVideoJob(env, jobId);
@@ -124,7 +125,7 @@ async function handleRender(request, env) {
   return json({ job_id: jobId, status: "rendering", heygen_video_id: heygen.heygenVideoId });
 }
 
-async function handleCallback(request, env) {
+async function handleCallback(request, env, ctx) {
   const { text, body } = await readJson(request);
 
   // Optional HMAC verification
@@ -166,12 +167,12 @@ async function handleCallback(request, env) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // Push into the post-process queue (R2 copy + Stream upload + delivery)
-    await env.RENDER_QUEUE.send({
+    // Push into the post-process queue (R2 copy + Stream upload + delivery).
+    // Falls back to inline ctx.waitUntil if RENDER_QUEUE binding isn't set.
+    const dispatch = await enqueueOrInline(env, ctx, {
       jobId, sourceMp4Url, kind: "heygen",
     });
-
-    return json({ ok: true, queued: true });
+    return json({ ok: true, ...dispatch });
   }
 
   return json({ ok: true, ignored: eventType });

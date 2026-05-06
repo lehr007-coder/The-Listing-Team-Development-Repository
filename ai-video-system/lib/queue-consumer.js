@@ -29,7 +29,7 @@ export async function processRenderQueueBatch(batch, env, ctx) {
   }
 }
 
-async function processOne(env, body) {
+export async function processOne(env, body) {
   const { jobId, sourceMp4Url, kind } = body;
   const job = await getVideoJob(env, jobId);
   if (!job) throw new Error(`video_job ${jobId} not found`);

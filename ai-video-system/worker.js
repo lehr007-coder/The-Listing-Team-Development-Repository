@@ -62,6 +62,7 @@ export default {
     return cors(error(404, "not_found", `No route for ${path}`));
   },
 
+  // Cloudflare only invokes this when a queue consumer binding exists.
   async queue(batch, env, ctx) {
     return processRenderQueueBatch(batch, env, ctx);
   },
