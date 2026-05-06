@@ -89,14 +89,14 @@ echo
 # 3. Hosted page renders the unknown-job HTML for a fake id
 echo "3. Hosted player page"
 check "/v/<bogus> returns HTML" \
-      "curl -sf '$BASE_URL/v/vj_does_not_exist'" \
+      "curl -s '$BASE_URL/v/vj_does_not_exist'" \
       '<!doctype html>'
 echo
 
-# 4. Open pixel returns a GIF
+# 4. Open pixel returns a GIF (use full GET; HEAD isn't routed)
 echo "4. Tracking pixel"
 check "/v1/analytics/open returns image/gif" \
-      "curl -sI '$BASE_URL/v1/analytics/open?job=vj_does_not_exist' | tr -d '\r' | grep -i content-type" \
+      "curl -s -D- -o /dev/null '$BASE_URL/v1/analytics/open?job=vj_does_not_exist' | tr -d '\r' | grep -i '^content-type'" \
       'image/gif'
 echo
 
