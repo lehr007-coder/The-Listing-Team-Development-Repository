@@ -3,8 +3,8 @@ main = "worker.js"
 compatibility_date = "2024-12-01"
 
 # ── Production worker config ──
-# Secrets are set via `wrangler secret put <NAME> --config wrangler.toml`.
-# See README.md for the full secret list.
+# Secrets are set via `npx wrangler@latest secret put <NAME> --config wrangler.toml`.
+# See README.md / docs/DEPLOYMENT.md for the full secret list.
 
 [vars]
 ENVIRONMENT = "production"
@@ -24,20 +24,25 @@ bucket_name = "tlt-ai-video"
 binding = "PREVIEW_BUCKET"
 bucket_name = "tlt-ai-video-previews"
 
-# ── KV: render job state, callback dedupe, short-url maps ──
+# ── KV: render status, callback dedupe, short-url maps ──
 [[kv_namespaces]]
 binding = "VIDEO_KV"
-id = "REPLACE_WITH_PROD_KV_ID"
+id = "1e513d6498444e9e89af431f2308aba1"
 
-# ── Queue: render jobs awaiting HeyGen / FCPXML completion ──
-[[queues.producers]]
-queue = "ai-video-render"
-binding = "RENDER_QUEUE"
-
-[[queues.consumers]]
-queue = "ai-video-render"
-max_batch_size = 10
-max_batch_timeout = 30
+# ── Queue (provision via CLI before first prod deploy) ──
+# Run from a machine with wrangler installed:
+#   npx wrangler@latest queues create ai-video-render
+# Then uncomment the bindings below. Until then, the worker auto-falls-back
+# to ctx.waitUntil inline processing (see lib/queue-producer.js).
+#
+# [[queues.producers]]
+# queue = "ai-video-render"
+# binding = "RENDER_QUEUE"
+#
+# [[queues.consumers]]
+# queue = "ai-video-render"
+# max_batch_size = 10
+# max_batch_timeout = 30
 
 # ── Custom domain for hosted video pages ──
 # Bind in Cloudflare Dashboard:

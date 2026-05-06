@@ -17,6 +17,8 @@ import socialRoute from "./routes/social.js";
 import analyticsRoute from "./routes/analytics.js";
 import hostedRoute from "./routes/hosted.js";
 import mediaRoute from "./routes/media.js";
+import adminRoute from "./routes/admin.js";
+import devstubRoute from "./routes/devstub.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 
@@ -26,9 +28,11 @@ const ROUTES = [
   { prefix: "/v1/fcpxml",     auth: true,  handler: fcpxmlRoute },
   { prefix: "/v1/delivery",   auth: true,  handler: deliveryRoute },
   { prefix: "/v1/social",     auth: true,  handler: socialRoute },
-  { prefix: "/v1/analytics",  auth: false, handler: analyticsRoute }, // pixels are unauthenticated
-  { prefix: "/v",             auth: false, handler: hostedRoute },    // public hosted pages
-  { prefix: "/media",         auth: false, handler: mediaRoute },     // public CDN passthrough
+  { prefix: "/v1/admin",      auth: true,  handler: adminRoute },
+  { prefix: "/v1/_dev",       auth: false, handler: devstubRoute },  // gated internally on ENVIRONMENT
+  { prefix: "/v1/analytics",  auth: false, handler: analyticsRoute },
+  { prefix: "/v",             auth: false, handler: hostedRoute },
+  { prefix: "/media",         auth: false, handler: mediaRoute },
 ];
 
 export default {
