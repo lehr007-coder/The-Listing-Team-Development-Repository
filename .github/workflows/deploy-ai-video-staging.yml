@@ -3,15 +3,20 @@ name: Deploy ai-video-system Staging
 # Separate workflow file (not added to deploy-staging.yml) so that any future
 # rollback of the AI Video sidecar can simply disable this file without
 # touching the existing 3-worker staging pipeline.
+#
+# Trigger is currently MANUAL ONLY (workflow_dispatch). Wrangler will reject
+# the deploy until Phase 0 of docs/ROLLOUT.md is complete:
+#   • R2 buckets created (tlt-ai-video-staging, tlt-ai-video-previews-staging)
+#   • KV namespace created and id pasted into wrangler.staging.toml
+#   • Queue ai-video-render-staging created
+# Once those exist, switch this trigger to:
+#   on:
+#     push:
+#       branches: [main, 'claude/**']
+#       paths: ['ai-video-system/**', '.github/workflows/deploy-ai-video-staging.yml']
 
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
-    paths:
-      - 'ai-video-system/**'
-      - '.github/workflows/deploy-ai-video-staging.yml'
+  workflow_dispatch:
 
 jobs:
   deploy-ai-video:
