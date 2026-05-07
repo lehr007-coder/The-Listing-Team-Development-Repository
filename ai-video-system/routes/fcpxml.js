@@ -18,7 +18,7 @@
 // POST /v1/fcpxml/callback
 //   FCPXML MCP → us when render completes.
 
-import { json, error, readJson, newJobId, nowIso, verifyHmacSignature } from "../lib/util.js";
+import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getListing, insertVideoJob, updateVideoJob, getVideoJob } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { submitFcpxmlRender } from "../lib/fcpxml.js";
@@ -49,6 +49,10 @@ export default async function fcpxmlRoute(request, env, ctx, url) {
 }
 
 async function handleRender(request, env) {
+  if (await isKilled(env)) {
+    return error(503, "kill_switch_active", "AI video pipeline is paused — clear via DELETE /v1/admin/kill");
+  }
+
   const { body } = await readJson(request);
   if (!body) return error(400, "bad_json");
 

@@ -1,13 +1,18 @@
 // Admin / debugging endpoints. All gated by PROXY_API_KEY (the route
 // table marks /v1/admin as auth=true).
 //
-//   GET /v1/admin/jobs?limit=50&contact_id=<>&status=<>
-//   GET /v1/admin/jobs/:id
-//   GET /v1/admin/jobs/:id/events
-//   GET /v1/admin/health-deep            → /v1/health + active job counters
+//   GET    /v1/admin/jobs?limit=50&contact_id=<>&status=<>
+//   GET    /v1/admin/jobs/:id
+//   GET    /v1/admin/jobs/:id/events
+//   POST   /v1/admin/jobs/:id/fail        { "reason": "..." }
+//   GET    /v1/admin/health-deep            → /v1/health + active job counters
+//
+//   GET    /v1/admin/kill                   → current kill-switch state
+//   POST   /v1/admin/kill                   → activate kill-switch (paused)
+//   DELETE /v1/admin/kill                   → clear kill-switch (resume)
 
-import { json, error } from "../lib/util.js";
-import { getVideoJob } from "../lib/supabase.js";
+import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
+import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 
 function sbHeaders(env) {
   return {
@@ -18,16 +23,30 @@ function sbHeaders(env) {
 }
 
 export default async function adminRoute(request, env, ctx, url) {
-  if (request.method !== "GET") return error(405, "method_not_allowed");
-
+  const method = request.method;
   const path = url.pathname.replace(/^\/v1\/admin/, "") || "/";
+
+  // ── Kill-switch ──
+  if (path === "/kill") {
+    if (method === "GET")    return killGet(env);
+    if (method === "POST")   return killSet(request, env);
+    if (method === "DELETE") return killClear(env);
+    return error(405, "method_not_allowed");
+  }
+
+  // ── Manual job-fail ──
+  if (method === "POST" && path.match(/^\/jobs\/[^/]+\/fail$/)) {
+    return jobFail(env, path.split("/")[2], request);
+  }
+
+  if (method !== "GET") return error(405, "method_not_allowed");
 
   if (path === "/jobs")                       return listJobs(env, url);
   if (path.match(/^\/jobs\/[^/]+\/events$/))  return jobEvents(env, path.split("/")[2]);
   if (path.match(/^\/jobs\/[^/]+$/))          return jobDetail(env, path.split("/")[2]);
   if (path === "/health-deep")                return healthDeep(env);
 
-  return error(404, "not_found", `No admin route: GET ${path}`);
+  return error(404, "not_found", `No admin route: ${method} ${path}`);
 }
 
 async function listJobs(env, url) {
@@ -66,6 +85,41 @@ async function jobEvents(env, jobId) {
   return json({ job_id: jobId, count: rows.length, events: rows });
 }
 
+async function jobFail(env, jobId, request) {
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "not_found");
+  if (job.status === "delivered" || job.status === "failed") {
+    return json({ ok: true, no_op: true, job_id: jobId, status: job.status });
+  }
+  const { body } = await readJson(request);
+  const reason = body?.reason || "manually failed via /v1/admin/jobs/:id/fail";
+  const updated = await updateVideoJob(env, jobId, {
+    status: "failed",
+    failed_at: nowIso(),
+    error: reason,
+  });
+  return json({ ok: true, job_id: jobId, status: "failed", reason, updated });
+}
+
+async function killGet(env) {
+  const state = await killSwitchState(env);
+  return json(state);
+}
+
+async function killSet(request, env) {
+  const { body } = await readJson(request);
+  const result = await setKillSwitch(env, true, {
+    reason: body?.reason || "no reason provided",
+    set_by: body?.set_by || "admin-api",
+  });
+  return json({ ok: true, ...result });
+}
+
+async function killClear(env) {
+  const result = await setKillSwitch(env, false);
+  return json({ ok: true, ...result });
+}
+
 async function healthDeep(env) {
   const out = {
     service: "ai-video-system",
@@ -87,6 +141,7 @@ async function healthDeep(env) {
       openai: !!env.OPENAI_API_KEY,
     },
     counters: {},
+    kill_switch: await killSwitchState(env),
   };
 
   if (env.SUPABASE_URL && env.SUPABASE_KEY) {

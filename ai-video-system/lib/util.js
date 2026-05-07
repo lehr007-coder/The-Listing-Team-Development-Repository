@@ -104,3 +104,38 @@ export function nowIso() {
 export function safe(obj, path, fallback = null) {
   return path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj) ?? fallback;
 }
+
+// Kill-switch — when active, /v1/heygen/render and /v1/fcpxml/render
+// refuse new renders with 503. In-flight jobs continue. Backed by KV
+// so it's instant (no redeploy needed) and survives across restarts.
+const KILL_SWITCH_KEY = "kill_switch";
+
+export async function isKilled(env) {
+  if (!env.VIDEO_KV) return false;
+  const v = await env.VIDEO_KV.get(KILL_SWITCH_KEY);
+  return v === "on";
+}
+
+export async function setKillSwitch(env, on, meta = {}) {
+  if (!env.VIDEO_KV) throw new Error("VIDEO_KV not bound");
+  if (on) {
+    const payload = JSON.stringify({
+      reason: meta.reason || "",
+      set_at: new Date().toISOString(),
+      set_by: meta.set_by || "api",
+    });
+    await env.VIDEO_KV.put(KILL_SWITCH_KEY, "on", { metadata: payload });
+    return { killed: true, ...JSON.parse(payload) };
+  }
+  await env.VIDEO_KV.delete(KILL_SWITCH_KEY);
+  return { killed: false };
+}
+
+export async function killSwitchState(env) {
+  if (!env.VIDEO_KV) return { killed: false, reason: "no_kv" };
+  const { value, metadata } = await env.VIDEO_KV.getWithMetadata(KILL_SWITCH_KEY);
+  if (value !== "on") return { killed: false };
+  let parsed = {};
+  try { parsed = typeof metadata === "string" ? JSON.parse(metadata) : (metadata || {}); } catch {}
+  return { killed: true, ...parsed };
+}
