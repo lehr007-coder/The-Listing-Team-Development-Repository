@@ -15,7 +15,8 @@ export default async function hostedRoute(request, env, ctx, url) {
   const jobId = parts[1];
 
   const job = await getVideoJob(env, jobId);
-  if (!job || !job.stream_uid) {
+  // Render-not-ready: no job, OR job exists but neither stream_uid nor r2_url is set yet.
+  if (!job || (!job.stream_uid && !job.r2_url)) {
     return new Response(notReadyHtml(jobId), {
       status: 404,
       headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -41,7 +42,6 @@ export default async function hostedRoute(request, env, ctx, url) {
 }
 
 function playerHtml(env, job) {
-  const iframe = streamIframe(job.stream_uid);
   const ctaHref = job.cta_url
     ? `${env.BASE_URL}/v1/analytics/click?job=${job.id}&to=${encodeURIComponent(job.cta_url)}`
     : `tel:`;
@@ -49,6 +49,12 @@ function playerHtml(env, job) {
   const title = job.video_type
     ? job.video_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
     : "Your video";
+
+  // Prefer Cloudflare Stream iframe (HLS/DASH); fall back to native HTML5
+  // video tag streaming straight from R2 if Stream wasn't available.
+  const playerEl = job.stream_uid
+    ? `<iframe src="${streamIframe(job.stream_uid)}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    : `<video src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -62,7 +68,7 @@ function playerHtml(env, job) {
   body { margin:0; background:#0a0a0a; color:#fff; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; }
   .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
   .player { aspect-ratio: 9 / 16; width: 100%; background:#000; border-radius:14px; overflow:hidden; }
-  .player iframe { width:100%; height:100%; border:0; }
+  .player iframe, .player video { width:100%; height:100%; border:0; }
   h1 { font-size: 18px; margin: 16px 0 4px; }
   .meta { color:#999; font-size: 13px; margin-bottom: 12px; }
   .cta { display:block; text-align:center; margin: 16px 0; padding: 14px 20px; background:#ff6a00; color:#fff; font-weight:600; text-decoration:none; border-radius:10px; }
@@ -72,7 +78,7 @@ function playerHtml(env, job) {
 <body>
 <div class="wrap">
   <div class="player">
-    <iframe src="${iframe}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    ${playerEl}
   </div>
   <h1>${escapeHtml(title)}</h1>
   <div class="meta">Personalized for you</div>

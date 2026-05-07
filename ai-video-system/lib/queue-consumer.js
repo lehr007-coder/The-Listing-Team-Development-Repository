@@ -46,13 +46,21 @@ export async function processOne(env, body) {
     await putFromUrl(env.VIDEO_BUCKET, r2Key, sourceMp4Url, "video/mp4");
     const r2Url = `${env.MEDIA_BASE_URL || env.BASE_URL}/media/v/${r2Key}`;
 
+    // Stream upload is best-effort. If CF_STREAM_API_TOKEN doesn't have
+    // Stream:Edit (or is otherwise rejected), fall back to serving the
+    // MP4 directly from R2 — the hosted page handles both shapes.
     step = "stream_upload";
-    const stream = await streamUpload(env, sourceMp4Url, { name: `${kind}-${jobId}` });
+    let stream = { uid: null, playback: {} };
+    try {
+      stream = await streamUpload(env, sourceMp4Url, { name: `${kind}-${jobId}` });
+    } catch (e) {
+      console.warn(`stream_upload failed (non-fatal, falling back to R2 direct):`, e.message);
+    }
 
     step = "build_urls";
     const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
-    const gifUrl = streamGifUrl(stream.uid, { duration: "4s" });
-    const thumbnailUrl = streamThumbnailUrl(stream.uid, "1s", 720);
+    const gifUrl = stream.uid ? streamGifUrl(stream.uid, { duration: "4s" }) : null;
+    const thumbnailUrl = stream.uid ? streamThumbnailUrl(stream.uid, "1s", 720) : null;
 
     step = "update_video_job_rendered";
     await updateVideoJob(env, jobId, {
