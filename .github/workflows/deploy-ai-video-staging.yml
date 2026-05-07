@@ -26,3 +26,16 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: ai-video-system
           command: deploy --config wrangler.staging.toml
+
+  deploy-ai-video-prod:
+    name: Deploy ai-video-system (production)
+    runs-on: ubuntu-latest
+    needs: deploy-ai-video
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: ai-video-system
+          command: deploy --config wrangler.toml
