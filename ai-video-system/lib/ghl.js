@@ -93,6 +93,7 @@ export function readLeadIntelligence(contact) {
 }
 
 // Write ONLY owned fields. Silently drops any non-owned key as a safety net.
+// GHL v2 contact-update accepts `customFields` (plural). v1 used `customField`.
 export async function writeOwnedFields(env, contactId, updates) {
   const safeUpdates = {};
   for (const [k, v] of Object.entries(updates || {})) {
@@ -100,14 +101,14 @@ export async function writeOwnedFields(env, contactId, updates) {
   }
   if (Object.keys(safeUpdates).length === 0) return { skipped: true };
 
-  const customField = Object.entries(safeUpdates).map(([key, field_value]) => ({
+  const customFields = Object.entries(safeUpdates).map(([key, field_value]) => ({
     key, field_value,
   }));
 
   const r = await fetch(`${GHL_BASE}/contacts/${contactId}`, {
     method: "PUT",
     headers: authHeaders(env),
-    body: JSON.stringify({ customField }),
+    body: JSON.stringify({ customFields }),
   });
   if (!r.ok) {
     const txt = await r.text();

@@ -128,15 +128,21 @@ async function handleRender(request, env) {
     created_at: nowIso(),
   });
 
-  await writeOwnedFields(env, contact_id, {
-    ai_video_type: video_type,
-    ai_video_script: script.script,
-    video_render_engine: "HEYGEN",
-    video_priority_score: String(priority_score),
-    video_trigger_reason: trigger_reason || "",
-    video_status: "rendering",
-    video_render_job_id: jobId,
-  });
+  // Field write is best-effort — render is already in flight, don't blow up
+  // the whole request if GHL has a transient hiccup.
+  try {
+    await writeOwnedFields(env, contact_id, {
+      ai_video_type: video_type,
+      ai_video_script: script.script,
+      video_render_engine: "HEYGEN",
+      video_priority_score: String(priority_score),
+      video_trigger_reason: trigger_reason || "",
+      video_status: "rendering",
+      video_render_job_id: jobId,
+    });
+  } catch (e) {
+    console.error(`writeOwnedFields(${contact_id}) failed (non-fatal):`, e.message);
+  }
 
   return json({ job_id: jobId, status: "rendering", heygen_video_id: heygen.heygenVideoId });
 }
