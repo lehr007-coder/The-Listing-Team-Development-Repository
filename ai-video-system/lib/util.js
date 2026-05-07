@@ -64,28 +64,53 @@ export function bufToHex(buf) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-// Body parser that tolerates JSON, form-urlencoded, and multipart payloads.
-// GHL's standard Webhook sends application/json with stringy values; some
-// other systems send form-encoded. Returns { text, body } with body as a
-// plain object regardless of input encoding.
+// Body parser that tolerates JSON, form-urlencoded, multipart, AND GHL's
+// standard-Webhook nested envelope.
+//
+// GHL's free "Webhook" action POSTs JSON shaped like:
+//   { contact_id: "...", first_name: "...", email: "...", ...
+//     customData: { video_type: "lead_nurture", trigger_reason: "...", ... } }
+// The custom data fields the worker cares about are nested under
+// customData (or sometimes custom_data). This merger flattens them up so
+// route handlers see expected top-level keys regardless of which envelope
+// shape GHL used in this workspace's plan tier.
 export async function readJson(request) {
   try {
     const ct = (request.headers.get("Content-Type") || "").toLowerCase();
+    let text = "";
+    let body;
+
     if (ct.includes("application/x-www-form-urlencoded")) {
-      const text = await request.text();
+      text = await request.text();
       const params = new URLSearchParams(text);
-      const body = {};
+      body = {};
       for (const [k, v] of params) body[k] = v;
-      return { text, body };
-    }
-    if (ct.includes("multipart/form-data")) {
+    } else if (ct.includes("multipart/form-data")) {
       const form = await request.formData();
-      const body = {};
+      body = {};
       for (const [k, v] of form.entries()) body[k] = typeof v === "string" ? v : v.name;
-      return { text: "", body };
+    } else {
+      text = await request.text();
+      body = text ? JSON.parse(text) : {};
     }
-    const text = await request.text();
-    return { text, body: text ? JSON.parse(text) : {} };
+
+    // Flatten GHL-standard envelope so route handlers can destructure
+    // top-level keys without caring whether GHL nested or not.
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const cd = body.customData || body.custom_data;
+      if (cd && typeof cd === "object" && !Array.isArray(cd)) {
+        for (const [k, v] of Object.entries(cd)) {
+          if (body[k] === undefined) body[k] = v;
+        }
+      }
+      // GHL also sometimes sends contact_id under contact.id rather than
+      // top-level. Backfill so handlers always see contact_id.
+      if (!body.contact_id && body.contact && typeof body.contact === "object") {
+        if (body.contact.id) body.contact_id = body.contact.id;
+      }
+    }
+
+    return { text, body };
   } catch (e) {
     return { text: "", body: null, parseError: e.message };
   }
