@@ -57,8 +57,24 @@ async function handleRender(request, env) {
   const { body } = await readJson(request);
   if (!body) return error(400, "bad_json");
 
-  const { contact_id, video_type, trigger_reason, priority_score = 50,
-          delivery_channels = ["email"], overrides = {} } = body;
+  let { contact_id, video_type, trigger_reason, priority_score = 50,
+        delivery_channels = ["email"], overrides = {} } = body;
+
+  // GHL's standard Webhook action (the free one) sends ALL custom-data fields
+  // as strings — coerce here so we don't have to require the paid Custom
+  // Webhook add-on.
+  priority_score = Number(priority_score) || 50;
+  if (typeof delivery_channels === "string") {
+    const s = delivery_channels.trim();
+    try {
+      delivery_channels = JSON.parse(s);
+    } catch {
+      delivery_channels = s.replace(/^\[|\]$/g, "").split(",")
+        .map(x => x.trim().replace(/^["']|["']$/g, ""))
+        .filter(Boolean);
+    }
+  }
+  if (!Array.isArray(delivery_channels)) delivery_channels = ["email"];
 
   if (!contact_id) return error(400, "missing_contact_id");
   if (!HEYGEN_VIDEO_TYPES.has(video_type)) {

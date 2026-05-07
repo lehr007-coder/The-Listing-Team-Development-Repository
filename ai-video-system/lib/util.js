@@ -64,8 +64,26 @@ export function bufToHex(buf) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Body parser that tolerates JSON, form-urlencoded, and multipart payloads.
+// GHL's standard Webhook sends application/json with stringy values; some
+// other systems send form-encoded. Returns { text, body } with body as a
+// plain object regardless of input encoding.
 export async function readJson(request) {
   try {
+    const ct = (request.headers.get("Content-Type") || "").toLowerCase();
+    if (ct.includes("application/x-www-form-urlencoded")) {
+      const text = await request.text();
+      const params = new URLSearchParams(text);
+      const body = {};
+      for (const [k, v] of params) body[k] = v;
+      return { text, body };
+    }
+    if (ct.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const body = {};
+      for (const [k, v] of form.entries()) body[k] = typeof v === "string" ? v : v.name;
+      return { text: "", body };
+    }
     const text = await request.text();
     return { text, body: text ? JSON.parse(text) : {} };
   } catch (e) {

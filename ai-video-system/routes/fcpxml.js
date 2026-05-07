@@ -52,12 +52,27 @@ async function handleRender(request, env) {
   const { body } = await readJson(request);
   if (!body) return error(400, "bad_json");
 
-  const {
+  let {
     video_type, listing_id, contact_id, market_data,
     trigger_reason, distribution = "social",
     social_targets = ["instagram_reels","tiktok","youtube_shorts","facebook_reels"],
     scheduled_post_at, overrides = {},
   } = body;
+
+  // GHL standard Webhook coercion: array fields arrive as JSON-serialised strings.
+  if (typeof social_targets === "string") {
+    const s = social_targets.trim();
+    try {
+      social_targets = JSON.parse(s);
+    } catch {
+      social_targets = s.replace(/^\[|\]$/g, "").split(",")
+        .map(x => x.trim().replace(/^["']|["']$/g, ""))
+        .filter(Boolean);
+    }
+  }
+  if (!Array.isArray(social_targets)) {
+    social_targets = ["instagram_reels","tiktok","youtube_shorts","facebook_reels"];
+  }
 
   if (!FCPXML_VIDEO_TYPES.has(video_type)) {
     return error(400, "invalid_video_type", `video_type must be one of ${[...FCPXML_VIDEO_TYPES].join(",")}`);
