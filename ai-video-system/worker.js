@@ -21,6 +21,7 @@ import adminRoute from "./routes/admin.js";
 import devstubRoute from "./routes/devstub.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
+import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
 
 const ROUTES = [
   { prefix: "/v1/health",            auth: false, handler: healthRoute },
@@ -75,5 +76,15 @@ export default {
   // Cloudflare only invokes this when a queue consumer binding exists.
   async queue(batch, env, ctx) {
     return processRenderQueueBatch(batch, env, ctx);
+  },
+
+  // Cron — invoked by [triggers] crons in wrangler.toml. Handles the
+  // safety-net polling for HeyGen renders whose webhook didn't fire.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      runHeygenPollFallback(env, ctx)
+        .then(r => console.log("scheduled: heygen-poll-fallback", JSON.stringify(r)))
+        .catch(e => console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message))
+    );
   },
 };

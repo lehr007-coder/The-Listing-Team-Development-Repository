@@ -29,6 +29,11 @@ bucket_name = "tlt-ai-video-previews"
 binding = "VIDEO_KV"
 id = "1e513d6498444e9e89af431f2308aba1"
 
+# ── Cron: HeyGen poll fallback for stuck-rendering jobs ──
+# Runs once a minute. Picks up renders whose HeyGen webhook didn't fire.
+[triggers]
+crons = ["* * * * *"]
+
 # ── Queue (provision via CLI before first prod deploy) ──
 # Run from a machine with wrangler installed:
 #   npx wrangler@latest queues create ai-video-render
