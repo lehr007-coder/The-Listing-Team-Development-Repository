@@ -41,6 +41,36 @@ echo "Location: $LOC"
 echo "Dry run:  ${DRY_RUN:-0}"
 echo
 
+# JWT payload version=1 → use v1 endpoint (rest.gohighlevel.com).
+# JWT payload version=2 (or token starts with sb_/pit_) → use v2 (services.leadconnectorhq.com).
+JWT_VERSION=$(echo "$GHL_V2_TOKEN" | cut -d'.' -f2 | python3 -c '
+import sys, base64, json
+raw = sys.stdin.read().strip()
+raw += "=" * (-len(raw) % 4)
+try:
+    data = json.loads(base64.urlsafe_b64decode(raw))
+    print(data.get("version", 2))
+except Exception:
+    print(2)
+' 2>/dev/null || echo "2")
+
+if [ "$JWT_VERSION" = "1" ]; then
+  API_BASE="https://rest.gohighlevel.com/v1"
+  LIST_PATH="/custom-fields/"
+  CREATE_PATH="/custom-fields/"
+  AUTH_HEADER="Authorization: Bearer $GHL_V2_TOKEN"
+  VERSION_HEADER=""
+  echo "API: v1 (rest.gohighlevel.com) — token version=$JWT_VERSION"
+else
+  API_BASE="https://services.leadconnectorhq.com"
+  LIST_PATH="/locations/$LOC/customFields"
+  CREATE_PATH="/locations/$LOC/customFields"
+  AUTH_HEADER="Authorization: Bearer $GHL_V2_TOKEN"
+  VERSION_HEADER="Version: 2021-07-28"
+  echo "API: v2 (services.leadconnectorhq.com)"
+fi
+echo
+
 # ── 22 fields the sidecar owns ──
 # Format: fieldKey|displayName|dataType
 # dataType per GHL v2 docs: TEXT | LARGE_TEXT | NUMERICAL | DATE | CHECKBOX | …
@@ -72,10 +102,15 @@ EOF
 
 # ── 1. List existing fieldKeys ──
 echo "Fetching existing custom fields..."
-LIST_RESP=$(curl -s -w "\n__HTTP__%{http_code}" \
-  -H "Authorization: Bearer $GHL_V2_TOKEN" \
-  -H "Version: 2021-07-28" \
-  "https://services.leadconnectorhq.com/locations/$LOC/customFields")
+if [ -n "$VERSION_HEADER" ]; then
+  LIST_RESP=$(curl -s -w "\n__HTTP__%{http_code}" \
+    -H "$AUTH_HEADER" -H "$VERSION_HEADER" \
+    "$API_BASE$LIST_PATH")
+else
+  LIST_RESP=$(curl -s -w "\n__HTTP__%{http_code}" \
+    -H "$AUTH_HEADER" \
+    "$API_BASE$LIST_PATH")
+fi
 LIST_CODE=$(echo "$LIST_RESP" | grep -o "__HTTP__[0-9]*" | sed 's/__HTTP__//')
 LIST_BODY=$(echo "$LIST_RESP" | sed 's/__HTTP__[0-9]*$//')
 
@@ -99,9 +134,10 @@ try:
 except Exception as e:
     sys.stderr.write(f"JSON parse failed: {e}\n")
     sys.exit(1)
-fields = d.get("customFields") or d.get("fields") or []
+# v1 uses "customFields", v2 uses "customFields" too. Both have "fieldKey".
+fields = d.get("customFields") or d.get("custom_fields") or d.get("fields") or []
 for f in fields:
-    key = (f.get("fieldKey") or f.get("key") or "").strip()
+    key = (f.get("fieldKey") or f.get("key") or f.get("name") or "").strip()
     if key.startswith("contact."):
         key = key[len("contact."):]
     if key:
@@ -145,7 +181,18 @@ SUCCESS=0
 FAIL=0
 while IFS='|' read -r KEY NAME TYPE; do
   [ -z "$KEY" ] && continue
-  PAYLOAD=$(python3 -c "
+  if [ "$JWT_VERSION" = "1" ]; then
+    # v1 body
+    PAYLOAD=$(python3 -c "
+import json
+print(json.dumps({
+    'name': '$NAME',
+    'dataType': '$TYPE',
+}))
+")
+  else
+    # v2 body
+    PAYLOAD=$(python3 -c "
 import json
 print(json.dumps({
     'name': '$NAME',
@@ -154,13 +201,18 @@ print(json.dumps({
     'showInForms': False,
 }))
 ")
-  RESP=$(curl -s -w "\n%{http_code}" \
-    -X POST \
-    -H "Authorization: Bearer $GHL_V2_TOKEN" \
-    -H "Version: 2021-07-28" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD" \
-    "https://services.leadconnectorhq.com/locations/$LOC/customFields")
+  fi
+  if [ -n "$VERSION_HEADER" ]; then
+    RESP=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "$AUTH_HEADER" -H "$VERSION_HEADER" -H "Content-Type: application/json" \
+      -d "$PAYLOAD" \
+      "$API_BASE$CREATE_PATH")
+  else
+    RESP=$(curl -s -w "\n%{http_code}" -X POST \
+      -H "$AUTH_HEADER" -H "Content-Type: application/json" \
+      -d "$PAYLOAD" \
+      "$API_BASE$CREATE_PATH")
+  fi
   CODE=$(echo "$RESP" | tail -1)
   BODY=$(echo "$RESP" | sed '$d')
   if [ "$CODE" = "200" ] || [ "$CODE" = "201" ]; then
