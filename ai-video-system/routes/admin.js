@@ -13,6 +13,7 @@
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
+import { enqueueOrInline } from "../lib/queue-producer.js";
 
 function sbHeaders(env) {
   return {
@@ -37,6 +38,11 @@ export default async function adminRoute(request, env, ctx, url) {
   // ── Manual job-fail ──
   if (method === "POST" && path.match(/^\/jobs\/[^/]+\/fail$/)) {
     return jobFail(env, path.split("/")[2], request);
+  }
+
+  // ── Manual reprocess (force the post-render pipeline to run with given URL) ──
+  if (method === "POST" && path.match(/^\/jobs\/[^/]+\/reprocess$/)) {
+    return jobReprocess(env, ctx, path.split("/")[2], request);
   }
 
   if (method !== "GET") return error(405, "method_not_allowed");
@@ -83,6 +89,28 @@ async function jobEvents(env, jobId) {
   if (!r.ok) return error(502, "supabase_error", await r.text());
   const rows = await r.json();
   return json({ job_id: jobId, count: rows.length, events: rows });
+}
+
+async function jobReprocess(env, ctx, jobId, request) {
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "not_found");
+  const { body } = await readJson(request);
+  const sourceMp4Url = body?.url || body?.video_url || body?.mp4_url;
+  if (!sourceMp4Url) return error(400, "missing_url", "POST { url: '<mp4 url>' }");
+
+  // Reset status so processOne doesn't short-circuit on delivered/failed
+  await updateVideoJob(env, jobId, {
+    status: "rendering",
+    error: null,
+    rendered_at: null,
+    delivered_at: null,
+    failed_at: null,
+  });
+
+  // Synthesise a fresh queue message — bypasses dedupe entirely
+  const kind = job.render_engine === "FCPXML" ? "fcpxml" : "heygen";
+  const dispatch = await enqueueOrInline(env, ctx, { jobId, sourceMp4Url, kind });
+  return json({ ok: true, job_id: jobId, kind, ...dispatch });
 }
 
 async function jobFail(env, jobId, request) {
