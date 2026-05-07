@@ -24,11 +24,13 @@ bucket_name = "tlt-ai-video-previews-staging"
 binding = "VIDEO_KV"
 id = "444a0a7edeb24d00b6063e3f17437efc"
 
-# ── Queue intentionally OMITTED for staging ──
-# The worker auto-falls-back to ctx.waitUntil inline processing when
-# RENDER_QUEUE binding is missing (see lib/queue-producer.js). To enable
-# the durable Queue path, run from a machine with wrangler CLI:
-#   npx wrangler queues create ai-video-render-staging
-# then add:
-#   [[queues.producers]]  queue = "ai-video-render-staging"  binding = "RENDER_QUEUE"
-#   [[queues.consumers]]  queue = "ai-video-render-staging"  max_batch_size = 10
+# ── Queue: ai-video-staging-render-queue (created via dashboard) ──
+[[queues.producers]]
+queue = "ai-video-staging-render-queue"
+binding = "RENDER_QUEUE"
+
+[[queues.consumers]]
+queue = "ai-video-staging-render-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
