@@ -63,7 +63,9 @@ async function callAnthropic(env, agentName, context) {
     },
     body: JSON.stringify({
       model: env.AGENT_MODEL || "claude-sonnet-4-6",
-      max_tokens: 2048,
+      // Director storyboards are long (multi-scene + captions + per-platform copy).
+      // Other agents are smaller but cheap to allow the same headroom.
+      max_tokens: 8192,
       system: FALLBACK_SYSTEM[agentName],
       messages: [{ role: "user", content: JSON.stringify(context) }],
     }),
@@ -95,7 +97,32 @@ async function callOpenAi(env, agentName, context) {
   return JSON.parse(data.choices[0].message.content);
 }
 
+// Extract a JSON object from possibly-fenced or prose-wrapped agent output.
+// 1. strip ```json ... ``` or ``` ... ``` fences
+// 2. find the first {, walk forward tracking brace depth + string state to
+//    find the matching }. This handles strings containing braces and avoids
+//    a greedy match that can break on multiple top-level objects.
 function extractJson(text) {
-  const m = text.match(/\{[\s\S]*\}/);
-  return m ? m[0] : "{}";
+  let s = text || "";
+  s = s.replace(/^```(?:json|javascript|js)?\s*/i, "").replace(/```\s*$/i, "");
+  const start = s.indexOf("{");
+  if (start < 0) return "{}";
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) { esc = false; continue; }
+      if (c === "\\") { esc = true; continue; }
+      if (c === '"') inStr = false;
+    } else {
+      if (c === '"') inStr = true;
+      else if (c === "{") depth++;
+      else if (c === "}") {
+        depth--;
+        if (depth === 0) return s.slice(start, i + 1);
+      }
+    }
+  }
+  // unterminated — return what we have so the caller surfaces the parse error
+  return s.slice(start);
 }
