@@ -27,6 +27,7 @@ import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
+import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
 
 const HEYGEN_VIDEO_TYPES = new Set([
   "seller_valuation",
@@ -88,6 +89,17 @@ async function handleRender(request, env) {
   // Idempotency: if there's an active job for this contact + type, return it.
   const existing = await findActiveJobForContact(env, contact_id, video_type);
   if (existing) return json({ job_id: existing.id, status: existing.status, deduped: true });
+
+  // Rate-limit guardrail — protect against runaway spend
+  const rl = await checkRateLimit(env, contact_id);
+  if (!rl.allowed) {
+    return error(429, rl.reason, `Daily render limit reached`, {
+      count: rl.count,
+      limit: rl.limit,
+      day: rl.day,
+      hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
+    });
+  }
 
   const contact = await getContact(env, contact_id);
   const intelligence = readLeadIntelligence(contact);
@@ -156,6 +168,11 @@ async function handleRender(request, env) {
   } catch (e) {
     console.error(`writeOwnedFields(${contact_id}) failed (non-fatal):`, e.message);
   }
+
+  // Increment rate-limit counters AFTER successful HeyGen submission
+  await incrementRateLimit(env, contact_id).catch(e =>
+    console.warn("incrementRateLimit failed (non-fatal):", e.message)
+  );
 
   return json({ job_id: jobId, status: "rendering", heygen_video_id: heygen.heygenVideoId });
 }

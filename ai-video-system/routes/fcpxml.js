@@ -23,6 +23,7 @@ import { getListing, insertVideoJob, updateVideoJob, getVideoJob } from "../lib/
 import { invokeAgent } from "../lib/agents.js";
 import { submitFcpxmlRender } from "../lib/fcpxml.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
+import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
 
 const FCPXML_VIDEO_TYPES = new Set([
   "luxury_listing",
@@ -85,6 +86,14 @@ async function handleRender(request, env) {
     return error(400, "invalid_distribution");
   }
 
+  // Rate-limit guardrail
+  const rl = await checkRateLimit(env, contact_id || `social:${listing_id || "unknown"}`);
+  if (!rl.allowed) {
+    return error(429, rl.reason, `Daily render limit reached`, {
+      count: rl.count, limit: rl.limit, day: rl.day,
+    });
+  }
+
   const listing = listing_id ? await getListing(env, listing_id) : null;
 
   const directorOutput = await invokeAgent(env, "fcpxml_director", {
@@ -124,6 +133,10 @@ async function handleRender(request, env) {
     aspect: overrides.aspect || "9:16",
     created_at: nowIso(),
   });
+
+  await incrementRateLimit(env, contact_id || `social:${listing_id || "unknown"}`).catch(e =>
+    console.warn("incrementRateLimit failed (non-fatal):", e.message)
+  );
 
   return json({ job_id: jobId, status: "rendering", fcpxml_job_id: sub.fcpxmlJobId });
 }

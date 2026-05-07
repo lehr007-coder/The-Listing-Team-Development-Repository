@@ -20,6 +20,11 @@ CDN_BASE_URL = "https://cdn.reallistingteam.com"
 HOSTED_BASE_URL = "https://videos.reallistingteam.com"
 DEFAULT_BRAND = "the-listing-team"
 
+# Cost-runaway guardrails. Both reset daily (UTC). KV-backed.
+# Override via wrangler secret put if you want different prod limits.
+DAILY_RENDER_LIMIT = "100"
+PER_CONTACT_DAILY_LIMIT = "3"
+
 # ── R2: rendered video assets (MP4 originals) ──
 [[r2_buckets]]
 binding = "VIDEO_BUCKET"

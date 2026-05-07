@@ -14,6 +14,7 @@
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
+import { rateLimitState } from "../lib/rate-limit.js";
 
 function sbHeaders(env) {
   return {
@@ -52,6 +53,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path.match(/^\/jobs\/[^/]+\/tracking$/))   return jobTracking(env, path.split("/")[2]);
   if (path.match(/^\/jobs\/[^/]+$/))             return jobDetail(env, path.split("/")[2]);
   if (path === "/health-deep")                   return healthDeep(env);
+  if (path === "/rate-limits")                   return json(await rateLimitState(env));
   if (path.match(/^\/contacts\/[^/]+\/videos$/)) return contactVideos(env, path.split("/")[2]);
 
   return error(404, "not_found", `No admin route: ${method} ${path}`);

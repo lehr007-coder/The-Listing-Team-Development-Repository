@@ -10,6 +10,10 @@ CDN_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
 HOSTED_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
 DEFAULT_BRAND = "the-listing-team"
 
+# Generous limits for staging — testing can burst more
+DAILY_RENDER_LIMIT = "200"
+PER_CONTACT_DAILY_LIMIT = "10"
+
 # ── R2 buckets (provisioned in CF account 0424a0a1799c8b3b7f0947a4e3a202ba) ──
 [[r2_buckets]]
 binding = "VIDEO_BUCKET"
