@@ -107,11 +107,19 @@ async function handleRender(request, env) {
   const jobId = newJobId("vj");
   const callbackUrl = `${env.BASE_URL}/v1/heygen/callback?job=${jobId}`;
 
+  // Aspect-ratio default: vertical for SMS/mobile, but if delivery is
+  // email-only the recipient probably reads on desktop — flip to 16:9.
+  // Overrides.aspect always wins.
+  const channelsLower = (delivery_channels || []).map(c => String(c).toLowerCase());
+  const emailOnly = channelsLower.length === 1 && channelsLower[0] === "email";
+  const aspect = overrides.aspect || (emailOnly ? "16:9" : "9:16");
+
   // Submit to HeyGen
   const heygen = await createAvatarVideo(env, {
     script: script.script,
     avatarId: overrides.avatar_id,
     voiceId: overrides.voice_id,
+    aspect,
     callbackUrl,
     metadata: { job_id: jobId },
   });
@@ -126,6 +134,7 @@ async function handleRender(request, env) {
     trigger_reason,
     priority_score,
     delivery_channels,
+    aspect,
     script: script.script,
     script_meta: script,
     heygen_video_id: heygen.heygenVideoId,

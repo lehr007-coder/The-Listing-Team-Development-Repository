@@ -50,11 +50,17 @@ function playerHtml(env, job) {
     ? job.video_type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())
     : "Your video";
 
+  // Aspect ratio for the player frame. Defaults to vertical 9/16 for
+  // back-compat. Picks up "16:9" / "1:1" / "4:5" if the render set them.
+  const aspect = (job.aspect || "9:16").replace(":", "/");
+  const isVertical = aspect.startsWith("9/") || aspect.startsWith("4/");
+  const wrapMaxWidth = isVertical ? "480px" : "720px";
+
   // Prefer Cloudflare Stream iframe (HLS/DASH); fall back to native HTML5
   // video tag streaming straight from R2 if Stream wasn't available.
   const playerEl = job.stream_uid
     ? `<iframe src="${streamIframe(job.stream_uid)}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-    : `<video src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:cover;background:#000"></video>`;
+    : `<video src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -66,8 +72,8 @@ function playerHtml(env, job) {
 <style>
   :root { color-scheme: dark; }
   body { margin:0; background:#0a0a0a; color:#fff; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; }
-  .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
-  .player { aspect-ratio: 9 / 16; width: 100%; background:#000; border-radius:14px; overflow:hidden; }
+  .wrap { max-width: ${wrapMaxWidth}; margin: 0 auto; padding: 16px; }
+  .player { aspect-ratio: ${aspect}; width: 100%; background:#000; border-radius:14px; overflow:hidden; }
   .player iframe, .player video { width:100%; height:100%; border:0; }
   h1 { font-size: 18px; margin: 16px 0 4px; }
   .meta { color:#999; font-size: 13px; margin-bottom: 12px; }

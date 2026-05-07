@@ -10,6 +10,15 @@ function heygenHeaders(env) {
   };
 }
 
+// Map a friendly aspect-ratio name → HeyGen pixel dimensions.
+// HeyGen accepts dimension: { width, height } in v2 /video/generate.
+const ASPECT_DIMS = {
+  "9:16":  { width: 1080, height: 1920 }, // vertical — SMS, mobile, IG/TikTok
+  "16:9":  { width: 1920, height: 1080 }, // horizontal — email, desktop, YT
+  "1:1":   { width: 1080, height: 1080 }, // square — IG feed
+  "4:5":   { width: 1080, height: 1350 }, // IG portrait feed
+};
+
 // Submit an avatar video render. The callback URL receives the video_url
 // when rendering completes.
 export async function createAvatarVideo(env, opts) {
@@ -18,11 +27,16 @@ export async function createAvatarVideo(env, opts) {
     avatarId = env.HEYGEN_DEFAULT_AVATAR_ID,
     voiceId = env.HEYGEN_DEFAULT_VOICE_ID,
     background = "#0a0a0a",
-    width = 1080,
-    height = 1920, // vertical for SMS/social-friendly aspect
+    aspect,                          // "9:16" | "16:9" | "1:1" | "4:5"
+    width: rawWidth,
+    height: rawHeight,
     callbackUrl,
     metadata = {},
   } = opts;
+
+  const dims = ASPECT_DIMS[aspect] || null;
+  const width  = rawWidth  || dims?.width  || 1080;
+  const height = rawHeight || dims?.height || 1920;
 
   const body = {
     video_inputs: [
