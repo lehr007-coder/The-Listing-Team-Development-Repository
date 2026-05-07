@@ -162,3 +162,16 @@ export async function sendConversationNote(env, contactId, body) {
   if (!r.ok) throw new Error(`GHL sendConversationNote failed: ${r.status} ${await r.text()}`);
   return r.json();
 }
+
+// Append a Note to the contact's timeline. Used for video history so
+// each rendered+sent video produces a permanent timeline entry that
+// doesn't overwrite previous ones (the way custom fields would).
+export async function appendContactNote(env, contactId, body) {
+  const r = await fetch(`${GHL_BASE}/contacts/${contactId}/notes`, {
+    method: "POST",
+    headers: authHeaders(env),
+    body: JSON.stringify({ body }),
+  });
+  if (!r.ok) throw new Error(`GHL appendContactNote failed: ${r.status} ${await r.text()}`);
+  return r.json();
+}

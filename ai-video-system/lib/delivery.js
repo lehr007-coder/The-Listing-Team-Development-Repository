@@ -4,8 +4,23 @@
 
 import { getVideoJob, updateVideoJob, insertVideoEvent } from "./supabase.js";
 import { invokeAgent } from "./agents.js";
-import { sendSms, sendEmail, sendConversationNote, writeOwnedFields, getContact, readField } from "./ghl.js";
+import { sendSms, sendEmail, sendConversationNote, writeOwnedFields, getContact, readField, appendContactNote } from "./ghl.js";
 import { nowIso } from "./util.js";
+
+function formatVideoType(t) {
+  return String(t || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Compact, scannable note body. Single multi-line string that renders
+// nicely in the GHL contact-timeline note card.
+function buildVideoHistoryNote(job, channels, formatted) {
+  return [
+    `🎥 AI Video Sent — ${formatVideoType(job.video_type)} (${job.render_engine})`,
+    `Watch: ${job.hosted_url}`,
+    `Sent via ${channels.join(", ") || "—"} · CTA: "${formatted.cta_text || "Schedule a call"}"`,
+    `Job: ${job.id} · ${nowIso()}`,
+  ].join("\n");
+}
 
 const PRIVATE_CHANNELS = ["sms", "email", "conversation"];
 
@@ -70,12 +85,35 @@ export async function runDelivery(env, jobId) {
     delivery_results: results,
   });
 
-  await writeOwnedFields(env, contact.id, {
-    video_status: "delivered",
-    video_last_sent: nowIso(),
-    video_delivery_method: channels.join(","),
-    last_video_cta: formatted.cta_text || "",
-  });
+  // Latest-video custom fields (these DO overwrite each render — that's the
+  // intended behavior; they always reflect the most recent video).
+  try {
+    await writeOwnedFields(env, contact.id, {
+      video_status: "delivered",
+      video_last_sent: nowIso(),
+      video_delivery_method: channels.join(","),
+      last_video_cta: formatted.cta_text || "",
+    });
+  } catch (e) {
+    console.warn(`writeOwnedFields(${contact.id}) failed (non-fatal):`, e.message);
+  }
+
+  // History note on the contact timeline. Each delivery appends a NEW
+  // note (never overwrites). Gives users a chronological video log
+  // visible in the GHL UI without needing to query our admin API.
+  try {
+    const noteBody = buildVideoHistoryNote(job, channels, formatted);
+    const note = await appendContactNote(env, contact.id, noteBody);
+    await insertVideoEvent(env, {
+      job_id: jobId,
+      contact_id: contact.id,
+      event: "ghl_note_appended",
+      meta: { note_id: note?.note?.id || note?.id || null },
+      created_at: nowIso(),
+    });
+  } catch (e) {
+    console.warn(`appendContactNote(${contact.id}) failed (non-fatal):`, e.message);
+  }
 
   return { jobId, channels, results };
 }
