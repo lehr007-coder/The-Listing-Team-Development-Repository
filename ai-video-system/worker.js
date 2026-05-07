@@ -23,16 +23,22 @@ import devstubRoute from "./routes/devstub.js";
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 
 const ROUTES = [
-  { prefix: "/v1/health",     auth: false, handler: healthRoute },
-  { prefix: "/v1/heygen",     auth: true,  handler: heygenRoute },
-  { prefix: "/v1/fcpxml",     auth: true,  handler: fcpxmlRoute },
-  { prefix: "/v1/delivery",   auth: true,  handler: deliveryRoute },
-  { prefix: "/v1/social",     auth: true,  handler: socialRoute },
-  { prefix: "/v1/admin",      auth: true,  handler: adminRoute },
-  { prefix: "/v1/_dev",       auth: false, handler: devstubRoute },  // gated internally on ENVIRONMENT
-  { prefix: "/v1/analytics",  auth: false, handler: analyticsRoute },
-  { prefix: "/v",             auth: false, handler: hostedRoute },
-  { prefix: "/media",         auth: false, handler: mediaRoute },
+  { prefix: "/v1/health",            auth: false, handler: healthRoute },
+  // Callback paths must be unauthenticated — real HeyGen / FCPXML services
+  // can't know our internal bearer. HMAC signature verification (inside the
+  // handlers) is the actual auth for these paths. Listed BEFORE the parent
+  // /v1/heygen and /v1/fcpxml prefixes so the matcher picks them first.
+  { prefix: "/v1/heygen/callback",   auth: false, handler: heygenRoute },
+  { prefix: "/v1/fcpxml/callback",   auth: false, handler: fcpxmlRoute },
+  { prefix: "/v1/heygen",            auth: true,  handler: heygenRoute },
+  { prefix: "/v1/fcpxml",            auth: true,  handler: fcpxmlRoute },
+  { prefix: "/v1/delivery",          auth: true,  handler: deliveryRoute },
+  { prefix: "/v1/social",            auth: true,  handler: socialRoute },
+  { prefix: "/v1/admin",             auth: true,  handler: adminRoute },
+  { prefix: "/v1/_dev",              auth: false, handler: devstubRoute },  // gated internally on ENVIRONMENT
+  { prefix: "/v1/analytics",         auth: false, handler: analyticsRoute },
+  { prefix: "/v",                    auth: false, handler: hostedRoute },
+  { prefix: "/media",                auth: false, handler: mediaRoute },
 ];
 
 export default {
