@@ -34,20 +34,18 @@ id = "1e513d6498444e9e89af431f2308aba1"
 [triggers]
 crons = ["* * * * *"]
 
-# ── Queue (provision via CLI before first prod deploy) ──
-# Run from a machine with wrangler installed:
+# ── Queue: ai-video-render ──
+# Provision once before first deploy:
 #   npx wrangler@latest queues create ai-video-render
-# Then uncomment the bindings below. Until then, the worker auto-falls-back
-# to ctx.waitUntil inline processing (see lib/queue-producer.js).
-#
-# [[queues.producers]]
-# queue = "ai-video-render"
-# binding = "RENDER_QUEUE"
-#
-# [[queues.consumers]]
-# queue = "ai-video-render"
-# max_batch_size = 10
-# max_batch_timeout = 30
+[[queues.producers]]
+queue = "ai-video-render"
+binding = "RENDER_QUEUE"
+
+[[queues.consumers]]
+queue = "ai-video-render"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
 
 # ── Custom domain for hosted video pages ──
 # Bind in Cloudflare Dashboard:
