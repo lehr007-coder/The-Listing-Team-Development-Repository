@@ -11,6 +11,42 @@ function formatVideoType(t) {
   return String(t || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Substitute {{KEY}} and {KEY} tokens. Used for hosted_url, gif_url,
+// first_name, cta_text, etc. in agent-generated email/sms bodies.
+function applyTemplateVars(text, vars) {
+  if (!text) return text;
+  let out = String(text);
+  for (const [k, v] of Object.entries(vars || {})) {
+    if (v == null) continue;
+    const value = String(v);
+    out = out.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, "g"), value);
+    out = out.replace(new RegExp(`\\{\\s*${k}\\s*\\}`, "g"), value);
+  }
+  return out;
+}
+
+// Append a 1x1 pixel that hits /v1/analytics/open?job=X&src=email when
+// the email is opened in clients that load remote images (Gmail does
+// via its image proxy on first open; many others on user click).
+function injectEmailOpenPixel(html, env, jobId) {
+  if (!html) return html;
+  const pixel =
+    `<img src="${env.BASE_URL}/v1/analytics/open?job=${encodeURIComponent(jobId)}&src=email"` +
+    ` width="1" height="1" alt="" style="display:none;width:1px;height:1px;border:0;opacity:0">`;
+  return html.includes("</body>")
+    ? html.replace("</body>", pixel + "</body>")
+    : html + pixel;
+}
+
+// Wrap a destination URL in our click-tracking redirect so we record
+// /v1/analytics/click?job=X&to=Y when the user clicks. Returns the
+// original URL unchanged if it already points at our analytics path.
+function wrapClickTracking(env, jobId, dest) {
+  if (!dest || typeof dest !== "string") return dest;
+  if (dest.includes(`${env.BASE_URL}/v1/analytics/`)) return dest;
+  return `${env.BASE_URL}/v1/analytics/click?job=${encodeURIComponent(jobId)}&to=${encodeURIComponent(dest)}`;
+}
+
 // Compact, scannable note body. Single multi-line string that renders
 // nicely in the GHL contact-timeline note card.
 function buildVideoHistoryNote(job, channels, formatted) {
@@ -55,19 +91,41 @@ export async function runDelivery(env, jobId) {
 
   const formatted = await invokeAgent(env, "video_delivery", deliveryCtx);
 
+  // Substitute placeholders the agent might have used. Agents are
+  // prompted to use {{HOSTED_URL}} etc. but we can't trust the model
+  // to always do so consistently — substitute defensively.
+  const tplVars = {
+    HOSTED_URL: job.hosted_url,
+    GIF_URL: job.gif_url || "",
+    THUMBNAIL_URL: job.thumbnail_url || "",
+    CTA_TEXT: formatted.cta_text || "Schedule a call",
+    first_name: contact.firstName || "there",
+    last_name: contact.lastName || "",
+    firstName: contact.firstName || "there",
+    AGENT_FIRST_NAME: readField(contact, "agent_first_name") || "",
+    AGENT_BRAND: readField(contact, "agent_brand") || "",
+  };
+
+  const subject  = applyTemplateVars(formatted.email_subject, tplVars);
+  const smsBody  = applyTemplateVars(formatted.sms, tplVars);
+  const noteBody = applyTemplateVars(formatted.conversation_note || formatted.sms, tplVars);
+  // Email: substitute placeholders, then inject the open-tracking pixel
+  const emailHtml = injectEmailOpenPixel(
+    applyTemplateVars(formatted.email_html, tplVars),
+    env, jobId
+  );
+
   const channels = (job.delivery_channels || []).filter(c => PRIVATE_CHANNELS.includes(c));
   const results = {};
 
   for (const ch of channels) {
     try {
       if (ch === "sms" && contact.phone) {
-        results.sms = await sendSms(env, contact.id, formatted.sms, contact.locationId);
+        results.sms = await sendSms(env, contact.id, smsBody, contact.locationId);
       } else if (ch === "email" && contact.email) {
-        results.email = await sendEmail(
-          env, contact.id, formatted.email_subject, formatted.email_html, contact.locationId
-        );
+        results.email = await sendEmail(env, contact.id, subject, emailHtml, contact.locationId);
       } else if (ch === "conversation") {
-        results.conversation = await sendConversationNote(env, contact.id, formatted.conversation_note || formatted.sms);
+        results.conversation = await sendConversationNote(env, contact.id, noteBody);
       }
       await insertVideoEvent(env, {
         job_id: jobId, contact_id: contact.id,
