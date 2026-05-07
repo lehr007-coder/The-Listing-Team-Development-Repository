@@ -72,22 +72,41 @@ EOF
 
 # ── 1. List existing fieldKeys ──
 echo "Fetching existing custom fields..."
-EXISTING=$(curl -sf \
+LIST_RESP=$(curl -s -w "\n__HTTP__%{http_code}" \
   -H "Authorization: Bearer $GHL_V2_TOKEN" \
   -H "Version: 2021-07-28" \
-  "https://services.leadconnectorhq.com/locations/$LOC/customFields" \
-  | python3 -c '
+  "https://services.leadconnectorhq.com/locations/$LOC/customFields")
+LIST_CODE=$(echo "$LIST_RESP" | grep -o "__HTTP__[0-9]*" | sed 's/__HTTP__//')
+LIST_BODY=$(echo "$LIST_RESP" | sed 's/__HTTP__[0-9]*$//')
+
+if [ "$LIST_CODE" != "200" ]; then
+  echo "ERROR: GHL list returned HTTP $LIST_CODE"
+  echo "Response body:"
+  echo "$LIST_BODY"
+  echo
+  echo "Common causes:"
+  echo "  * Token lacks 'View custom fields' scope — re-mint with that scope at"
+  echo "    GHL → Settings → Private Integrations"
+  echo "  * Wrong location_id (decoded: $LOC). Override with GHL_LOCATION_ID=..."
+  echo "  * Token expired or invalid"
+  exit 1
+fi
+
+EXISTING=$(echo "$LIST_BODY" | python3 -c '
 import sys, json
-d = json.load(sys.stdin)
+try:
+    d = json.loads(sys.stdin.read())
+except Exception as e:
+    sys.stderr.write(f"JSON parse failed: {e}\n")
+    sys.exit(1)
 fields = d.get("customFields") or d.get("fields") or []
 for f in fields:
     key = (f.get("fieldKey") or f.get("key") or "").strip()
-    # GHL prefixes most field keys with "contact." — strip it for comparison
     if key.startswith("contact."):
         key = key[len("contact."):]
     if key:
         print(key)
-') || { echo "ERROR: failed to fetch existing fields. Check token + permissions."; exit 1; }
+')
 
 EXISTING_COUNT=$(echo "$EXISTING" | grep -c . || true)
 echo "Found $EXISTING_COUNT existing custom fields on this location."
