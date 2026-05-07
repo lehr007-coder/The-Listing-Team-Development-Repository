@@ -2,6 +2,12 @@ name = "ai-video-system"
 main = "worker.js"
 compatibility_date = "2024-12-01"
 
+# Disable the *.workers.dev preview URL on production. We have custom
+# domains (videos./media.reallistingteam.com) for traffic; the workers.dev
+# URL would expose prod via an unbranded subdomain.
+workers_dev = false
+preview_urls = false
+
 # ── Production worker config ──
 # Secrets are set via `npx wrangler@latest secret put <NAME> --config wrangler.toml`.
 # See README.md / docs/DEPLOYMENT.md for the full secret list.

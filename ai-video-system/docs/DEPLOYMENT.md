@@ -1,5 +1,48 @@
 # Deployment — AI Video Sidecar
 
+> **Status (2026-05-07):** Production deployed at `videos.reallistingteam.com`
+> + `media.reallistingteam.com`. Cron `* * * * *` active. Queue
+> `ai-video-render` provisioned. 10 secrets uploaded. Both GHL workflows
+> (`AI VIDEO — HEYGEN`, `AI VIDEO — FCPXML`) cut over to production URL.
+
+## HeyGen webhook configuration (one-time)
+
+HeyGen's per-request `callback_url` field has been observed to silently
+drop on v2 `/video/generate`. Two options:
+
+1. **Account-level webhook (preferred if HeyGen supports it):** HeyGen →
+   Settings → Webhooks → register
+   `https://videos.reallistingteam.com/v1/heygen/callback` as a global
+   webhook for `avatar_video.success` + `avatar_video.fail` events.
+2. **Cron poll-fallback (already shipped):** `lib/heygen-poll-fallback.js`
+   polls Supabase every minute for stuck-rendering HEYGEN jobs (age 60s
+   → 30min), queries HeyGen status, and dispatches a synthetic callback
+   if HeyGen reports `completed`. This works without any HeyGen
+   account-level config.
+
+The poll-fallback is sufficient for production — webhook registration is
+nice-to-have for sub-minute latency on delivery.
+
+## One-time prod deploy reference
+
+This is what was actually run against the production worker on 2026-05-07:
+
+```sh
+cd ai-video-system
+# 1. Provision the queue (idempotent)
+npx wrangler@latest queues create ai-video-render
+# 2. Bulk-upload secrets via temp JSON file (rotated after deploy)
+npx wrangler@latest secret bulk /tmp/ai-video-prod-secrets.json --config wrangler.toml
+# 3. Deploy
+npx wrangler@latest deploy --config wrangler.toml
+```
+
+After deploy, custom domains were already bound (Cloudflare auto-handles
+when zone is on the same account); confirmed via `/v1/health` returning
+`env: production` on both subdomains.
+
+
+
 ## 1. Prerequisites (one-time)
 
 ### Cloudflare account
