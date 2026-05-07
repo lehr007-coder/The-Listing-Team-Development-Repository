@@ -16,10 +16,12 @@
 
 import { json, error, readJson, newJobId } from "../lib/util.js";
 
+// Public sample MP4. Cloudflare's own well-known sample on test-videos.co.uk
+// is small (1MB), CORS-friendly, and reliably 200s — so when the sidecar
+// post-process pipeline goes to copy it into R2 + Stream, the chain works.
+// If you need to swap, any 200-OK MP4 under ~50MB will do.
 const SAMPLE_MP4 =
-  "https://customer-1ca65muyi8nxyq8u.cloudflarestream.com/4dba5bc6c92b8e0b00ca8e4083a2d6f9/downloads/default.mp4";
-const SAMPLE_MP4_FALLBACK =
-  "https://download.samplelib.com/mp4/sample-5s.mp4";
+  "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4";
 
 export default async function devstubRoute(request, env, ctx, url) {
   if (env.ENVIRONMENT === "production") {
