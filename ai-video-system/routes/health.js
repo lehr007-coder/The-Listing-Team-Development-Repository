@@ -3,7 +3,7 @@ import { json } from "../lib/util.js";
 // Bumped on each git deploy so we can verify CI's bundle reached the edge.
 // If /v1/health doesn't show this build, the dashboard rolled the script
 // back — re-push from git or force-redeploy via wrangler.
-const BUILD_MARKER = "2026-05-07T0215Z-mp4fix-jsonfix-routesfix";
+const BUILD_MARKER = "v3-2026-05-07T0228Z-bindings-restore";
 
 export default async function healthRoute(request, env) {
   return json({
