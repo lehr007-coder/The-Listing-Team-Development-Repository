@@ -60,7 +60,7 @@ function playerHtml(env, job) {
   // video tag streaming straight from R2 if Stream wasn't available.
   const playerEl = job.stream_uid
     ? `<iframe src="${streamIframe(job.stream_uid)}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-    : `<video src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>`;
+    : `<video id="native-player" src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -93,23 +93,61 @@ function playerHtml(env, job) {
   <div class="footer">© ${new Date().getFullYear()} The Listing Team</div>
 </div>
 <script>
-  // Watch-percent heartbeats via postMessage from Stream player
-  window.addEventListener("message", function(e){
+  var JOB_ID = "${job.id}";
+  var ANALYTICS_URL = "${env.BASE_URL}/v1/analytics/event";
+  window.__sent = window.__sent || {};
+
+  function emitMilestone(pct, srcLabel) {
+    var bucket = pct >= 100 ? "watch_100"
+              : pct >= 75  ? "watch_75"
+              : pct >= 50  ? "watch_50"
+              : pct >= 25  ? "watch_25"
+              : null;
+    if (!bucket || window.__sent[bucket]) return;
+    window.__sent[bucket] = 1;
+    fetch(ANALYTICS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: JOB_ID, event: bucket, meta: { player: srcLabel } })
+    });
+  }
+
+  // Path 1: Cloudflare Stream iframe — postMessage timeupdate / ended
+  window.addEventListener("message", function(e) {
     try {
       var d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
       if (!d || !d.event) return;
       if (d.event === "ended" || d.event === "timeupdate") {
         var pct = d.event === "ended" ? 100 : Math.floor((d.currentTime / d.duration) * 100);
-        var bucket = pct >= 100 ? "watch_100" : pct >= 75 ? "watch_75" : pct >= 50 ? "watch_50" : pct >= 25 ? "watch_25" : null;
-        if (!bucket) return;
-        if (window.__sent && window.__sent[bucket]) return;
-        window.__sent = window.__sent || {}; window.__sent[bucket] = 1;
-        fetch("${env.BASE_URL}/v1/analytics/event", {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ job_id: "${job.id}", event: bucket })
+        emitMilestone(pct, "stream");
+      }
+    } catch (_) {}
+  });
+
+  // Path 2: native HTML5 <video> fallback — same milestones via DOM events.
+  // Fires only when the page rendered the <video> tag (no stream_uid).
+  document.addEventListener("DOMContentLoaded", function() {
+    var v = document.getElementById("native-player");
+    if (!v) return;
+    var rewatchFired = false;
+    v.addEventListener("timeupdate", function() {
+      if (!v.duration || isNaN(v.duration)) return;
+      var pct = Math.floor((v.currentTime / v.duration) * 100);
+      emitMilestone(pct, "native");
+    });
+    v.addEventListener("ended", function() {
+      emitMilestone(100, "native");
+    });
+    v.addEventListener("play", function() {
+      if (window.__sent.watch_100 && !rewatchFired) {
+        rewatchFired = true;
+        fetch(ANALYTICS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ job_id: JOB_ID, event: "rewatch", meta: { player: "native" } })
         });
       }
-    } catch(_){}
+    });
   });
 </script>
 </body>

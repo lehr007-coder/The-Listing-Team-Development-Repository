@@ -39,12 +39,16 @@ function injectEmailOpenPixel(html, env, jobId) {
 }
 
 // Wrap a destination URL in our click-tracking redirect so we record
-// /v1/analytics/click?job=X&to=Y when the user clicks. Returns the
-// original URL unchanged if it already points at our analytics path.
-function wrapClickTracking(env, jobId, dest) {
+// /v1/analytics/click?job=X&to=Y when the user clicks. The src param
+// distinguishes click sources (email vs sms vs conversation) so per-
+// channel CTR is queryable. Returns the original URL unchanged if it
+// already points at our analytics path.
+function wrapClickTracking(env, jobId, dest, src) {
   if (!dest || typeof dest !== "string") return dest;
   if (dest.includes(`${env.BASE_URL}/v1/analytics/`)) return dest;
-  return `${env.BASE_URL}/v1/analytics/click?job=${encodeURIComponent(jobId)}&to=${encodeURIComponent(dest)}`;
+  const params = `job=${encodeURIComponent(jobId)}&to=${encodeURIComponent(dest)}` +
+                 (src ? `&src=${encodeURIComponent(src)}` : "");
+  return `${env.BASE_URL}/v1/analytics/click?${params}`;
 }
 
 // Compact, scannable note body. Single multi-line string that renders
@@ -91,27 +95,34 @@ export async function runDelivery(env, jobId) {
 
   const formatted = await invokeAgent(env, "video_delivery", deliveryCtx);
 
-  // Substitute placeholders the agent might have used. Agents are
-  // prompted to use {{HOSTED_URL}} etc. but we can't trust the model
-  // to always do so consistently — substitute defensively.
-  const tplVars = {
-    HOSTED_URL: job.hosted_url,
-    GIF_URL: job.gif_url || "",
-    THUMBNAIL_URL: job.thumbnail_url || "",
-    CTA_TEXT: formatted.cta_text || "Schedule a call",
-    first_name: contact.firstName || "there",
-    last_name: contact.lastName || "",
-    firstName: contact.firstName || "there",
-    AGENT_FIRST_NAME: readField(contact, "agent_first_name") || "",
-    AGENT_BRAND: readField(contact, "agent_brand") || "",
-  };
+  // Per-channel template vars — HOSTED_URL is wrapped in our click-
+  // tracking redirect with a different `src` per channel. Lets us
+  // measure email click-through-rate separately from SMS click-through
+  // and from in-page CTA clicks.
+  function tplVarsFor(channel) {
+    return {
+      HOSTED_URL: wrapClickTracking(env, jobId, job.hosted_url, channel),
+      // GIF_URL stays as-is (it's an image src, not a click target).
+      GIF_URL: job.gif_url || "",
+      THUMBNAIL_URL: job.thumbnail_url || "",
+      CTA_TEXT: formatted.cta_text || "Schedule a call",
+      first_name: contact.firstName || "there",
+      last_name: contact.lastName || "",
+      firstName: contact.firstName || "there",
+      AGENT_FIRST_NAME: readField(contact, "agent_first_name") || "",
+      AGENT_BRAND: readField(contact, "agent_brand") || "",
+    };
+  }
 
-  const subject  = applyTemplateVars(formatted.email_subject, tplVars);
-  const smsBody  = applyTemplateVars(formatted.sms, tplVars);
-  const noteBody = applyTemplateVars(formatted.conversation_note || formatted.sms, tplVars);
-  // Email: substitute placeholders, then inject the open-tracking pixel
+  const emailVars = tplVarsFor("email");
+  const smsVars   = tplVarsFor("sms");
+  const noteVars  = tplVarsFor("conversation");
+
+  const subject  = applyTemplateVars(formatted.email_subject, emailVars);
+  const smsBody  = applyTemplateVars(formatted.sms, smsVars);
+  const noteBody = applyTemplateVars(formatted.conversation_note || formatted.sms, noteVars);
   const emailHtml = injectEmailOpenPixel(
-    applyTemplateVars(formatted.email_html, tplVars),
+    applyTemplateVars(formatted.email_html, emailVars),
     env, jobId
   );
 
