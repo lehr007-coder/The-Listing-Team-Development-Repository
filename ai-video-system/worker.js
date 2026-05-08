@@ -19,6 +19,7 @@ import hostedRoute from "./routes/hosted.js";
 import mediaRoute from "./routes/media.js";
 import adminRoute from "./routes/admin.js";
 import devstubRoute from "./routes/devstub.js";
+import dashboardRoute from "./routes/dashboard.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
@@ -38,6 +39,12 @@ const ROUTES = [
   { prefix: "/v1/admin",             auth: true,  handler: adminRoute },
   { prefix: "/v1/_dev",              auth: false, handler: devstubRoute },  // gated internally on ENVIRONMENT
   { prefix: "/v1/analytics",         auth: false, handler: analyticsRoute },
+  // /admin serves an HTML dashboard. Page itself is unauthenticated
+  // (anyone can load the HTML); every fetch from the page sends the
+  // X-API-Key header against the /v1/admin/* JSON endpoints which DO
+  // require auth. Dashboard prompts for the key and stores in
+  // localStorage so users only enter it once per browser.
+  { prefix: "/admin",                auth: false, handler: dashboardRoute },
   { prefix: "/v",                    auth: false, handler: hostedRoute },
   { prefix: "/media",                auth: false, handler: mediaRoute },
 ];
