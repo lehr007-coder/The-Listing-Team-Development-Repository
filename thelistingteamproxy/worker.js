@@ -21375,6 +21375,35 @@ var index_default = {
       }
     }
     __name(verifyWebhookSignature, "verifyWebhookSignature");
+    if (method === "POST" && path === "/api/webhooks/ghl/hot-lead-alert") {
+      const rawBody = await request.text();
+      let payload = {};
+      try { payload = JSON.parse(rawBody); } catch {}
+      console.log("\u{1F525} HOT lead alert:", JSON.stringify(payload).slice(0, 500));
+      const respond = json({ received: true, alert: payload.alert_type || "hot_lead_qualified" });
+      const work = /* @__PURE__ */ __name2(async () => {
+        try {
+          broadcastSSE({
+            type: "hot.lead.alert",
+            contactId: payload.contact_id || payload.contactId || payload.id || null,
+            email: payload.email || payload.contact_email || null,
+            name: payload.name || payload.full_name || ((payload.first_name || payload.firstName || "") + " " + (payload.last_name || payload.lastName || "")).trim() || null,
+            phone: payload.phone || null,
+            alertType: payload.alert_type || "hot_lead_qualified",
+            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+            raw: payload
+          });
+        } catch (e) {
+          console.warn("HOT lead alert SSE broadcast failed:", e.message || e);
+        }
+      }, "hotLeadAlertWork");
+      if (ctx && typeof ctx.waitUntil === "function") {
+        ctx.waitUntil(work());
+      } else {
+        work();
+      }
+      return respond;
+    }
     if (method === "POST" && (path === "/ylopo-webhook" || path === "/api/webhooks/ghl/ylopo-intelligence")) {
       const rawBody = await request.text();
       if (env.WEBHOOK_SECRET && !await verifyWebhookSignature(rawBody, request, env)) {
