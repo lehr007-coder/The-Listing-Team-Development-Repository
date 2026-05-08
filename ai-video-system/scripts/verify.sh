@@ -107,6 +107,52 @@ check "/v1/analytics/click redirects 302" \
       '^302$'
 echo
 
+# 6. Cost guardrails (KV-backed; cheap)
+echo "6. Cost guardrails"
+if [ -z "${KEY:-}" ]; then
+  note "PROXY_API_KEY not set — skipping rate-limits / kill-switch checks"
+else
+  check "/v1/admin/rate-limits returns daily counters" \
+        "curl -sf -H 'X-API-Key: $KEY' '$BASE_URL/v1/admin/rate-limits'" \
+        '"global":'
+  check "/v1/admin/kill returns kill-switch state" \
+        "curl -sf -H 'X-API-Key: $KEY' '$BASE_URL/v1/admin/kill'" \
+        '"killed":\s*(true|false)'
+fi
+echo
+
+# 7. Reporting endpoints (Supabase-backed; should return shape even if empty)
+echo "7. Reporting endpoints"
+if [ -z "${KEY:-}" ]; then
+  note "PROXY_API_KEY not set — skipping daily-summary / contacts/top checks"
+else
+  check "/v1/admin/daily-summary returns window + jobs" \
+        "curl -sf -H 'X-API-Key: $KEY' '$BASE_URL/v1/admin/daily-summary?days=7'" \
+        '"window":'
+  check "/v1/admin/contacts/top returns leaderboard shape" \
+        "curl -sf -H 'X-API-Key: $KEY' '$BASE_URL/v1/admin/contacts/top?limit=5'" \
+        '"contacts":\s*\['
+fi
+echo
+
+# 8. Dashboard HTML (unauthenticated; calls to /v1/admin/* require key from page)
+echo "8. Admin dashboard"
+check "/admin returns HTML page" \
+      "curl -sf '$BASE_URL/admin'" \
+      '<!doctype html>'
+echo
+
+# 9. Agent-test endpoint (zero render cost — just LLM call)
+echo "9. Agent-test endpoint"
+if [ -z "${KEY:-}" ]; then
+  note "PROXY_API_KEY not set — skipping agent-test discovery"
+else
+  check "GET /v1/admin/agents/test lists samples" \
+        "curl -sf -H 'X-API-Key: $KEY' '$BASE_URL/v1/admin/agents/test'" \
+        '"available_agents":'
+fi
+echo
+
 # Summary
 echo "─────────────────────────────"
 printf "  %s ok   %s warn   %s fail\n" \

@@ -5,16 +5,26 @@
 //   GET    /v1/admin/jobs/:id
 //   GET    /v1/admin/jobs/:id/events
 //   POST   /v1/admin/jobs/:id/fail        { "reason": "..." }
+//   POST   /v1/admin/jobs/:id/reprocess   { "url": "<mp4 url>" }
 //   GET    /v1/admin/health-deep            → /v1/health + active job counters
 //
 //   GET    /v1/admin/kill                   → current kill-switch state
 //   POST   /v1/admin/kill                   → activate kill-switch (paused)
 //   DELETE /v1/admin/kill                   → clear kill-switch (resume)
+//
+//   GET    /v1/admin/rate-limits            → live KV counters vs caps
+//   GET    /v1/admin/daily-summary?days=N   → 24h (or N-day) rollup
+//   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
+//   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
+//
+//   POST   /v1/admin/agents/test            → invoke an agent with a sample
+//                                             context; NO HeyGen credit spent.
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { rateLimitState } from "../lib/rate-limit.js";
+import { invokeAgent } from "../lib/agents.js";
 
 function sbHeaders(env) {
   return {
@@ -44,6 +54,18 @@ export default async function adminRoute(request, env, ctx, url) {
   // ── Manual reprocess (force the post-render pipeline to run with given URL) ──
   if (method === "POST" && path.match(/^\/jobs\/[^/]+\/reprocess$/)) {
     return jobReprocess(env, ctx, path.split("/")[2], request);
+  }
+
+  // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
+  if (method === "POST" && path === "/agents/test") {
+    return agentsTest(env, request);
+  }
+  if (method === "GET" && path === "/agents/test") {
+    return json({
+      hint: "POST { agent: 'heygen_script' | 'fcpxml_director' | 'video_delivery' | 'social_content', context?: {...}, sample?: 'default' }",
+      available_agents: ["heygen_script", "fcpxml_director", "video_delivery", "social_content"],
+      samples: Object.keys(AGENT_SAMPLES),
+    });
   }
 
   if (method !== "GET") return error(405, "method_not_allowed");
@@ -364,6 +386,113 @@ async function killSet(request, env) {
 async function killClear(env) {
   const result = await setKillSwitch(env, false);
   return json({ ok: true, ...result });
+}
+
+// Synthetic contexts used by /v1/admin/agents/test when the caller doesn't
+// supply one. Mirrors the shapes the real pipeline passes in production so
+// you can iterate on prompt / model changes without burning HeyGen credits.
+const AGENT_SAMPLES = {
+  heygen_script: {
+    contact: {
+      first_name: "Maria",
+      last_name: "Hernandez",
+      email: "maria@example.com",
+      phone: "+15551234567",
+    },
+    lead_intelligence: {
+      lead_score: 78,
+      ylopo_last_event: "viewed_listing_3x",
+      property_interest: "single_family_$450k_$600k",
+      neighborhood: "Coral Gables, FL",
+      days_in_pipeline: 12,
+    },
+    listing: {
+      address: "123 Sunset Blvd, Coral Gables, FL",
+      list_price: 575000,
+      beds: 4,
+      baths: 3,
+      sqft: 2400,
+    },
+    agent_first_name: "Scott",
+    agent_brand: "The Listing Team",
+    video_type: "new_listing_match",
+  },
+  fcpxml_director: {
+    listing: {
+      address: "123 Sunset Blvd, Coral Gables, FL",
+      list_price: 575000,
+      beds: 4,
+      baths: 3,
+      sqft: 2400,
+      photos: [
+        "https://example.com/photo1.jpg",
+        "https://example.com/photo2.jpg",
+        "https://example.com/photo3.jpg",
+      ],
+    },
+    agent_brand: "The Listing Team",
+    target_platforms: ["tiktok", "instagram_reels", "youtube_shorts"],
+  },
+  video_delivery: {
+    job_id: "vj_test_sample",
+    video_type: "new_listing_match",
+    hosted_url: "https://videos.reallistingteam.com/v/vj_test_sample",
+    gif_url: "https://media.reallistingteam.com/v/vj_test_sample.gif",
+    thumbnail_url: "https://media.reallistingteam.com/v/vj_test_sample.jpg",
+    contact: {
+      first_name: "Maria",
+      last_name: "Hernandez",
+      email: "maria@example.com",
+      phone: "+15551234567",
+    },
+    cta_url_token: "https://videos.reallistingteam.com/v/vj_test_sample",
+    agent_first_name: "Scott",
+    agent_brand: "The Listing Team",
+    script: "Hi Maria, I just found a beautiful 4-bed in Coral Gables...",
+  },
+  social_content: {
+    listing: {
+      address: "123 Sunset Blvd, Coral Gables, FL",
+      list_price: 575000,
+      beds: 4,
+      baths: 3,
+    },
+    video_url: "https://videos.reallistingteam.com/v/vj_test_sample",
+    agent_brand: "The Listing Team",
+  },
+};
+
+async function agentsTest(env, request) {
+  const { body } = await readJson(request);
+  const agent = body?.agent;
+  if (!agent || !AGENT_SAMPLES[agent]) {
+    return error(400, "invalid_agent",
+      `agent must be one of: ${Object.keys(AGENT_SAMPLES).join(", ")}`);
+  }
+  const context = body?.context || AGENT_SAMPLES[agent];
+  const startedAt = Date.now();
+  try {
+    const output = await invokeAgent(env, agent, context);
+    const latency_ms = Date.now() - startedAt;
+    return json({
+      ok: true,
+      agent,
+      provider: env[`AGENT_${agent.toUpperCase()}_URL`]
+        ? "agent_studio"
+        : (env.AGENT_FALLBACK_PROVIDER || "anthropic"),
+      latency_ms,
+      context_used: context,
+      output,
+    });
+  } catch (e) {
+    return json({
+      ok: false,
+      agent,
+      error: e.message,
+      context_used: context,
+      latency_ms: Date.now() - startedAt,
+    }, 502);
+  }
 }
 
 async function healthDeep(env) {

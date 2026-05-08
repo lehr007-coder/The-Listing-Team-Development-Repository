@@ -44,25 +44,62 @@ Two pipelines, one worker:
 ## Top-level routes
 
 ```
+# Public
 GET  /v1/health                       Service + binding status
-POST /v1/heygen/render                Trigger personalized avatar video
-POST /v1/heygen/callback              HeyGen → us
-GET  /v1/heygen/jobs/:id              Inspect job
-POST /v1/fcpxml/render                Trigger cinematic reel
-POST /v1/fcpxml/callback              FCPXML MCP → us
-GET  /v1/fcpxml/jobs/:id              Inspect job
-POST /v1/delivery/send                Manual delivery re-run for a private job
-POST /v1/social/publish               Manual social distribution
 GET  /v1/analytics/open?job=<id>      1x1 GIF open pixel
-GET  /v1/analytics/click?job=<id>&to= 302 redirect + click event
-POST /v1/analytics/event              Generic event ingest
+GET  /v1/analytics/click?job=<id>&to= 302 redirect + click event (src= optional)
+POST /v1/analytics/event              Generic event ingest (watch milestones)
 GET  /v/:jobId                        Public hosted player page
 GET  /media/{v|p}/<key>               R2 passthrough
+GET  /admin                           HTML dashboard (auth via in-page X-API-Key)
+
+# Render pipelines (auth)
+POST /v1/heygen/render                Trigger personalized avatar video
+POST /v1/heygen/callback              HeyGen → us (HMAC, no key)
+POST /v1/fcpxml/render                Trigger cinematic reel
+POST /v1/fcpxml/callback              FCPXML MCP → us (HMAC, no key)
+POST /v1/delivery/send                Manual delivery re-run for a private job
+POST /v1/social/publish               Manual social distribution
+
+# Admin / observability (auth)
+GET    /v1/admin/jobs                 List jobs (?contact_id, ?status, ?render_engine)
+GET    /v1/admin/jobs/:id             Inspect job
+GET    /v1/admin/jobs/:id/events      All events for a job
+GET    /v1/admin/jobs/:id/tracking    Aggregated engagement summary
+POST   /v1/admin/jobs/:id/fail        Manually fail a stuck job
+POST   /v1/admin/jobs/:id/reprocess   Force re-run post-render with given URL
+GET    /v1/admin/contacts/:id/videos  All videos for a contact
+GET    /v1/admin/contacts/top         Engagement leaderboard
+GET    /v1/admin/daily-summary        24h (or N-day) rollup w/ CTR per channel
+GET    /v1/admin/health-deep          /v1/health + Supabase counters
+GET    /v1/admin/rate-limits          KV-backed daily counters vs caps
+GET    /v1/admin/kill                 Kill-switch state
+POST   /v1/admin/kill                 Activate kill-switch (paused)
+DELETE /v1/admin/kill                 Clear kill-switch (resume)
+POST   /v1/admin/agents/test          Invoke an agent (no HeyGen credit spent)
 ```
 
 All `/v1/*` routes (except `/v1/health` and `/v1/analytics`) require
 `X-API-Key: <PROXY_API_KEY>`. Callback routes additionally HMAC-verify
 when `HEYGEN_CALLBACK_SECRET` / `FCPXML_CALLBACK_SECRET` are set.
+
+## Cost guardrails
+
+Two soft caps + an instant kill-switch — all KV-backed, no redeploy
+needed to flip them.
+
+| Control | Default | How to change |
+|---|---|---|
+| `DAILY_RENDER_LIMIT`     (global)      | `100` | env var in `wrangler.toml`, redeploy |
+| `PER_CONTACT_DAILY_LIMIT` (per contact) | `3`   | env var in `wrangler.toml`, redeploy |
+| Kill-switch              (instant pause) | off   | `POST /v1/admin/kill { reason }` |
+
+## Aspect ratio
+
+Defaults to **9:16 vertical** (mobile, SMS, social). Auto-switches to
+**16:9 horizontal** if the render is email-only. Override with
+`overrides.aspect: "9:16" | "16:9" | "1:1" | "4:5"` in the render
+payload.
 
 ## Local dev
 
@@ -73,9 +110,25 @@ npx wrangler dev --config wrangler.staging.toml
 
 `.dev.vars` (gitignored) for local secrets — see `docs/DEPLOYMENT.md`.
 
+## Smoke test
+
+```sh
+PROXY_API_KEY=xxx BASE_URL=https://videos.reallistingteam.com \
+  ./scripts/verify.sh
+```
+
+Covers health + bindings, auth, hosted player, tracking pixel, click
+redirect, rate-limits, kill-switch, daily-summary, contacts/top,
+admin dashboard HTML, and agent-test discovery. Zero render cost.
+
 ## Deploy
 
-Pushes to `main` or `claude/**` trigger the new staging workflow at
-`.github/workflows/deploy-ai-video-staging.yml`. Production deploy is
-manual via `wrangler deploy --config wrangler.toml` from inside
-`ai-video-system/`.
+CI auto-deploys on push to `main` or `claude/**` →
+`.github/workflows/deploy-ai-video-staging.yml` runs staging then
+production sequentially. Manual deploy:
+
+```sh
+cd ai-video-system
+npx wrangler deploy --config wrangler.staging.toml   # staging
+npx wrangler deploy --config wrangler.toml           # prod
+```

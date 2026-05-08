@@ -57,8 +57,39 @@ HeyGen ─┐                                     ┌─ FCPXML MCP
 
 ```
 SMS / email link →  https://videos.reallistingteam.com/v/<jobId>
-                    ─ HTML page with Cloudflare Stream iframe (autoplay)
-                    ─ <img> open pixel → /v1/analytics/open
-                    ─ Watch heartbeats → /v1/analytics/event (postMessage)
-                    ─ CTA button → /v1/analytics/click?to=<dest>  → 302
+                    ─ HTML page renders one of:
+                       • Cloudflare Stream iframe (if stream_uid set)
+                       • Native HTML5 <video> from R2 (fallback)
+                    ─ <img> open pixel       → /v1/analytics/open
+                    ─ Watch heartbeats:
+                       • Stream:  postMessage → /v1/analytics/event
+                       • Native:  DOM events  → /v1/analytics/event
+                    ─ CTA button → /v1/analytics/click?to=<dest>&src=...
+                                                                 → 302
 ```
+
+Watch milestones (`watch_25` / `watch_50` / `watch_75` / `watch_100`)
+are deduped per page-load via `window.__sent` so a viewer can't inflate
+their own count by scrubbing. A `play` after `watch_100` fires a
+`rewatch` event.
+
+## D. Aspect-ratio defaults
+
+| Channel mix | Default aspect | Why |
+|---|---|---|
+| includes SMS / conversation | 9:16 vertical | Mobile-first, social-native |
+| email-only render           | 16:9 horizontal | Renders bigger inline in mail clients |
+
+Override with `overrides.aspect: "9:16" | "16:9" | "1:1" | "4:5"` in
+the render payload. The hosted player picks `max-width: 480px` for
+vertical, `720px` for horizontal.
+
+## E. Cost guardrails (operational)
+
+| Surface | Trigger | Behavior |
+|---|---|---|
+| Global daily cap (`DAILY_RENDER_LIMIT`)         | Reached on render | 429 from `/v1/heygen/render` and `/v1/fcpxml/render` |
+| Per-contact daily cap (`PER_CONTACT_DAILY_LIMIT`) | Reached for one contact | 429, only that contact blocked |
+| Kill-switch (`/v1/admin/kill`)                   | POSTed | All renders 429 instantly, no redeploy |
+
+State viewable at `/v1/admin/rate-limits` and `/admin` dashboard.

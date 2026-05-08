@@ -1,5 +1,33 @@
 # Testing checklist — AI Video Sidecar
 
+## Quickest smoke test (zero render cost)
+
+```sh
+PROXY_API_KEY=xxx BASE_URL=https://videos.reallistingteam.com \
+  ./scripts/verify.sh
+```
+
+Covers all 9 read-only sections — health, auth, hosted page, tracking
+pixel, click redirect, rate-limits, kill-switch, daily-summary,
+contacts/top, admin dashboard, and agent-test discovery. Exits 0 on
+green. Use this on every deploy.
+
+## Iterating on agent prompts (zero render cost)
+
+```sh
+curl -sf -X POST -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"agent":"video_delivery"}' \
+  "$BASE_URL/v1/admin/agents/test" | jq
+```
+
+Runs `invokeAgent()` with a built-in synthetic context (or supply your
+own via `{ "context": {...} }`). Returns the parsed JSON output, the
+provider used (Agent Studio or Anthropic/OpenAI fallback), and the
+latency. Useful for tuning prompt edits in `agents/*.md` without
+burning HeyGen credits or sending real GHL messages. Available agents:
+`heygen_script`, `fcpxml_director`, `video_delivery`, `social_content`.
+
 ## Unit-level smoke (manual via curl)
 
 - [ ] `GET /v1/health` returns `ok:true` with all bindings + upstreams `true`.

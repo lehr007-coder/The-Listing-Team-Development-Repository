@@ -127,29 +127,79 @@ cd ai-video-system
 npx wrangler@latest deploy --config wrangler.staging.toml
 ```
 
-### Production (manual)
+### Production (auto)
+
+Same workflow runs the production job sequentially after staging
+succeeds. Manual fallback:
 
 ```sh
 cd ai-video-system
 npx wrangler@latest deploy --config wrangler.toml
 ```
 
-(Or extend `.github/workflows/deploy-production.yml` with a job mirror —
-left as a follow-up to keep this PR additive.)
-
 ## 4. Smoke test
+
+The full read-only suite (zero render cost) lives in `scripts/verify.sh`:
+
+```sh
+PROXY_API_KEY=xxx BASE_URL=https://videos.reallistingteam.com \
+  ./scripts/verify.sh
+```
+
+Or hit individual endpoints:
 
 ```sh
 # health
-curl -s https://ai-video-system-staging.lehr007.workers.dev/v1/health | jq
+curl -s https://videos.reallistingteam.com/v1/health | jq
 
-# heygen render (use a known test contact_id)
-curl -s -X POST https://ai-video-system-staging.lehr007.workers.dev/v1/heygen/render \
-  -H "X-API-Key: $PROXY_API_KEY" -H "Content-Type: application/json" \
-  -d '{"contact_id":"<TEST>","video_type":"lead_nurture","trigger_reason":"smoke","delivery_channels":["email"]}'
+# rate-limits + kill-switch state
+curl -sf -H "X-API-Key: $KEY" https://videos.reallistingteam.com/v1/admin/rate-limits | jq
+curl -sf -H "X-API-Key: $KEY" https://videos.reallistingteam.com/v1/admin/kill | jq
 
-# fcpxml render
-curl -s -X POST https://ai-video-system-staging.lehr007.workers.dev/v1/fcpxml/render \
-  -H "X-API-Key: $PROXY_API_KEY" -H "Content-Type: application/json" \
-  -d '{"video_type":"market_update","trigger_reason":"smoke","distribution":"social","social_targets":["instagram_reels"]}'
+# 24h rollup
+curl -sf -H "X-API-Key: $KEY" "https://videos.reallistingteam.com/v1/admin/daily-summary?days=1" | jq
+
+# Iterate on agent prompts without burning HeyGen credits
+curl -sf -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"agent":"video_delivery"}' \
+  https://videos.reallistingteam.com/v1/admin/agents/test | jq
 ```
+
+Trigger a real render only after the read-only suite is green:
+
+```sh
+curl -s -X POST https://videos.reallistingteam.com/v1/heygen/render \
+  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"contact_id":"<TEST>","video_type":"lead_nurture","trigger_reason":"smoke","delivery_channels":["email"]}'
+```
+
+## 5. Cost guardrails (operational)
+
+Two soft caps + an instant kill-switch, all KV-backed (no redeploy
+needed to flip the kill).
+
+```sh
+# Pause everything immediately (returns 429 from /v1/heygen/render)
+curl -sf -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"reason":"investigating runaway loop","set_by":"scott"}' \
+  https://videos.reallistingteam.com/v1/admin/kill
+
+# Resume
+curl -sf -X DELETE -H "X-API-Key: $KEY" \
+  https://videos.reallistingteam.com/v1/admin/kill
+```
+
+Daily caps live in `wrangler.toml` `[vars]` — tune and redeploy:
+
+```toml
+DAILY_RENDER_LIMIT = "100"
+PER_CONTACT_DAILY_LIMIT = "3"
+```
+
+## 6. Dashboard
+
+`https://videos.reallistingteam.com/admin` — single-page HTML. Asks
+for `PROXY_API_KEY` once, stores in `localStorage`, refreshes every
+30s. Shows daily counts, rate-limit usage, kill-switch toggle, CTR
+per channel, watch funnel, top-engagement leaderboard, and recent
+jobs (click for detail).
