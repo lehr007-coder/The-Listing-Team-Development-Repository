@@ -54,6 +54,8 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path.match(/^\/jobs\/[^/]+$/))             return jobDetail(env, path.split("/")[2]);
   if (path === "/health-deep")                   return healthDeep(env);
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
+  if (path === "/daily-summary")                 return dailySummary(env, url);
+  if (path === "/contacts/top")                  return topContacts(env, url);
   if (path.match(/^\/contacts\/[^/]+\/videos$/)) return contactVideos(env, path.split("/")[2]);
 
   return error(404, "not_found", `No admin route: ${method} ${path}`);
@@ -179,6 +181,130 @@ async function jobTracking(env, jobId) {
     },
     timeline: events,
   });
+}
+
+async function dailySummary(env, url) {
+  const days = Math.min(parseInt(url.searchParams.get("days") || "1", 10) || 1, 30);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const [jobsR, eventsR] = await Promise.all([
+    fetch(
+      `${env.SUPABASE_URL}/rest/v1/video_jobs` +
+      `?created_at=gte.${encodeURIComponent(since)}` +
+      `&select=id,status,render_engine,delivery_channels,engagement_score` +
+      `&limit=2000`,
+      { headers: sbHeaders(env) }
+    ),
+    fetch(
+      `${env.SUPABASE_URL}/rest/v1/video_events` +
+      `?created_at=gte.${encodeURIComponent(since)}` +
+      `&select=event,meta&limit=5000`,
+      { headers: sbHeaders(env) }
+    ),
+  ]);
+  if (!jobsR.ok || !eventsR.ok) return error(502, "supabase_error");
+
+  const jobs   = await jobsR.json();
+  const events = await eventsR.json();
+
+  const byStatus = {};
+  const byEngine = {};
+  let totalEngagement = 0;
+  for (const j of jobs) {
+    byStatus[j.status] = (byStatus[j.status] || 0) + 1;
+    byEngine[j.render_engine] = (byEngine[j.render_engine] || 0) + 1;
+    totalEngagement += (j.engagement_score || 0);
+  }
+
+  const eventCounts = {};
+  const opensBySrc = {};
+  const clicksBySrc = {};
+  for (const e of events) {
+    eventCounts[e.event] = (eventCounts[e.event] || 0) + 1;
+    const src = e.meta?.src;
+    if (src) {
+      if (e.event === "open")  opensBySrc[src]  = (opensBySrc[src]  || 0) + 1;
+      if (e.event === "click") clicksBySrc[src] = (clicksBySrc[src] || 0) + 1;
+    }
+  }
+
+  const ctr = {};
+  for (const ch of ["email", "sms", "conversation"]) {
+    const sent   = eventCounts[`sent_${ch}`] || 0;
+    const clicks = clicksBySrc[ch] || 0;
+    ctr[ch] = {
+      sent,
+      clicks,
+      ctr_pct: sent > 0 ? +(clicks / sent * 100).toFixed(1) : null,
+    };
+  }
+
+  // Watch funnel — clamp by max bucket reached (so 75 implies the user
+  // also crossed 25 and 50)
+  const w25  = eventCounts.watch_25  || 0;
+  const w50  = eventCounts.watch_50  || 0;
+  const w75  = eventCounts.watch_75  || 0;
+  const w100 = eventCounts.watch_100 || 0;
+
+  return json({
+    window: { days, since, until: new Date().toISOString() },
+    jobs: {
+      total: jobs.length,
+      by_status: byStatus,
+      by_engine: byEngine,
+      total_engagement: totalEngagement,
+    },
+    events: { total: events.length, counts: eventCounts },
+    ctr_by_channel: ctr,
+    opens_by_src: opensBySrc,
+    clicks_by_src: clicksBySrc,
+    watch_funnel: { "25": w25, "50": w50, "75": w75, "100": w100 },
+    delivery_rate_pct: jobs.length > 0
+      ? +((byStatus.delivered || 0) / jobs.length * 100).toFixed(1)
+      : null,
+  });
+}
+
+async function topContacts(env, url) {
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10) || 10, 50);
+  const r = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
+    `?contact_id=not.is.null` +
+    `&select=contact_id,status,engagement_score,created_at` +
+    `&order=created_at.desc&limit=2000`,
+    { headers: sbHeaders(env) }
+  );
+  if (!r.ok) return error(502, "supabase_error");
+  const jobs = await r.json();
+
+  const byContact = {};
+  for (const j of jobs) {
+    if (!j.contact_id) continue;
+    const c = byContact[j.contact_id] = byContact[j.contact_id] || {
+      contact_id: j.contact_id,
+      total_videos: 0,
+      delivered: 0,
+      failed: 0,
+      total_engagement: 0,
+      last_render_at: null,
+    };
+    c.total_videos++;
+    if (j.status === "delivered") c.delivered++;
+    if (j.status === "failed")    c.failed++;
+    c.total_engagement += (j.engagement_score || 0);
+    if (!c.last_render_at || j.created_at > c.last_render_at) {
+      c.last_render_at = j.created_at;
+    }
+  }
+
+  const top = Object.values(byContact)
+    .sort((a, b) =>
+      (b.total_engagement - a.total_engagement) ||
+      (b.total_videos     - a.total_videos)
+    )
+    .slice(0, limit);
+
+  return json({ count: top.length, contacts: top });
 }
 
 async function contactVideos(env, contactId) {

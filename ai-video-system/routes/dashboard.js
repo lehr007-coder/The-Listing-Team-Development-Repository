@@ -74,6 +74,18 @@ const DASHBOARD_HTML = `<!doctype html>
   details { padding:0 16px 12px; }
   details summary { cursor:pointer; padding:8px 0; color:var(--muted); }
   .empty { padding:24px 16px; color:var(--muted); text-align:center; }
+  .ctr-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:14px 16px; }
+  .ctr-cell { background:#000; border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .ctr-cell .ch { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .ctr-cell .pct { font-size:24px; font-weight:600; margin:4px 0; }
+  .ctr-cell .pct.high { color:var(--ok); }
+  .ctr-cell .pct.zero { color:var(--muted); }
+  .ctr-cell .ratio { color:var(--muted); font-size:11px; }
+  .funnel { display:flex; gap:6px; padding:0 16px 14px; }
+  .funnel-bar { flex:1; background:#000; border:1px solid var(--line); border-radius:6px; padding:8px 10px; text-align:center; }
+  .funnel-bar .pct { color:var(--muted); font-size:11px; }
+  .funnel-bar .count { font-size:20px; font-weight:600; }
+  .funnel-bar .bar { height:4px; background:var(--accent); margin-top:6px; border-radius:2px; transition:width .3s; }
 </style>
 </head>
 <body>
@@ -95,6 +107,20 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-rl-contacts"><div class="label">Contacts today</div><div class="value">…</div></div>
     <div class="card" id="card-killswitch"><div class="label">Kill switch</div><div class="value">…</div></div>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
+  </div>
+
+  <div class="panel" id="ctr-panel">
+    <h2>24-hour summary · CTR by channel</h2>
+    <div id="ctr-body" class="empty">Loading…</div>
+    <div id="watch-funnel"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Top contacts by engagement</h2>
+    <table id="top-contacts-table">
+      <thead><tr><th>Contact</th><th>Videos</th><th>Delivered</th><th>Failed</th><th>Engagement</th><th>Last render</th></tr></thead>
+      <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table>
   </div>
 
   <div class="panel">
@@ -235,9 +261,71 @@ const DASHBOARD_HTML = `<!doctype html>
     document.getElementById("job-detail-panel").scrollIntoView({behavior:"smooth"});
   }
 
+  async function loadDailySummary() {
+    const s = await api("/v1/admin/daily-summary?days=1");
+    const ctr = s.ctr_by_channel || {};
+    const ctrEl = document.getElementById("ctr-body");
+    ctrEl.classList.remove("empty");
+    ctrEl.innerHTML = '<div class="ctr-grid">' +
+      ["email","sms","conversation"].map(ch => {
+        const c = ctr[ch] || { sent:0, clicks:0, ctr_pct:null };
+        const pct = c.ctr_pct == null ? "—" : c.ctr_pct + "%";
+        const klass = c.ctr_pct == null || c.ctr_pct === 0 ? "zero" : (c.ctr_pct >= 20 ? "high" : "");
+        return '<div class="ctr-cell"><div class="ch">' + ch + '</div>' +
+               '<div class="pct ' + klass + '">' + pct + '</div>' +
+               '<div class="ratio">' + c.clicks + ' clicks / ' + c.sent + ' sent</div></div>';
+      }).join("") +
+      '</div>';
+
+    const wf = s.watch_funnel || {};
+    const max = Math.max(wf["25"]||0, wf["50"]||0, wf["75"]||0, wf["100"]||0, 1);
+    document.getElementById("watch-funnel").innerHTML =
+      '<div style="padding:0 16px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Watch funnel (last 24h)</div>' +
+      '<div class="funnel">' +
+      [25,50,75,100].map(p => {
+        const c = wf[String(p)] || 0;
+        const w = Math.round((c / max) * 100);
+        return '<div class="funnel-bar"><div class="pct">' + p + '%</div>' +
+               '<div class="count">' + c + '</div>' +
+               '<div class="bar" style="width:' + w + '%"></div></div>';
+      }).join("") +
+      '</div>';
+  }
+
+  async function loadTopContacts() {
+    const r = await api("/v1/admin/contacts/top?limit=10");
+    const tbody = document.querySelector("#top-contacts-table tbody");
+    if (!r.contacts || r.contacts.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6' class='empty'>No contacts yet.</td></tr>";
+      return;
+    }
+    tbody.innerHTML = r.contacts.map(c => \`
+      <tr style="cursor:pointer" data-cid="\${c.contact_id}">
+        <td><a href="#" data-cid="\${c.contact_id}">\${c.contact_id}</a></td>
+        <td>\${c.total_videos}</td>
+        <td class="status delivered">\${c.delivered}</td>
+        <td class="status failed">\${c.failed}</td>
+        <td class="engagement">\${c.total_engagement}</td>
+        <td>\${fmtDate(c.last_render_at)}</td>
+      </tr>
+    \`).join("");
+    tbody.querySelectorAll("tr").forEach(tr => {
+      tr.addEventListener("click", () => {
+        document.getElementById("contact-filter").value = tr.dataset.cid;
+        loadJobs(tr.dataset.cid);
+      });
+    });
+  }
+
   async function refresh() {
     try {
-      await Promise.all([loadHealth(), loadRateLimits(), loadJobs(document.getElementById("contact-filter").value.trim())]);
+      await Promise.all([
+        loadHealth(),
+        loadRateLimits(),
+        loadDailySummary(),
+        loadTopContacts(),
+        loadJobs(document.getElementById("contact-filter").value.trim()),
+      ]);
     } catch (e) {
       console.error(e);
     }
