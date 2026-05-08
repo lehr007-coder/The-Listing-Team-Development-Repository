@@ -17,6 +17,24 @@ const SCORE_DELTAS = {
   rewatch: 4,
 };
 
+// KV-dedupe scoring-bearing events. /v1/analytics/event is unauthenticated
+// (so the open pixel + watch heartbeats work from email clients and the
+// hosted page without a key), which means anyone with a jobId can POST
+// events. The client de-dupes per page-load via window.__sent, but a
+// determined caller could still spam events to inflate engagement_score.
+// This server-side guard ensures each (jobId, event) pair gets at most
+// one score-delta credit globally — re-fired duplicate events still get
+// inserted into video_events for traceability, but won't add to score.
+const SCORE_DEDUPE_TTL = 60 * 60 * 24 * 30; // 30 days
+async function alreadyScored(env, jobId, event) {
+  if (!env.VIDEO_KV) return false;
+  const key = `score:${jobId}:${event}`;
+  const seen = await env.VIDEO_KV.get(key);
+  if (seen) return true;
+  await env.VIDEO_KV.put(key, "1", { expirationTtl: SCORE_DEDUPE_TTL });
+  return false;
+}
+
 export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
   const job = await getVideoJob(env, jobId);
   if (!job) return { ok: false, reason: "job_not_found" };
@@ -26,7 +44,11 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
     job_id: jobId, contact_id: cId, event, meta, created_at: nowIso(),
   });
 
-  const delta = SCORE_DELTAS[event] || 0;
+  // Rewatch is the one event that's expected to fire repeatedly per
+  // page-load by design (a viewer playing the video again), so it's
+  // exempt from the dedupe.
+  const isDuplicateScore = event !== "rewatch" && await alreadyScored(env, jobId, event);
+  const delta = isDuplicateScore ? 0 : (SCORE_DELTAS[event] || 0);
   if (delta && cId) {
     // Append to scoring_log so the existing lead-scoring engine sees it.
     // The proxy worker's scoring engine reads this table and aggregates.

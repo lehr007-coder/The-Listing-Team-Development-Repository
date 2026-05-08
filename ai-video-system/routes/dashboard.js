@@ -20,6 +20,23 @@ export default async function dashboardRoute(request, env, ctx, url) {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex, nofollow",
+      // Lock down where the page can load scripts from. The dashboard
+      // stores PROXY_API_KEY in localStorage and makes XHRs back to
+      // /v1/admin/*; no third-party origins are needed. This makes a
+      // future XSS or supply-chain compromise unable to exfiltrate the
+      // key to an attacker-controlled server.
+      "Content-Security-Policy":
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "connect-src 'self'; " +
+        "img-src 'self' data:; " +
+        "frame-ancestors 'none'; " +
+        "base-uri 'none'; " +
+        "form-action 'none'",
+      "X-Frame-Options": "DENY",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
     },
   });
 }

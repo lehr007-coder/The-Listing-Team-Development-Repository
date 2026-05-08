@@ -102,9 +102,14 @@ echo
 
 # 5. Click redirect
 echo "5. Click redirect"
-check "/v1/analytics/click redirects 302" \
-      "curl -s -o /dev/null -w '%{http_code}' '$BASE_URL/v1/analytics/click?job=vj_x&to=https%3A%2F%2Fexample.com'" \
+# Same-origin redirect target (always allowed) — exercises the happy path.
+check "/v1/analytics/click redirects 302 for same-origin target" \
+      "curl -s -o /dev/null -w '%{http_code}' \"$BASE_URL/v1/analytics/click?job=vj_x&to=$BASE_URL%2Fv%2Fvj_x\"" \
       '^302$'
+# External target with no matching job → must be refused (anti-open-redirect).
+check "/v1/analytics/click refuses unknown external target" \
+      "curl -s -o /dev/null -w '%{http_code}' '$BASE_URL/v1/analytics/click?job=vj_x&to=https%3A%2F%2Fexample.com'" \
+      '^400$'
 echo
 
 # 6. Cost guardrails (KV-backed; cheap)
