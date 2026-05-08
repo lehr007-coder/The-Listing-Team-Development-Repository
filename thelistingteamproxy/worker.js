@@ -8,6 +8,8 @@ var GHL_V1 = "https://rest.gohighlevel.com/v1";
 var GHL_V2 = "https://services.leadconnectorhq.com";
 var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
 var ALLOWED_ORIGINS = [
+  "https://thelistingteamproxy.reallistingteam.com",
+  "https://dash.reallistingteam.com",
   "https://thelistingteamproxy-staging.lehr007.workers.dev",
   "https://thelistingteamproxy.lehr007.workers.dev",
   "http://localhost:8787",
