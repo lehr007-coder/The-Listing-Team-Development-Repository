@@ -77,6 +77,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
+  if (path === "/stream-token-test")             return streamTokenTest(env);
   if (path.match(/^\/contacts\/[^/]+\/videos$/)) return contactVideos(env, path.split("/")[2]);
 
   return error(404, "not_found", `No admin route: ${method} ${path}`);
@@ -493,6 +494,36 @@ async function agentsTest(env, request) {
       latency_ms: Date.now() - startedAt,
     }, 502);
   }
+}
+
+// Cheap smoke test for CF_STREAM_API_TOKEN. Hits the Stream listing
+// endpoint with limit=1 (no render, no upload, no charge). Reports
+// whether the token is missing, rejected, or working — and the HTTP
+// status / first error message if Cloudflare rejects it. Use after
+// rotating the token to confirm before triggering a real render.
+async function streamTokenTest(env) {
+  if (!env.CF_ACCOUNT_ID) {
+    return json({ ok: false, reason: "CF_ACCOUNT_ID not set" }, 503);
+  }
+  if (!env.CF_STREAM_API_TOKEN) {
+    return json({ ok: false, reason: "CF_STREAM_API_TOKEN not set" }, 503);
+  }
+  const r = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/stream?limit=1`,
+    { headers: { "Authorization": `Bearer ${env.CF_STREAM_API_TOKEN}` } }
+  );
+  let data = null;
+  try { data = await r.json(); } catch {}
+  return json({
+    ok: r.ok && data?.success === true,
+    status: r.status,
+    cf_success: data?.success ?? null,
+    cf_errors: data?.errors ?? null,
+    sample_count: Array.isArray(data?.result) ? data.result.length : null,
+    hint: r.ok && data?.success
+      ? "Stream token is valid — next render will upload to Stream and use the iframe player."
+      : "Stream token is invalid or lacks Stream:Edit. Renders will fall back to native HTML5 player from R2.",
+  }, r.ok && data?.success ? 200 : 502);
 }
 
 async function healthDeep(env) {
