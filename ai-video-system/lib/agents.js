@@ -14,6 +14,12 @@ const AGENT_ENDPOINTS = {
   social_content:       "AGENT_SOCIAL_CONTENT_URL",
 };
 
+export const AGENT_NAMES = Object.keys(AGENT_ENDPOINTS);
+
+export function agentEndpointVar(agentName) {
+  return AGENT_ENDPOINTS[agentName];
+}
+
 export async function invokeAgent(env, agentName, context) {
   const endpointVar = AGENT_ENDPOINTS[agentName];
   if (!endpointVar) throw new Error(`Unknown agent: ${agentName}`);

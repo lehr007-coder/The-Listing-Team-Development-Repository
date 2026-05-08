@@ -97,19 +97,23 @@ function playerHtml(env, job) {
   var ANALYTICS_URL = "${env.BASE_URL}/v1/analytics/event";
   window.__sent = window.__sent || {};
 
+  // Backfill every crossed threshold so a viewer who scrubs straight to
+  // 80% still produces watch_25, watch_50, watch_75 events. Keeps the
+  // funnel monotonic: count(25) >= count(50) >= count(75) >= count(100).
+  var THRESHOLDS = [25, 50, 75, 100];
   function emitMilestone(pct, srcLabel) {
-    var bucket = pct >= 100 ? "watch_100"
-              : pct >= 75  ? "watch_75"
-              : pct >= 50  ? "watch_50"
-              : pct >= 25  ? "watch_25"
-              : null;
-    if (!bucket || window.__sent[bucket]) return;
-    window.__sent[bucket] = 1;
-    fetch(ANALYTICS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ job_id: JOB_ID, event: bucket, meta: { player: srcLabel } })
-    });
+    for (var i = 0; i < THRESHOLDS.length; i++) {
+      var t = THRESHOLDS[i];
+      if (pct < t) break;
+      var bucket = "watch_" + t;
+      if (window.__sent[bucket]) continue;
+      window.__sent[bucket] = 1;
+      fetch(ANALYTICS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: JOB_ID, event: bucket, meta: { player: srcLabel } })
+      });
+    }
   }
 
   // Path 1: Cloudflare Stream iframe — postMessage timeupdate / ended

@@ -266,30 +266,34 @@ const DASHBOARD_HTML = `<!doctype html>
     const ctr = s.ctr_by_channel || {};
     const ctrEl = document.getElementById("ctr-body");
     ctrEl.classList.remove("empty");
-    ctrEl.innerHTML = '<div class="ctr-grid">' +
+    ctrEl.innerHTML = \`<div class="ctr-grid">\${
       ["email","sms","conversation"].map(ch => {
         const c = ctr[ch] || { sent:0, clicks:0, ctr_pct:null };
         const pct = c.ctr_pct == null ? "—" : c.ctr_pct + "%";
         const klass = c.ctr_pct == null || c.ctr_pct === 0 ? "zero" : (c.ctr_pct >= 20 ? "high" : "");
-        return '<div class="ctr-cell"><div class="ch">' + ch + '</div>' +
-               '<div class="pct ' + klass + '">' + pct + '</div>' +
-               '<div class="ratio">' + c.clicks + ' clicks / ' + c.sent + ' sent</div></div>';
-      }).join("") +
-      '</div>';
+        return \`<div class="ctr-cell">
+                  <div class="ch">\${ch}</div>
+                  <div class="pct \${klass}">\${pct}</div>
+                  <div class="ratio">\${c.clicks} clicks / \${c.sent} sent</div>
+                </div>\`;
+      }).join("")
+    }</div>\`;
 
     const wf = s.watch_funnel || {};
     const max = Math.max(wf["25"]||0, wf["50"]||0, wf["75"]||0, wf["100"]||0, 1);
-    document.getElementById("watch-funnel").innerHTML =
-      '<div style="padding:0 16px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Watch funnel (last 24h)</div>' +
-      '<div class="funnel">' +
-      [25,50,75,100].map(p => {
-        const c = wf[String(p)] || 0;
-        const w = Math.round((c / max) * 100);
-        return '<div class="funnel-bar"><div class="pct">' + p + '%</div>' +
-               '<div class="count">' + c + '</div>' +
-               '<div class="bar" style="width:' + w + '%"></div></div>';
-      }).join("") +
-      '</div>';
+    document.getElementById("watch-funnel").innerHTML = \`
+      <div style="padding:0 16px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Watch funnel (last 24h)</div>
+      <div class="funnel">\${
+        [25,50,75,100].map(p => {
+          const c = wf[String(p)] || 0;
+          const w = Math.round((c / max) * 100);
+          return \`<div class="funnel-bar">
+                    <div class="pct">\${p}%</div>
+                    <div class="count">\${c}</div>
+                    <div class="bar" style="width:\${w}%"></div>
+                  </div>\`;
+        }).join("")
+      }</div>\`;
   }
 
   async function loadTopContacts() {

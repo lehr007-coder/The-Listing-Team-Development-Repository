@@ -24,7 +24,7 @@ import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { rateLimitState } from "../lib/rate-limit.js";
-import { invokeAgent } from "../lib/agents.js";
+import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
 function sbHeaders(env) {
   return {
@@ -62,9 +62,8 @@ export default async function adminRoute(request, env, ctx, url) {
   }
   if (method === "GET" && path === "/agents/test") {
     return json({
-      hint: "POST { agent: 'heygen_script' | 'fcpxml_director' | 'video_delivery' | 'social_content', context?: {...}, sample?: 'default' }",
-      available_agents: ["heygen_script", "fcpxml_director", "video_delivery", "social_content"],
-      samples: Object.keys(AGENT_SAMPLES),
+      hint: `POST { agent: ${AGENT_NAMES.map(n => `'${n}'`).join(" | ")}, context?: {...} }`,
+      available_agents: AGENT_NAMES,
     });
   }
 
@@ -261,8 +260,9 @@ async function dailySummary(env, url) {
     };
   }
 
-  // Watch funnel — clamp by max bucket reached (so 75 implies the user
-  // also crossed 25 and 50)
+  // Watch funnel — client backfills every crossed threshold (see
+  // hosted.js#emitMilestone), so these counts are nested by design:
+  // count(25) >= count(50) >= count(75) >= count(100).
   const w25  = eventCounts.watch_25  || 0;
   const w50  = eventCounts.watch_50  || 0;
   const w75  = eventCounts.watch_75  || 0;
@@ -477,7 +477,7 @@ async function agentsTest(env, request) {
     return json({
       ok: true,
       agent,
-      provider: env[`AGENT_${agent.toUpperCase()}_URL`]
+      provider: env[agentEndpointVar(agent)]
         ? "agent_studio"
         : (env.AGENT_FALLBACK_PROVIDER || "anthropic"),
       latency_ms,
