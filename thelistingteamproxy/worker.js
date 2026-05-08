@@ -20329,7 +20329,10 @@ async function ghlUserRole(uid, agencyKey) {
 }
 
 var index_default = {
-  async fetch(request, env) {
+  async scheduled(event, env, ctx) {
+    console.log("Scheduled cron tick:", event.cron, "at", new Date(event.scheduledTime).toISOString());
+  },
+  async fetch(request, env, ctx) {
     _currentRequest = request;
     const url = new URL(request.url);
     const path = url.pathname;
@@ -20411,7 +20414,7 @@ var index_default = {
       }
     }
 
-    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
+    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
       }
@@ -21372,7 +21375,7 @@ var index_default = {
       }
     }
     __name(verifyWebhookSignature, "verifyWebhookSignature");
-    if (method === "POST" && path === "/ylopo-webhook") {
+    if (method === "POST" && (path === "/ylopo-webhook" || path === "/api/webhooks/ghl/ylopo-intelligence")) {
       const rawBody = await request.text();
       if (env.WEBHOOK_SECRET && !await verifyWebhookSignature(rawBody, request, env)) {
         return err("Unauthorized: invalid webhook signature", 401);
@@ -21617,7 +21620,11 @@ var index_default = {
           console.error("Ylopo webhook processing error:", e.message || e);
         }
       }, "processEvent");
-      processEvent();
+      if (ctx && typeof ctx.waitUntil === "function") {
+        ctx.waitUntil(processEvent());
+      } else {
+        processEvent();
+      }
       return responsePromise;
     }
     if (method === "POST" && path === "/ghl-webhook") {
