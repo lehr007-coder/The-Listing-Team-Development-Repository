@@ -8265,6 +8265,11 @@ function connectSSE() {
           toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
           sendNotification('Ylopo Lead Activity', (data.event||'New activity') + ' - ' + (data.email||data.name||'unknown'));
         }
+        if (data.type === 'hot.lead.alert') {
+          var hotName = data.name || data.email || data.phone || 'Hot lead';
+          toast('\u{1F525} HOT LEAD: ' + hotName, 'success');
+          sendNotification('\u{1F525} Hot Lead Qualified', hotName + (data.phone ? ' · ' + data.phone : ''));
+        }
         // GHL webhook events \u2014 auto-refresh contacts when changes happen in GHL
         if (data.type && data.type.indexOf('ghl.') === 0) {
           var ghlMsg = (data.ghlEvent || data.type) + ': ' + (data.name || data.email || data.contactId || 'contact');
@@ -16515,6 +16520,11 @@ function handleWebhookEvent(data) {
   if(data.type === 'appointment.created') {
     toast(\`\u{1F4C5} New appointment booked!\`, 'success');
   }
+  if(data.type === 'hot.lead.alert') {
+    const hotName = data.name || data.email || data.phone || 'Hot lead';
+    toast(\`\u{1F525} HOT LEAD: \${hotName}\`, 'success');
+    if(typeof sendNotification === 'function') sendNotification('\u{1F525} Hot Lead Qualified', hotName);
+  }
 }
 
 /* =============================== V4: KANBAN PIPELINE BOARD =============================== */
@@ -20332,7 +20342,32 @@ async function ghlUserRole(uid, agencyKey) {
 
 var index_default = {
   async scheduled(event, env, ctx) {
-    console.log("Scheduled cron tick:", event.cron, "at", new Date(event.scheduledTime).toISOString());
+    const tick = new Date(event.scheduledTime);
+    const utcHour = tick.getUTCHours();
+    const utcMinute = tick.getUTCMinutes();
+    console.log("Scheduled cron tick:", event.cron, "at", tick.toISOString());
+    // Off-peak ylopo aggregate refresh: 06:00–07:00 UTC (≈02:00–03:00 ET)
+    // Runs once per night, processes a small batch via existing /ylopo-events/backfill.
+    if (utcHour === 6 && utcMinute < 10) {
+      ctx.waitUntil((async () => {
+        try {
+          const apiKey = env.PROXY_API_KEY || "";
+          if (!apiKey) {
+            console.warn("Cron backfill skipped: PROXY_API_KEY not configured");
+            return;
+          }
+          const res = await fetch("https://thelistingteamproxy.lehr007.workers.dev/ylopo-events/backfill", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+            body: JSON.stringify({ limit: 50, dryRun: false })
+          });
+          const out = await res.json().catch(() => ({}));
+          console.log("Cron ylopo backfill:", res.status, JSON.stringify(out).slice(0, 300));
+        } catch (e) {
+          console.warn("Cron backfill error:", e.message || e);
+        }
+      })());
+    }
   },
   async fetch(request, env, ctx) {
     _currentRequest = request;
