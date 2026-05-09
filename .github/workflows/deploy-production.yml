@@ -37,6 +37,7 @@ jobs:
     name: Deploy thelistingteamproxy (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
@@ -50,6 +51,7 @@ jobs:
     name: Deploy tlt-support-tickets (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
@@ -63,6 +65,7 @@ jobs:
     name: Deploy ghl-brand-injector (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
