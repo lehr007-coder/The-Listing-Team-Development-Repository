@@ -1,0 +1,48 @@
+name: Deploy ai-video-system Production
+
+# Manual deploys only — matches the convention in deploy-production.yml.
+# Trigger from the Actions tab ("Run workflow") or via gh CLI:
+#   gh workflow run deploy-ai-video-production.yml -f confirm=DEPLOY
+#
+# The `production` environment requires manual approval and is restricted
+# to the `main` branch (configured at the repo level under
+# Settings → Environments → production).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY" to confirm production deploy'
+        required: true
+        default: ''
+
+jobs:
+  guard:
+    name: Confirm production deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "::error::Confirmation text must be 'DEPLOY' (got: '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+          echo "Production deploy confirmed."
+
+  deploy-ai-video-prod:
+    name: Deploy ai-video-system (production)
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: ai-video-system
+          command: deploy --config wrangler.toml
+          secrets: |
+            CF_STREAM_API_TOKEN
+        env:
+          CF_STREAM_API_TOKEN: ${{ secrets.CLOUDFLARE_STREAM_API_TOKEN }}

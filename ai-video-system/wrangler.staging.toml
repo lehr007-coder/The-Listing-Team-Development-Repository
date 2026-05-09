@@ -1,0 +1,46 @@
+name = "ai-video-system-staging"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+ENVIRONMENT = "staging"
+BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+MEDIA_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+CDN_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+HOSTED_BASE_URL = "https://ai-video-system-staging.lehr007.workers.dev"
+DEFAULT_BRAND = "the-listing-team"
+
+# Generous limits for staging — testing can burst more
+DAILY_RENDER_LIMIT = "200"
+PER_CONTACT_DAILY_LIMIT = "10"
+
+# ── R2 buckets (provisioned in CF account 0424a0a1799c8b3b7f0947a4e3a202ba) ──
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "tlt-ai-video-staging"
+
+[[r2_buckets]]
+binding = "PREVIEW_BUCKET"
+bucket_name = "tlt-ai-video-previews-staging"
+
+# ── KV namespace (provisioned via MCP) ──
+[[kv_namespaces]]
+binding = "VIDEO_KV"
+id = "444a0a7edeb24d00b6063e3f17437efc"
+
+# ── Cron: HeyGen poll fallback for stuck-rendering jobs ──
+# Runs once a minute. Picks up renders whose HeyGen webhook didn't fire
+# (HeyGen's per-request callback_url silently drops sometimes).
+[triggers]
+crons = ["* * * * *"]
+
+# ── Queue: ai-video-staging-render-queue (created via dashboard) ──
+[[queues.producers]]
+queue = "ai-video-staging-render-queue"
+binding = "RENDER_QUEUE"
+
+[[queues.consumers]]
+queue = "ai-video-staging-render-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
