@@ -80,6 +80,34 @@ export async function updateVideoJob(env, jobId, patch) {
   return rows[0] || null;
 }
 
+// Atomic claim: try to mark the job as "being processed" by setting
+// last_event='processing'. Concurrent claim attempts on the same row
+// serialize at the Postgres row level, the first wins, the rest get 0
+// rows updated. The `or=(last_event.is.null, last_event.not.eq.processing)`
+// guard handles fresh jobs (NULL last_event) plus retried-after-failure
+// jobs (last_event=process_failed_at_X) — only an in-flight claim
+// blocks. Returns the row on win, null on lose.
+//
+// This is the lock that prevents two parallel processOne invocations
+// (real HeyGen callback + cron poll-fallback racing in the same minute)
+// from both running R2 upload + Stream upload + GHL email send.
+export async function claimJobForProcessing(env, jobId) {
+  const r = await fetch(
+    sbUrl(env,
+      `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}` +
+      `&or=(last_event.is.null,last_event.not.eq.processing)`
+    ),
+    {
+      method: "PATCH",
+      headers: sbHeaders(env, "return=representation"),
+      body: JSON.stringify({ last_event: "processing", last_event_at: new Date().toISOString() }),
+    }
+  );
+  if (!r.ok) throw new Error(`claimJobForProcessing failed: ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
 export async function getVideoJob(env, jobId) {
   const r = await fetch(
     sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&limit=1`),
