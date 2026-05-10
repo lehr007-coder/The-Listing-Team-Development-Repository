@@ -11,7 +11,7 @@
 
 import { putFromUrl } from "./r2.js";
 import { uploadFromUrl as streamUpload, streamThumbnailUrl, streamGifUrl } from "./cf-stream.js";
-import { updateVideoJob, getVideoJob, insertVideoEvent } from "./supabase.js";
+import { updateVideoJob, getVideoJob, insertVideoEvent, claimJobForProcessing } from "./supabase.js";
 import { writeOwnedFields } from "./ghl.js";
 import { runDelivery } from "./delivery.js";
 import { runSocialDistribution } from "./social.js";
@@ -40,6 +40,21 @@ export async function processOne(env, body) {
     const job = await getVideoJob(env, jobId);
     if (!job) throw new Error(`video_job ${jobId} not found`);
     if (job.status === "delivered" || job.status === "failed") return;
+
+    // Atomic claim. Two paths can dispatch processing for the same job
+    // at almost the same time — the real HeyGen webhook hits
+    // /v1/heygen/callback at the same minute the cron poll-fallback
+    // notices the job and synthesises its own dispatch. The KV dedupe
+    // in the callback handler doesn't cover the cron path, so we lock
+    // here at the database level: only one processOne for any given
+    // job ever runs end-to-end. The loser returns immediately without
+    // doing R2 / Stream / GHL work.
+    step = "claim";
+    const claimed = await claimJobForProcessing(env, jobId);
+    if (!claimed) {
+      console.log(`processOne ${jobId}: lost claim race, skipping`);
+      return;
+    }
 
     step = "r2_put";
     const r2Key = `${kind}/${jobId}.mp4`;

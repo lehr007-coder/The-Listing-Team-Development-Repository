@@ -126,13 +126,17 @@ async function jobReprocess(env, ctx, jobId, request) {
   const sourceMp4Url = body?.url || body?.video_url || body?.mp4_url;
   if (!sourceMp4Url) return error(400, "missing_url", "POST { url: '<mp4 url>' }");
 
-  // Reset status so processOne doesn't short-circuit on delivered/failed
+  // Reset status + clear the processing lock (last_event='processing')
+  // so claimJobForProcessing in processOne can re-acquire it on the
+  // synthesised queue message below.
   await updateVideoJob(env, jobId, {
     status: "rendering",
     error: null,
     rendered_at: null,
     delivered_at: null,
     failed_at: null,
+    last_event: null,
+    last_event_at: null,
   });
 
   // Synthesise a fresh queue message — bypasses dedupe entirely
