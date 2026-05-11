@@ -476,7 +476,7 @@ let vals=Object.fromEntries(CARDS.map(c=>[c.key,0]));
 let abortCtl=null, refreshTimer=null;
 
 function getCF(contact,keys){
-  const fields=Array.isArray(contact?.customField)?contact.customField:[];
+  const fields=Array.isArray(contact?.customFields)?contact.customFields:Array.isArray(contact?.customField)?contact.customField:[];
   for(const key of keys){
     const kl=key.toLowerCase();
     for(const f of fields){
@@ -21095,13 +21095,18 @@ var index_default = {
           for (const c of raw) {
             if (seenIds.has(c.id)) continue;
             seenIds.add(c.id);
-            const cf = c.customField || [];
+            const cf = c.customFields || c.customField || [];
             if (cf.some((f) => !f.fieldKey && f.id)) {
-              c.customField = cf.map((f) => {
+              const enriched = cf.map((f) => {
                 if (f.fieldKey) return f;
                 const def = fieldMap[f.id?.toLowerCase()];
                 return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
               });
+              c.customField = enriched;
+              c.customFields = enriched;
+            } else {
+              c.customField = cf;
+              c.customFields = cf;
             }
             const events = ylopoByContact[c.id];
             if (events && events.length > 0) {
@@ -21149,16 +21154,18 @@ var index_default = {
         const contacts = data.contacts || [];
         const { map: fieldMap } = await getFieldDefs(env);
         const enriched = contacts.map((c) => {
-          const cf = c.customField || [];
+          const cf = c.customFields || c.customField || [];
           const needsEnrich = cf.some((f) => !f.fieldKey && f.id);
-          if (!needsEnrich) return c;
+          if (!needsEnrich) return { ...c, customField: cf, customFields: cf };
+          const enriched = cf.map((f) => {
+            if (f.fieldKey) return f;
+            const def = fieldMap[f.id?.toLowerCase()];
+            return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+          });
           return {
             ...c,
-            customField: cf.map((f) => {
-              if (f.fieldKey) return f;
-              const def = fieldMap[f.id?.toLowerCase()];
-              return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
-            })
+            customField: enriched,
+            customFields: enriched
           };
         });
         broadcastSSE({ type: "contacts.fetched", count: enriched.length });
