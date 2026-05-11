@@ -1,18 +1,28 @@
 {
-  "name": "tlt-image-server",
-  "version": "1.0.0",
+  "name": "listing-team-dashboard",
+  "version": "0.1.0",
   "private": true,
-  "description": "Image hosting server with admin portal on Cloudflare Workers + R2 + D1",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute tlt-images-db --file=./migrations/001_create_tables.sql",
-    "db:migrate:local": "wrangler d1 execute tlt-images-db --local --file=./migrations/001_create_tables.sql"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "hono": "^4.6.0"
+    "@supabase/ssr": "^0.5.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "next": "^16.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "wrangler": "^3.99.0"
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2"
   }
 }
