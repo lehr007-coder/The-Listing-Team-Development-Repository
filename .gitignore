@@ -13,10 +13,14 @@ yarn-error.log*
 dist/
 **/dist/
 
-# Next.js build output (leftover when a sub-package is built at repo root)
+# Next.js build output
 .next/
 **/.next/
 next-env.d.ts
+out/
+build/
+.tsbuildinfo
+.vercel
 
 # Environment files
 .env
