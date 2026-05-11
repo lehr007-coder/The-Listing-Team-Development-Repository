@@ -16,12 +16,12 @@ case "$env_target" in
   staging)
     config="wrangler.staging.toml"
     worker="thelistingteamproxy-staging"
-    default_redirect="https://thelistingteamproxy-staging.lehr007.workers.dev/api/auth/ghl-oauth/callback"
+    default_redirect="https://thelistingteamproxy-staging.lehr007.workers.dev/api/auth/oauth/callback"
     ;;
   production)
     config="wrangler.toml"
     worker="thelistingteamproxy"
-    default_redirect="https://thelistingteamproxy.reallistingteam.com/api/auth/ghl-oauth/callback"
+    default_redirect="https://thelistingteamproxy.reallistingteam.com/api/auth/oauth/callback"
     ;;
   *)
     echo "Usage: $0 <staging|production>"
@@ -78,8 +78,8 @@ echo
 echo "Next steps:"
 echo "  1. Confirm the worker is reachable (workers.dev or custom domain returns non-403)."
 echo "  2. Update GHL Marketplace app URLs to point at $worker hostname:"
-echo "     Install URL:    https://<host>/api/auth/ghl-oauth/install"
+echo "     Install URL:    https://<host>/api/auth/oauth/install"
 echo "     Redirect URL:   $default_redirect"
-echo "     Custom menu:    https://<host>/ghl-sso"
+echo "     Custom menu:    https://<host>/app/sso"
 echo "  3. Uninstall + reinstall the app in your test sub-account."
 echo "  4. Click the Dashboard menu link in GHL -> should auto-login to /dashboard."
