@@ -3235,6 +3235,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
         <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
         <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+        <button onclick="bulkEnrichAllMissing()">&#127968; Bulk Enrich All Missing</button>
         <button onclick="exportAllCSV()">&#128196; Export CSV</button>
         <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
         <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
@@ -7750,27 +7751,48 @@ function buildAccordion(lead) {
         (ext.ylopoEventCount ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Ylopo events: <strong style="color:var(--text)">' + ext.ylopoEventCount + '</strong></div>' : '') +
         (ext.ylopoLastLogin ? '<div style="font-size:12px;color:var(--text-secondary)">Last login: <strong style="color:var(--text)">' + fmtDate(ext.ylopoLastLogin) + '</strong></div>' : '') +
       '</div>' +
-      '<div class="acc-section">' +
-        '<div class="acc-section-title">&#127968; Property Details</div>' +
-        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr)">' +
-          '<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + (esc(ext.address)||'\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
-        '</div>' +
-        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px">' +
-          '<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + (ext.price ? fmtPrice(ext.price) : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '\\u2014') + '</div></div>' +
-        '</div>' +
-        (ext.yearBuilt || ext.mlsNumber || ext.propType || ext.ownerSince ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' +
-          (ext.yearBuilt ? '<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>' : '') +
-          (ext.mlsNumber ? '<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>' : '') +
-          (ext.propType  ? '<span>Type: <strong>' + esc(ext.propType) + '</strong></span>'  : '') +
-          (ext.ownerSince ? '<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>' : '') +
-        '</div>' : '') +
-        (ext.assignedWebsite ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>' : '') +
-        (ext.ylopoEventType ? '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>' : '') +
-      '</div>' +
+      (function(){
+        var bedBath = ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '';
+        var sqftStr = ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '';
+        var priceStr = ext.price ? fmtPrice(ext.price)
+          : ext.estValue ? '$' + Number(ext.estValue).toLocaleString()
+          : (ext.minPrice||ext.maxPrice) ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice)
+          : '';
+        var equityStr = ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '';
+        var mortgageStr = ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '';
+        var rows = [];
+        if (ext.address)  rows.push('<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + esc(ext.address) + '</div></div>');
+        if (bedBath)      rows.push('<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + bedBath + '</div></div>');
+        if (sqftStr)      rows.push('<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + sqftStr + '</div></div>');
+        var money = [];
+        if (priceStr)    money.push('<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + priceStr + '</div></div>');
+        if (equityStr)   money.push('<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + equityStr + '</div></div>');
+        if (mortgageStr) money.push('<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + mortgageStr + '</div></div>');
+        var metaBits = [];
+        if (ext.yearBuilt)  metaBits.push('<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>');
+        if (ext.mlsNumber)  metaBits.push('<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>');
+        if (ext.propType)   metaBits.push('<span>Type: <strong>' + esc(ext.propType) + '</strong></span>');
+        if (ext.ownerSince) metaBits.push('<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>');
+        var extras = '';
+        if (ext.assignedWebsite) extras += '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>';
+        if (ext.ylopoEventType)  extras += '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>';
+        var hasAnything = rows.length || money.length || metaBits.length || extras;
+        if (!hasAnything) {
+          // No ATTOM/Ylopo property data — show a CTA instead of a wall of em-dashes.
+          return '<div class="acc-section">' +
+            '<div class="acc-section-title">&#127968; Property Details</div>' +
+            '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">No property data on this contact yet.</div>' +
+            '<button onclick="enrichContact(&#39;' + lead.id + '&#39;)" style="padding:8px 14px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer">\\u{1F3D8}\\uFE0F Enrich Property</button>' +
+          '</div>';
+        }
+        return '<div class="acc-section">' +
+          '<div class="acc-section-title">&#127968; Property Details</div>' +
+          (rows.length  ? '<div class="prop-grid" style="grid-template-columns:repeat(' + rows.length + ',1fr)">' + rows.join('') + '</div>' : '') +
+          (money.length ? '<div class="prop-grid" style="grid-template-columns:repeat(' + money.length + ',1fr);margin-top:10px">' + money.join('') + '</div>' : '') +
+          (metaBits.length ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' + metaBits.join('') + '</div>' : '') +
+          extras +
+        '</div>';
+      })() +
       '<div class="acc-section">' +
         '<div class="acc-section-title">Tags</div>' +
         '<div class="tags-wrap" id="detailTags-' + lead.id + '">' + tagsHtml + '</div>' +
@@ -7954,6 +7976,51 @@ function bulkEnrichSellers() {
   });
   chain.then(function() {
     toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) loadData(true);
+  });
+}
+
+// -------------------------------------------------------
+// BULK ENRICH ALL CONTACTS MISSING PROPERTY DATA
+// -------------------------------------------------------
+function bulkEnrichAllMissing() {
+  if (!ALL_LEADS || !ALL_LEADS.length) { toast('No contacts loaded', 'error'); return; }
+  var enrichable = ALL_LEADS.filter(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    var ext = getExtendedData(raw);
+    var addr = ext.address || raw.address1 || '';
+    if (!addr) return false;
+    var hasData = ext.price || ext.estValue || ext.equity || ext.mortgageBalance || ext.beds || ext.baths || ext.sqft || ext.mlsNumber || ext.yearBuilt;
+    return !hasData;
+  });
+  if (!enrichable.length) { toast('Nothing to enrich \\u2014 every contact with an address already has property data', 'info'); return; }
+  if (!confirm('Enrich ' + enrichable.length + ' contacts with ATTOM property data?\\n\\nOne ATTOM API call per contact. This runs sequentially with a short delay to stay under rate limits.')) return;
+
+  toast('Enriching ' + enrichable.length + ' contacts...', 'info');
+  var done = 0, failed = 0;
+  var chain = Promise.resolve();
+  enrichable.forEach(function(l) {
+    chain = chain.then(function() {
+      var raw = RAW_CONTACTS[l.id];
+      var ext = raw ? getExtendedData(raw) : {};
+      var address = ext.address || (raw && raw.address1) || '';
+      var cityStateZip = [ext.city || (raw && raw.city) || '', ext.state || (raw && raw.state) || '', ext.zip || (raw && raw.postalCode) || ''].filter(Boolean).join(' ');
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: l.id, address1: address, address2: cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data && data.ok) done++; else failed++;
+        if ((done + failed) % 5 === 0 || (done + failed) === enrichable.length) {
+          toast('Enriched ' + done + '/' + enrichable.length + (failed ? ' (' + failed + ' failed)' : ''), 'info');
+        }
+      }).catch(function() { failed++; })
+        .then(function() { return new Promise(function(r) { setTimeout(r, 250); }); });
+    });
+  });
+  chain.then(function() {
+    toast('Bulk enrich complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
     if (done > 0) loadData(true);
   });
 }
@@ -19054,23 +19121,35 @@ async function getFieldDefs(env) {
   if (_fieldDefsCache && now - _fieldDefsCachedAt < 18e5) {
     return _fieldDefsCache;
   }
-  try {
-    const locId = env.GHL_LOCATION_ID || LOC_ID;
-    const data = await ghlSafe(env, "GET", `/custom-fields/?locationId=${locId}`);
-    const fields = data.customFields || data.custom_fields || [];
-    const map = {};
-    fields.forEach((f) => {
-      if (f.id) map[f.id.toLowerCase()] = f;
-      if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
-      if (f.key) map[f.key.toLowerCase()] = f;
-    });
-    _fieldDefsCache = { fields, map };
-    _fieldDefsCachedAt = now;
-    return _fieldDefsCache;
-  } catch (e) {
-    console.error("getFieldDefs error:", e);
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  // GHL v2 location custom-fields path is `/locations/{id}/customFields`.
+  // The legacy `/custom-fields/?locationId=...` path is kept as a fallback
+  // because both have been seen in the wild depending on token type.
+  let fields = [];
+  let lastError = null;
+  for (const path of [`/locations/${locId}/customFields`, `/custom-fields/?locationId=${locId}`]) {
+    try {
+      const data = await ghlSafe(env, "GET", path);
+      fields = data.customFields || data.custom_fields || [];
+      if (fields.length) break;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  if (!fields.length && lastError) {
+    console.error("getFieldDefs error:", lastError);
     return { fields: [], map: {} };
   }
+  const map = {};
+  fields.forEach((f) => {
+    if (f.id) map[f.id.toLowerCase()] = f;
+    if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
+    if (f.key) map[f.key.toLowerCase()] = f;
+  });
+  _fieldDefsCache = { fields, map };
+  _fieldDefsCachedAt = now;
+  console.log(`getFieldDefs: loaded ${fields.length} custom field defs for ${locId}`);
+  return _fieldDefsCache;
 }
 __name(getFieldDefs, "getFieldDefs");
 __name2(getFieldDefs, "getFieldDefs");
@@ -21183,7 +21262,10 @@ var index_default = {
       try {
         const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
         let contact = data.contact || data;
-        contact.customField = await enrichCustomFields(env, contact.customField || []);
+        const cf = contact.customFields || contact.customField || [];
+        const enriched = await enrichCustomFields(env, cf);
+        contact.customField = enriched;
+        contact.customFields = enriched;
         return json(contact);
       } catch (e) {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
