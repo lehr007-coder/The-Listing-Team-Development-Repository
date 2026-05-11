@@ -20055,6 +20055,141 @@ async function sendNotification(env, eventType, data) {
 }
 
 // =============================================================
+// GHL MARKETPLACE OAUTH + IFRAME SSO
+// Adds the GHL Marketplace install flow (/api/auth/ghl-oauth/install +
+// /callback) and the iframe custom-menu-link SSO handshake (/ghl-sso +
+// /api/auth/ghl-sso). Tokens persist to ghl_oauth_tokens on the
+// proxy's SUPABASE_URL. Cookie used is the existing tlt_session,
+// except with SameSite=None so it survives the GHL iframe context.
+// =============================================================
+var GHL_OAUTH_TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
+var GHL_OAUTH_AUTHORIZE_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
+var GHL_OAUTH_SCOPES = "contacts.readonly contacts.write locations.readonly users.readonly";
+
+async function _md5Bytes(bytes) {
+  // Cloudflare Workers Web Crypto supports MD5 as a non-standard extension.
+  var h = await crypto.subtle.digest("MD5", bytes);
+  return new Uint8Array(h);
+}
+async function _evpBytesToKey(passphraseBytes, saltBytes, keyLen, ivLen) {
+  // OpenSSL EVP_BytesToKey(MD5, 1 iter). Produces 32B key + 16B IV for AES-256-CBC.
+  var need = keyLen + ivLen;
+  var prev = new Uint8Array(0);
+  var out = [];
+  var total = 0;
+  while (total < need) {
+    var src = new Uint8Array(prev.length + passphraseBytes.length + saltBytes.length);
+    src.set(prev, 0);
+    src.set(passphraseBytes, prev.length);
+    src.set(saltBytes, prev.length + passphraseBytes.length);
+    prev = await _md5Bytes(src);
+    out.push(prev);
+    total += prev.length;
+  }
+  var merged = new Uint8Array(total);
+  var off = 0;
+  for (var i = 0; i < out.length; i++) { merged.set(out[i], off); off += out[i].length; }
+  return { key: merged.slice(0, keyLen), iv: merged.slice(keyLen, keyLen + ivLen) };
+}
+
+// Decrypt GHL's CryptoJS AES.encrypt(payload, passphrase) blob — base64 of
+// "Salted__" (8B) | salt (8B) | ciphertext. Returns parsed JSON.
+async function decryptGhlSsoToken(encryptedB64, ssoKey) {
+  var bin = atob(String(encryptedB64 || ""));
+  var blob = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) blob[i] = bin.charCodeAt(i);
+  if (blob.length < 17 || String.fromCharCode.apply(null, blob.slice(0, 8)) !== "Salted__") {
+    throw new Error("Invalid SSO payload: missing OpenSSL Salted__ header");
+  }
+  var salt = blob.slice(8, 16);
+  var ciphertext = blob.slice(16);
+  var pass = new TextEncoder().encode(ssoKey);
+  var derived = await _evpBytesToKey(pass, salt, 32, 16);
+  var key = await crypto.subtle.importKey("raw", derived.key, { name: "AES-CBC" }, false, ["decrypt"]);
+  var plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv: derived.iv }, key, ciphertext);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function mapGhlSsoRole(payload) {
+  var r = String((payload && (payload.role || payload.type)) || "").toLowerCase();
+  if (r === "admin" || r === "agency" || r === "agency_owner" || r === "owner") return "admin";
+  return "user";
+}
+
+async function ghlOauthPostToken(env, body) {
+  if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_CLIENT_SECRET) {
+    throw new Error("GHL_OAUTH_CLIENT_ID/SECRET not configured");
+  }
+  var form = new URLSearchParams(Object.assign({
+    client_id: env.GHL_OAUTH_CLIENT_ID,
+    client_secret: env.GHL_OAUTH_CLIENT_SECRET
+  }, body));
+  var res = await fetch(GHL_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+  if (!res.ok) {
+    var t = await res.text().catch(function() { return ""; });
+    throw new Error("GHL token exchange failed: " + res.status + " " + t.slice(0, 300));
+  }
+  return await res.json();
+}
+
+// Upsert OAuth tokens into ghl_oauth_tokens. GHL Marketplace fires the
+// callback twice on install (location-level with locationId, agency-level
+// with only companyId); the agency-level call is a benign no-op here.
+async function ghlOauthPersistTokens(env, t) {
+  if (!t || !t.locationId) {
+    console.log("[ghl-oauth] callback without locationId; skipping persist", {
+      hasCompanyId: !!(t && t.companyId), scope: t && t.scope
+    });
+    return;
+  }
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+    throw new Error("SUPABASE_URL/SUPABASE_KEY not configured");
+  }
+  var expiresAt = new Date(Date.now() + (Number(t.expires_in || 3600) - 60) * 1000).toISOString();
+  var row = {
+    location_id: t.locationId,
+    company_id: t.companyId || null,
+    access_token: t.access_token,
+    refresh_token: t.refresh_token,
+    expires_at: expiresAt,
+    scope: t.scope || null,
+    updated_at: new Date().toISOString()
+  };
+  var res = await fetch(env.SUPABASE_URL + "/rest/v1/ghl_oauth_tokens?on_conflict=location_id", {
+    method: "POST",
+    headers: {
+      "apikey": env.SUPABASE_KEY,
+      "Authorization": "Bearer " + env.SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify(row)
+  });
+  if (!res.ok) {
+    var body = await res.text().catch(function() { return ""; });
+    throw new Error("ghl_oauth_tokens upsert failed: " + res.status + " " + body.slice(0, 300));
+  }
+}
+
+// SameSite=None cookie variant for the iframe SSO flow. tlt_session
+// cookie set by /auth/login or /auth/ghl uses SameSite=Lax (mkCookie);
+// inside the GHL marketplace iframe Lax would be dropped on cross-site
+// navigations, so the SSO route emits the same payload with None+Secure.
+function mkSsoCookie(token) {
+  return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=86400";
+}
+
+// HTML served at /ghl-sso. Runs inside the GHL marketplace iframe,
+// postMessages REQUEST_USER_DATA to the parent frame with retries at
+// 0/500/1500/3000ms, accepts an encrypted SSO token back, and redirects
+// to /api/auth/ghl-sso?sso-session=… where the server decrypts it.
+var GHL_SSO_HANDSHAKE_HTML = "<!DOCTYPE html>\n<html lang=\"en\"><head>\n<meta charset=\"UTF-8\">\n<title>Signing you in…</title>\n<style>body{font-family:system-ui,sans-serif;background:#0a0e1a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}p{font-size:14px;max-width:520px;text-align:center;line-height:1.5;padding:0 16px}</style>\n</head><body>\n<p id=\"status\">Connecting to GoHighLevel…</p>\n<script>\n(function(){var done=false;var st=document.getElementById(\"status\");\nfunction isGhl(o){try{var h=new URL(o).hostname.toLowerCase();return h===\"app.gohighlevel.com\"||h===\"app.leadconnectorhq.com\"||h.endsWith(\".gohighlevel.com\")||h.endsWith(\".leadconnectorhq.com\")||h.endsWith(\".msgsndr.com\")||h.endsWith(\".highlevel.com\");}catch(e){return false}}\nfunction tok(d){if(!d)return null;if(typeof d===\"string\")return d.length>20?d:null;if(typeof d!==\"object\")return null;var i=(d.data&&typeof d.data===\"object\")?d.data:{};var u=(d.userData&&typeof d.userData===\"object\")?d.userData:{};var c=d.payload||d.token||d.ssoSession||d.sso||i.payload||i.token||i.ssoSession||i.sso||u.payload||u.token||u.ssoSession;return typeof c===\"string\"&&c.length>20?c:null}\nwindow.addEventListener(\"message\",function(ev){console.log(\"[ghl-sso] message\",{origin:ev.origin,type:typeof ev.data,keys:ev.data&&typeof ev.data===\"object\"?Object.keys(ev.data):undefined});if(!isGhl(ev.origin)){console.log(\"[ghl-sso] origin rejected\",ev.origin);return}var t=tok(ev.data);if(!t){console.log(\"[ghl-sso] no token in payload\");return}if(done)return;done=true;st.textContent=\"Signing you in…\";console.log(\"[ghl-sso] redirecting (token len \"+t.length+\")\");window.location.replace(\"/api/auth/ghl-sso?sso-session=\"+encodeURIComponent(t))});\nfunction req(n){if(done)return;console.log(\"[ghl-sso] REQUEST_USER_DATA attempt \"+n);try{window.parent&&window.parent.postMessage({message:\"REQUEST_USER_DATA\"},\"*\")}catch(e){console.error(\"[ghl-sso] postMessage failed\",e)}}\n[0,500,1500,3000].forEach(function(d,i){setTimeout(function(){req(i+1)},d)});\nsetTimeout(function(){if(done)return;st.textContent=\"Could not retrieve a GoHighLevel SSO session. Open DevTools → Console for diagnostic logs, then reload this page from inside the GHL sidebar.\"},12000);})();\n<\/script>\n</body></html>";
+
+// =============================================================
 // LOGIN RATE LIMIT (in-memory, per-isolate)
 // Intentionally simple: bypassable across CF colos, but raises
 // brute-force cost from $0 to "actually have to try multiple edges".
@@ -20470,6 +20605,80 @@ var index_default = {
         await reportError(e, "healthz", env);
         return new Response(JSON.stringify({ status: "error", error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
+    }
+
+    // ---- GHL MARKETPLACE OAUTH + IFRAME SSO ROUTES ----
+    // Install flow: /api/auth/ghl-oauth/install -> chooselocation -> /callback
+    // SSO flow:     /ghl-sso (iframe HTML) -> /api/auth/ghl-sso (cookie + redirect)
+    if (method === "GET" && path === "/api/auth/ghl-oauth/install") {
+      if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_REDIRECT_URI) {
+        return json({ error: "GHL_OAUTH_CLIENT_ID/REDIRECT_URI not configured" }, 500);
+      }
+      var installParams = new URLSearchParams({
+        response_type: "code",
+        client_id: env.GHL_OAUTH_CLIENT_ID,
+        redirect_uri: env.GHL_OAUTH_REDIRECT_URI,
+        scope: GHL_OAUTH_SCOPES
+      });
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": GHL_OAUTH_AUTHORIZE_URL + "?" + installParams.toString(), "Cache-Control": "no-store" }
+      });
+    }
+    if (method === "GET" && path === "/api/auth/ghl-oauth/callback") {
+      var oauthCode = url.searchParams.get("code");
+      if (!oauthCode) return json({ error: "Missing code" }, 400);
+      try {
+        var tokenResp = await ghlOauthPostToken(env, {
+          grant_type: "authorization_code",
+          code: oauthCode,
+          redirect_uri: env.GHL_OAUTH_REDIRECT_URI || ""
+        });
+        await ghlOauthPersistTokens(env, tokenResp);
+      } catch (e) {
+        await reportError(e, "ghl-oauth/callback", env);
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": "/dashboard?installed=1", "Cache-Control": "no-store" }
+      });
+    }
+    if (method === "GET" && path === "/ghl-sso") {
+      return new Response(GHL_SSO_HANDSHAKE_HTML, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "no-store",
+          "Content-Security-Policy": "frame-ancestors 'self' https://*.gohighlevel.com https://*.leadconnectorhq.com https://*.msgsndr.com https://*.highlevel.com"
+        }
+      });
+    }
+    if (method === "GET" && path === "/api/auth/ghl-sso") {
+      var ssoToken = url.searchParams.get("sso-session") || url.searchParams.get("token");
+      if (!ssoToken) return json({ error: "Missing sso-session" }, 400);
+      if (!env.GHL_SSO_KEY) return json({ error: "GHL_SSO_KEY not configured" }, 500);
+      var ssoPayload;
+      try {
+        ssoPayload = await decryptGhlSsoToken(ssoToken, env.GHL_SSO_KEY);
+      } catch (e) {
+        await reportError(e, "ghl-sso/decrypt", env);
+        return json({ error: "Invalid SSO token" }, 401);
+      }
+      if (!ssoPayload || !ssoPayload.userId) return json({ error: "Bad SSO payload" }, 400);
+      var ssoRole = mapGhlSsoRole(ssoPayload);
+      var ssoSecret = env.SESSION_SECRET || "tlt-sess-2027";
+      var ssoSessionToken = await createSessionToken({
+        uid: ssoPayload.userId,
+        email: ssoPayload.email || "",
+        name: ssoPayload.userName || "",
+        role: ssoRole,
+        loc: ssoPayload.locationId || locId
+      }, ssoSecret);
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": "/dashboard", "Set-Cookie": mkSsoCookie(ssoSessionToken), "Cache-Control": "no-store" }
+      });
     }
 
     // ---- AUTH ROUTES (GHL SSO) ----
