@@ -82,21 +82,33 @@ export async function updateVideoJob(env, jobId, patch) {
 
 // Atomic claim: try to mark the job as "being processed" by setting
 // last_event='processing'. Concurrent claim attempts on the same row
-// serialize at the Postgres row level, the first wins, the rest get 0
-// rows updated. The `or=(last_event.is.null, last_event.not.eq.processing)`
-// guard handles fresh jobs (NULL last_event) plus retried-after-failure
-// jobs (last_event=process_failed_at_X) — only an in-flight claim
-// blocks. Returns the row on win, null on lose.
+// serialize at the Postgres row level — first wins, the rest get 0
+// rows back.
+//
+// Filter union of three states that are eligible for claim:
+//   1. last_event IS NULL                — fresh job, never processed
+//   2. last_event != 'processing'        — completed or previously failed
+//   3. last_event='processing' AND
+//      last_event_at < now()-STALE_MIN   — stale claim (worker likely killed
+//                                          by Cloudflare wall-clock mid-run);
+//                                          treat as released so the job can
+//                                          recover instead of staying stuck
+//
+// Returns the row on win, null on lose.
 //
 // This is the lock that prevents two parallel processOne invocations
 // (real HeyGen callback + cron poll-fallback racing in the same minute)
-// from both running R2 upload + Stream upload + GHL email send.
+// from both running R2 + Stream + GHL in parallel.
+const STALE_CLAIM_MINUTES = 10;
 export async function claimJobForProcessing(env, jobId) {
+  const staleAt = new Date(Date.now() - STALE_CLAIM_MINUTES * 60 * 1000).toISOString();
+  const filter =
+    `id=eq.${encodeURIComponent(jobId)}` +
+    `&or=(last_event.is.null,` +
+        `last_event.neq.processing,` +
+        `and(last_event.eq.processing,last_event_at.lt.${encodeURIComponent(staleAt)}))`;
   const r = await fetch(
-    sbUrl(env,
-      `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}` +
-      `&or=(last_event.is.null,last_event.not.eq.processing)`
-    ),
+    sbUrl(env, `/rest/v1/video_jobs?${filter}`),
     {
       method: "PATCH",
       headers: sbHeaders(env, "return=representation"),
