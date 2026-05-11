@@ -1,3 +1,9 @@
 name = "thelistingteamproxy"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+# Explicitly register the custom domain so `wrangler deploy` binds the route.
+# Without this, Cloudflare returns host_not_allowed at the edge.
+routes = [
+  { pattern = "thelistingteamproxy.reallistingteam.com/*", zone_name = "reallistingteam.com" }
+]
