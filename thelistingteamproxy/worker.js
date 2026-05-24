@@ -18414,7 +18414,7 @@ async function getFieldDefs(env) {
     const map = {};
     fields.forEach((f) => {
       if (f.id) map[f.id.toLowerCase()] = f;
-      if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
+      if (f.fieldKey) { map[f.fieldKey.toLowerCase()] = f; map[f.fieldKey.toLowerCase().replace(/^contact\./, "")] = f; }
       if (f.key) map[f.key.toLowerCase()] = f;
     });
     _fieldDefsCache = { fields, map };
@@ -18636,18 +18636,18 @@ var YLOPO_TO_GHL_FIELDS = {
   lastViewedAddr: "address_of_last_viewed_property_on_ylopo",
   lastSavedAddr: "address_of_last_saved_property_on_ylopo",
   // NEW in v8: sync more Ylopo data to contact fields
-  beds: "ylopo_beds",
-  baths: "ylopo_baths",
-  minPrice: "ylopo_min_price",
-  maxPrice: "ylopo_max_price",
-  searchCity: "ylopo_search_city",
-  searchState: "ylopo_search_state",
-  searchZip: "ylopo_search_zip",
+  beds: "ylopo__listing_beds",
+  baths: "ylopo__listing_baths",
+  minPrice: "ylopo_registration_min_price",
+  maxPrice: "ylopo_registration_max_price",
+  searchCity: "ylopo_registration_city",
+  searchState: "ylopo_search_states",
+  searchZip: "ylopo_search_zip_codes",
   listingAddress: "ylopo_listing_address",
-  listingPrice: "ylopo_listing_price",
+  listingPrice: "ylopo__listing_price",
   source: "ylopo_event_source",
   leadType: "ylopo_lead_type",
-  isPriority: "ylopo_is_priority"
+  isPriority: "ylopo__is_priority"
 };
 async function buildYlopoFieldUpdates(env, ylopoData) {
   const { map } = await getFieldDefs(env);
