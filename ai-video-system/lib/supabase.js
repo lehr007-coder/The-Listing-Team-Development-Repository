@@ -18,22 +18,46 @@ function sbUrl(env, path) {
 }
 
 // ── READ helpers (existing intelligence) ───────────────────────────────────
+//
+// The Ylopo intelligence schema uses leads.id (uuid) as the primary key
+// and stores the GHL contact id under leads.ghl_contact_id (text). The
+// events and scoring_log tables FK back via lead_id (uuid). Our worker
+// only knows the GHL contact id, so every read against events/leads/
+// scoring_log resolves through leads.ghl_contact_id → leads.id first.
+
+export async function resolveLeadByGhlContactId(env, ghlContactId) {
+  const url = sbUrl(env,
+    `/rest/v1/leads?ghl_contact_id=eq.${encodeURIComponent(ghlContactId)}&limit=1`);
+  const r = await fetch(url, { headers: sbHeaders(env) });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
+export async function getLead(env, contactId) {
+  return resolveLeadByGhlContactId(env, contactId);
+}
 
 export async function getRecentEvents(env, contactId, limit = 25) {
+  const lead = await resolveLeadByGhlContactId(env, contactId);
+  if (!lead?.id) return [];
   const url = sbUrl(env,
-    `/rest/v1/events?contact_id=eq.${encodeURIComponent(contactId)}` +
+    `/rest/v1/events?lead_id=eq.${encodeURIComponent(lead.id)}` +
     `&order=created_at.desc&limit=${limit}`);
   const r = await fetch(url, { headers: sbHeaders(env) });
   if (!r.ok) return [];
   return r.json();
 }
 
-export async function getLead(env, contactId) {
-  const url = sbUrl(env, `/rest/v1/leads?contact_id=eq.${encodeURIComponent(contactId)}&limit=1`);
+export async function getScoringLog(env, contactId, limit = 10) {
+  const lead = await resolveLeadByGhlContactId(env, contactId);
+  if (!lead?.id) return [];
+  const url = sbUrl(env,
+    `/rest/v1/scoring_log?lead_id=eq.${encodeURIComponent(lead.id)}` +
+    `&order=created_at.desc&limit=${limit}`);
   const r = await fetch(url, { headers: sbHeaders(env) });
-  if (!r.ok) return null;
-  const rows = await r.json();
-  return rows[0] || null;
+  if (!r.ok) return [];
+  return r.json();
 }
 
 export async function getListing(env, listingId) {
@@ -42,15 +66,6 @@ export async function getListing(env, listingId) {
   if (!r.ok) return null;
   const rows = await r.json();
   return rows[0] || null;
-}
-
-export async function getScoringLog(env, contactId, limit = 10) {
-  const url = sbUrl(env,
-    `/rest/v1/scoring_log?contact_id=eq.${encodeURIComponent(contactId)}` +
-    `&order=created_at.desc&limit=${limit}`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
-  if (!r.ok) return [];
-  return r.json();
 }
 
 // ── WRITE helpers (sidecar-owned tables only) ─────────────────────────────
