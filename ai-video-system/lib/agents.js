@@ -30,6 +30,14 @@ export async function invokeAgent(env, agentName, context) {
   return invokeViaFallback(env, agentName, context);
 }
 
+// Cap every agent API call so a slow LLM backend can't burn the queue
+// consumer's 15-min wall-clock. Claude Sonnet at max_tokens=8192 normally
+// returns in 5-30s; 90s gives generous headroom while ensuring a stuck
+// request fails fast as a step error rather than letting Cloudflare kill
+// the worker externally and leave the claim dangling.
+const AGENT_TIMEOUT_MS = 90_000;
+const agentSignal = () => AbortSignal.timeout(AGENT_TIMEOUT_MS);
+
 async function invokeViaAgentStudio(env, url, context) {
   const r = await fetch(url, {
     method: "POST",
@@ -38,6 +46,7 @@ async function invokeViaAgentStudio(env, url, context) {
       "Authorization": `Bearer ${env.GHL_AGENT_STUDIO_TOKEN || env.GHL_V2_TOKEN}`,
     },
     body: JSON.stringify({ input: context }),
+    signal: agentSignal(),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`Agent Studio call failed: ${r.status} ${JSON.stringify(data)}`);
@@ -75,6 +84,7 @@ async function callAnthropic(env, agentName, context) {
       system: FALLBACK_SYSTEM[agentName],
       messages: [{ role: "user", content: JSON.stringify(context) }],
     }),
+    signal: agentSignal(),
   });
   const data = await r.json();
   if (!r.ok) throw new Error(`Anthropic fallback failed: ${r.status} ${JSON.stringify(data)}`);
@@ -97,6 +107,7 @@ async function callOpenAi(env, agentName, context) {
         { role: "user", content: JSON.stringify(context) },
       ],
     }),
+    signal: agentSignal(),
   });
   const data = await r.json();
   if (!r.ok) throw new Error(`OpenAI fallback failed: ${r.status} ${JSON.stringify(data)}`);
