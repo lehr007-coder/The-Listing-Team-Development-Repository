@@ -1,3 +1,11 @@
 name = "thelistingteamproxy"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+# Custom-domain binding: wrangler manages the DNS record + worker route in one
+# step. Without custom_domain=true, the bare `pattern`/`zone_name` form
+# requires a pre-existing proxied DNS record, which we don't have — so
+# Cloudflare's edge returns host_not_allowed.
+routes = [
+  { pattern = "thelistingteamproxy.reallistingteam.com", custom_domain = true }
+]

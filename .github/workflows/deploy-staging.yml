@@ -6,6 +6,11 @@ on:
       - main
       - 'claude/**'
 
+# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
+# on 2026-06-02. Remove when the action publishes a Node-24-native release.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   deploy-proxy:
     name: Deploy thelistingteamproxy-staging

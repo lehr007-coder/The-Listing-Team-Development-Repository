@@ -15,6 +15,11 @@ on:
         required: true
         default: ''
 
+# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
+# on 2026-06-02. Remove when the action publishes a Node-24-native release.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   guard:
     name: Confirm production deploy
@@ -32,6 +37,7 @@ jobs:
     name: Deploy thelistingteamproxy (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
@@ -45,6 +51,7 @@ jobs:
     name: Deploy tlt-support-tickets (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
@@ -58,6 +65,7 @@ jobs:
     name: Deploy ghl-brand-injector (prod)
     needs: guard
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy

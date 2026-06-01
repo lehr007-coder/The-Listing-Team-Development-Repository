@@ -1,3 +1,6 @@
 name = "thelistingteamproxy-staging"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+# Enable workers.dev route so the staging subdomain stays reachable.
+workers_dev = true

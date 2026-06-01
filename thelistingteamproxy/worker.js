@@ -8,6 +8,8 @@ var GHL_V1 = "https://rest.gohighlevel.com/v1";
 var GHL_V2 = "https://services.leadconnectorhq.com";
 var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
 var ALLOWED_ORIGINS = [
+  "https://thelistingteamproxy.reallistingteam.com",
+  "https://dash.reallistingteam.com",
   "https://thelistingteamproxy-staging.lehr007.workers.dev",
   "https://thelistingteamproxy.lehr007.workers.dev",
   "http://localhost:8787",
@@ -474,7 +476,7 @@ let vals=Object.fromEntries(CARDS.map(c=>[c.key,0]));
 let abortCtl=null, refreshTimer=null;
 
 function getCF(contact,keys){
-  const fields=Array.isArray(contact?.customField)?contact.customField:[];
+  const fields=Array.isArray(contact?.customFields)?contact.customFields:Array.isArray(contact?.customField)?contact.customField:[];
   for(const key of keys){
     const kl=key.toLowerCase();
     for(const f of fields){
@@ -3233,6 +3235,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
         <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
         <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+        <button onclick="bulkEnrichAllMissing()">&#127968; Bulk Enrich All Missing</button>
         <button onclick="exportAllCSV()">&#128196; Export CSV</button>
         <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
         <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
@@ -7748,27 +7751,48 @@ function buildAccordion(lead) {
         (ext.ylopoEventCount ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Ylopo events: <strong style="color:var(--text)">' + ext.ylopoEventCount + '</strong></div>' : '') +
         (ext.ylopoLastLogin ? '<div style="font-size:12px;color:var(--text-secondary)">Last login: <strong style="color:var(--text)">' + fmtDate(ext.ylopoLastLogin) + '</strong></div>' : '') +
       '</div>' +
-      '<div class="acc-section">' +
-        '<div class="acc-section-title">&#127968; Property Details</div>' +
-        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr)">' +
-          '<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + (esc(ext.address)||'\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + (ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + (ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '\\u2014') + '</div></div>' +
-        '</div>' +
-        '<div class="prop-grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px">' +
-          '<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + (ext.price ? fmtPrice(ext.price) : ext.estValue ? '$' + Number(ext.estValue).toLocaleString() : ext.minPrice||ext.maxPrice ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice) : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + (ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '\\u2014') + '</div></div>' +
-          '<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + (ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '\\u2014') + '</div></div>' +
-        '</div>' +
-        (ext.yearBuilt || ext.mlsNumber || ext.propType || ext.ownerSince ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' +
-          (ext.yearBuilt ? '<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>' : '') +
-          (ext.mlsNumber ? '<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>' : '') +
-          (ext.propType  ? '<span>Type: <strong>' + esc(ext.propType) + '</strong></span>'  : '') +
-          (ext.ownerSince ? '<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>' : '') +
-        '</div>' : '') +
-        (ext.assignedWebsite ? '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>' : '') +
-        (ext.ylopoEventType ? '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>' : '') +
-      '</div>' +
+      (function(){
+        var bedBath = ext.beds||ext.baths ? (ext.beds||'?') + 'bd / ' + (ext.baths||'?') + 'ba' : '';
+        var sqftStr = ext.sqft ? Number(ext.sqft).toLocaleString()+' sqft' : '';
+        var priceStr = ext.price ? fmtPrice(ext.price)
+          : ext.estValue ? '$' + Number(ext.estValue).toLocaleString()
+          : (ext.minPrice||ext.maxPrice) ? fmtPrice(ext.minPrice) + ' \\u2013 ' + fmtPrice(ext.maxPrice)
+          : '';
+        var equityStr = ext.equity ? '$' + Number(ext.equity).toLocaleString() + (ext.equityPct ? ' (' + ext.equityPct + '%)' : '') : '';
+        var mortgageStr = ext.mortgageBalance ? '$' + Number(ext.mortgageBalance).toLocaleString() : '';
+        var rows = [];
+        if (ext.address)  rows.push('<div class="prop-item"><div class="pi-label">Address</div><div class="pi-value" style="font-size:12px">' + esc(ext.address) + '</div></div>');
+        if (bedBath)      rows.push('<div class="prop-item"><div class="pi-label">Bed / Bath</div><div class="pi-value">' + bedBath + '</div></div>');
+        if (sqftStr)      rows.push('<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + sqftStr + '</div></div>');
+        var money = [];
+        if (priceStr)    money.push('<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + priceStr + '</div></div>');
+        if (equityStr)   money.push('<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + equityStr + '</div></div>');
+        if (mortgageStr) money.push('<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + mortgageStr + '</div></div>');
+        var metaBits = [];
+        if (ext.yearBuilt)  metaBits.push('<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>');
+        if (ext.mlsNumber)  metaBits.push('<span>MLS: <strong>' + esc(ext.mlsNumber) + '</strong></span>');
+        if (ext.propType)   metaBits.push('<span>Type: <strong>' + esc(ext.propType) + '</strong></span>');
+        if (ext.ownerSince) metaBits.push('<span>Owner Since: <strong>' + esc(ext.ownerSince) + '</strong></span>');
+        var extras = '';
+        if (ext.assignedWebsite) extras += '<div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">Website: <strong>' + esc(ext.assignedWebsite) + '</strong></div>';
+        if (ext.ylopoEventType)  extras += '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>';
+        var hasAnything = rows.length || money.length || metaBits.length || extras;
+        if (!hasAnything) {
+          // No ATTOM/Ylopo property data — show a CTA instead of a wall of em-dashes.
+          return '<div class="acc-section">' +
+            '<div class="acc-section-title">&#127968; Property Details</div>' +
+            '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">No property data on this contact yet.</div>' +
+            '<button onclick="enrichContact(&#39;' + lead.id + '&#39;)" style="padding:8px 14px;border:none;border-radius:8px;background:var(--accent,#f97316);color:#fff;font-size:12px;font-weight:700;cursor:pointer">\\u{1F3D8}\\uFE0F Enrich Property</button>' +
+          '</div>';
+        }
+        return '<div class="acc-section">' +
+          '<div class="acc-section-title">&#127968; Property Details</div>' +
+          (rows.length  ? '<div class="prop-grid" style="grid-template-columns:repeat(' + rows.length + ',1fr)">' + rows.join('') + '</div>' : '') +
+          (money.length ? '<div class="prop-grid" style="grid-template-columns:repeat(' + money.length + ',1fr);margin-top:10px">' + money.join('') + '</div>' : '') +
+          (metaBits.length ? '<div style="display:flex;gap:24px;margin-top:12px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">' + metaBits.join('') + '</div>' : '') +
+          extras +
+        '</div>';
+      })() +
       '<div class="acc-section">' +
         '<div class="acc-section-title">Tags</div>' +
         '<div class="tags-wrap" id="detailTags-' + lead.id + '">' + tagsHtml + '</div>' +
@@ -7952,6 +7976,51 @@ function bulkEnrichSellers() {
   });
   chain.then(function() {
     toast('Enrichment complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
+    if (done > 0) loadData(true);
+  });
+}
+
+// -------------------------------------------------------
+// BULK ENRICH ALL CONTACTS MISSING PROPERTY DATA
+// -------------------------------------------------------
+function bulkEnrichAllMissing() {
+  if (!ALL_LEADS || !ALL_LEADS.length) { toast('No contacts loaded', 'error'); return; }
+  var enrichable = ALL_LEADS.filter(function(l) {
+    var raw = RAW_CONTACTS[l.id];
+    if (!raw) return false;
+    var ext = getExtendedData(raw);
+    var addr = ext.address || raw.address1 || '';
+    if (!addr) return false;
+    var hasData = ext.price || ext.estValue || ext.equity || ext.mortgageBalance || ext.beds || ext.baths || ext.sqft || ext.mlsNumber || ext.yearBuilt;
+    return !hasData;
+  });
+  if (!enrichable.length) { toast('Nothing to enrich \\u2014 every contact with an address already has property data', 'info'); return; }
+  if (!confirm('Enrich ' + enrichable.length + ' contacts with ATTOM property data?\\n\\nOne ATTOM API call per contact. This runs sequentially with a short delay to stay under rate limits.')) return;
+
+  toast('Enriching ' + enrichable.length + ' contacts...', 'info');
+  var done = 0, failed = 0;
+  var chain = Promise.resolve();
+  enrichable.forEach(function(l) {
+    chain = chain.then(function() {
+      var raw = RAW_CONTACTS[l.id];
+      var ext = raw ? getExtendedData(raw) : {};
+      var address = ext.address || (raw && raw.address1) || '';
+      var cityStateZip = [ext.city || (raw && raw.city) || '', ext.state || (raw && raw.state) || '', ext.zip || (raw && raw.postalCode) || ''].filter(Boolean).join(' ');
+      return fetch(PROXY_URL + '/attom/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: l.id, address1: address, address2: cityStateZip })
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data && data.ok) done++; else failed++;
+        if ((done + failed) % 5 === 0 || (done + failed) === enrichable.length) {
+          toast('Enriched ' + done + '/' + enrichable.length + (failed ? ' (' + failed + ' failed)' : ''), 'info');
+        }
+      }).catch(function() { failed++; })
+        .then(function() { return new Promise(function(r) { setTimeout(r, 250); }); });
+    });
+  });
+  chain.then(function() {
+    toast('Bulk enrich complete: ' + done + ' enriched, ' + failed + ' failed', done > 0 ? 'success' : 'error');
     if (done > 0) loadData(true);
   });
 }
@@ -8262,6 +8331,11 @@ function connectSSE() {
         if (data.type === 'ylopo.webhook') {
           toast('New Ylopo event: ' + (data.event||'activity') + ' for ' + (data.email||'unknown'), 'info');
           sendNotification('Ylopo Lead Activity', (data.event||'New activity') + ' - ' + (data.email||data.name||'unknown'));
+        }
+        if (data.type === 'hot.lead.alert') {
+          var hotName = data.name || data.email || data.phone || 'Hot lead';
+          toast('\u{1F525} HOT LEAD: ' + hotName, 'success');
+          sendNotification('\u{1F525} Hot Lead Qualified', hotName + (data.phone ? ' · ' + data.phone : ''));
         }
         // GHL webhook events \u2014 auto-refresh contacts when changes happen in GHL
         if (data.type && data.type.indexOf('ghl.') === 0) {
@@ -16513,6 +16587,11 @@ function handleWebhookEvent(data) {
   if(data.type === 'appointment.created') {
     toast(\`\u{1F4C5} New appointment booked!\`, 'success');
   }
+  if(data.type === 'hot.lead.alert') {
+    const hotName = data.name || data.email || data.phone || 'Hot lead';
+    toast(\`\u{1F525} HOT LEAD: \${hotName}\`, 'success');
+    if(typeof sendNotification === 'function') sendNotification('\u{1F525} Hot Lead Qualified', hotName);
+  }
 }
 
 /* =============================== V4: KANBAN PIPELINE BOARD =============================== */
@@ -19042,23 +19121,35 @@ async function getFieldDefs(env) {
   if (_fieldDefsCache && now - _fieldDefsCachedAt < 18e5) {
     return _fieldDefsCache;
   }
-  try {
-    const locId = env.GHL_LOCATION_ID || LOC_ID;
-    const data = await ghlSafe(env, "GET", `/custom-fields/?locationId=${locId}`);
-    const fields = data.customFields || data.custom_fields || [];
-    const map = {};
-    fields.forEach((f) => {
-      if (f.id) map[f.id.toLowerCase()] = f;
-      if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
-      if (f.key) map[f.key.toLowerCase()] = f;
-    });
-    _fieldDefsCache = { fields, map };
-    _fieldDefsCachedAt = now;
-    return _fieldDefsCache;
-  } catch (e) {
-    console.error("getFieldDefs error:", e);
+  const locId = env.GHL_LOCATION_ID || LOC_ID;
+  // GHL v2 location custom-fields path is `/locations/{id}/customFields`.
+  // The legacy `/custom-fields/?locationId=...` path is kept as a fallback
+  // because both have been seen in the wild depending on token type.
+  let fields = [];
+  let lastError = null;
+  for (const path of [`/locations/${locId}/customFields`, `/custom-fields/?locationId=${locId}`]) {
+    try {
+      const data = await ghlSafe(env, "GET", path);
+      fields = data.customFields || data.custom_fields || [];
+      if (fields.length) break;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  if (!fields.length && lastError) {
+    console.error("getFieldDefs error:", lastError);
     return { fields: [], map: {} };
   }
+  const map = {};
+  fields.forEach((f) => {
+    if (f.id) map[f.id.toLowerCase()] = f;
+    if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
+    if (f.key) map[f.key.toLowerCase()] = f;
+  });
+  _fieldDefsCache = { fields, map };
+  _fieldDefsCachedAt = now;
+  console.log(`getFieldDefs: loaded ${fields.length} custom field defs for ${locId}`);
+  return _fieldDefsCache;
 }
 __name(getFieldDefs, "getFieldDefs");
 __name2(getFieldDefs, "getFieldDefs");
@@ -19964,6 +20055,141 @@ async function sendNotification(env, eventType, data) {
 }
 
 // =============================================================
+// GHL MARKETPLACE OAUTH + IFRAME SSO
+// Adds the GHL Marketplace install flow (/api/auth/ghl-oauth/install +
+// /callback) and the iframe custom-menu-link SSO handshake (/ghl-sso +
+// /api/auth/ghl-sso). Tokens persist to ghl_oauth_tokens on the
+// proxy's SUPABASE_URL. Cookie used is the existing tlt_session,
+// except with SameSite=None so it survives the GHL iframe context.
+// =============================================================
+var GHL_OAUTH_TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
+var GHL_OAUTH_AUTHORIZE_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
+var GHL_OAUTH_SCOPES = "contacts.readonly contacts.write locations.readonly users.readonly";
+
+async function _md5Bytes(bytes) {
+  // Cloudflare Workers Web Crypto supports MD5 as a non-standard extension.
+  var h = await crypto.subtle.digest("MD5", bytes);
+  return new Uint8Array(h);
+}
+async function _evpBytesToKey(passphraseBytes, saltBytes, keyLen, ivLen) {
+  // OpenSSL EVP_BytesToKey(MD5, 1 iter). Produces 32B key + 16B IV for AES-256-CBC.
+  var need = keyLen + ivLen;
+  var prev = new Uint8Array(0);
+  var out = [];
+  var total = 0;
+  while (total < need) {
+    var src = new Uint8Array(prev.length + passphraseBytes.length + saltBytes.length);
+    src.set(prev, 0);
+    src.set(passphraseBytes, prev.length);
+    src.set(saltBytes, prev.length + passphraseBytes.length);
+    prev = await _md5Bytes(src);
+    out.push(prev);
+    total += prev.length;
+  }
+  var merged = new Uint8Array(total);
+  var off = 0;
+  for (var i = 0; i < out.length; i++) { merged.set(out[i], off); off += out[i].length; }
+  return { key: merged.slice(0, keyLen), iv: merged.slice(keyLen, keyLen + ivLen) };
+}
+
+// Decrypt GHL's CryptoJS AES.encrypt(payload, passphrase) blob — base64 of
+// "Salted__" (8B) | salt (8B) | ciphertext. Returns parsed JSON.
+async function decryptGhlSsoToken(encryptedB64, ssoKey) {
+  var bin = atob(String(encryptedB64 || ""));
+  var blob = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) blob[i] = bin.charCodeAt(i);
+  if (blob.length < 17 || String.fromCharCode.apply(null, blob.slice(0, 8)) !== "Salted__") {
+    throw new Error("Invalid SSO payload: missing OpenSSL Salted__ header");
+  }
+  var salt = blob.slice(8, 16);
+  var ciphertext = blob.slice(16);
+  var pass = new TextEncoder().encode(ssoKey);
+  var derived = await _evpBytesToKey(pass, salt, 32, 16);
+  var key = await crypto.subtle.importKey("raw", derived.key, { name: "AES-CBC" }, false, ["decrypt"]);
+  var plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv: derived.iv }, key, ciphertext);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function mapGhlSsoRole(payload) {
+  var r = String((payload && (payload.role || payload.type)) || "").toLowerCase();
+  if (r === "admin" || r === "agency" || r === "agency_owner" || r === "owner") return "admin";
+  return "user";
+}
+
+async function ghlOauthPostToken(env, body) {
+  if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_CLIENT_SECRET) {
+    throw new Error("GHL_OAUTH_CLIENT_ID/SECRET not configured");
+  }
+  var form = new URLSearchParams(Object.assign({
+    client_id: env.GHL_OAUTH_CLIENT_ID,
+    client_secret: env.GHL_OAUTH_CLIENT_SECRET
+  }, body));
+  var res = await fetch(GHL_OAUTH_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+  if (!res.ok) {
+    var t = await res.text().catch(function() { return ""; });
+    throw new Error("GHL token exchange failed: " + res.status + " " + t.slice(0, 300));
+  }
+  return await res.json();
+}
+
+// Upsert OAuth tokens into ghl_oauth_tokens. GHL Marketplace fires the
+// callback twice on install (location-level with locationId, agency-level
+// with only companyId); the agency-level call is a benign no-op here.
+async function ghlOauthPersistTokens(env, t) {
+  if (!t || !t.locationId) {
+    console.log("[ghl-oauth] callback without locationId; skipping persist", {
+      hasCompanyId: !!(t && t.companyId), scope: t && t.scope
+    });
+    return;
+  }
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+    throw new Error("SUPABASE_URL/SUPABASE_KEY not configured");
+  }
+  var expiresAt = new Date(Date.now() + (Number(t.expires_in || 3600) - 60) * 1000).toISOString();
+  var row = {
+    location_id: t.locationId,
+    company_id: t.companyId || null,
+    access_token: t.access_token,
+    refresh_token: t.refresh_token,
+    expires_at: expiresAt,
+    scope: t.scope || null,
+    updated_at: new Date().toISOString()
+  };
+  var res = await fetch(env.SUPABASE_URL + "/rest/v1/ghl_oauth_tokens?on_conflict=location_id", {
+    method: "POST",
+    headers: {
+      "apikey": env.SUPABASE_KEY,
+      "Authorization": "Bearer " + env.SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify(row)
+  });
+  if (!res.ok) {
+    var body = await res.text().catch(function() { return ""; });
+    throw new Error("ghl_oauth_tokens upsert failed: " + res.status + " " + body.slice(0, 300));
+  }
+}
+
+// SameSite=None cookie variant for the iframe SSO flow. tlt_session
+// cookie set by /auth/login or /auth/ghl uses SameSite=Lax (mkCookie);
+// inside the GHL marketplace iframe Lax would be dropped on cross-site
+// navigations, so the SSO route emits the same payload with None+Secure.
+function mkSsoCookie(token) {
+  return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=86400";
+}
+
+// HTML served at /ghl-sso. Runs inside the GHL marketplace iframe,
+// postMessages REQUEST_USER_DATA to the parent frame with retries at
+// 0/500/1500/3000ms, accepts an encrypted SSO token back, and redirects
+// to /api/auth/sso?sso-session=… where the server decrypts it.
+var GHL_SSO_HANDSHAKE_HTML = "<!DOCTYPE html>\n<html lang=\"en\"><head>\n<meta charset=\"UTF-8\">\n<title>Signing you in…</title>\n<style>body{font-family:system-ui,sans-serif;background:#0a0e1a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}p{font-size:14px;max-width:520px;text-align:center;line-height:1.5;padding:0 16px}</style>\n</head><body>\n<p id=\"status\">Connecting to GoHighLevel…</p>\n<script>\n(function(){var done=false;var st=document.getElementById(\"status\");\nfunction isGhl(o){try{var h=new URL(o).hostname.toLowerCase();return h===\"app.gohighlevel.com\"||h===\"app.leadconnectorhq.com\"||h.endsWith(\".gohighlevel.com\")||h.endsWith(\".leadconnectorhq.com\")||h.endsWith(\".msgsndr.com\")||h.endsWith(\".highlevel.com\");}catch(e){return false}}\nfunction tok(d){if(!d)return null;if(typeof d===\"string\")return d.length>20?d:null;if(typeof d!==\"object\")return null;var i=(d.data&&typeof d.data===\"object\")?d.data:{};var u=(d.userData&&typeof d.userData===\"object\")?d.userData:{};var c=d.payload||d.token||d.ssoSession||d.sso||i.payload||i.token||i.ssoSession||i.sso||u.payload||u.token||u.ssoSession;return typeof c===\"string\"&&c.length>20?c:null}\nwindow.addEventListener(\"message\",function(ev){console.log(\"[ghl-sso] message\",{origin:ev.origin,type:typeof ev.data,keys:ev.data&&typeof ev.data===\"object\"?Object.keys(ev.data):undefined});if(!isGhl(ev.origin)){console.log(\"[ghl-sso] origin rejected\",ev.origin);return}var t=tok(ev.data);if(!t){console.log(\"[ghl-sso] no token in payload\");return}if(done)return;done=true;st.textContent=\"Signing you in…\";console.log(\"[ghl-sso] redirecting (token len \"+t.length+\")\");window.location.replace(\"/api/auth/sso?sso-session=\"+encodeURIComponent(t))});\nfunction req(n){if(done)return;console.log(\"[ghl-sso] REQUEST_USER_DATA attempt \"+n);try{window.parent&&window.parent.postMessage({message:\"REQUEST_USER_DATA\"},\"*\")}catch(e){console.error(\"[ghl-sso] postMessage failed\",e)}}\n[0,500,1500,3000].forEach(function(d,i){setTimeout(function(){req(i+1)},d)});\nsetTimeout(function(){if(done)return;st.textContent=\"Could not retrieve a GoHighLevel SSO session. Open DevTools → Console for diagnostic logs, then reload this page from inside the GHL sidebar.\"},12000);})();\n<\/script>\n</body></html>";
+
+// =============================================================
 // LOGIN RATE LIMIT (in-memory, per-isolate)
 // Intentionally simple: bypassable across CF colos, but raises
 // brute-force cost from $0 to "actually have to try multiple edges".
@@ -20329,7 +20555,35 @@ async function ghlUserRole(uid, agencyKey) {
 }
 
 var index_default = {
-  async fetch(request, env) {
+  async scheduled(event, env, ctx) {
+    const tick = new Date(event.scheduledTime);
+    const utcHour = tick.getUTCHours();
+    const utcMinute = tick.getUTCMinutes();
+    console.log("Scheduled cron tick:", event.cron, "at", tick.toISOString());
+    // Off-peak ylopo aggregate refresh: 06:00–07:00 UTC (≈02:00–03:00 ET)
+    // Runs once per night, processes a small batch via existing /ylopo-events/backfill.
+    if (utcHour === 6 && utcMinute < 10) {
+      ctx.waitUntil((async () => {
+        try {
+          const apiKey = env.PROXY_API_KEY || "";
+          if (!apiKey) {
+            console.warn("Cron backfill skipped: PROXY_API_KEY not configured");
+            return;
+          }
+          const res = await fetch("https://thelistingteamproxy.lehr007.workers.dev/ylopo-events/backfill", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+            body: JSON.stringify({ limit: 50, dryRun: false })
+          });
+          const out = await res.json().catch(() => ({}));
+          console.log("Cron ylopo backfill:", res.status, JSON.stringify(out).slice(0, 300));
+        } catch (e) {
+          console.warn("Cron backfill error:", e.message || e);
+        }
+      })());
+    }
+  },
+  async fetch(request, env, ctx) {
     _currentRequest = request;
     const url = new URL(request.url);
     const path = url.pathname;
@@ -20351,6 +20605,80 @@ var index_default = {
         await reportError(e, "healthz", env);
         return new Response(JSON.stringify({ status: "error", error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
+    }
+
+    // ---- GHL MARKETPLACE OAUTH + IFRAME SSO ROUTES ----
+    // Install flow: /api/auth/oauth/install -> chooselocation -> /api/auth/oauth/callback
+    // SSO flow:     /app/sso (iframe HTML) -> /api/auth/sso (cookie + redirect)
+    if (method === "GET" && path === "/api/auth/oauth/install") {
+      if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_REDIRECT_URI) {
+        return json({ error: "GHL_OAUTH_CLIENT_ID/REDIRECT_URI not configured" }, 500);
+      }
+      var installParams = new URLSearchParams({
+        response_type: "code",
+        client_id: env.GHL_OAUTH_CLIENT_ID,
+        redirect_uri: env.GHL_OAUTH_REDIRECT_URI,
+        scope: GHL_OAUTH_SCOPES
+      });
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": GHL_OAUTH_AUTHORIZE_URL + "?" + installParams.toString(), "Cache-Control": "no-store" }
+      });
+    }
+    if (method === "GET" && path === "/api/auth/oauth/callback") {
+      var oauthCode = url.searchParams.get("code");
+      if (!oauthCode) return json({ error: "Missing code" }, 400);
+      try {
+        var tokenResp = await ghlOauthPostToken(env, {
+          grant_type: "authorization_code",
+          code: oauthCode,
+          redirect_uri: env.GHL_OAUTH_REDIRECT_URI || ""
+        });
+        await ghlOauthPersistTokens(env, tokenResp);
+      } catch (e) {
+        await reportError(e, "oauth/callback", env);
+        return json({ error: String((e && e.message) || e) }, 500);
+      }
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": "/dashboard?installed=1", "Cache-Control": "no-store" }
+      });
+    }
+    if (method === "GET" && path === "/app/sso") {
+      return new Response(GHL_SSO_HANDSHAKE_HTML, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/html;charset=UTF-8",
+          "Cache-Control": "no-store",
+          "Content-Security-Policy": "frame-ancestors 'self' https://*.gohighlevel.com https://*.leadconnectorhq.com https://*.msgsndr.com https://*.highlevel.com"
+        }
+      });
+    }
+    if (method === "GET" && path === "/api/auth/sso") {
+      var ssoToken = url.searchParams.get("sso-session") || url.searchParams.get("token");
+      if (!ssoToken) return json({ error: "Missing sso-session" }, 400);
+      if (!env.GHL_SSO_KEY) return json({ error: "GHL_SSO_KEY not configured" }, 500);
+      var ssoPayload;
+      try {
+        ssoPayload = await decryptGhlSsoToken(ssoToken, env.GHL_SSO_KEY);
+      } catch (e) {
+        await reportError(e, "sso/decrypt", env);
+        return json({ error: "Invalid SSO token" }, 401);
+      }
+      if (!ssoPayload || !ssoPayload.userId) return json({ error: "Bad SSO payload" }, 400);
+      var ssoRole = mapGhlSsoRole(ssoPayload);
+      var ssoSecret = env.SESSION_SECRET || "tlt-sess-2027";
+      var ssoSessionToken = await createSessionToken({
+        uid: ssoPayload.userId,
+        email: ssoPayload.email || "",
+        name: ssoPayload.userName || "",
+        role: ssoRole,
+        loc: ssoPayload.locationId || locId
+      }, ssoSecret);
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": "/dashboard", "Set-Cookie": mkSsoCookie(ssoSessionToken), "Cache-Control": "no-store" }
+      });
     }
 
     // ---- AUTH ROUTES (GHL SSO) ----
@@ -20411,7 +20739,7 @@ var index_default = {
       }
     }
 
-    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
+    if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
       }
@@ -21055,13 +21383,18 @@ var index_default = {
           for (const c of raw) {
             if (seenIds.has(c.id)) continue;
             seenIds.add(c.id);
-            const cf = c.customField || [];
+            const cf = c.customFields || c.customField || [];
             if (cf.some((f) => !f.fieldKey && f.id)) {
-              c.customField = cf.map((f) => {
+              const enriched = cf.map((f) => {
                 if (f.fieldKey) return f;
                 const def = fieldMap[f.id?.toLowerCase()];
                 return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
               });
+              c.customField = enriched;
+              c.customFields = enriched;
+            } else {
+              c.customField = cf;
+              c.customFields = cf;
             }
             const events = ylopoByContact[c.id];
             if (events && events.length > 0) {
@@ -21109,16 +21442,18 @@ var index_default = {
         const contacts = data.contacts || [];
         const { map: fieldMap } = await getFieldDefs(env);
         const enriched = contacts.map((c) => {
-          const cf = c.customField || [];
+          const cf = c.customFields || c.customField || [];
           const needsEnrich = cf.some((f) => !f.fieldKey && f.id);
-          if (!needsEnrich) return c;
+          if (!needsEnrich) return { ...c, customField: cf, customFields: cf };
+          const enriched = cf.map((f) => {
+            if (f.fieldKey) return f;
+            const def = fieldMap[f.id?.toLowerCase()];
+            return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+          });
           return {
             ...c,
-            customField: cf.map((f) => {
-              if (f.fieldKey) return f;
-              const def = fieldMap[f.id?.toLowerCase()];
-              return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
-            })
+            customField: enriched,
+            customFields: enriched
           };
         });
         broadcastSSE({ type: "contacts.fetched", count: enriched.length });
@@ -21136,7 +21471,10 @@ var index_default = {
       try {
         const data = await ghlSafe(env, "GET", `/contacts/${contactId}`);
         let contact = data.contact || data;
-        contact.customField = await enrichCustomFields(env, contact.customField || []);
+        const cf = contact.customFields || contact.customField || [];
+        const enriched = await enrichCustomFields(env, cf);
+        contact.customField = enriched;
+        contact.customFields = enriched;
         return json(contact);
       } catch (e) {
         return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
@@ -21372,7 +21710,36 @@ var index_default = {
       }
     }
     __name(verifyWebhookSignature, "verifyWebhookSignature");
-    if (method === "POST" && path === "/ylopo-webhook") {
+    if (method === "POST" && path === "/api/webhooks/ghl/hot-lead-alert") {
+      const rawBody = await request.text();
+      let payload = {};
+      try { payload = JSON.parse(rawBody); } catch {}
+      console.log("\u{1F525} HOT lead alert:", JSON.stringify(payload).slice(0, 500));
+      const respond = json({ received: true, alert: payload.alert_type || "hot_lead_qualified" });
+      const work = /* @__PURE__ */ __name2(async () => {
+        try {
+          broadcastSSE({
+            type: "hot.lead.alert",
+            contactId: payload.contact_id || payload.contactId || payload.id || null,
+            email: payload.email || payload.contact_email || null,
+            name: payload.name || payload.full_name || ((payload.first_name || payload.firstName || "") + " " + (payload.last_name || payload.lastName || "")).trim() || null,
+            phone: payload.phone || null,
+            alertType: payload.alert_type || "hot_lead_qualified",
+            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+            raw: payload
+          });
+        } catch (e) {
+          console.warn("HOT lead alert SSE broadcast failed:", e.message || e);
+        }
+      }, "hotLeadAlertWork");
+      if (ctx && typeof ctx.waitUntil === "function") {
+        ctx.waitUntil(work());
+      } else {
+        work();
+      }
+      return respond;
+    }
+    if (method === "POST" && (path === "/ylopo-webhook" || path === "/api/webhooks/ghl/ylopo-intelligence")) {
       const rawBody = await request.text();
       if (env.WEBHOOK_SECRET && !await verifyWebhookSignature(rawBody, request, env)) {
         return err("Unauthorized: invalid webhook signature", 401);
@@ -21617,7 +21984,11 @@ var index_default = {
           console.error("Ylopo webhook processing error:", e.message || e);
         }
       }, "processEvent");
-      processEvent();
+      if (ctx && typeof ctx.waitUntil === "function") {
+        ctx.waitUntil(processEvent());
+      } else {
+        processEvent();
+      }
       return responsePromise;
     }
     if (method === "POST" && path === "/ghl-webhook") {
