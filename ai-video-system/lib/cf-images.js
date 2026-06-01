@@ -4,6 +4,11 @@
 
 const IMG_BASE = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/images/v1`;
 
+// Cap every CF Images API call so a hung CF backend can't burn the
+// queue consumer's 15-min wall-clock. Same defensive pattern as
+// cf-stream.js and r2.js.
+const CF_IMAGES_TIMEOUT_MS = 30_000;
+
 export async function uploadFromUrl(env, sourceUrl, opts = {}) {
   const form = new FormData();
   form.append("url", sourceUrl);
@@ -15,6 +20,7 @@ export async function uploadFromUrl(env, sourceUrl, opts = {}) {
     method: "POST",
     headers: { "Authorization": `Bearer ${env.CF_IMAGES_API_TOKEN}` },
     body: form,
+    signal: AbortSignal.timeout(CF_IMAGES_TIMEOUT_MS),
   });
   const data = await r.json();
   if (!data.success) throw new Error(`CF Images upload failed: ${JSON.stringify(data.errors)}`);
