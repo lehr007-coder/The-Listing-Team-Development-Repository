@@ -7,6 +7,15 @@
 const GHL_BASE = "https://services.leadconnectorhq.com";
 const GHL_VERSION = "2021-07-28";
 
+// Cap every GHL API call so a slow LeadConnector backend can't burn the
+// queue consumer's 15-min wall-clock. GHL endpoints are normally
+// sub-second; 30s is generous headroom. Without this a hung GHL call
+// inside processOne would die externally with no catch-block error,
+// leaving the row's claim dangling — same failure mode we've fixed for
+// R2, CF Stream, and CF Images.
+const GHL_TIMEOUT_MS = 30_000;
+const ghlSignal = () => AbortSignal.timeout(GHL_TIMEOUT_MS);
+
 // Custom field keys this sidecar OWNS (writable). Anything else is read-only.
 export const OWNED_FIELDS = new Set([
   "ai_video_type",
@@ -47,6 +56,7 @@ function authHeaders(env, useV2 = true) {
 export async function getContact(env, contactId) {
   const r = await fetch(`${GHL_BASE}/contacts/${contactId}`, {
     headers: authHeaders(env),
+    signal: ghlSignal(),
   });
   if (!r.ok) throw new Error(`GHL getContact ${contactId} failed: ${r.status} ${await r.text()}`);
   const data = await r.json();
@@ -109,6 +119,7 @@ export async function writeOwnedFields(env, contactId, updates) {
     method: "PUT",
     headers: authHeaders(env),
     body: JSON.stringify({ customFields }),
+    signal: ghlSignal(),
   });
   if (!r.ok) {
     const txt = await r.text();
@@ -128,6 +139,7 @@ export async function sendSms(env, contactId, body, locationId) {
       message: body,
       ...(locationId ? { locationId } : {}),
     }),
+    signal: ghlSignal(),
   });
   if (!r.ok) throw new Error(`GHL sendSms failed: ${r.status} ${await r.text()}`);
   return r.json();
@@ -144,6 +156,7 @@ export async function sendEmail(env, contactId, subject, html, locationId) {
       html,
       ...(locationId ? { locationId } : {}),
     }),
+    signal: ghlSignal(),
   });
   if (!r.ok) throw new Error(`GHL sendEmail failed: ${r.status} ${await r.text()}`);
   return r.json();
@@ -158,6 +171,7 @@ export async function sendConversationNote(env, contactId, body) {
       contactId,
       message: body,
     }),
+    signal: ghlSignal(),
   });
   if (!r.ok) throw new Error(`GHL sendConversationNote failed: ${r.status} ${await r.text()}`);
   return r.json();
@@ -171,6 +185,7 @@ export async function appendContactNote(env, contactId, body) {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify({ body }),
+    signal: ghlSignal(),
   });
   if (!r.ok) throw new Error(`GHL appendContactNote failed: ${r.status} ${await r.text()}`);
   return r.json();
