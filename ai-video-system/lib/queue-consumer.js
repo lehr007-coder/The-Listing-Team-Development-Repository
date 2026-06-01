@@ -11,6 +11,7 @@
 
 import { putFromUrl } from "./r2.js";
 import { uploadFromUrl as streamUpload, streamThumbnailUrl, streamGifUrl } from "./cf-stream.js";
+import { uploadFromUrl as cfImagesUpload, imageUrl as cfImageVariantUrl } from "./cf-images.js";
 import { updateVideoJob, getVideoJob, insertVideoEvent, claimJobForProcessing } from "./supabase.js";
 import { writeOwnedFields } from "./ghl.js";
 import { runDelivery } from "./delivery.js";
@@ -75,7 +76,29 @@ export async function processOne(env, body) {
     step = "build_urls";
     const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
     const gifUrl = stream.uid ? streamGifUrl(stream.uid, { duration: "4s" }) : null;
-    const thumbnailUrl = stream.uid ? streamThumbnailUrl(stream.uid, "1s", 720) : null;
+    const streamThumbUrl = stream.uid ? streamThumbnailUrl(stream.uid, "1s", 720) : null;
+
+    // Opportunistically host the JPG thumbnail via CF Images (when both
+    // a Stream thumbnail exists AND the CF_IMAGES_API_TOKEN is wired).
+    // Better delivery than Stream's thumbnail CDN and unlocks branded
+    // variants — once a user defines a "branded" variant in CF Images
+    // dashboard (logo overlay etc.), they can swap "public" for
+    // "branded" in cfImageVariantUrl() with no other code change.
+    // Best-effort: falls back to the Stream thumbnail URL if anything
+    // goes wrong.
+    step = "cf_images_thumbnail";
+    let thumbnailUrl = streamThumbUrl;
+    if (streamThumbUrl && env.CF_IMAGES_API_TOKEN && env.CF_IMAGES_ACCOUNT_HASH) {
+      try {
+        const img = await cfImagesUpload(env, streamThumbUrl, {
+          id: `thumb-${jobId}`,
+          metadata: { job_id: jobId, video_type: job.video_type, kind },
+        });
+        thumbnailUrl = cfImageVariantUrl(env, img.id, "public");
+      } catch (e) {
+        console.warn(`cf_images thumbnail upload failed (non-fatal):`, e.message);
+      }
+    }
 
     step = "update_video_job_rendered";
     await updateVideoJob(env, jobId, {
