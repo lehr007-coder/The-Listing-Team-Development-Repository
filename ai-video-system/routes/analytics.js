@@ -64,6 +64,9 @@ export default async function analyticsRoute(request, env, ctx, url) {
 
 // Returns true iff `to` is one of:
 //   • a same-origin URL on this worker (e.g. /v/<jobId>)
+//   • a URL whose origin matches the job's stored hosted_url — this
+//     handles jobs rendered before custom domains were bound, where
+//     hosted_url points at the workers.dev subdomain
 //   • the cta_url stored on the named video_job row (exact href OR same origin)
 // Any other URL — including arbitrary https sites, javascript:, data:,
 // file: — is refused. If jobId is absent only same-origin is allowed.
@@ -81,9 +84,23 @@ async function isAllowedRedirect(env, jobId, to) {
 
   if (!jobId) return false;
   const job = await getVideoJob(env, jobId).catch(() => null);
-  if (!job?.cta_url) return false;
+  if (!job) return false;
 
-  let cta;
-  try { cta = new URL(job.cta_url); } catch { return false; }
-  return target.href === cta.href || target.origin === cta.origin;
+  // Allow the job's own hosted_url origin (handles pre-custom-domain jobs).
+  if (job.hosted_url) {
+    try {
+      const hosted = new URL(job.hosted_url);
+      if (target.origin === hosted.origin) return true;
+    } catch {}
+  }
+
+  // Allow the job's registered cta_url (exact or same origin).
+  if (job.cta_url) {
+    try {
+      const cta = new URL(job.cta_url);
+      if (target.href === cta.href || target.origin === cta.origin) return true;
+    } catch {}
+  }
+
+  return false;
 }
