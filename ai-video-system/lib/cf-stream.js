@@ -4,6 +4,12 @@
 
 const STREAM_BASE = (env) => `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/stream`;
 
+// Cap every Stream API call so a hung upstream (CF Stream fetching a slow
+// or expired source MP4) doesn't leave processOne running until the queue
+// consumer's 15-min wall-clock kills it externally. /copy is supposed to
+// be a fast handoff (Stream pulls async), so 30s is generous headroom.
+const STREAM_API_TIMEOUT_MS = 30_000;
+
 function streamHeaders(env) {
   return {
     "Authorization": `Bearer ${env.CF_STREAM_API_TOKEN}`,
@@ -21,6 +27,7 @@ export async function uploadFromUrl(env, sourceUrl, meta = {}) {
       requireSignedURLs: meta.requireSignedURLs === true,
       thumbnailTimestampPct: 0.1,
     }),
+    signal: AbortSignal.timeout(STREAM_API_TIMEOUT_MS),
   });
   const data = await r.json();
   if (!data.success) {
@@ -39,6 +46,7 @@ export async function uploadFromUrl(env, sourceUrl, meta = {}) {
 export async function getStreamVideo(env, uid) {
   const r = await fetch(`${STREAM_BASE(env)}/${uid}`, {
     headers: streamHeaders(env),
+    signal: AbortSignal.timeout(STREAM_API_TIMEOUT_MS),
   });
   const data = await r.json();
   if (!data.success) return null;
