@@ -216,24 +216,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">IDX + Ylopo</div>
         </div>
       </a>
-      <a href="/dashboard/pipeline" class="card green">
-        <span class="arrow">\u2192</span>
-        <div class="icon-wrap">\u{1F680}</div>
-        <div class="card-body">
-          <div class="card-title">Pipeline Ideas</div>
-          <div class="card-desc">Submit ideas, feature requests, and suggestions. Track progress from idea to done on a kanban board.</div>
-          <div class="card-tag">Idea \u2192 Planned \u2192 Done</div>
-        </div>
-      </a>
-      <a href="https://tlt-support-tickets-staging.lehr007.workers.dev/" target="_blank" class="card purple">
-        <span class="arrow">\u2192</span>
-        <div class="icon-wrap">\u{1F3AB}</div>
-        <div class="card-body">
-          <div class="card-title">Support Tickets</div>
-          <div class="card-desc">Submit a support ticket, track open issues, and manage customer requests. Full ticket lifecycle with admin controls.</div>
-          <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
-        </div>
-      </a>
     </div>
   </div>
 
@@ -265,6 +247,33 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-title">Social Post Importer</div>
           <div class="card-desc">Import and manage social media content for automated posting and distribution across channels.</div>
           <div class="card-tag">Content pipeline</div>
+        </div>
+      </a>
+      <a id="link-ai-video" href="https://videos.reallistingteam.com/admin" target="_blank" class="card purple">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3AC}</div>
+        <div class="card-body">
+          <div class="card-title">AI Video System</div>
+          <div class="card-desc">HEYGEN + FCPXML personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch.</div>
+          <div class="card-tag">12 video_types \u00b7 HEYGEN + FCPXML</div>
+        </div>
+      </a>
+      <a href="/dashboard/pipeline" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F680}</div>
+        <div class="card-body">
+          <div class="card-title">Pipeline Ideas</div>
+          <div class="card-desc">Submit ideas, feature requests, and suggestions. Track progress from idea to done on a kanban board.</div>
+          <div class="card-tag">Idea \u2192 Planned \u2192 Done</div>
+        </div>
+      </a>
+      <a href="https://tlt-support-tickets-staging.lehr007.workers.dev/" target="_blank" class="card purple">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3AB}</div>
+        <div class="card-body">
+          <div class="card-title">Support Tickets</div>
+          <div class="card-desc">Submit a support ticket, track open issues, and manage customer requests. Full ticket lifecycle with admin controls.</div>
+          <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
         </div>
       </a>
     </div>
