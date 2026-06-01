@@ -18,7 +18,7 @@
 //   BRAND_AGENT_SIGNATURE  — overrides per-contact agent name fallback
 
 const DEFAULT_LOGO_URL =
-  "https://reallistingteam.com/wp-content/uploads/2024/01/listing-team-logo.png";
+  "https://tlt-image-server.lehr007.workers.dev/images/the-listing-team-resf-3d-logo";
 
 export function getBrand(env) {
   const year = new Date().getFullYear();
