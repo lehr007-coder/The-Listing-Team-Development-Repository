@@ -2,7 +2,7 @@
 // into the existing lead-scoring pipeline by appending a row to scoring_log
 // (READ-ONLY for the existing scoring engine — it just sees a new row).
 
-import { insertVideoEvent, updateVideoJob, getVideoJob } from "./supabase.js";
+import { insertVideoEvent, updateVideoJob, getVideoJob, resolveLeadByGhlContactId } from "./supabase.js";
 import { writeOwnedFields } from "./ghl.js";
 import { nowIso } from "./util.js";
 
@@ -50,24 +50,29 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
   const isDuplicateScore = event !== "rewatch" && await alreadyScored(env, jobId, event);
   const delta = isDuplicateScore ? 0 : (SCORE_DELTAS[event] || 0);
   if (delta && cId) {
-    // Append to scoring_log so the existing lead-scoring engine sees it.
-    // The proxy worker's scoring engine reads this table and aggregates.
-    await fetch(`${env.SUPABASE_URL}/rest/v1/scoring_log`, {
-      method: "POST",
-      headers: {
-        "apikey": env.SUPABASE_KEY,
-        "Authorization": `Bearer ${env.SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contact_id: cId,
-        source: "ai_video",
-        delta,
-        reason: `video_${event}`,
-        meta: { job_id: jobId, video_type: job.video_type, ...meta },
-        created_at: nowIso(),
-      }),
-    }).catch(() => {});
+    // scoring_log uses lead_id (uuid) as its FK back to leads. We only
+    // know the GHL contact id, so resolve to lead.id first. Schema
+    // columns: id, lead_id, score_change, reason, created_at. We pack
+    // the metadata (source, job_id, video_type) into the reason string
+    // since the table has no jsonb meta column.
+    const lead = await resolveLeadByGhlContactId(env, cId).catch(() => null);
+    if (lead?.id) {
+      const reason = `ai_video:${event}:job=${jobId}:type=${job.video_type}`;
+      await fetch(`${env.SUPABASE_URL}/rest/v1/scoring_log`, {
+        method: "POST",
+        headers: {
+          "apikey": env.SUPABASE_KEY,
+          "Authorization": `Bearer ${env.SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          score_change: delta,
+          reason,
+          created_at: nowIso(),
+        }),
+      }).catch(() => {});
+    }
   }
 
   // Mirror engagement counters onto the contact's owned fields.

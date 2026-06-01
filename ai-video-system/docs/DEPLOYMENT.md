@@ -112,6 +112,18 @@ Set with `wrangler secret put <NAME> --config wrangler.staging.toml`
 | `SOCIAL_FACEBOOK_STORIES_WEBHOOK`| optional | "" |
 | `SOCIAL_YOUTUBE_SHORTS_WEBHOOK`  | optional | "" |
 | `SOCIAL_DISPATCH_API_KEY`        | optional | Bearer for the social webhooks |
+| `BRAND_NAME`                     | optional | Display name, default "The Listing Team" |
+| `BRAND_LOGO_URL`                 | optional | https URL to PNG/SVG logo (~200×60). Used in email header. |
+| `BRAND_PRIMARY_COLOR`            | optional | Hex color for CTA buttons + accents, default `#ff6a00` |
+| `BRAND_TEXT_COLOR`               | optional | Email body text color, default `#222222` |
+| `BRAND_BG_COLOR`                 | optional | Email background, default `#f6f6f6` |
+| `BRAND_WEBSITE_URL`              | optional | Homepage URL — logo + footer link target |
+| `BRAND_FOOTER_TEXT`              | optional | Replaces the default `© <year> <name>` line |
+| `BRAND_UNSUBSCRIBE_URL`          | optional | If set, adds an Unsubscribe link to the email footer |
+| `BRAND_AGENT_SIGNATURE`          | optional | Overrides per-contact agent name fallback |
+
+All `BRAND_*` vars have sensible defaults — the worker renders branded
+emails out of the box. Setting any of them rebrands without a code change.
 
 ## 3. Deploy
 

@@ -21,9 +21,14 @@ import { getRenderStatus } from "./heygen.js";
 import { updateVideoJob } from "./supabase.js";
 import { enqueueOrInline } from "./queue-producer.js";
 
-const POLL_MIN_AGE_S = 60;          // give real callback a chance first
-const POLL_MAX_AGE_S = 30 * 60;     // stop after 30 minutes
-const POLL_BATCH = 10;              // cap per-tick
+const POLL_MIN_AGE_S = 60;                  // give real callback a chance first
+const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enough
+                                            // to self-heal multi-hour Supabase
+                                            // outages without leaving rows
+                                            // permanently stuck in 'rendering'.
+                                            // HeyGen MP4 URLs typically remain
+                                            // fetchable for ~24h after render.
+const POLL_BATCH = 10;                      // cap per-tick
 
 export async function runHeygenPollFallback(env, ctx) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return { skipped: "no_supabase" };

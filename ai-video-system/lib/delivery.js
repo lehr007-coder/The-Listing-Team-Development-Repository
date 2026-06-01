@@ -5,6 +5,7 @@
 import { getVideoJob, updateVideoJob, insertVideoEvent } from "./supabase.js";
 import { invokeAgent } from "./agents.js";
 import { sendSms, sendEmail, sendConversationNote, writeOwnedFields, getContact, readField, appendContactNote } from "./ghl.js";
+import { renderEmailHtml, renderEmailSubject, renderSmsBody } from "./templates.js";
 import { nowIso } from "./util.js";
 
 function formatVideoType(t) {
@@ -95,36 +96,62 @@ export async function runDelivery(env, jobId) {
 
   const formatted = await invokeAgent(env, "video_delivery", deliveryCtx);
 
-  // Per-channel template vars — HOSTED_URL is wrapped in our click-
-  // tracking redirect with a different `src` per channel. Lets us
-  // measure email click-through-rate separately from SMS click-through
-  // and from in-page CTA clicks.
-  function tplVarsFor(channel) {
-    return {
-      HOSTED_URL: wrapClickTracking(env, jobId, job.hosted_url, channel),
-      // GIF_URL stays as-is (it's an image src, not a click target).
-      GIF_URL: job.gif_url || "",
-      THUMBNAIL_URL: job.thumbnail_url || "",
-      CTA_TEXT: formatted.cta_text || "Schedule a call",
-      first_name: contact.firstName || "there",
-      last_name: contact.lastName || "",
-      firstName: contact.firstName || "there",
-      AGENT_FIRST_NAME: readField(contact, "agent_first_name") || "",
-      AGENT_BRAND: readField(contact, "agent_brand") || "",
-    };
-  }
+  // Per-channel click-tracked URLs (so we can measure email CTR vs SMS
+  // CTR separately).
+  const emailHostedUrl = wrapClickTracking(env, jobId, job.hosted_url, "email");
+  const smsHostedUrl   = wrapClickTracking(env, jobId, job.hosted_url, "sms");
+  const noteHostedUrl  = wrapClickTracking(env, jobId, job.hosted_url, "conversation");
 
-  const emailVars = tplVarsFor("email");
-  const smsVars   = tplVarsFor("sms");
-  const noteVars  = tplVarsFor("conversation");
-
-  const subject  = applyTemplateVars(formatted.email_subject, emailVars);
-  const smsBody  = applyTemplateVars(formatted.sms, smsVars);
-  const noteBody = applyTemplateVars(formatted.conversation_note || formatted.sms, noteVars);
+  // Template-driven email: agent owns the body copy + subject + cta_text;
+  // brand chrome (logo, colors, footer, layout) lives in lib/templates.js.
+  // Saves LLM tokens (no more HTML generation by the agent) and enforces
+  // brand consistency across every send.
+  const subject = renderEmailSubject({
+    videoType: job.video_type,
+    agentSubject: formatted.email_subject,
+    firstName: contact.firstName,
+  });
   const emailHtml = injectEmailOpenPixel(
-    applyTemplateVars(formatted.email_html, emailVars),
+    renderEmailHtml({
+      env,
+      videoType: job.video_type,
+      firstName: contact.firstName,
+      hostedUrl: emailHostedUrl,
+      gifUrl: job.gif_url || "",
+      bodyCopy: formatted.email_body_copy || formatted.email_body || formatted.body || "",
+      ctaText: formatted.cta_text,
+      ctaUrl: emailHostedUrl,
+    }),
     env, jobId
   );
+
+  // SMS: agent's sms_copy (typed for the recipient + scenario) wins; if
+  // the agent left it blank or didn't include the URL token, the
+  // template appends the link automatically. Pure-template fallback if
+  // the agent returned nothing.
+  const smsBody = applyTemplateVars(
+    renderSmsBody({
+      videoType: job.video_type,
+      agentSmsCopy: formatted.sms || formatted.sms_copy,
+      firstName: contact.firstName,
+      hostedUrl: smsHostedUrl,
+    }),
+    { HOSTED_URL: smsHostedUrl, first_name: contact.firstName || "there",
+      firstName: contact.firstName || "there" }
+  );
+
+  // Conversation note — single-line nudge for the GHL conversation feed.
+  // Agent-supplied if present; otherwise mirror the SMS but without the
+  // URL (the agent often sees the conversation feed inline already).
+  const rawNote = formatted.conversation_note || formatted.sms ||
+                  `Sent a personal ${job.video_type.replace(/_/g, " ")} video — ${noteHostedUrl}`;
+  const noteBody = applyTemplateVars(rawNote, {
+    HOSTED_URL: noteHostedUrl,
+    first_name: contact.firstName || "there",
+    firstName: contact.firstName || "there",
+    AGENT_FIRST_NAME: readField(contact, "agent_first_name") || "",
+    AGENT_BRAND: readField(contact, "agent_brand") || "",
+  });
 
   const channels = (job.delivery_channels || []).filter(c => PRIVATE_CHANNELS.includes(c));
   const results = {};

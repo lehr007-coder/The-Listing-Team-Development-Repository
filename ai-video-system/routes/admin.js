@@ -78,6 +78,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
   if (path === "/stream-token-test")             return streamTokenTest(env);
+  if (path === "/cf-images-test")                return cfImagesTest(env);
   if (path.match(/^\/contacts\/[^/]+\/videos$/)) return contactVideos(env, path.split("/")[2]);
 
   return error(404, "not_found", `No admin route: ${method} ${path}`);
@@ -505,6 +506,38 @@ async function agentsTest(env, request) {
 // whether the token is missing, rejected, or working — and the HTTP
 // status / first error message if Cloudflare rejects it. Use after
 // rotating the token to confirm before triggering a real render.
+// Same pattern as streamTokenTest. Hits the CF Images listing endpoint
+// with per_page=1 — no upload, no cost. Confirms the token has the
+// right scope before relying on it for the first real render.
+async function cfImagesTest(env) {
+  if (!env.CF_ACCOUNT_ID) {
+    return json({ ok: false, reason: "CF_ACCOUNT_ID not set" }, 503);
+  }
+  if (!env.CF_IMAGES_API_TOKEN) {
+    return json({ ok: false, reason: "CF_IMAGES_API_TOKEN not set" }, 503);
+  }
+  if (!env.CF_IMAGES_ACCOUNT_HASH) {
+    return json({ ok: false, reason: "CF_IMAGES_ACCOUNT_HASH not set" }, 503);
+  }
+  const r = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/images/v1?per_page=1`,
+    { headers: { "Authorization": `Bearer ${env.CF_IMAGES_API_TOKEN}` } }
+  );
+  let data = null;
+  try { data = await r.json(); } catch {}
+  return json({
+    ok: r.ok && data?.success === true,
+    status: r.status,
+    cf_success: data?.success ?? null,
+    cf_errors: data?.errors ?? null,
+    account_hash: env.CF_IMAGES_ACCOUNT_HASH,
+    sample_count: Array.isArray(data?.result?.images) ? data.result.images.length : null,
+    hint: r.ok && data?.success
+      ? "Images token is valid — ready for branded variants + uploads."
+      : "Images token is invalid or lacks Cloudflare-Images:Edit scope.",
+  }, r.ok && data?.success ? 200 : 502);
+}
+
 async function streamTokenTest(env) {
   if (!env.CF_ACCOUNT_ID) {
     return json({ ok: false, reason: "CF_ACCOUNT_ID not set" }, 503);
