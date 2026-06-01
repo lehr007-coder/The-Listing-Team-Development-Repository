@@ -3,6 +3,16 @@
 
 const HEYGEN_BASE = "https://api.heygen.com";
 
+// Defensive wall-clock cap on every HeyGen API call. The cron
+// poll-fallback iterates over stuck-rendering jobs calling
+// getRenderStatus on each; an unbounded fetch lets a single slow
+// HeyGen response stall the whole cron tick (and any retries),
+// effectively starving every other stuck job of polling and
+// silently leaving them in 'rendering' forever. 30s is generous
+// — HeyGen's status endpoint is normally sub-second.
+const HEYGEN_TIMEOUT_MS = 30_000;
+const heygenSignal = () => AbortSignal.timeout(HEYGEN_TIMEOUT_MS);
+
 function heygenHeaders(env) {
   return {
     "X-Api-Key": env.HEYGEN_API_KEY,
@@ -66,6 +76,7 @@ export async function createAvatarVideo(env, opts) {
     method: "POST",
     headers: heygenHeaders(env),
     body: JSON.stringify(body),
+    signal: heygenSignal(),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
@@ -80,7 +91,7 @@ export async function createAvatarVideo(env, opts) {
 export async function getRenderStatus(env, heygenVideoId) {
   const r = await fetch(
     `${HEYGEN_BASE}/v1/video_status.get?video_id=${heygenVideoId}`,
-    { headers: heygenHeaders(env) }
+    { headers: heygenHeaders(env), signal: heygenSignal() }
   );
   if (!r.ok) throw new Error(`HeyGen getRenderStatus ${heygenVideoId} failed: ${r.status}`);
   return r.json();
