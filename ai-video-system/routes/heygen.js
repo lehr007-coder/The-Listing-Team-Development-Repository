@@ -32,9 +32,14 @@ import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
 const HEYGEN_VIDEO_TYPES = new Set([
   "seller_valuation",
   "fsbo_outreach",
+  "expired_listing",
   "buyer_activity",
+  "new_listing_match",
+  "market_update",
+  "open_house_invite",
   "showing_request",
   "appointment_reminder",
+  "mortgage_update",
   "lead_nurture",
   "priority_lead",
 ]);

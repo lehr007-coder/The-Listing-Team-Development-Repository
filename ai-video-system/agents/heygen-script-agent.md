@@ -35,7 +35,7 @@ and recent events from the input payload. **Never** invents facts.
   "events": [...],
   "lead": {...},
   "scoring": [...],
-  "video_type": "seller_valuation | fsbo_outreach | buyer_activity | showing_request | appointment_reminder | lead_nurture | priority_lead",
+  "video_type": "seller_valuation | fsbo_outreach | expired_listing | buyer_activity | new_listing_match | market_update | open_house_invite | showing_request | appointment_reminder | mortgage_update | lead_nurture | priority_lead",
   "trigger_reason": "Ylopo HOT lead — 3 favorites in 24h"
 }
 ```
@@ -76,8 +76,37 @@ and recent events from the input payload. **Never** invents facts.
 |---|---|---|
 | seller_valuation | consultative | "I just pulled comps for 123 Maple..." |
 | fsbo_outreach | warm | "Saw you're selling on your own — quick thought..." |
+| expired_listing | direct | "Saw your listing at 123 Maple just came off the market — I have a few ideas on what likely held it back..." |
 | buyer_activity | curious | "You've been looking at 3 homes near X..." |
+| new_listing_match | excited | "A home just hit the market that lines up exactly with what you've been favoriting — wanted to put it in front of you before the rush..." |
+| market_update | consultative | "Quick 30-second update on what's happening in your neighborhood this month — prices moved more than people think..." |
+| open_house_invite | warm | "Hosting an open house this Saturday at a place that fits what you've been looking at — wanted to personally invite you..." |
 | showing_request | urgent | "Got your showing request for 123 Maple..." |
 | appointment_reminder | friendly | "Looking forward to our chat tomorrow..." |
+| mortgage_update | helpful | "Rates just moved — wanted to give you a quick heads-up on what it could mean for your monthly payment if you're still shopping..." |
 | lead_nurture | helpful | "Wanted to share something useful..." |
 | priority_lead | direct | "You're on my short list this week..." |
+
+### Field hints by video_type
+
+When `video_type` is one of the five below, lean on these fields if present
+in the input:
+
+- **`expired_listing`** — `seller_property_address`, `last_event_listing`,
+  `seller_estimated_value`. Acknowledge that the listing came off the
+  market; offer a fresh strategy (new photos, pricing, exposure). Don't
+  speculate on why it expired.
+- **`new_listing_match`** — `favorite_listings`, `last_event_listing`,
+  the most recent event in `events[]` of type `LISTING_VIEW` or
+  `FAVORITE_LISTING`. Cite the address or MLS# explicitly. Urgency tone
+  but not pushy.
+- **`market_update`** — neighborhood from `seller_property_address` or
+  `fsbo_address` (whichever is populated). If neither is set, fall back
+  to a city-level reference. Numbers should come from the input payload,
+  not invented.
+- **`open_house_invite`** — listing address from `last_event_listing` or
+  a custom field your workflow passes through. Mention day/time only if
+  present in the payload; otherwise use generic "this weekend".
+- **`mortgage_update`** — never invent rate numbers. If the input doesn't
+  carry a specific rate, keep it qualitative ("rates moved this week").
+  Recommend a quick call rather than committing to numbers in video.

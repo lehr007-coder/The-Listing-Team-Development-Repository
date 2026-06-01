@@ -19,6 +19,32 @@ The sidecar updates `video_status`, `video_url`, `video_gif_url`,
 `video_last_rendered`, `video_last_sent` on the contact directly.
 **No further workflow steps needed.**
 
+#### Recommended trigger conditions per `video_type`
+
+Every `video_type` is a separate sub-workflow (or a single workflow with an
+If/Else branch on the trigger). The webhook body passes
+`video_type: "<value>"` and the script agent handles the rest. The 12
+supported values, plus their default trigger:
+
+| `video_type` | GHL trigger condition | Notes |
+|---|---|---|
+| `seller_valuation` | Custom Field Changed — `seller_estimated_value` set | The original anchor flow |
+| `fsbo_outreach` | Tag Added — `fsbo` | Or custom field `fsbo_address` populated |
+| `expired_listing` | Tag Added — `expired-listing` | Or custom field `listing_status` = `expired` |
+| `buyer_activity` | Custom Field Changed — `event_type` = `FAVORITE_LISTING` AND `lead_score` ≥ 70 | Tunable threshold |
+| `new_listing_match` | Custom Field Changed — `new_listing_match_address` populated by Ylopo | Or tag `new-listing-alert` |
+| `market_update` | Scheduled workflow — monthly, segmented by neighborhood tag | Or tag `monthly-market-update` |
+| `open_house_invite` | Custom Field Changed — `open_house_date` within 7 days | Trigger filter the date in workflow |
+| `showing_request` | Custom Field Changed — `event_type` = `SHOWING_REQUEST` | |
+| `appointment_reminder` | Custom Field Changed — `appointment_at` within 24 hours | |
+| `mortgage_update` | Tag Added — `mortgage-watch` AND scheduled monthly | Or external rate-alert webhook |
+| `lead_nurture` | Custom Field Changed — `lead_score` increased by ≥ 10 | Catch-all for warming leads |
+| `priority_lead` | Custom Field Changed — `lead_priority_label` = `HOT` | High-touch leads |
+
+Each branch should also pass an appropriate `delivery_channels` array based
+on the persona's contactability (e.g. expired-listing prefers `email` over
+`sms` since the contact may be hostile to texts).
+
 ### A2. `AI VIDEO — FCPXML`
 
 **Purpose:** Cinematic branded reels for social.
