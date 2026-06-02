@@ -2,6 +2,19 @@
 // listings, scoring_log) and writes ONLY into new sidecar tables
 // (video_jobs, video_events). Existing tables are NEVER mutated.
 
+// Cap every Supabase fetch so a slow PostgREST response can't burn the
+// queue consumer's 15-min wall-clock budget. We've hit this exact
+// failure mode before — workers hung in updateVideoJob mid-pipeline
+// with no catch-block error because PostgREST silently stalled. Closes
+// the last unbounded-fetch hole in the worker (R2/Stream/CF Images/
+// GHL/HeyGen/Anthropic are all already bounded).
+const SB_TIMEOUT_MS = 30_000;
+const sbSignal = () => AbortSignal.timeout(SB_TIMEOUT_MS);
+
+function sbFetch(env, path, init = {}) {
+  return fetch(sbUrl(env, path), { ...init, signal: sbSignal() });
+}
+
 function sbHeaders(env, prefer = "") {
   const key = env.SUPABASE_KEY;
   const h = {
@@ -28,7 +41,7 @@ function sbUrl(env, path) {
 export async function resolveLeadByGhlContactId(env, ghlContactId) {
   const url = sbUrl(env,
     `/rest/v1/leads?ghl_contact_id=eq.${encodeURIComponent(ghlContactId)}&limit=1`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return null;
   const rows = await r.json();
   return rows[0] || null;
@@ -44,7 +57,7 @@ export async function getRecentEvents(env, contactId, limit = 25) {
   const url = sbUrl(env,
     `/rest/v1/events?lead_id=eq.${encodeURIComponent(lead.id)}` +
     `&order=created_at.desc&limit=${limit}`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return [];
   return r.json();
 }
@@ -55,14 +68,14 @@ export async function getScoringLog(env, contactId, limit = 10) {
   const url = sbUrl(env,
     `/rest/v1/scoring_log?lead_id=eq.${encodeURIComponent(lead.id)}` +
     `&order=created_at.desc&limit=${limit}`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return [];
   return r.json();
 }
 
 export async function getListing(env, listingId) {
   const url = sbUrl(env, `/rest/v1/listings?id=eq.${encodeURIComponent(listingId)}&limit=1`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return null;
   const rows = await r.json();
   return rows[0] || null;
@@ -75,6 +88,7 @@ export async function insertVideoJob(env, row) {
     method: "POST",
     headers: sbHeaders(env, "return=representation"),
     body: JSON.stringify(row),
+    signal: sbSignal(),
   });
   if (!r.ok) throw new Error(`insertVideoJob failed: ${r.status} ${await r.text()}`);
   const rows = await r.json();
@@ -88,6 +102,7 @@ export async function updateVideoJob(env, jobId, patch) {
       method: "PATCH",
       headers: sbHeaders(env, "return=representation"),
       body: JSON.stringify(patch),
+      signal: sbSignal(),
     }
   );
   if (!r.ok) throw new Error(`updateVideoJob failed: ${r.status} ${await r.text()}`);
@@ -128,6 +143,7 @@ export async function claimJobForProcessing(env, jobId) {
       method: "PATCH",
       headers: sbHeaders(env, "return=representation"),
       body: JSON.stringify({ last_event: "processing", last_event_at: new Date().toISOString() }),
+      signal: sbSignal(),
     }
   );
   if (!r.ok) throw new Error(`claimJobForProcessing failed: ${r.status} ${await r.text()}`);
@@ -138,7 +154,7 @@ export async function claimJobForProcessing(env, jobId) {
 export async function getVideoJob(env, jobId) {
   const r = await fetch(
     sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&limit=1`),
-    { headers: sbHeaders(env) }
+    { headers: sbHeaders(env), signal: sbSignal() }
   );
   if (!r.ok) return null;
   const rows = await r.json();
@@ -150,7 +166,7 @@ export async function findActiveJobForContact(env, contactId, videoType) {
     `/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
     `&video_type=eq.${encodeURIComponent(videoType)}` +
     `&status=in.(queued,rendering,delivering)&order=created_at.desc&limit=1`);
-  const r = await fetch(url, { headers: sbHeaders(env) });
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return null;
   const rows = await r.json();
   return rows[0] || null;
@@ -161,6 +177,7 @@ export async function insertVideoEvent(env, row) {
     method: "POST",
     headers: sbHeaders(env),
     body: JSON.stringify(row),
+    signal: sbSignal(),
   });
   if (!r.ok) {
     // Best-effort. Tracking should never break delivery.
