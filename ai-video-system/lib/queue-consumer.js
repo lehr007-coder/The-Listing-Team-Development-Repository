@@ -36,8 +36,10 @@ export async function processOne(env, body) {
   // Step-by-step error capture so failures show up via /v1/admin/jobs/<id>
   // instead of disappearing into worker logs we can't access.
   let step = "init";
+  const t0 = Date.now();
+  const stepLog = (s) => console.log(`processOne ${jobId} ENTER step=${s} +${Date.now()-t0}ms`);
   try {
-    step = "get_job";
+    step = "get_job"; stepLog(step);
     const job = await getVideoJob(env, jobId);
     if (!job) throw new Error(`video_job ${jobId} not found`);
     if (job.status === "delivered" || job.status === "failed") return;
@@ -50,14 +52,14 @@ export async function processOne(env, body) {
     // here at the database level: only one processOne for any given
     // job ever runs end-to-end. The loser returns immediately without
     // doing R2 / Stream / GHL work.
-    step = "claim";
+    step = "claim"; stepLog(step);
     const claimed = await claimJobForProcessing(env, jobId);
     if (!claimed) {
       console.log(`processOne ${jobId}: lost claim race, skipping`);
       return;
     }
 
-    step = "r2_put";
+    step = "r2_put"; stepLog(step);
     const r2Key = `${kind}/${jobId}.mp4`;
     await putFromUrl(env.VIDEO_BUCKET, r2Key, sourceMp4Url, "video/mp4");
     const r2Url = `${env.MEDIA_BASE_URL || env.BASE_URL}/media/v/${r2Key}`;
@@ -65,7 +67,7 @@ export async function processOne(env, body) {
     // Stream upload is best-effort. If CF_STREAM_API_TOKEN doesn't have
     // Stream:Edit (or is otherwise rejected), fall back to serving the
     // MP4 directly from R2 — the hosted page handles both shapes.
-    step = "stream_upload";
+    step = "stream_upload"; stepLog(step);
     let stream = { uid: null, playback: {} };
     try {
       stream = await streamUpload(env, sourceMp4Url, { name: `${kind}-${jobId}` });
@@ -73,7 +75,7 @@ export async function processOne(env, body) {
       console.warn(`stream_upload failed (non-fatal, falling back to R2 direct):`, e.message);
     }
 
-    step = "build_urls";
+    step = "build_urls"; stepLog(step);
     const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
     const gifUrl = stream.uid ? streamGifUrl(stream.uid, { duration: "4s" }) : null;
     const streamThumbUrl = stream.uid ? streamThumbnailUrl(stream.uid, "1s", 720) : null;
@@ -86,7 +88,7 @@ export async function processOne(env, body) {
     // "branded" in cfImageVariantUrl() with no other code change.
     // Best-effort: falls back to the Stream thumbnail URL if anything
     // goes wrong.
-    step = "cf_images_thumbnail";
+    step = "cf_images_thumbnail"; stepLog(step);
     let thumbnailUrl = streamThumbUrl;
     if (streamThumbUrl && env.CF_IMAGES_API_TOKEN && env.CF_IMAGES_ACCOUNT_HASH) {
       try {
@@ -100,7 +102,7 @@ export async function processOne(env, body) {
       }
     }
 
-    step = "update_video_job_rendered";
+    step = "update_video_job_rendered"; stepLog(step);
     await updateVideoJob(env, jobId, {
       status: "rendered",
       r2_key: r2Key,
@@ -116,7 +118,7 @@ export async function processOne(env, body) {
     });
 
     if (job.contact_id) {
-      step = "ghl_write_owned_fields";
+      step = "ghl_write_owned_fields"; stepLog(step);
       try {
         await writeOwnedFields(env, job.contact_id, {
           video_status: "rendered",
@@ -134,7 +136,7 @@ export async function processOne(env, body) {
       }
     }
 
-    step = "insert_event_rendered";
+    step = "insert_event_rendered"; stepLog(step);
     await insertVideoEvent(env, {
       job_id: jobId,
       contact_id: job.contact_id,
@@ -144,12 +146,13 @@ export async function processOne(env, body) {
     });
 
     if (job.distribution === "social") {
-      step = "social_distribution";
+      step = "social_distribution"; stepLog(step);
       await runSocialDistribution(env, jobId);
     } else if (job.contact_id) {
-      step = "delivery";
+      step = "delivery"; stepLog(step);
       await runDelivery(env, jobId);
     }
+    console.log(`processOne ${jobId} DONE +${Date.now()-t0}ms`);
   } catch (e) {
     const msg = `step=${step}: ${e.message || e}`;
     console.error(`processOne ${jobId} ${msg}`);
