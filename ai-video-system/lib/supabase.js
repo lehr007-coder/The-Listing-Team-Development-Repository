@@ -16,7 +16,11 @@ function sbFetch(env, path, init = {}) {
 }
 
 function sbHeaders(env, prefer = "") {
-  const key = env.SUPABASE_KEY;
+  // Prefer the service-role key so RLS policies on video_jobs /
+  // video_events (which require auth.role()='service_role') don't
+  // silently return empty rows. Falls back to SUPABASE_KEY if the
+  // service-role secret isn't set (e.g. local dev).
+  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY;
   const h = {
     "apikey": key,
     "Authorization": `Bearer ${key}`,

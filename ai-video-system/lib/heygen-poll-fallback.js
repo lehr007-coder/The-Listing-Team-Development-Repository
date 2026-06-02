@@ -31,12 +31,14 @@ const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enou
 const POLL_BATCH = 10;                      // cap per-tick
 
 export async function runHeygenPollFallback(env, ctx) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return { skipped: "no_supabase" };
+  if (!env.SUPABASE_URL || !(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY)) return { skipped: "no_supabase" };
   if (!env.HEYGEN_API_KEY) return { skipped: "no_heygen_key" };
 
+  // Use service-role key so RLS doesn't silently filter every row.
+  const sbKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY;
   const sbHeaders = {
-    "apikey": env.SUPABASE_KEY,
-    "Authorization": `Bearer ${env.SUPABASE_KEY}`,
+    "apikey": sbKey,
+    "Authorization": `Bearer ${sbKey}`,
     "Content-Type": "application/json",
   };
 

@@ -28,8 +28,8 @@ import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
 function sbHeaders(env) {
   return {
-    "apikey": env.SUPABASE_KEY,
-    "Authorization": `Bearer ${env.SUPABASE_KEY}`,
+    "apikey": env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY,
+    "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY}`,
     "Content-Type": "application/json",
   };
 }
