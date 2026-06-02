@@ -201,7 +201,12 @@ const DASHBOARD_HTML = `<!doctype html>
 
   async function loadHealth() {
     const h = await api("/v1/admin/health-deep");
-    document.getElementById("env").textContent   = (h.env || "?") + " · build:" + (h.build || "—");
+    const envBadge = (h.env || "?") +
+      " · build:" + (h.build || "—") +
+      " · heygen:" + (h.heygen_mode || "?") +
+      " · cron:" + (h.cron_enabled === false ? "off" : (h.cron_enabled ? "on" : "?")) +
+      " · delivery:" + (h.delivery_path || "?");
+    document.getElementById("env").textContent   = envBadge;
     document.getElementById("build").textContent = "Last check " + new Date().toLocaleTimeString();
     const counts = h.counters?.video_jobs_by_status || {};
     set("card-jobs",       h.counters?.video_jobs_total ?? "—");

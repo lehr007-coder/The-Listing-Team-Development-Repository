@@ -254,8 +254,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <div class="icon-wrap">\u{1F3AC}</div>
         <div class="card-body">
           <div class="card-title">AI Video System</div>
-          <div class="card-desc">HEYGEN + FCPXML personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch.</div>
-          <div class="card-tag">12 video_types \u00b7 HEYGEN + FCPXML</div>
+          <div class="card-desc">HEYGEN + FCPXML personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch. Production = paid HeyGen credits. Use staging for testing \u2014 free watermarked renders.</div>
+          <div class="card-tag">12 video_types \u00b7 HEYGEN webhook-only delivery</div>
         </div>
       </a>
       <a href="/dashboard/pipeline" class="card green">

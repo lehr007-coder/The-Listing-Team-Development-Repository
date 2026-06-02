@@ -601,9 +601,14 @@ async function streamTokenTest(env) {
 }
 
 async function healthDeep(env) {
+  const isProduction = env.ENVIRONMENT === "production";
   const out = {
     service: "ai-video-system",
     env: env.ENVIRONMENT,
+    build: "v4-2026-06-02-await-pipeline",
+    heygen_mode: isProduction ? "live (paid credits)" : "test (free)",
+    cron_enabled: false,
+    delivery_path: "heygen_webhook_only",
     bindings: {
       VIDEO_BUCKET: !!env.VIDEO_BUCKET,
       PREVIEW_BUCKET: !!env.PREVIEW_BUCKET,
