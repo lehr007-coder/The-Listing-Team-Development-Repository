@@ -25,6 +25,25 @@ DEFAULT_BRAND = "the-listing-team"
 DAILY_RENDER_LIMIT = "100"
 PER_CONTACT_DAILY_LIMIT = "3"
 
+# ── HeyGen branded templates per video_type ──
+# Each template has Scott Lehr's avatar + voice + branded intro/outro/
+# lower-third pre-baked. lib/heygen.js#createAvatarVideo uses the
+# template ID when present (POST /v2/template/{id}/generate with
+# {{script}} as a variable). Falls back to /v2/video/generate +
+# HEYGEN_DEFAULT_AVATAR_ID if a template ID is missing.
+HEYGEN_TEMPLATE_SELLER_VALUATION     = "a518d5823c0347a5b7ea2739fd0b7d73"
+HEYGEN_TEMPLATE_FSBO_OUTREACH        = "ce1a75dfa84b4840a3d695bfa958e774"
+HEYGEN_TEMPLATE_EXPIRED_LISTING      = "3984941c20154ceaa020a2bfdfe0adeb"
+HEYGEN_TEMPLATE_BUYER_ACTIVITY       = "4d2dc31a1cb54506b36810f53624e18b"
+HEYGEN_TEMPLATE_NEW_LISTING_MATCH    = "b0c16ca6bafc4164af9f85321342b2bf"
+HEYGEN_TEMPLATE_MARKET_UPDATE        = "45cd3449304a48bf80b7bd9c3e7787df"
+HEYGEN_TEMPLATE_OPEN_HOUSE_INVITE    = "a6e566fb0d204a0ca4509337f04c39de"
+HEYGEN_TEMPLATE_SHOWING_REQUEST      = "11115ca9328f404a9cc12498fd4a656c"
+HEYGEN_TEMPLATE_APPOINTMENT_REMINDER = "32d1f8bc66054294a1725c1b3b0faf0b"
+HEYGEN_TEMPLATE_MORTGAGE_UPDATE      = "87bd4fb02d55485886f55e1b58cbcf97"
+HEYGEN_TEMPLATE_LEAD_NURTURE         = "c47b38c1f9f74deb819bed53b8c5da1f"
+HEYGEN_TEMPLATE_PRIORITY_LEAD        = "4858fc92548544509f93d9055c0039e3"
+
 # ── R2: rendered video assets (MP4 originals) ──
 [[r2_buckets]]
 binding = "VIDEO_BUCKET"
