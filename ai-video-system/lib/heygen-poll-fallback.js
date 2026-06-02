@@ -80,18 +80,17 @@ export async function runHeygenPollFallback(env, ctx) {
       }
 
       if (hgStatus === "completed" && data.video_url) {
-        // Direct in-cron dispatch via ctx.waitUntil. We previously
-        // tried fetching our own /v1/admin/.../reprocess to re-enter
-        // an HTTP-handler context, but Cloudflare returns 522 on
-        // worker→same-domain self-fetches (loop guard). ctx.waitUntil
-        // keeps the worker alive for the scheduled handler's
-        // wall-clock budget while processOne finishes the pipeline.
-        // Claim mechanism inside processOne de-dupes against the
-        // real HeyGen webhook if it fires the same minute.
-        ctx.waitUntil(
-          processOne(env, { jobId: job.id, sourceMp4Url: data.video_url, kind: "heygen" })
-            .catch(e => console.error(`poll-fallback: inline processOne failed for ${job.id}:`, e.stack || e.message))
-        );
+        // AWAIT processOne synchronously in cron context — ctx.waitUntil
+        // observed to be killed silently in this runtime. Cron's
+        // scheduled-handler wall-clock budget (15 min on Workers Paid)
+        // is comfortably larger than processOne's typical 7-12s run.
+        // Claim mechanism inside processOne de-dupes against the real
+        // HeyGen webhook if it fires the same minute.
+        try {
+          await processOne(env, { jobId: job.id, sourceMp4Url: data.video_url, kind: "heygen" });
+        } catch (e) {
+          console.error(`poll-fallback: await processOne failed for ${job.id}:`, e.stack || e.message);
+        }
         out.recovered++;
         continue;
       }

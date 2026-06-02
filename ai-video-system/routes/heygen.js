@@ -229,17 +229,19 @@ async function handleCallback(request, env, ctx) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // Run processOne inline via ctx.waitUntil — proven path
-    // (HTTP request handler + waitUntil completes R2 + Stream + GHL
-    // pipeline; queue-consumer path was observed to die silently
-    // after the claim step). The claim mechanism inside processOne
-    // de-dupes against the cron poll-fallback if it fires the same
-    // window.
-    ctx.waitUntil(
-      processOne(env, { jobId, sourceMp4Url, kind: "heygen" })
-        .catch(e => console.error(`callback inline processOne failed for ${jobId}:`, e.stack || e.message))
-    );
-    return json({ ok: true, dispatched: "inline-waituntil" });
+    // AWAIT processOne synchronously (NOT ctx.waitUntil — observed
+    // to be killed silently for detached promises in queue + cron +
+    // callback contexts). HTTP request handler with await is the only
+    // pattern proven to run R2 + Stream + delivery end-to-end.
+    // HeyGen tolerates ~30s callback response latency; processOne
+    // normally completes in 7-12s.
+    try {
+      await processOne(env, { jobId, sourceMp4Url, kind: "heygen" });
+      return json({ ok: true, dispatched: "await" });
+    } catch (e) {
+      console.error(`callback await processOne failed for ${jobId}:`, e.stack || e.message);
+      return json({ ok: false, error: e.message });
+    }
   }
 
   return json({ ok: true, ignored: eventType });
