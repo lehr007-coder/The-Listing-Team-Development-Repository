@@ -35,7 +35,7 @@ const ASPECT_DIMS = {
 // `{{script}}` variable. Falls back to the raw /v2/video/generate path
 // (HEYGEN_DEFAULT_AVATAR_ID + HEYGEN_DEFAULT_VOICE_ID) if a template ID
 // isn't configured for the requested video_type.
-const VIDEO_TYPE_TEMPLATE_VAR = {
+export const VIDEO_TYPE_TEMPLATE_VAR = {
   seller_valuation:      "HEYGEN_TEMPLATE_SELLER_VALUATION",
   fsbo_outreach:         "HEYGEN_TEMPLATE_FSBO_OUTREACH",
   expired_listing:       "HEYGEN_TEMPLATE_EXPIRED_LISTING",
@@ -169,4 +169,39 @@ export async function getRenderStatus(env, heygenVideoId) {
   );
   if (!r.ok) throw new Error(`HeyGen getRenderStatus ${heygenVideoId} failed: ${r.status}`);
   return r.json();
+}
+
+// Fetch metadata for a HeyGen template (name + thumbnail + variables).
+// Used by the admin template-gallery to render preview cards. Best-effort
+// — returns null on any error so the gallery can still show the template
+// id even if HeyGen's metadata fetch fails.
+export async function getTemplateDetails(env, templateId) {
+  try {
+    const r = await fetch(
+      `${HEYGEN_BASE}/v2/template/${templateId}`,
+      { headers: heygenHeaders(env), signal: heygenSignal() }
+    );
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data?.data || null;
+  } catch {
+    return null;
+  }
+}
+
+// HeyGen's avatar list. Returns an array of { avatar_id, avatar_name,
+// preview_image_url, ... } objects. Used to populate avatar pickers in
+// the admin UI for the non-template fallback render path.
+export async function listAvatars(env) {
+  try {
+    const r = await fetch(
+      `${HEYGEN_BASE}/v2/avatars`,
+      { headers: heygenHeaders(env), signal: heygenSignal() }
+    );
+    if (!r.ok) return [];
+    const data = await r.json();
+    return data?.data?.avatars || data?.avatars || [];
+  } catch {
+    return [];
+  }
 }

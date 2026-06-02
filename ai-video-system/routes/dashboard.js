@@ -158,6 +158,28 @@ const DASHBOARD_HTML = `<!doctype html>
     <div id="job-detail-summary"></div>
     <details><summary>Full JSON</summary><pre id="job-detail-json"></pre></details>
   </div>
+
+  <div class="panel">
+    <h2>HeyGen Templates · 1 per video_type</h2>
+    <p style="color:var(--muted);font-size:13px;margin:-8px 0 12px">
+      The avatar + voice + branded intro/outro are baked into each template in the HeyGen editor.
+      Click any card to open it in HeyGen and edit avatar, voice, slate, lower-third, or background.
+    </p>
+    <div id="templates-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+      <div style="color:var(--muted);font-size:13px">Loading…</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>HeyGen Avatars (account)</h2>
+    <p style="color:var(--muted);font-size:13px;margin:-8px 0 12px">
+      All avatars currently available on this HeyGen account. Use these
+      avatar_ids for the non-template render path (the /v2/video/generate fallback).
+    </p>
+    <div id="avatars-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
+      <div style="color:var(--muted);font-size:13px">Loading…</div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -343,6 +365,56 @@ const DASHBOARD_HTML = `<!doctype html>
     });
   }
 
+  async function loadTemplates() {
+    const r = await api("/v1/admin/heygen/templates");
+    const grid = document.getElementById("templates-grid");
+    if (!grid) return;
+    if (!r.templates || r.templates.length === 0) {
+      grid.innerHTML = "<div style='color:var(--muted);font-size:13px'>No templates returned.</div>";
+      return;
+    }
+    grid.innerHTML = r.templates.map(t => {
+      const title = (t.video_type || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const thumb = t.thumbnail_url
+        ? "<img src=\"" + t.thumbnail_url + "\" style=\"width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#000\" loading=\"lazy\">"
+        : "<div style=\"width:100%;aspect-ratio:16/9;background:#1a1a1a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px\">No preview</div>";
+      const tag = t.status === "ok"
+        ? "<span style=\"color:#65d56b;font-size:11px\">● configured</span>"
+        : t.status === "unconfigured"
+          ? "<span style=\"color:#e6b94a;font-size:11px\">● unconfigured</span>"
+          : "<span style=\"color:#e66a4a;font-size:11px\">● fetch failed</span>";
+      return "<a href=\"" + t.edit_url + "\" target=\"_blank\" rel=\"noopener\" " +
+        "style=\"display:block;padding:10px;background:var(--card);border-radius:10px;text-decoration:none;color:var(--fg);border:1px solid var(--border)\">" +
+        thumb +
+        "<div style=\"margin-top:8px;font-weight:600;font-size:13px\">" + title + "</div>" +
+        "<div style=\"font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px;word-break:break-all\">" + (t.template_id || "—") + "</div>" +
+        "<div style=\"margin-top:6px;display:flex;justify-content:space-between;align-items:center\">" + tag +
+        "<span style=\"font-size:11px;color:var(--muted)\">Edit in HeyGen →</span></div></a>";
+    }).join("");
+  }
+
+  async function loadAvatars() {
+    const r = await api("/v1/admin/heygen/avatars");
+    const grid = document.getElementById("avatars-grid");
+    if (!grid) return;
+    const avatars = r.avatars || [];
+    if (avatars.length === 0) {
+      grid.innerHTML = "<div style='color:var(--muted);font-size:13px'>No avatars returned (check HEYGEN_API_KEY permissions).</div>";
+      return;
+    }
+    grid.innerHTML = avatars.slice(0, 60).map(a => {
+      const preview = a.preview_image_url || a.preview_video_url || "";
+      const img = preview
+        ? "<img src=\"" + preview + "\" style=\"width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;background:#000\" loading=\"lazy\">"
+        : "<div style=\"width:100%;aspect-ratio:1/1;background:#1a1a1a;border-radius:8px\"></div>";
+      return "<div style=\"padding:8px;background:var(--card);border-radius:10px;border:1px solid var(--border)\">" +
+        img +
+        "<div style=\"margin-top:6px;font-weight:600;font-size:12px\">" + (a.avatar_name || a.name || "Avatar") + "</div>" +
+        "<div style=\"font-size:10px;color:var(--muted);font-family:monospace;margin-top:2px;word-break:break-all\">" + (a.avatar_id || a.id || "") + "</div>" +
+        "</div>";
+    }).join("");
+  }
+
   async function refresh() {
     try {
       await Promise.all([
@@ -351,6 +423,8 @@ const DASHBOARD_HTML = `<!doctype html>
         loadDailySummary(),
         loadTopContacts(),
         loadJobs(document.getElementById("contact-filter").value.trim()),
+        loadTemplates(),
+        loadAvatars(),
       ]);
     } catch (e) {
       console.error(e);

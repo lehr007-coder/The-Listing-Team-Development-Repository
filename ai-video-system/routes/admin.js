@@ -24,7 +24,7 @@ import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
-import { getRenderStatus } from "../lib/heygen.js";
+import { getRenderStatus, getTemplateDetails, listAvatars, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
@@ -77,6 +77,8 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path.match(/^\/jobs\/[^/]+\/tracking$/))   return jobTracking(env, path.split("/")[2]);
   if (path.match(/^\/jobs\/[^/]+$/))             return jobDetail(env, path.split("/")[2]);
   if (path === "/health-deep")                   return healthDeep(env);
+  if (path === "/heygen/templates")              return listHeygenTemplates(env);
+  if (path === "/heygen/avatars")                return json({ avatars: await listAvatars(env) });
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
@@ -598,6 +600,40 @@ async function streamTokenTest(env) {
       ? "Stream token is valid — next render will upload to Stream and use the iframe player."
       : "Stream token is invalid or lacks Stream:Edit. Renders will fall back to native HTML5 player from R2.",
   }, r.ok && data?.success ? 200 : 502);
+}
+
+// GET /v1/admin/heygen/templates
+// Joins our video_type → template-ID config with HeyGen's template
+// metadata (name, thumbnail, variables) so the admin gallery can render
+// a card per template. Templates without an env var are listed with
+// status="unconfigured"; templates whose HeyGen fetch fails are listed
+// with status="fetch_failed" so missing avatars don't hide the row.
+async function listHeygenTemplates(env) {
+  const entries = await Promise.all(
+    Object.entries(VIDEO_TYPE_TEMPLATE_VAR).map(async ([videoType, varName]) => {
+      const templateId = env[varName] || null;
+      const row = {
+        video_type: videoType,
+        env_var: varName,
+        template_id: templateId,
+        edit_url: templateId
+          ? `https://app.heygen.com/templates/${templateId}`
+          : "https://app.heygen.com/templates",
+      };
+      if (!templateId) return { ...row, status: "unconfigured" };
+      const details = await getTemplateDetails(env, templateId);
+      if (!details) return { ...row, status: "fetch_failed" };
+      return {
+        ...row,
+        status: "ok",
+        name: details.name || details.title || null,
+        thumbnail_url: details.thumbnail_image_url || details.cover_image_url || null,
+        video_url: details.video_url || null,
+        variables: Object.keys(details.variables || {}),
+      };
+    })
+  );
+  return json({ templates: entries });
 }
 
 async function healthDeep(env) {
