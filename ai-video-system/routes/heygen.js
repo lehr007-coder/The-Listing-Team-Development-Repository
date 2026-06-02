@@ -131,9 +131,13 @@ async function handleRender(request, env) {
   const emailOnly = channelsLower.length === 1 && channelsLower[0] === "email";
   const aspect = overrides.aspect || (emailOnly ? "16:9" : "9:16");
 
-  // Submit to HeyGen
+  // Submit to HeyGen. createAvatarVideo picks the branded template for
+  // this video_type when one is configured (see VIDEO_TYPE_TEMPLATE_VAR
+  // in lib/heygen.js), otherwise falls back to /v2/video/generate with
+  // the default avatar + voice.
   const heygen = await createAvatarVideo(env, {
     script: script.script,
+    videoType: video_type,
     avatarId: overrides.avatar_id,
     voiceId: overrides.voice_id,
     aspect,
