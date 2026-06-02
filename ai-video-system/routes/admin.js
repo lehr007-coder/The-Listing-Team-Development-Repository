@@ -170,8 +170,15 @@ async function jobReprocess(env, ctx, jobId, request) {
     }
   }
 
-  const dispatch = await enqueueOrInline(env, ctx, { jobId, sourceMp4Url, kind });
-  return json({ ok: true, job_id: jobId, kind, ...dispatch });
+  // Default (non-sync) path: dispatch via ctx.waitUntil(processOne).
+  // Replaces the previously broken queue path. Same HTTP-handler
+  // ctx.waitUntil pattern that's proven end-to-end via sync=true.
+  // Claim mechanism inside processOne de-dupes concurrent triggers.
+  ctx.waitUntil(
+    processOne(env, { jobId, sourceMp4Url, kind })
+      .catch(e => console.error(`admin reprocess inline processOne failed for ${jobId}:`, e.stack || e.message))
+  );
+  return json({ ok: true, job_id: jobId, kind, dispatched: "inline-waituntil" });
 }
 
 async function jobTracking(env, jobId) {

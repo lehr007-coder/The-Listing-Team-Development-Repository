@@ -19,7 +19,6 @@
 
 import { getRenderStatus } from "./heygen.js";
 import { updateVideoJob } from "./supabase.js";
-import { enqueueOrInline } from "./queue-producer.js";
 
 const POLL_MIN_AGE_S = 60;                  // give real callback a chance first
 const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enough
@@ -53,25 +52,12 @@ export async function runHeygenPollFallback(env, ctx) {
     `&order=created_at.asc&limit=${POLL_BATCH}`;
 
   const r = await fetch(url, { headers: sbHeaders });
-  const contentRange = r.headers.get("Content-Range");
-  const rawBody = await r.text();
   if (!r.ok) {
-    console.error("poll-fallback: list failed", r.status, rawBody);
+    console.error("poll-fallback: list failed", r.status, await r.text());
     return { skipped: "list_failed" };
   }
-  let stuck;
-  try { stuck = JSON.parse(rawBody); } catch { stuck = []; }
-  if (stuck.length === 0) {
-    console.log("poll-fallback DEBUG empty", JSON.stringify({
-      status: r.status,
-      content_range: contentRange,
-      key_prefix: (sbKey || "").slice(0, 12),
-      key_len: (sbKey || "").length,
-      url_tail: url.replace(env.SUPABASE_URL, ""),
-      body_preview: rawBody.slice(0, 200),
-    }));
-    return { checked: 0 };
-  }
+  const stuck = await r.json();
+  if (stuck.length === 0) return { checked: 0 };
 
   const out = { checked: stuck.length, recovered: 0, failed_marked: 0, still_processing: 0 };
 
@@ -93,12 +79,26 @@ export async function runHeygenPollFallback(env, ctx) {
       }
 
       if (hgStatus === "completed" && data.video_url) {
-        // Synthesise the callback the queue consumer expects
-        await enqueueOrInline(env, ctx, {
-          jobId: job.id,
-          sourceMp4Url: data.video_url,
-          kind: "heygen",
-        });
+        // Re-enter the proven HTTP-handler path by POSTing to our own
+        // /v1/admin/jobs/:id/reprocess. The admin endpoint dispatches
+        // processOne via ctx.waitUntil in HTTP-handler context — the
+        // only path observed to actually run the pipeline to delivery.
+        // (Direct enqueueOrInline / queue-consumer dispatch was killed
+        // silently after the claim step.) Kicked via ctx.waitUntil so
+        // the cron tick completes without blocking on the pipeline.
+        ctx.waitUntil(
+          fetch(`${env.BASE_URL}/v1/admin/jobs/${job.id}/reprocess`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ url: data.video_url }),
+          })
+            .then(r => r.text())
+            .then(t => console.log(`poll-fallback: reprocess dispatch for ${job.id}:`, t.slice(0, 200)))
+            .catch(e => console.error(`poll-fallback: reprocess dispatch failed for ${job.id}:`, e.message))
+        );
         out.recovered++;
         continue;
       }

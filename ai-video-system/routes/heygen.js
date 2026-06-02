@@ -27,6 +27,7 @@ import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
+import { processOne } from "../lib/queue-consumer.js";
 import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
 
 const HEYGEN_VIDEO_TYPES = new Set([
@@ -228,12 +229,17 @@ async function handleCallback(request, env, ctx) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // Push into the post-process queue (R2 copy + Stream upload + delivery).
-    // Falls back to inline ctx.waitUntil if RENDER_QUEUE binding isn't set.
-    const dispatch = await enqueueOrInline(env, ctx, {
-      jobId, sourceMp4Url, kind: "heygen",
-    });
-    return json({ ok: true, ...dispatch });
+    // Run processOne inline via ctx.waitUntil — proven path
+    // (HTTP request handler + waitUntil completes R2 + Stream + GHL
+    // pipeline; queue-consumer path was observed to die silently
+    // after the claim step). The claim mechanism inside processOne
+    // de-dupes against the cron poll-fallback if it fires the same
+    // window.
+    ctx.waitUntil(
+      processOne(env, { jobId, sourceMp4Url, kind: "heygen" })
+        .catch(e => console.error(`callback inline processOne failed for ${jobId}:`, e.stack || e.message))
+    );
+    return json({ ok: true, dispatched: "inline-waituntil" });
   }
 
   return json({ ok: true, ignored: eventType });
