@@ -162,7 +162,7 @@ async function jobReprocess(env, ctx, jobId, request) {
   // (and the bug is visible in this single invocation's tail logs).
   if (body?.sync) {
     try {
-      await processOne(env, { jobId, sourceMp4Url, kind });
+      await processOne(env, { jobId, sourceMp4Url, kind, skipClaim: true });
       return json({ ok: true, job_id: jobId, kind, sync: true });
     } catch (e) {
       return json({ ok: false, job_id: jobId, kind, sync: true,

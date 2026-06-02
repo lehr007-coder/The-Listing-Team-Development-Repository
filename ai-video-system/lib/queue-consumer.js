@@ -31,7 +31,7 @@ export async function processRenderQueueBatch(batch, env, ctx) {
 }
 
 export async function processOne(env, body) {
-  const { jobId, sourceMp4Url, kind } = body;
+  const { jobId, sourceMp4Url, kind, skipClaim } = body;
 
   // Step-by-step error capture so failures show up via /v1/admin/jobs/<id>
   // instead of disappearing into worker logs we can't access.
@@ -53,10 +53,14 @@ export async function processOne(env, body) {
     // job ever runs end-to-end. The loser returns immediately without
     // doing R2 / Stream / GHL work.
     step = "claim"; stepLog(step);
-    const claimed = await claimJobForProcessing(env, jobId);
-    if (!claimed) {
-      console.log(`processOne ${jobId}: lost claim race, skipping`);
-      return;
+    if (!skipClaim) {
+      const claimed = await claimJobForProcessing(env, jobId);
+      if (!claimed) {
+        console.log(`processOne ${jobId}: lost claim race, skipping`);
+        return;
+      }
+    } else {
+      console.log(`processOne ${jobId}: skipClaim=true (admin sync path)`);
     }
 
     step = "r2_put"; stepLog(step);
