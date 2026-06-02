@@ -61,8 +61,8 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
       await fetch(`${env.SUPABASE_URL}/rest/v1/scoring_log`, {
         method: "POST",
         headers: {
-          "apikey": env.SUPABASE_KEY,
-          "Authorization": `Bearer ${env.SUPABASE_KEY}`,
+          "apikey": env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY,
+          "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
