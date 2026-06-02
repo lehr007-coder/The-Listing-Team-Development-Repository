@@ -65,14 +65,14 @@ binding = "VIDEO_KV"
 id = "1e513d6498444e9e89af431f2308aba1"
 
 # ── Cron: HeyGen poll fallback for stuck-rendering jobs ──
-# DISABLED temporarily while we verify the HeyGen webhook delivery
-# path is reliable. The cron + await processOne path was hitting a
-# silent-kill bug (invisible worker held claim mid-pipeline with no
-# error). Webhook → handleCallback → await processOne is the proven
-# HTTP-handler-active path. Re-enable cron once webhook reliability
-# is confirmed by removing the next two lines' leading hash marks.
-[triggers]
-crons = []
+# REMOVED while we verify the HeyGen webhook delivery path is
+# reliable. The cron + processOne path was hitting a silent-kill
+# bug (invisible worker held claim mid-pipeline with no error).
+# Webhook → /v1/heygen/callback → await processOne is the proven
+# HTTP-handler-active path. Re-enable by uncommenting:
+#
+# [triggers]
+# crons = ["* * * * *"]
 
 # ── Queue: ai-video-render ──
 # Provision once before first deploy:
