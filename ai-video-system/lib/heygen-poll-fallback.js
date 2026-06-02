@@ -53,12 +53,25 @@ export async function runHeygenPollFallback(env, ctx) {
     `&order=created_at.asc&limit=${POLL_BATCH}`;
 
   const r = await fetch(url, { headers: sbHeaders });
+  const contentRange = r.headers.get("Content-Range");
+  const rawBody = await r.text();
   if (!r.ok) {
-    console.error("poll-fallback: list failed", r.status, await r.text());
+    console.error("poll-fallback: list failed", r.status, rawBody);
     return { skipped: "list_failed" };
   }
-  const stuck = await r.json();
-  if (stuck.length === 0) return { checked: 0 };
+  let stuck;
+  try { stuck = JSON.parse(rawBody); } catch { stuck = []; }
+  if (stuck.length === 0) {
+    console.log("poll-fallback DEBUG empty", JSON.stringify({
+      status: r.status,
+      content_range: contentRange,
+      key_prefix: (sbKey || "").slice(0, 12),
+      key_len: (sbKey || "").length,
+      url_tail: url.replace(env.SUPABASE_URL, ""),
+      body_preview: rawBody.slice(0, 200),
+    }));
+    return { checked: 0 };
+  }
 
   const out = { checked: stuck.length, recovered: 0, failed_marked: 0, still_processing: 0 };
 
