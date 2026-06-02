@@ -24,6 +24,7 @@ import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
+import { getRenderStatus } from "../lib/heygen.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
@@ -126,8 +127,19 @@ async function jobReprocess(env, ctx, jobId, request) {
   const job = await getVideoJob(env, jobId);
   if (!job) return error(404, "not_found");
   const { body } = await readJson(request);
-  const sourceMp4Url = body?.url || body?.video_url || body?.mp4_url;
-  if (!sourceMp4Url) return error(400, "missing_url", "POST { url: '<mp4 url>' }");
+  let sourceMp4Url = body?.url || body?.video_url || body?.mp4_url;
+
+  // If no URL passed but the job has a heygen_video_id, fetch the URL
+  // from HeyGen ourselves (saves the caller from juggling HEYGEN_API_KEY).
+  if (!sourceMp4Url && job.heygen_video_id) {
+    try {
+      const hg = await getRenderStatus(env, job.heygen_video_id);
+      sourceMp4Url = hg?.data?.video_url || hg?.data?.url;
+    } catch (e) {
+      return error(502, "heygen_status_failed", e.message);
+    }
+  }
+  if (!sourceMp4Url) return error(400, "missing_url", "POST { url: '<mp4 url>' } — or ensure job.heygen_video_id is set so the server can resolve via HeyGen status.get");
 
   // Reset status + clear the processing lock (last_event='processing')
   // so claimJobForProcessing in processOne can re-acquire it on the
