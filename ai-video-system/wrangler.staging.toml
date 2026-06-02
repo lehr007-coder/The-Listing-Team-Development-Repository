@@ -46,10 +46,11 @@ binding = "VIDEO_KV"
 id = "444a0a7edeb24d00b6063e3f17437efc"
 
 # ── Cron: HeyGen poll fallback for stuck-rendering jobs ──
-# Runs once a minute. Picks up renders whose HeyGen webhook didn't fire
-# (HeyGen's per-request callback_url silently drops sometimes).
+# DISABLED to match prod while we verify the HeyGen webhook is the
+# reliable primary delivery path. See wrangler.toml for the full
+# context note. Re-enable by changing crons = [] back to ["* * * * *"].
 [triggers]
-crons = ["* * * * *"]
+crons = []
 
 # ── Queue: ai-video-staging-render-queue (created via dashboard) ──
 [[queues.producers]]
