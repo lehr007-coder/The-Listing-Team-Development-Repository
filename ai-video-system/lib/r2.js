@@ -33,7 +33,16 @@ export async function putFromUrl(bucket, key, sourceUrl, contentType) {
   if (buf.byteLength > MAX_BUFFER_BYTES) {
     throw new Error(`R2 putFromUrl refused: body ${buf.byteLength} > ${MAX_BUFFER_BYTES}`);
   }
-  await bucket.put(key, buf, { httpMetadata: { contentType: ct } });
+  console.log(`r2 putFromUrl: fetched ${buf.byteLength} bytes from ${sourceUrl.slice(0,60)}..., starting bucket.put(${key})`);
+  // R2 bucket.put has no native timeout; race it with one so a stalled
+  // R2 write doesn't burn the queue-consumer wall-clock budget silently.
+  const PUT_TIMEOUT_MS = 60_000;
+  const putPromise = bucket.put(key, buf, { httpMetadata: { contentType: ct } });
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`R2 bucket.put timed out after ${PUT_TIMEOUT_MS}ms`)), PUT_TIMEOUT_MS)
+  );
+  await Promise.race([putPromise, timeoutPromise]);
+  console.log(`r2 putFromUrl: bucket.put(${key}) done`);
   return { key, contentType: ct, bytes: buf.byteLength };
 }
 
