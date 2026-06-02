@@ -23,6 +23,7 @@
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
+import { processOne } from "../lib/queue-consumer.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
@@ -143,6 +144,20 @@ async function jobReprocess(env, ctx, jobId, request) {
 
   // Synthesise a fresh queue message — bypasses dedupe entirely
   const kind = job.render_engine === "FCPXML" ? "fcpxml" : "heygen";
+
+  // sync=true bypasses queue & ctx.waitUntil — awaits processOne
+  // in-request so the HTTP response surfaces the actual outcome
+  // (and the bug is visible in this single invocation's tail logs).
+  if (body?.sync) {
+    try {
+      await processOne(env, { jobId, sourceMp4Url, kind });
+      return json({ ok: true, job_id: jobId, kind, sync: true });
+    } catch (e) {
+      return json({ ok: false, job_id: jobId, kind, sync: true,
+        error: e.message, stack: (e.stack || "").split("\n").slice(0, 5).join(" | ") });
+    }
+  }
+
   const dispatch = await enqueueOrInline(env, ctx, { jobId, sourceMp4Url, kind });
   return json({ ok: true, job_id: jobId, kind, ...dispatch });
 }
