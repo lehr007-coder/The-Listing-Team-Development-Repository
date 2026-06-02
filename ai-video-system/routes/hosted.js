@@ -59,7 +59,7 @@ function playerHtml(env, job) {
   // Prefer Cloudflare Stream iframe (HLS/DASH); fall back to native HTML5
   // video tag streaming straight from R2 if Stream wasn't available.
   const playerEl = job.stream_uid
-    ? `<iframe src="${streamIframe(job.stream_uid)}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+    ? `<iframe src="${streamIframe(env, job.stream_uid)}?autoplay=true&muted=false&primaryColor=%23ff6a00" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
     : `<video id="native-player" src="${escapeHtml(job.r2_url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video>`;
 
   return `<!doctype html>

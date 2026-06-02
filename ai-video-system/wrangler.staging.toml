@@ -14,6 +14,9 @@ DEFAULT_BRAND = "the-listing-team"
 DAILY_RENDER_LIMIT = "200"
 PER_CONTACT_DAILY_LIMIT = "10"
 
+# Cloudflare Stream customer code (same account as prod)
+CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
+
 # ── HeyGen branded templates per video_type — same IDs work in both envs
 HEYGEN_TEMPLATE_SELLER_VALUATION     = "a518d5823c0347a5b7ea2739fd0b7d73"
 HEYGEN_TEMPLATE_FSBO_OUTREACH        = "ce1a75dfa84b4840a3d695bfa958e774"

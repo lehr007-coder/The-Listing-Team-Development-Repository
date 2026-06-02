@@ -53,16 +53,28 @@ export async function getStreamVideo(env, uid) {
   return data.result;
 }
 
-export function streamThumbnailUrl(uid, time = "1s", width = 720) {
-  return `https://customer-${uid}.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=${time}&width=${width}`;
+// Stream's customer-${code} subdomain is account-wide, NOT per-video.
+// Reads from env.CF_STREAM_CUSTOMER_CODE (configured in wrangler.toml).
+// Falls back to a literal "customer-<uid>" string only if unset — that
+// returns 404s but at least makes the misconfig visible instead of
+// silently breaking previews.
+function customerHost(env) {
+  const code = env?.CF_STREAM_CUSTOMER_CODE;
+  return code
+    ? `customer-${code}.cloudflarestream.com`
+    : "cloudflarestream.com"; // unconfigured fallback — log path will 404
 }
 
-export function streamGifUrl(uid, opts = {}) {
+export function streamThumbnailUrl(env, uid, time = "1s", width = 720) {
+  return `https://${customerHost(env)}/${uid}/thumbnails/thumbnail.jpg?time=${time}&width=${width}`;
+}
+
+export function streamGifUrl(env, uid, opts = {}) {
   const { start = "0s", duration = "4s", width = 480, height = 854, fps = 12 } = opts;
-  return `https://customer-${uid}.cloudflarestream.com/${uid}/thumbnails/thumbnail.gif?` +
+  return `https://${customerHost(env)}/${uid}/thumbnails/thumbnail.gif?` +
     `time=${start}&duration=${duration}&width=${width}&height=${height}&fps=${fps}`;
 }
 
-export function streamIframe(uid) {
-  return `https://customer-${uid}.cloudflarestream.com/${uid}/iframe`;
+export function streamIframe(env, uid) {
+  return `https://${customerHost(env)}/${uid}/iframe`;
 }

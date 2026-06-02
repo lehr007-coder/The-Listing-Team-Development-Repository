@@ -81,8 +81,8 @@ export async function processOne(env, body) {
 
     step = "build_urls"; stepLog(step);
     const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
-    const gifUrl = stream.uid ? streamGifUrl(stream.uid, { duration: "4s" }) : null;
-    const streamThumbUrl = stream.uid ? streamThumbnailUrl(stream.uid, "1s", 720) : null;
+    const gifUrl = stream.uid ? streamGifUrl(env, stream.uid, { duration: "4s" }) : null;
+    const streamThumbUrl = stream.uid ? streamThumbnailUrl(env, stream.uid, "1s", 720) : null;
 
     // Opportunistically host the JPG thumbnail via CF Images (when both
     // a Stream thumbnail exists AND the CF_IMAGES_API_TOKEN is wired).

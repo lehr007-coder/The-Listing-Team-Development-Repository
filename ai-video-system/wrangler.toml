@@ -25,6 +25,11 @@ DEFAULT_BRAND = "the-listing-team"
 DAILY_RENDER_LIMIT = "100"
 PER_CONTACT_DAILY_LIMIT = "3"
 
+# Cloudflare Stream customer code — used to build thumbnail/gif/iframe
+# URLs. Account-wide value, NOT per-video. Find via Stream → API → any
+# playback URL contains `customer-<code>.cloudflarestream.com`.
+CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
+
 # ── HeyGen branded templates per video_type ──
 # Each template has Scott Lehr's avatar + voice + branded intro/outro/
 # lower-third pre-baked. lib/heygen.js#createAvatarVideo uses the
