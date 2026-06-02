@@ -229,17 +229,28 @@ async function handleCallback(request, env, ctx) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // AWAIT processOne synchronously (NOT ctx.waitUntil — observed
-    // to be killed silently for detached promises in queue + cron +
-    // callback contexts). HTTP request handler with await is the only
-    // pattern proven to run R2 + Stream + delivery end-to-end.
-    // HeyGen tolerates ~30s callback response latency; processOne
-    // normally completes in 7-12s.
+    // AWAIT processOne with skipClaim=true — the only path observed
+    // to actually run R2 + Stream + delivery end-to-end in this
+    // Cloudflare runtime. The default-claim path consistently
+    // dies silently mid-pipeline (winner of claim race never logs
+    // step=r2_put, never throws, never writes to DB).
+    //
+    // Dedup safety net (skipClaim could allow two parallel runs
+    // when HeyGen retries the webhook ~1s apart):
+    //   1. KV dedupe above (cb:heygen:<video_id>:<event_type>)
+    //      — catches most retries
+    //   2. processOne's own guard at the top:
+    //      `if (job.status === "delivered" || job.status === "failed") return;`
+    //      — catches the rest as soon as the first winner finishes
+    //   3. R2 puts are idempotent (same key, last-write-wins)
+    //   4. GHL email send is the one operation that could double-fire
+    //      if both runs reach delivery within ~5s of each other —
+    //      acceptable tradeoff vs current 0% delivery rate.
     try {
-      await processOne(env, { jobId, sourceMp4Url, kind: "heygen" });
-      return json({ ok: true, dispatched: "await" });
+      await processOne(env, { jobId, sourceMp4Url, kind: "heygen", skipClaim: true });
+      return json({ ok: true, dispatched: "await-skipClaim" });
     } catch (e) {
-      console.error(`callback await processOne failed for ${jobId}:`, e.stack || e.message);
+      console.error(`callback processOne failed for ${jobId}:`, e.stack || e.message);
       return json({ ok: false, error: e.message });
     }
   }
