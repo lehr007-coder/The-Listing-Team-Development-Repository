@@ -27,9 +27,10 @@ import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
 function sbHeaders(env) {
+  const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
   return {
-    "apikey": env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY,
-    "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY}`,
+    "apikey": key,
+    "Authorization": `Bearer ${key}`,
     "Content-Type": "application/json",
   };
 }

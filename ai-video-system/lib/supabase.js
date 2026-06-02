@@ -16,11 +16,12 @@ function sbFetch(env, path, init = {}) {
 }
 
 function sbHeaders(env, prefer = "") {
-  // Prefer the service-role key so RLS policies on video_jobs /
-  // video_events (which require auth.role()='service_role') don't
-  // silently return empty rows. Falls back to SUPABASE_KEY if the
-  // service-role secret isn't set (e.g. local dev).
-  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY;
+  // RLS is disabled on video_jobs / video_events (sidecar-only tables
+  // gated by PROXY_API_KEY at the worker layer), so the standard
+  // SUPABASE_KEY is sufficient and avoids 401s from any stale or
+  // mis-pasted service-role secret. We still fall through to
+  // SUPABASE_SERVICE_ROLE_KEY if SUPABASE_KEY isn't set.
+  const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
   const h = {
     "apikey": key,
     "Authorization": `Bearer ${key}`,
