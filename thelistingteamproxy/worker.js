@@ -341,6 +341,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div class="status-item"><span class="status-dot live"></span> Brand Injector</div>
     <div class="status-item"><span class="status-dot live"></span> Image Server</div>
     <div class="status-item"><span class="status-dot live"></span> Marketplace</div>
+    <div class="status-item" id="status-ai-video" title="checking..."><span class="status-dot idle"></span> AI Video</div>
     <div class="status-item" id="clockItem" style="margin-left:auto;font-variant-numeric:tabular-nums"></div>
   </div>
 
@@ -374,6 +375,38 @@ fetch('/health').then(r=>r.json()).then(d=>{
     document.querySelector('.status-bar .status-item:first-child .status-dot').className='status-dot idle';
   }
 }).catch(()=>{});
+
+// Check ai-video-system health (cross-origin). Picks the right
+// environment based on whether this hub is the prod or staging host.
+(function(){
+  var hubHost = window.location.hostname;
+  var isStaging = hubHost.indexOf('staging') !== -1 || hubHost.indexOf('workers.dev') !== -1;
+  var aiUrl = isStaging
+    ? 'https://ai-video-system-staging.lehr007.workers.dev/v1/health'
+    : 'https://videos.reallistingteam.com/v1/health';
+  var item = document.getElementById('status-ai-video');
+  if (!item) return;
+  var dot = item.querySelector('.status-dot');
+  fetch(aiUrl).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.ok) {
+      dot.className = 'status-dot live';
+      var bits = [];
+      if (d.build) bits.push(d.build);
+      if (d.upstreams) {
+        var up = Object.keys(d.upstreams).filter(function(k){ return d.upstreams[k]; }).length;
+        var tot = Object.keys(d.upstreams).length;
+        bits.push('upstreams: ' + up + '/' + tot);
+      }
+      item.title = bits.join(' · ') || 'healthy';
+    } else {
+      dot.className = 'status-dot idle';
+      item.title = 'unhealthy response';
+    }
+  }).catch(function(e){
+    dot.className = 'status-dot idle';
+    item.title = 'unreachable: ' + (e && e.message ? e.message : 'fetch failed');
+  });
+})();
 
 // Staging-aware: show flashing red STAGING banner
 (function(){
