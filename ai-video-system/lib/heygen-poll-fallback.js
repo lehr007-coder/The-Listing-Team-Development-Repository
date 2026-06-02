@@ -19,6 +19,7 @@
 
 import { getRenderStatus } from "./heygen.js";
 import { updateVideoJob } from "./supabase.js";
+import { processOne } from "./queue-consumer.js";
 
 const POLL_MIN_AGE_S = 60;                  // give real callback a chance first
 const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enough
@@ -79,25 +80,17 @@ export async function runHeygenPollFallback(env, ctx) {
       }
 
       if (hgStatus === "completed" && data.video_url) {
-        // Re-enter the proven HTTP-handler path by POSTing to our own
-        // /v1/admin/jobs/:id/reprocess. The admin endpoint dispatches
-        // processOne via ctx.waitUntil in HTTP-handler context — the
-        // only path observed to actually run the pipeline to delivery.
-        // (Direct enqueueOrInline / queue-consumer dispatch was killed
-        // silently after the claim step.) Kicked via ctx.waitUntil so
-        // the cron tick completes without blocking on the pipeline.
+        // Direct in-cron dispatch via ctx.waitUntil. We previously
+        // tried fetching our own /v1/admin/.../reprocess to re-enter
+        // an HTTP-handler context, but Cloudflare returns 522 on
+        // worker→same-domain self-fetches (loop guard). ctx.waitUntil
+        // keeps the worker alive for the scheduled handler's
+        // wall-clock budget while processOne finishes the pipeline.
+        // Claim mechanism inside processOne de-dupes against the
+        // real HeyGen webhook if it fires the same minute.
         ctx.waitUntil(
-          fetch(`${env.BASE_URL}/v1/admin/jobs/${job.id}/reprocess`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${env.PROXY_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ url: data.video_url }),
-          })
-            .then(r => r.text())
-            .then(t => console.log(`poll-fallback: reprocess dispatch for ${job.id}:`, t.slice(0, 200)))
-            .catch(e => console.error(`poll-fallback: reprocess dispatch failed for ${job.id}:`, e.message))
+          processOne(env, { jobId: job.id, sourceMp4Url: data.video_url, kind: "heygen" })
+            .catch(e => console.error(`poll-fallback: inline processOne failed for ${job.id}:`, e.stack || e.message))
         );
         out.recovered++;
         continue;
