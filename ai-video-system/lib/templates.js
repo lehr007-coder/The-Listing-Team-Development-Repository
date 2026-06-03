@@ -135,9 +135,16 @@ export function renderEmailHtml({ env, videoType, firstName, hostedUrl, gifUrl,
     : "";
 
   const gifBlock = gifUrl
-    ? `<a href="${hostedUrl}" style="display:block;text-decoration:none">
-         <img src="${gifUrl}" alt="Watch your video"
-              style="display:block;width:100%;max-width:480px;height:auto;border:0;border-radius:12px;margin:0 auto">
+    ? `<a href="${hostedUrl}" style="display:block;text-decoration:none;position:relative">
+         <div style="position:relative;display:inline-block;width:100%;max-width:540px">
+           <img src="${gifUrl}" alt="Watch your video"
+                style="display:block;width:100%;max-width:540px;height:auto;border:0;border-radius:14px;margin:0 auto;box-shadow:0 6px 24px rgba(0,0,0,0.18)">
+           <!--[if !mso]><!-->
+           <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72px;height:72px;background:rgba(255,106,0,0.95);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.35);pointer-events:none">
+             <div style="width:0;height:0;border-left:22px solid #fff;border-top:14px solid transparent;border-bottom:14px solid transparent;margin-left:6px"></div>
+           </div>
+           <!--<![endif]-->
+         </div>
        </a>`
     : `<a href="${hostedUrl}" style="display:inline-block;padding:14px 24px;background:${brand.primaryColor};color:#fff;text-decoration:none;border-radius:10px;font-weight:600">▶ Watch your video</a>`;
 
@@ -158,9 +165,9 @@ export function renderEmailHtml({ env, videoType, firstName, hostedUrl, gifUrl,
     <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
 
       <!-- header -->
-      <tr><td align="center" style="padding:20px 24px 8px">
+      <tr><td align="center" style="padding:28px 24px 14px">
         <a href="${brand.websiteUrl}" style="text-decoration:none">
-          <img src="${brand.logoUrl}" alt="${escapeHtml(brand.name)}" style="height:36px;border:0">
+          <img src="${brand.logoUrl}" alt="${escapeHtml(brand.name)}" style="height:72px;max-height:72px;width:auto;border:0">
         </a>
       </td></tr>
 
