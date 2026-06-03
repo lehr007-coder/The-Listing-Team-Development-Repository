@@ -229,34 +229,38 @@ async function handleCallback(request, env, ctx) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // SPLIT-PHASE pipeline — runDelivery in the same invocation as
-    // R2+Stream silent-kills (likely hits CPU budget). The proven
-    // working pattern is each step in its OWN HTTP-handler
-    // invocation. So we:
-    //   Phase 1: await processOne(skipDelivery=true) — R2 + Stream
-    //            + CF Images + status=rendered
-    //   Phase 2: self-fetch POST /v1/delivery/send {job_id} —
-    //            runs invokeAgent + GHL email send in a fresh
-    //            worker invocation with its own CPU budget
+    // MINIMAL pipeline — every silent-kill we've observed correlates
+    // with multiple long-running fetches in a single invocation
+    // (R2 fetch+put + Stream upload + delivery's Anthropic call all
+    // adds up past Cloudflare's 30s CPU budget). So the webhook now
+    // does ONLY two things in this invocation:
     //
-    // skipClaim=true because the claim mechanism dies silently in
-    // this runtime (proven via vj_mpx7r9ul + vj_mpx7fans); dedupe is
-    // handled by the KV gate above + processOne's status-check
-    // guard + R2 put idempotency.
-    const phase1Start = Date.now();
+    //   1. A single DB update marking the job rendered, using the
+    //      HeyGen URL itself as r2_url (HeyGen URLs are publicly
+    //      fetchable for ~24h — long enough for the recipient to
+    //      open the email).
+    //   2. A self-fetch to /v1/delivery/send which delivers the
+    //      email in its own fresh invocation (proven working in
+    //      isolation — vj_mpx84ptv).
+    //
+    // R2 + Stream archival can be added later as a separate
+    // background migration if persistence beyond 24h is needed.
+    const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
     try {
-      await processOne(env, { jobId, sourceMp4Url, kind: "heygen", skipClaim: true, skipDelivery: true });
+      await updateVideoJob(env, jobId, {
+        status: "rendered",
+        r2_url: sourceMp4Url,
+        hosted_url: hostedUrl,
+        rendered_at: nowIso(),
+        error: null,
+      });
     } catch (e) {
-      console.error(`callback phase1 (processOne) failed for ${jobId}:`, e.stack || e.message);
-      return json({ ok: false, phase: "render", error: e.message });
+      console.error(`callback updateVideoJob failed for ${jobId}:`, e.stack || e.message);
+      return json({ ok: false, error: e.message });
     }
-    const phase1Ms = Date.now() - phase1Start;
-    console.log(`callback ${jobId}: phase1 (render) done in ${phase1Ms}ms — triggering phase2 (delivery)`);
+    console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly) — triggering delivery`);
 
-    // Phase 2: separate worker invocation via self-fetch. From HTTP
-    // handler context this should NOT hit Cloudflare's loop guard
-    // (which only kicked in for cron→self-fetch giving us 522).
-    const phase2Start = Date.now();
+    // Delivery in a fresh worker invocation via self-fetch.
     try {
       const dr = await fetch(`${env.BASE_URL}/v1/delivery/send`, {
         method: "POST",
@@ -267,16 +271,15 @@ async function handleCallback(request, env, ctx) {
         body: JSON.stringify({ job_id: jobId }),
       });
       const drText = await dr.text();
-      const phase2Ms = Date.now() - phase2Start;
       if (!dr.ok) {
-        console.error(`callback phase2 (delivery) failed for ${jobId}: HTTP ${dr.status} ${drText.slice(0, 300)}`);
-        return json({ ok: false, phase: "deliver", http_status: dr.status, error: drText.slice(0, 300) });
+        console.error(`callback delivery self-fetch failed for ${jobId}: HTTP ${dr.status} ${drText.slice(0, 300)}`);
+        return json({ ok: false, http_status: dr.status, error: drText.slice(0, 300) });
       }
-      console.log(`callback ${jobId}: phase2 (delivery) done in ${phase2Ms}ms — ${drText.slice(0, 200)}`);
-      return json({ ok: true, dispatched: "split-phase", phase1_ms: phase1Ms, phase2_ms: phase2Ms });
+      console.log(`callback ${jobId}: delivery dispatched — ${drText.slice(0, 200)}`);
+      return json({ ok: true, dispatched: "minimal-webhook+delivery-selffetch" });
     } catch (e) {
-      console.error(`callback phase2 (delivery) self-fetch error for ${jobId}:`, e.message);
-      return json({ ok: false, phase: "deliver", error: e.message });
+      console.error(`callback delivery self-fetch error for ${jobId}:`, e.message);
+      return json({ ok: false, error: e.message });
     }
   }
 
