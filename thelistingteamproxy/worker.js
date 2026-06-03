@@ -253,9 +253,18 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F3AC}</div>
         <div class="card-body">
-          <div class="card-title">AI Video System</div>
-          <div class="card-desc">HEYGEN + FCPXML personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch. Production = paid HeyGen credits. Use staging for testing \u2014 free watermarked renders.</div>
-          <div class="card-tag">12 video_types \u00b7 HEYGEN webhook-only delivery</div>
+          <div class="card-title">AI Video System (Production)</div>
+          <div class="card-desc">HEYGEN-rendered personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch. <strong>Burns paid HeyGen credits.</strong> For real customer sends only.</div>
+          <div class="card-tag">12 video_types \u00b7 paid \u00b7 videos.reallistingteam.com</div>
+        </div>
+      </a>
+      <a id="link-ai-video-staging" href="https://ai-video-system-staging.lehr007.workers.dev/admin" target="_blank" class="card amber">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F9EA}</div>
+        <div class="card-body">
+          <div class="card-title">AI Video System (Staging \u2014 FREE)</div>
+          <div class="card-desc">Identical pipeline using HeyGen test mode. <strong>No credits burned.</strong> Use this for all debugging and dry-runs.</div>
+          <div class="card-tag">12 video_types \u00b7 free \u00b7 ai-video-system-staging.lehr007.workers.dev</div>
         </div>
       </a>
       <a href="/dashboard/pipeline" class="card green">
