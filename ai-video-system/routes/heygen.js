@@ -229,29 +229,54 @@ async function handleCallback(request, env, ctx) {
     const sourceMp4Url = data.url || data.video_url;
     if (!sourceMp4Url) return error(400, "missing_video_url");
 
-    // AWAIT processOne with skipClaim=true — the only path observed
-    // to actually run R2 + Stream + delivery end-to-end in this
-    // Cloudflare runtime. The default-claim path consistently
-    // dies silently mid-pipeline (winner of claim race never logs
-    // step=r2_put, never throws, never writes to DB).
+    // SPLIT-PHASE pipeline — runDelivery in the same invocation as
+    // R2+Stream silent-kills (likely hits CPU budget). The proven
+    // working pattern is each step in its OWN HTTP-handler
+    // invocation. So we:
+    //   Phase 1: await processOne(skipDelivery=true) — R2 + Stream
+    //            + CF Images + status=rendered
+    //   Phase 2: self-fetch POST /v1/delivery/send {job_id} —
+    //            runs invokeAgent + GHL email send in a fresh
+    //            worker invocation with its own CPU budget
     //
-    // Dedup safety net (skipClaim could allow two parallel runs
-    // when HeyGen retries the webhook ~1s apart):
-    //   1. KV dedupe above (cb:heygen:<video_id>:<event_type>)
-    //      — catches most retries
-    //   2. processOne's own guard at the top:
-    //      `if (job.status === "delivered" || job.status === "failed") return;`
-    //      — catches the rest as soon as the first winner finishes
-    //   3. R2 puts are idempotent (same key, last-write-wins)
-    //   4. GHL email send is the one operation that could double-fire
-    //      if both runs reach delivery within ~5s of each other —
-    //      acceptable tradeoff vs current 0% delivery rate.
+    // skipClaim=true because the claim mechanism dies silently in
+    // this runtime (proven via vj_mpx7r9ul + vj_mpx7fans); dedupe is
+    // handled by the KV gate above + processOne's status-check
+    // guard + R2 put idempotency.
+    const phase1Start = Date.now();
     try {
-      await processOne(env, { jobId, sourceMp4Url, kind: "heygen", skipClaim: true });
-      return json({ ok: true, dispatched: "await-skipClaim" });
+      await processOne(env, { jobId, sourceMp4Url, kind: "heygen", skipClaim: true, skipDelivery: true });
     } catch (e) {
-      console.error(`callback processOne failed for ${jobId}:`, e.stack || e.message);
-      return json({ ok: false, error: e.message });
+      console.error(`callback phase1 (processOne) failed for ${jobId}:`, e.stack || e.message);
+      return json({ ok: false, phase: "render", error: e.message });
+    }
+    const phase1Ms = Date.now() - phase1Start;
+    console.log(`callback ${jobId}: phase1 (render) done in ${phase1Ms}ms — triggering phase2 (delivery)`);
+
+    // Phase 2: separate worker invocation via self-fetch. From HTTP
+    // handler context this should NOT hit Cloudflare's loop guard
+    // (which only kicked in for cron→self-fetch giving us 522).
+    const phase2Start = Date.now();
+    try {
+      const dr = await fetch(`${env.BASE_URL}/v1/delivery/send`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+      const drText = await dr.text();
+      const phase2Ms = Date.now() - phase2Start;
+      if (!dr.ok) {
+        console.error(`callback phase2 (delivery) failed for ${jobId}: HTTP ${dr.status} ${drText.slice(0, 300)}`);
+        return json({ ok: false, phase: "deliver", http_status: dr.status, error: drText.slice(0, 300) });
+      }
+      console.log(`callback ${jobId}: phase2 (delivery) done in ${phase2Ms}ms — ${drText.slice(0, 200)}`);
+      return json({ ok: true, dispatched: "split-phase", phase1_ms: phase1Ms, phase2_ms: phase2Ms });
+    } catch (e) {
+      console.error(`callback phase2 (delivery) self-fetch error for ${jobId}:`, e.message);
+      return json({ ok: false, phase: "deliver", error: e.message });
     }
   }
 

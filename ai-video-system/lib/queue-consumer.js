@@ -31,7 +31,7 @@ export async function processRenderQueueBatch(batch, env, ctx) {
 }
 
 export async function processOne(env, body) {
-  const { jobId, sourceMp4Url, kind, skipClaim } = body;
+  const { jobId, sourceMp4Url, kind, skipClaim, skipDelivery } = body;
 
   // Step-by-step error capture so failures show up via /v1/admin/jobs/<id>
   // instead of disappearing into worker logs we can't access.
@@ -152,9 +152,11 @@ export async function processOne(env, body) {
     if (job.distribution === "social") {
       step = "social_distribution"; stepLog(step);
       await runSocialDistribution(env, jobId);
-    } else if (job.contact_id) {
+    } else if (job.contact_id && !skipDelivery) {
       step = "delivery"; stepLog(step);
       await runDelivery(env, jobId);
+    } else if (skipDelivery) {
+      console.log(`processOne ${jobId}: skipDelivery=true — delivery deferred to separate /v1/delivery/send call`);
     }
     console.log(`processOne ${jobId} DONE +${Date.now()-t0}ms`);
   } catch (e) {
