@@ -426,19 +426,24 @@ const DASHBOARD_HTML = `<!doctype html>
   }
 
   async function refresh() {
-    try {
-      await Promise.all([
-        loadHealth(),
-        loadRateLimits(),
-        loadDailySummary(),
-        loadTopContacts(),
-        loadJobs(document.getElementById("contact-filter").value.trim()),
-        loadTemplates(),
-        loadAvatars(),
-      ]);
-    } catch (e) {
-      console.error(e);
-    }
+    // Promise.allSettled (NOT all) so one slow/failed endpoint
+    // doesn't block the rest from rendering. The HeyGen template
+    // gallery and avatar list make remote API calls that can take
+    // tens of seconds — they used to hang the whole dashboard.
+    // Each panel is also wrapped in its own try so it can show
+    // its own error without affecting the others.
+    const wrap = (fn) => fn().catch(e => console.error(fn.name + " failed:", e));
+    await Promise.allSettled([
+      wrap(loadHealth),
+      wrap(loadRateLimits),
+      wrap(loadDailySummary),
+      wrap(loadTopContacts),
+      wrap(() => loadJobs(document.getElementById("contact-filter").value.trim())),
+    ]);
+    // Templates + avatars fire AFTER the main panels render so the
+    // dashboard is interactive even if HeyGen's API is slow.
+    wrap(loadTemplates);
+    wrap(loadAvatars);
   }
 
   document.getElementById("refresh").addEventListener("click", refresh);
