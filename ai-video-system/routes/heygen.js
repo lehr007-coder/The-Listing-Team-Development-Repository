@@ -238,7 +238,9 @@ async function handleCallback(request, env, ctx) {
     //   1. A single DB update marking the job rendered, using the
     //      HeyGen URL itself as r2_url (HeyGen URLs are publicly
     //      fetchable for ~24h — long enough for the recipient to
-    //      open the email).
+    //      open the email). Also pulls HeyGen's own thumbnail and
+    //      gif URLs from the webhook payload so the email render
+    //      can include a preview image.
     //   2. A self-fetch to /v1/delivery/send which delivers the
     //      email in its own fresh invocation (proven working in
     //      isolation — vj_mpx84ptv).
@@ -246,11 +248,27 @@ async function handleCallback(request, env, ctx) {
     // R2 + Stream archival can be added later as a separate
     // background migration if persistence beyond 24h is needed.
     const hostedUrl = `${env.HOSTED_BASE_URL || env.BASE_URL}/v/${jobId}`;
+    // HeyGen webhooks include a thumbnail jpeg + animated gif preview
+    // URL in the event_data — field names vary by event_type, so try
+    // a few common variants. Both URLs work for ~24h same as the
+    // mp4 URL.
+    const thumbnailUrl =
+      data.thumbnail_url ||
+      data.cover_image_url ||
+      data.thumbnail ||
+      null;
+    const gifUrl =
+      data.gif_download_url ||
+      data.gif_url ||
+      data.gif ||
+      null;
     try {
       await updateVideoJob(env, jobId, {
         status: "rendered",
         r2_url: sourceMp4Url,
         hosted_url: hostedUrl,
+        thumbnail_url: thumbnailUrl,
+        gif_url: gifUrl,
         rendered_at: nowIso(),
         error: null,
       });
@@ -258,7 +276,7 @@ async function handleCallback(request, env, ctx) {
       console.error(`callback updateVideoJob failed for ${jobId}:`, e.stack || e.message);
       return json({ ok: false, error: e.message });
     }
-    console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly) — triggering delivery`);
+    console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly, thumbnail=${!!thumbnailUrl}, gif=${!!gifUrl}) — triggering delivery`);
 
     // Delivery in a fresh worker invocation via self-fetch.
     try {
