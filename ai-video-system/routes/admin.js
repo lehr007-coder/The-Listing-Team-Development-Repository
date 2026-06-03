@@ -59,6 +59,13 @@ export default async function adminRoute(request, env, ctx, url) {
     return jobReprocess(env, ctx, path.split("/")[2], request);
   }
 
+  // ── Archive HeyGen-hosted MP4 → R2 for permanent storage ──
+  // Call this 6-12 hours after delivery (HeyGen URLs expire ~24h).
+  // GHL workflow step: POST /v1/admin/jobs/<job_id>/archive
+  if (method === "POST" && path.match(/^\/jobs\/[^/]+\/archive$/)) {
+    return jobArchive(env, path.split("/")[2]);
+  }
+
   // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
   if (method === "POST" && path === "/agents/test") {
     return agentsTest(env, request);
@@ -182,6 +189,64 @@ async function jobReprocess(env, ctx, jobId, request) {
   } catch (e) {
     return json({ ok: false, job_id: jobId, kind, error: e.message,
       stack: (e.stack || "").split("\n").slice(0, 5).join(" | ") });
+  }
+}
+
+// POST /v1/admin/jobs/:id/archive — copy the HeyGen-hosted MP4 to
+// our R2 bucket and rewrite the job's r2_url to point at the
+// permanent media.reallistingteam.com URL. Idempotent: if r2_url
+// is already on our origin, returns ok with skipped:true.
+//
+// Designed to be called by the GHL workflow 6-12 hours after the
+// delivery step — HeyGen's CDN URLs typically expire ~24h after
+// render. After archive, the email's video link will keep working
+// forever instead of breaking after a day.
+//
+// Kept intentionally minimal (one fetch + one R2 put + one DB
+// update) to fit comfortably inside Cloudflare's CPU budget.
+async function jobArchive(env, jobId) {
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "not_found");
+  if (!job.r2_url) return error(400, "no_source_url", "Job has no r2_url to archive from");
+
+  const mediaOrigin = env.MEDIA_BASE_URL ? new URL(env.MEDIA_BASE_URL).origin : null;
+  let alreadyOnOrigin = false;
+  try {
+    alreadyOnOrigin = mediaOrigin && new URL(job.r2_url).origin === mediaOrigin;
+  } catch {}
+  if (alreadyOnOrigin) {
+    return json({ ok: true, job_id: jobId, skipped: true, reason: "already_on_origin" });
+  }
+
+  const r2Key = `heygen/${jobId}.mp4`;
+  try {
+    const fetchStart = Date.now();
+    const r = await fetch(job.r2_url, { signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) {
+      throw new Error(`source fetch ${r.status} ${job.r2_url}`);
+    }
+    const ct = r.headers.get("Content-Type") || "video/mp4";
+    const buf = await r.arrayBuffer();
+    const putStart = Date.now();
+    await env.VIDEO_BUCKET.put(r2Key, buf, { httpMetadata: { contentType: ct } });
+    const putMs = Date.now() - putStart;
+    const newR2Url = `${env.MEDIA_BASE_URL || env.BASE_URL}/media/v/${r2Key}`;
+    await updateVideoJob(env, jobId, {
+      r2_key: r2Key,
+      r2_url: newR2Url,
+    });
+    return json({
+      ok: true,
+      job_id: jobId,
+      r2_key: r2Key,
+      r2_url: newR2Url,
+      bytes: buf.byteLength,
+      fetch_ms: Date.now() - fetchStart - putMs,
+      put_ms: putMs,
+    });
+  } catch (e) {
+    console.error(`jobArchive(${jobId}) failed:`, e.stack || e.message);
+    return json({ ok: false, job_id: jobId, error: e.message }, 500);
   }
 }
 
