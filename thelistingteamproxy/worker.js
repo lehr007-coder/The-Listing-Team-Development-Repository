@@ -276,6 +276,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
         </div>
       </a>
+      <a id="link-condo-intel-admin-main" href="https://condo-intel-web.pages.dev/admin" target="_blank" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3E2}</div>
+        <div class="card-body">
+          <div class="card-title">Condo Intel Admin</div>
+          <div class="card-desc">Tenant branding, email templates, scoring config, and platform settings for the AI condo board approval coordinator.</div>
+          <div class="card-tag">Brand \u00b7 Templates \u00b7 Settings</div>
+        </div>
+      </a>
     </div>
   </div>
 
