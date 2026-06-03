@@ -285,6 +285,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
         </div>
       </a>
+      <a id="link-condo-intel-admin-main" href="https://condo-intel-web.pages.dev/admin" target="_blank" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3E2}</div>
+        <div class="card-body">
+          <div class="card-title">Condo Intel Admin</div>
+          <div class="card-desc">Tenant branding, email templates, scoring config, and platform settings for the AI condo board approval coordinator.</div>
+          <div class="card-tag">Brand \u00b7 Templates \u00b7 Settings</div>
+        </div>
+      </a>
+      <a id="link-tos-admin-main" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4DD}</div>
+        <div class="card-body">
+          <div class="card-title">Transaction OS Admin</div>
+          <div class="card-desc">Contract-to-close pipeline on GHL Custom Objects. Kill switches, workflows, parser, intake, deadline + risk evaluators.</div>
+          <div class="card-tag">Workflows \u00b7 Kill switches \u00b7 Parser</div>
+        </div>
+      </a>
     </div>
   </div>
 
@@ -20421,6 +20439,30 @@ a{color:#3b82f6;text-decoration:none}
     <div class="stat-card"><div class="icon">&#128640;</div><div class="val" id="statIdeas">-</div><div class="lbl">Pipeline Ideas</div></div>
     <div class="stat-card"><div class="icon">&#128293;</div><div class="val" id="statPriority">-</div><div class="lbl">Priority Leads</div></div>
     <div class="stat-card"><div class="icon">&#9989;</div><div class="val" id="statResolved">-</div><div class="lbl">Resolved Tickets</div></div>
+  </div>
+
+  <div class="section-title"><span>&#127970; Condo Intel</span><hr></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
+    <a id="link-condo-intel-admin" href="https://condo-intel-web.pages.dev/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#22c55e';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#334155';this.style.transform='translateY(0)'">
+      <div style="font-size:28px;line-height:1">&#9881;</div>
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Condo Intel Admin</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5">Tenant branding, email templates, scoring config, and platform settings for the AI condo board approval coordinator.</div>
+        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">Brand &middot; Templates &middot; Settings &rarr;</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="section-title"><span>&#128203; Transaction OS</span><hr></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
+    <a id="link-tos-admin" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#22c55e';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#334155';this.style.transform='translateY(0)'">
+      <div style="font-size:28px;line-height:1">&#128640;</div>
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Transaction OS Admin</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5">Real-estate contract-to-close pipeline on top of GHL Custom Objects. Kill switches, workflow status, deadline + risk evaluators, parser, intake.</div>
+        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">Workflows &middot; Kill switches &middot; Parser &rarr;</div>
+      </div>
+    </a>
   </div>
 
   <div class="section-title"><span>&#128101; Team Members</span><hr></div>
