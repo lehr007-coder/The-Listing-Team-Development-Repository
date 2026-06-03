@@ -276,6 +276,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Open \u2192 In Progress \u2192 Resolved</div>
         </div>
       </a>
+      <a id="link-condo-intel" href="https://condo-intel-web.pages.dev/api/install" target="_blank" class="card cyan">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F3E2}</div>
+        <div class="card-body">
+          <div class="card-title">Install Condo Intel</div>
+          <div class="card-desc">AI condo board approval coordination. Auto-build deals from a contract or listing PDF, run HOA outreach, score buyer approval, and chat with the docs.</div>
+          <div class="card-tag">GHL Marketplace \u00b7 OAuth install</div>
+        </div>
+      </a>
     </div>
   </div>
 
