@@ -53,6 +53,9 @@ const DASHBOARD_HTML = `<!doctype html>
   body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; font-size:14px; }
   header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px; }
   header h1 { margin:0; font-size:16px; font-weight:600; }
+  header .env-badge { padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+  header .env-badge.production { background:#3b1f1f; color:#ff6b6b; border:1px solid #ff6b6b40; }
+  header .env-badge.staging { background:#1f2f3b; color:#4dabf7; border:1px solid #4dabf740; }
   header .env { font-size:11px; color:var(--muted); }
   header .build { font-size:11px; color:var(--muted); margin-left:auto; }
   main { padding:20px; max-width:1200px; margin:0 auto; }
@@ -108,6 +111,7 @@ const DASHBOARD_HTML = `<!doctype html>
 <body>
 <header>
   <h1>AI Video — Admin</h1>
+  <span class="env-badge" id="env-badge">…</span>
   <span class="env" id="env"></span>
   <span class="build" id="build"></span>
 </header>
@@ -223,8 +227,14 @@ const DASHBOARD_HTML = `<!doctype html>
 
   async function loadHealth() {
     const h = await api("/v1/admin/health-deep");
-    const envBadge = (h.env || "?") +
-      " · build:" + (h.build || "—") +
+    const envName = h.env || "?";
+    const badge = document.getElementById("env-badge");
+    if (badge) {
+      badge.textContent = envName;
+      badge.className = "env-badge " + envName.toLowerCase();
+      document.title = "AI Video — " + envName.toUpperCase() + " Admin";
+    }
+    const envBadge = "build:" + (h.build || "—") +
       " · heygen:" + (h.heygen_mode || "?") +
       " · cron:" + (h.cron_enabled === false ? "off" : (h.cron_enabled ? "on" : "?")) +
       " · delivery:" + (h.delivery_path || "?");
