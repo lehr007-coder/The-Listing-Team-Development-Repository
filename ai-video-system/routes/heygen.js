@@ -251,16 +251,21 @@ async function handleCallback(request, env, ctx) {
     // HeyGen webhooks include a thumbnail jpeg + animated gif preview
     // URL in the event_data — field names vary by event_type, so try
     // a few common variants. Both URLs work for ~24h same as the
-    // mp4 URL.
-    const thumbnailUrl =
-      data.thumbnail_url ||
-      data.cover_image_url ||
-      data.thumbnail ||
-      null;
+    // mp4 URL. If only the gif came through, use it as the static
+    // thumbnail fallback — most email clients render the first
+    // frame of an animated gif when used as <img src>.
     const gifUrl =
       data.gif_download_url ||
       data.gif_url ||
       data.gif ||
+      null;
+    const thumbnailUrl =
+      data.thumbnail_url ||
+      data.cover_image_url ||
+      data.thumbnail ||
+      data.cover_url ||
+      data.preview_image_url ||
+      gifUrl ||  // fallback so email always has SOME preview image
       null;
     try {
       await updateVideoJob(env, jobId, {
