@@ -692,9 +692,19 @@ async function listHeygenTemplates(env) {
         ...row,
         status: "ok",
         name: details.name || details.title || null,
-        thumbnail_url: details.thumbnail_image_url || details.cover_image_url || null,
-        video_url: details.video_url || null,
+        // HeyGen template responses use varying field names by API
+        // version — try every common variant before giving up.
+        thumbnail_url:
+          details.thumbnail_image_url ||
+          details.thumbnail_url ||
+          details.cover_image_url ||
+          details.cover_url ||
+          details.image_url ||
+          details.preview_image_url ||
+          null,
+        video_url: details.video_url || details.preview_video_url || null,
         variables: Object.keys(details.variables || {}),
+        _raw_keys: Object.keys(details).slice(0, 20),  // debug aid until field names stabilize
       };
     })
   );

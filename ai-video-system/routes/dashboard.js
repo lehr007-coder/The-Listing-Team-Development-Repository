@@ -30,7 +30,13 @@ export default async function dashboardRoute(request, env, ctx, url) {
         "script-src 'self' 'unsafe-inline'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "connect-src 'self'; " +
-        "img-src 'self' data:; " +
+        // Allow images from HeyGen's CDN (template thumbnails, avatar
+        // previews) and Cloudflare Stream + Images (video frame
+        // thumbnails). Otherwise the template gallery and avatar
+        // list panels show as broken images.
+        "img-src 'self' data: " +
+          "https://*.heygen.ai https://*.heygen.com " +
+          "https://*.cloudflarestream.com https://imagedelivery.net; " +
         "frame-ancestors 'none'; " +
         "base-uri 'none'; " +
         "form-action 'none'",
