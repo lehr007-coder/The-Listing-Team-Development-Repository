@@ -20965,7 +20965,7 @@ var index_default = {
           clearLoginAttempts(rl.key);
         }
         var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
-        var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:locId}, loginSecret);
+        var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:(env.GHL_LOCATION_ID || LOC_ID)}, loginSecret);
         return new Response(JSON.stringify({ok:true}), {status:200, headers:{"Content-Type":"application/json","Set-Cookie":mkCookie(loginToken)}});
       } catch(e) {
         await reportError(e, "auth/login", env);
