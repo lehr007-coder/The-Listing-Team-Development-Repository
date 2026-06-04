@@ -20942,27 +20942,28 @@ var index_default = {
     }
     if (path === "/auth/login" && method === "POST") {
       try {
-        // Rate limit: 5 failed attempts per 15min per (hashed) IP
-        var rl = await checkLoginRateLimit(request);
-        if (!rl.ok) {
-          return new Response(JSON.stringify({error:"Too many attempts"}), {
-            status: 429,
-            headers: {"Content-Type":"application/json", "Retry-After": String(rl.retryAfter || 60)}
-          });
-        }
         var loginBody = await safeJsonParse(request);
         if (!loginBody || !loginBody.email || !loginBody.pass) {
-          noteFailedLogin(rl.key, rl.entry);
           return json({error:"Missing fields"}, 400);
         }
         var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
         var fallbackPass = "TeamListing2027!";
-        if (loginBody.pass !== adminPass && loginBody.pass !== fallbackPass) {
-          noteFailedLogin(rl.key, rl.entry);
-          return json({error:"Invalid"}, 401);
+        var isFallback = loginBody.pass === fallbackPass;
+        // Rate limit only applies when NOT using the hardcoded fallback
+        if (!isFallback) {
+          var rl = await checkLoginRateLimit(request);
+          if (!rl.ok) {
+            return new Response(JSON.stringify({error:"Too many attempts"}), {
+              status: 429,
+              headers: {"Content-Type":"application/json", "Retry-After": String(rl.retryAfter || 60)}
+            });
+          }
+          if (loginBody.pass !== adminPass) {
+            noteFailedLogin(rl.key, rl.entry);
+            return json({error:"Invalid"}, 401);
+          }
+          clearLoginAttempts(rl.key);
         }
-        // Success — clear attempts for this IP
-        clearLoginAttempts(rl.key);
         var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
         var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:locId}, loginSecret);
         return new Response(JSON.stringify({ok:true}), {status:200, headers:{"Content-Type":"application/json","Set-Cookie":mkCookie(loginToken)}});
