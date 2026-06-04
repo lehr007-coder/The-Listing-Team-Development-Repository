@@ -20213,12 +20213,14 @@ function mapGhlSsoRole(payload) {
 }
 
 async function ghlOauthPostToken(env, body) {
-  if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_CLIENT_SECRET) {
+  var clientId = env.GHL_OAUTH_CLIENT_ID || "699347decc1de8e6234d6f70-moullr5o";
+  var clientSecret = env.GHL_OAUTH_CLIENT_SECRET || "627dbe0a-22f9-4206-a8ad-5f7976d780fd";
+  if (!clientId || !clientSecret) {
     throw new Error("GHL_OAUTH_CLIENT_ID/SECRET not configured");
   }
   var form = new URLSearchParams(Object.assign({
-    client_id: env.GHL_OAUTH_CLIENT_ID,
-    client_secret: env.GHL_OAUTH_CLIENT_SECRET
+    client_id: clientId,
+    client_secret: clientSecret
   }, body));
   var res = await fetch(GHL_OAUTH_TOKEN_URL, {
     method: "POST",
@@ -20839,13 +20841,15 @@ var index_default = {
     // Install flow: /api/auth/oauth/install -> chooselocation -> /api/auth/oauth/callback
     // SSO flow:     /app/sso (iframe HTML) -> /api/auth/sso (cookie + redirect)
     if (method === "GET" && path === "/api/auth/oauth/install") {
-      if (!env.GHL_OAUTH_CLIENT_ID || !env.GHL_OAUTH_REDIRECT_URI) {
+      var oauthClientId = env.GHL_OAUTH_CLIENT_ID || "699347decc1de8e6234d6f70-moullr5o";
+      var oauthRedirectUri = env.GHL_OAUTH_REDIRECT_URI || "https://thelistingteamproxy.reallistingteam.com/api/auth/oauth/callback";
+      if (!oauthClientId || !oauthRedirectUri) {
         return json({ error: "GHL_OAUTH_CLIENT_ID/REDIRECT_URI not configured" }, 500);
       }
       var installParams = new URLSearchParams({
         response_type: "code",
-        client_id: env.GHL_OAUTH_CLIENT_ID,
-        redirect_uri: env.GHL_OAUTH_REDIRECT_URI,
+        client_id: oauthClientId,
+        redirect_uri: oauthRedirectUri,
         scope: GHL_OAUTH_SCOPES
       });
       return new Response(null, {
