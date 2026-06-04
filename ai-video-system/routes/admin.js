@@ -486,6 +486,10 @@ async function killGet(env) {
 
 async function killSet(request, env) {
   const { body } = await readJson(request);
+  // Allow clearing via POST when DELETE is blocked by WAF/proxy
+  if (body?.action === "clear" || body?.kill === false) {
+    return killClear(env);
+  }
   const result = await setKillSwitch(env, true, {
     reason: body?.reason || "no reason provided",
     set_by: body?.set_by || "admin-api",
