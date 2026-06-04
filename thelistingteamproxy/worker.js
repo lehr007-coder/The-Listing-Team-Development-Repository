@@ -298,9 +298,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4DD}</div>
         <div class="card-body">
-          <div class="card-title">Transaction OS Admin</div>
-          <div class="card-desc">Contract-to-close pipeline on GHL Custom Objects. Kill switches, workflows, parser, intake, deadline + risk evaluators.</div>
-          <div class="card-tag">Workflows \u00b7 Kill switches \u00b7 Parser</div>
+          <div class="card-title">Transaction OS \u2014 Open Live Admin</div>
+          <div class="card-desc">The HTML control panel for the Transaction OS we built on top of GHL Custom Objects. Live worker health, kill switches, workflows, parser, document records, change log \u2014 all in one page.</div>
+          <div class="card-tag">Opens https://tos-proxy-staging.lehr007.workers.dev/tos/admin \u2192</div>
         </div>
       </a>
     </div>
@@ -20458,9 +20458,9 @@ a{color:#3b82f6;text-decoration:none}
     <a id="link-tos-admin" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#22c55e';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#334155';this.style.transform='translateY(0)'">
       <div style="font-size:28px;line-height:1">&#128640;</div>
       <div style="min-width:0">
-        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Transaction OS Admin</div>
-        <div style="font-size:13px;color:#94a3b8;line-height:1.5">Real-estate contract-to-close pipeline on top of GHL Custom Objects. Kill switches, workflow status, deadline + risk evaluators, parser, intake.</div>
-        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">Workflows &middot; Kill switches &middot; Parser &rarr;</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Transaction OS — Live HTML Admin</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5">This card opens the HTML control panel we built for the Transaction OS system. Live worker health badge, GHL kill-switch links, all TOS custom-object record views (transactions, deadlines, properties, parties, document packets, change log), workflow links, parser route, and docs &mdash; in one screen.</div>
+        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">https://tos-proxy-staging.lehr007.workers.dev/tos/admin &rarr;</div>
       </div>
     </a>
   </div>
