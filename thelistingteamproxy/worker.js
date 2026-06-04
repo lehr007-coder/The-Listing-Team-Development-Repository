@@ -20191,7 +20191,9 @@ async function _evpBytesToKey(passphraseBytes, saltBytes, keyLen, ivLen) {
 // Decrypt GHL's CryptoJS AES.encrypt(payload, passphrase) blob — base64 of
 // "Salted__" (8B) | salt (8B) | ciphertext. Returns parsed JSON.
 async function decryptGhlSsoToken(encryptedB64, ssoKey) {
-  var bin = atob(String(encryptedB64 || ""));
+  var normalized = String(encryptedB64 || "").replace(/-/g, "+").replace(/_/g, "/");
+  while (normalized.length % 4) normalized += "=";
+  var bin = atob(normalized);
   var blob = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) blob[i] = bin.charCodeAt(i);
   if (blob.length < 17 || String.fromCharCode.apply(null, blob.slice(0, 8)) !== "Salted__") {
@@ -20905,7 +20907,7 @@ var index_default = {
         email: ssoPayload.email || "",
         name: ssoPayload.userName || "",
         role: ssoRole,
-        loc: ssoPayload.locationId || locId
+        loc: ssoPayload.locationId || (env.GHL_LOCATION_ID || LOC_ID)
       }, ssoSecret);
       return new Response(null, {
         status: 302,
@@ -20929,7 +20931,7 @@ var index_default = {
       var ghlUid = url.searchParams.get("uid") || url.searchParams.get("user_id") || "";
       var ghlEmail = url.searchParams.get("email") || "";
       var ghlName = url.searchParams.get("name") || url.searchParams.get("firstName") || "";
-      var ghlLoc = url.searchParams.get("loc") || url.searchParams.get("location_id") || locId;
+      var ghlLoc = url.searchParams.get("loc") || url.searchParams.get("location_id") || (env.GHL_LOCATION_ID || LOC_ID);
       var ghlRedirect = url.searchParams.get("redirect") || "/dashboard";
       if (!ghlUid && !ghlEmail) {
         return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
