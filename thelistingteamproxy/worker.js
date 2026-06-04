@@ -298,11 +298,38 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4DD}</div>
         <div class="card-body">
-          <div class="card-title">Transaction OS \u2014 Open Live Admin</div>
-          <div class="card-desc">The HTML control panel for the Transaction OS we built on top of GHL Custom Objects. Live worker health, kill switches, workflows, parser, document records, change log \u2014 all in one page.</div>
-          <div class="card-tag">Opens https://tos-proxy-staging.lehr007.workers.dev/tos/admin \u2192</div>
+          <div class="card-title">Transaction OS \u2014 Live Admin</div>
+          <div class="card-desc">Real-time contract-to-close pipeline status on GHL. Click for the full control panel.</div>
+          <div id="tos-mini-stats" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:#cbd5e1">
+            <span><strong id="tos-stat-open" style="color:#f1f5f9;font-size:16px">--</strong> open deals</span>
+            <span><strong id="tos-stat-red" style="color:#ef4444;font-size:16px">--</strong> RED</span>
+            <span><strong id="tos-stat-overdue" style="color:#f59e0b;font-size:16px">--</strong> overdue</span>
+            <span id="tos-stat-mode" style="opacity:.85">--</span>
+          </div>
+          <div class="card-tag">Open full dashboard \u2192</div>
         </div>
       </a>
+      <script>
+      (async () => {
+        try {
+          const r = await fetch('https://tos-proxy-staging.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const d = await r.json();
+          const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+          set('tos-stat-open', d.transactions && d.transactions.open != null ? d.transactions.open : '--');
+          set('tos-stat-red', d.transactions && d.transactions.byRiskBand && d.transactions.byRiskBand.RED != null ? d.transactions.byRiskBand.RED : 0);
+          set('tos-stat-overdue', d.deadlines && d.deadlines.byStatus && d.deadlines.byStatus.Overdue != null ? d.deadlines.byStatus.Overdue : 0);
+          const ks = d.killSwitches || {};
+          const master = ks.tos_master_enabled === 'true';
+          const shadow = ks.tos_shadow_mode === 'true';
+          set('tos-stat-mode', master ? (shadow ? '\u{1F7E1} Shadow mode' : '\u{1F7E2} LIVE') : '\u{1F534} OFF');
+          if (typeof window.__populateTosAdminModule === 'function') window.__populateTosAdminModule(d);
+        } catch (e) {
+          const el = document.getElementById('tos-mini-stats');
+          if (el) el.innerHTML = '<span style="color:#94a3b8;font-size:12px">live stats unavailable: ' + (e.message || 'fetch failed') + '</span>';
+        }
+      })();
+      </script>
     </div>
   </div>
 
@@ -20454,16 +20481,124 @@ a{color:#3b82f6;text-decoration:none}
   </div>
 
   <div class="section-title"><span>&#128203; Transaction OS</span><hr></div>
+
+  <!-- 4 metric tiles -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:14px">
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Worker</div>
+      <div style="font-size:13px;color:#cbd5e1;margin-bottom:2px">Health: <strong style="color:#22c55e">Live</strong></div>
+      <div style="font-size:13px;color:#cbd5e1;margin-bottom:2px">Writes: <strong id="tos-am-writes">--</strong></div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px">Location: <code id="tos-am-loc" style="background:#334155;padding:2px 6px;border-radius:4px;font-size:10px">--</code></div>
+    </div>
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Transactions</div>
+      <div style="display:flex;gap:18px">
+        <div><div style="font-size:24px;font-weight:700;color:#f1f5f9" id="tos-am-txn-total">--</div><div style="font-size:11px;color:#94a3b8">total</div></div>
+        <div><div style="font-size:24px;font-weight:700;color:#22c55e" id="tos-am-txn-open">--</div><div style="font-size:11px;color:#94a3b8">open</div></div>
+      </div>
+    </div>
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Risk Bands</div>
+      <div style="display:flex;gap:14px">
+        <div><div style="font-size:24px;font-weight:700;color:#22c55e" id="tos-am-risk-green">--</div><div style="font-size:11px;color:#94a3b8">GREEN</div></div>
+        <div><div style="font-size:24px;font-weight:700;color:#f59e0b" id="tos-am-risk-yellow">--</div><div style="font-size:11px;color:#94a3b8">YELLOW</div></div>
+        <div><div style="font-size:24px;font-weight:700;color:#ef4444" id="tos-am-risk-red">--</div><div style="font-size:11px;color:#94a3b8">RED</div></div>
+      </div>
+    </div>
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:8px">Deadlines</div>
+      <div style="display:flex;gap:18px">
+        <div><div style="font-size:24px;font-weight:700;color:#f1f5f9" id="tos-am-deadline-total">--</div><div style="font-size:11px;color:#94a3b8">total</div></div>
+        <div><div style="font-size:24px;font-weight:700;color:#ef4444" id="tos-am-deadline-overdue">--</div><div style="font-size:11px;color:#94a3b8">overdue</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kill switches + recent activity row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:12px">Kill Switches</div>
+      <div id="tos-am-killswitches"><div style="color:#64748b;font-size:12px">Loading...</div></div>
+    </div>
+    <div style="padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px">
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:12px">Recent Worker Activity</div>
+      <div id="tos-am-activity"><div style="color:#64748b;font-size:12px">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- CTA + link card -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
-    <a id="link-tos-admin" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #334155;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#22c55e';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#334155';this.style.transform='translateY(0)'">
+    <a id="link-tos-admin" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #22c55e;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#16a34a';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#22c55e';this.style.transform='translateY(0)'">
       <div style="font-size:28px;line-height:1">&#128640;</div>
       <div style="min-width:0">
-        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Transaction OS — Live HTML Admin</div>
-        <div style="font-size:13px;color:#94a3b8;line-height:1.5">This card opens the HTML control panel we built for the Transaction OS system. Live worker health badge, GHL kill-switch links, all TOS custom-object record views (transactions, deadlines, properties, parties, document packets, change log), workflow links, parser route, and docs &mdash; in one screen.</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Full TOS HTML Admin</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5">Goes to the live HTML control panel we built &mdash; deeper navigation into GHL workflows, kill-switch toggles, every TOS custom-object record list, documentation. The data above is a live summary; this is the full operator interface.</div>
         <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">https://tos-proxy-staging.lehr007.workers.dev/tos/admin &rarr;</div>
       </div>
     </a>
   </div>
+
+  <script>
+  // Live TOS admin module renderer. Defined as window.__populateTosAdminModule so
+  // the main-dashboard fetcher (which fires first) can also populate this section
+  // if the user lands on the admin module page; or, when only admin module loads,
+  // we kick off our own fetch.
+  window.__populateTosAdminModule = function(d) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('tos-am-txn-total', d.transactions && d.transactions.total != null ? d.transactions.total : '--');
+    set('tos-am-txn-open', d.transactions && d.transactions.open != null ? d.transactions.open : '--');
+    set('tos-am-deadline-total', d.deadlines && d.deadlines.total != null ? d.deadlines.total : '--');
+    set('tos-am-deadline-overdue', d.deadlines && d.deadlines.byStatus && d.deadlines.byStatus.Overdue != null ? d.deadlines.byStatus.Overdue : 0);
+    set('tos-am-risk-green', d.transactions && d.transactions.byRiskBand && d.transactions.byRiskBand.GREEN != null ? d.transactions.byRiskBand.GREEN : 0);
+    set('tos-am-risk-yellow', d.transactions && d.transactions.byRiskBand && d.transactions.byRiskBand.YELLOW != null ? d.transactions.byRiskBand.YELLOW : 0);
+    set('tos-am-risk-red', d.transactions && d.transactions.byRiskBand && d.transactions.byRiskBand.RED != null ? d.transactions.byRiskBand.RED : 0);
+    set('tos-am-writes', d.env && d.env.writesEnabled ? 'enabled' : 'DISABLED');
+    set('tos-am-loc', d.env && d.env.locationId ? d.env.locationId : '--');
+
+    const ksList = document.getElementById('tos-am-killswitches');
+    if (ksList && d.killSwitches) {
+      ksList.innerHTML = Object.entries(d.killSwitches).map(([k, v]) => {
+        const isPct = k === 'tos_cutover_pct';
+        const isOn = v === 'true';
+        const color = isPct ? '#cbd5e1' : (isOn ? '#22c55e' : '#64748b');
+        const dot = isPct ? '' : (isOn ? '\u{1F7E2} ' : '⚫ ');
+        const keyLabel = k.replace('tos_', '').replace(/_/g, ' ');
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #2d3a52;font-size:12px"><span style="color:#94a3b8">' + keyLabel + '</span><span style="color:' + color + ';font-weight:600;font-size:11px">' + dot + v + '</span></div>';
+      }).join('');
+    }
+
+    const actList = document.getElementById('tos-am-activity');
+    if (actList && d.recentActivity) {
+      if (d.recentActivity.length === 0) {
+        actList.innerHTML = '<div style="color:#64748b;font-size:12px">No recent worker activity</div>';
+      } else {
+        actList.innerHTML = d.recentActivity.map(a => {
+          const t = a.ts ? new Date(a.ts).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : '';
+          const actor = (a.actor || '').replace('tos-proxy/', '');
+          const intent = (a.intent || '').substring(0, 80);
+          return '<div style="padding:6px 0;border-bottom:1px solid #2d3a52"><div style="font-size:12px;color:#cbd5e1;line-height:1.4">' + intent + '</div><div style="font-size:10px;color:#64748b;margin-top:2px">' + actor + ' · ' + t + '</div></div>';
+        }).join('');
+      }
+    }
+  };
+
+  // If the main-dashboard fetcher (defined inside the main TOS card) didn't already
+  // kick off, we fetch here. The function check above means we don't double-fetch.
+  (async () => {
+    if (document.getElementById('tos-mini-stats')) return; // main dashboard fetcher will populate
+    try {
+      const r = await fetch('https://tos-proxy-staging.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      window.__populateTosAdminModule(d);
+    } catch (e) {
+      const ksList = document.getElementById('tos-am-killswitches');
+      if (ksList) ksList.innerHTML = '<div style="color:#ef4444;font-size:12px">Failed to load: ' + (e.message || 'fetch error') + '</div>';
+      const actList = document.getElementById('tos-am-activity');
+      if (actList) actList.innerHTML = '<div style="color:#ef4444;font-size:12px">Failed to load</div>';
+    }
+  })();
+  </script>
 
   <div class="section-title"><span>&#128101; Team Members</span><hr></div>
   <div id="userGrid" class="user-grid"><div class="spinner"></div></div>
