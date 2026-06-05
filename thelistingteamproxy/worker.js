@@ -20841,7 +20841,12 @@ var index_default = {
             headers: {"Content-Type":"application/json", "Retry-After": String(rl.retryAfter || 60)}
           });
         }
-        var loginBody = await safeJsonParse(request);
+        var parsed = await safeJsonParse(request);
+        if (parsed.error) {
+          noteFailedLogin(rl.key, rl.entry);
+          return json({error:parsed.error}, 400);
+        }
+        var loginBody = parsed.data;
         if (!loginBody || !loginBody.email || !loginBody.pass) {
           noteFailedLogin(rl.key, rl.entry);
           return json({error:"Missing fields"}, 400);
