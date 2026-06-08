@@ -87,10 +87,10 @@ export default {
 
   // Cron — invoked by [triggers] crons in wrangler.toml. Handles the
   // safety-net polling for HeyGen renders whose webhook didn't fire.
-  // AWAIT (not ctx.waitUntil) so the inner processOne calls run in
-  // the scheduled handler's active context — detached promises
-  // (waitUntil / queue path) were observed to die silently mid-
-  // pipeline in this runtime.
+  // Lightweight: only queries Supabase + HeyGen, then fires a self-fetch
+  // to /v1/admin/jobs/:id/reprocess for each completed job. Each reprocess
+  // runs processOne in its own fresh HTTP handler Worker invocation so the
+  // scheduled handler's CPU limit cannot silently kill the pipeline.
   async scheduled(event, env, ctx) {
     try {
       const r = await runHeygenPollFallback(env, ctx);
