@@ -74,6 +74,19 @@ export async function runDelivery(env, jobId) {
     throw new Error(`runDelivery refused: job ${jobId} is social, not private`);
   }
 
+  // Safety guard: refuse to deliver if the video isn't actually ready.
+  // Sending an email with a null hosted_url means the recipient sees
+  // "undefined" in the CTA link and the click-tracking redirect 404s.
+  // This catches the failure mode where HeyGen accepted the job but
+  // never completed the render (e.g. credits exhausted mid-queue).
+  if (!job.hosted_url) {
+    throw new Error(
+      `runDelivery refused: job ${jobId} has no hosted_url ` +
+      `(status=${job.status}, heygen_video_id=${job.heygen_video_id || "none"}). ` +
+      `Video render did not complete — check HeyGen credits / webhook delivery.`
+    );
+  }
+
   const contact = await getContact(env, job.contact_id);
 
   const deliveryCtx = {
