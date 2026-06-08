@@ -133,6 +133,7 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-rl-global"><div class="label">Renders today (global)</div><div class="value">…</div></div>
     <div class="card" id="card-rl-contacts"><div class="label">Contacts today</div><div class="value">…</div></div>
     <div class="card" id="card-killswitch"><div class="label">Kill switch</div><div class="value">…</div></div>
+    <div class="card" id="card-heygen-credits"><div class="label">HeyGen credits</div><div class="value">…</div></div>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
   </div>
 
@@ -269,6 +270,21 @@ const DASHBOARD_HTML = `<!doctype html>
     set("card-rl-global", used + " / " + limit, used >= limit ? "bad" : (used > limit*0.8 ? "warn" : ""));
     set("card-rl-contacts", (rl.per_contact?.contacts_today ?? 0) + " contacts");
     set("card-uptime", "OK", "ok");
+  }
+
+  async function loadHeygenCredits() {
+    const r = await api("/v1/admin/heygen/credits");
+    if (!r.ok) {
+      set("card-heygen-credits", "error", "warn");
+      return;
+    }
+    const q = r.remaining_quota;
+    if (q === null || q === undefined) {
+      set("card-heygen-credits", "—");
+      return;
+    }
+    const cls = q === 0 ? "bad" : (q < 20 ? "warn" : "ok");
+    set("card-heygen-credits", String(q), cls);
   }
 
   async function loadJobs(filter) {
@@ -446,8 +462,9 @@ const DASHBOARD_HTML = `<!doctype html>
       wrap(loadTopContacts),
       wrap(() => loadJobs(document.getElementById("contact-filter").value.trim())),
     ]);
-    // Templates + avatars fire AFTER the main panels render so the
-    // dashboard is interactive even if HeyGen's API is slow.
+    // Templates, avatars, and credits fire AFTER the main panels render
+    // so the dashboard is interactive even if HeyGen's API is slow.
+    wrap(loadHeygenCredits);
     wrap(loadTemplates);
     wrap(loadAvatars);
   }

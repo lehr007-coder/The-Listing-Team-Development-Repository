@@ -189,6 +189,25 @@ export async function getTemplateDetails(env, templateId) {
   }
 }
 
+// HeyGen API credit balance. Used by the admin dashboard so we know
+// when to top up before renders silently get stuck mid-flight. Returns
+// { ok, remaining_quota?, details, error? } — never throws so the
+// dashboard panel can render even when HeyGen is unreachable.
+export async function getCreditBalance(env) {
+  try {
+    const r = await fetch(
+      `${HEYGEN_BASE}/v1/user/remaining_quota`,
+      { headers: heygenHeaders(env), signal: heygenSignal() }
+    );
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, http_status: r.status, error: body?.error || body?.message || `HTTP ${r.status}`, details: body };
+    const remaining = body?.data?.remaining_quota ?? body?.remaining_quota ?? null;
+    return { ok: true, remaining_quota: remaining, details: body?.data || body };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // HeyGen's avatar list. Returns an array of { avatar_id, avatar_name,
 // preview_image_url, ... } objects. Used to populate avatar pickers in
 // the admin UI for the non-template fallback render path.
