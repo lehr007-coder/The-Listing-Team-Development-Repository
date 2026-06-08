@@ -20,10 +20,11 @@ CDN_BASE_URL = "https://cdn.reallistingteam.com"
 HOSTED_BASE_URL = "https://videos.reallistingteam.com"
 DEFAULT_BRAND = "the-listing-team"
 
-# Cost-runaway guardrails. Both reset daily (UTC). KV-backed.
+# Cost-runaway guardrails. All three reset daily (UTC). KV-backed.
 # Override via wrangler secret put if you want different prod limits.
 DAILY_RENDER_LIMIT = "100"
 PER_CONTACT_DAILY_LIMIT = "3"
+PER_LOCATION_DAILY_LIMIT = "50"
 
 # Cloudflare Stream customer code — used to build thumbnail/gif/iframe
 # URLs. Account-wide value, NOT per-video. Find via Stream → API → any
@@ -65,11 +66,10 @@ binding = "VIDEO_KV"
 id = "1e513d6498444e9e89af431f2308aba1"
 
 # ── Cron: HeyGen poll fallback for stuck-rendering jobs ──
-# Re-enabled after webhook reliability testing revealed webhooks can fail
-# silently even after HeyGen completes the render. Cron runs every minute
-# and catches jobs where the webhook never fired. Uses await processOne
-# (not ctx.waitUntil) to avoid the previously-observed silent-kill bug.
-# Enhanced logging in heygen-poll-fallback.js tracks runs for monitoring.
+# Catches jobs where the HeyGen webhook never fired. Cron runs every minute.
+# Each recovered job is dispatched as a self-fetch to /v1/admin/jobs/:id/reprocess
+# so it runs in its own fresh HTTP Worker invocation with its own CPU budget.
+# ctx.waitUntil tracks all dispatches — the scheduled handler itself is lightweight.
 [triggers]
 crons = ["* * * * *"]
 

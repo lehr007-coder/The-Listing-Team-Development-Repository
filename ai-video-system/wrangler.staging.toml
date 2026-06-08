@@ -13,6 +13,7 @@ DEFAULT_BRAND = "the-listing-team"
 # Generous limits for staging — testing can burst more
 DAILY_RENDER_LIMIT = "200"
 PER_CONTACT_DAILY_LIMIT = "10"
+PER_LOCATION_DAILY_LIMIT = "200"
 
 # Cloudflare Stream customer code (same account as prod)
 CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
