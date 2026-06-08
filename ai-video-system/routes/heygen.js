@@ -20,6 +20,10 @@
 //   HeyGen → us. Body shape per HeyGen docs:
 //     { event_type: "avatar_video.success", event_data: { video_id, url, callback_id, ... } }
 //   We verify HMAC if HEYGEN_CALLBACK_SECRET is set.
+//
+// GET /v1/heygen/webhooks/debug?limit=20&job_id=<id>
+//   Debug endpoint: lists recent webhook attempts (successful + failed) from last 24h.
+//   Helps diagnose why webhooks aren't firing or are being rejected (signature, missing job, etc).
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
@@ -55,6 +59,9 @@ export default async function heygenRoute(request, env, ctx, url) {
     const jobId = path.split("/")[2];
     const job = await getVideoJob(env, jobId);
     return job ? json(job) : error(404, "not_found", `job ${jobId} not found`);
+  }
+  if (method === "GET" && path === "/webhooks/debug") {
+    return webhooksDebug(env, url);
   }
 
   return error(404, "not_found", `No HeyGen route: ${method} ${path}`);
@@ -188,32 +195,84 @@ async function handleRender(request, env) {
 }
 
 async function handleCallback(request, env, ctx) {
+  const startTime = Date.now();
   const { text, body } = await readJson(request);
 
+  // Log all webhook arrivals for debugging
+  const webhookLog = {
+    timestamp: new Date().toISOString(),
+    has_body: !!body,
+    has_signature: !!(request.headers.get("X-Signature") || request.headers.get("x-signature")),
+    event_type: body?.event_type || body?.type || "unknown",
+    heygen_video_id: body?.event_data?.video_id || body?.data?.video_id || null,
+    callback_id: body?.event_data?.callback_id || body?.data?.callback_id || null,
+    job_from_params: new URL(request.url).searchParams.get("job"),
+  };
+
   // Optional HMAC verification
+  let signatureOk = true;
   if (env.HEYGEN_CALLBACK_SECRET) {
     const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
     const ok = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
-    if (!ok) return error(401, "bad_signature");
+    if (!ok) {
+      webhookLog.signature_error = "verification_failed";
+      signatureOk = false;
+      console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
+      // Store failed webhook attempt in KV for debugging
+      const failKey = `webhook:failed:${Date.now()}`;
+      await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+      return error(401, "bad_signature", "HMAC verification failed");
+    }
   }
 
-  if (!body) return error(400, "bad_json");
+  if (!body) {
+    webhookLog.error = "bad_json";
+    console.warn(`webhook received invalid JSON: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(400, "bad_json");
+  }
 
   const eventType = body.event_type || body.type;
   const data = body.event_data || body.data || {};
   const jobId = data.callback_id || new URL(request.url).searchParams.get("job");
 
-  if (!jobId) return error(400, "missing_job_id");
+  webhookLog.job_id = jobId;
+  webhookLog.signature_ok = signatureOk;
+
+  if (!jobId) {
+    webhookLog.error = "missing_job_id";
+    console.warn(`webhook missing job_id: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(400, "missing_job_id", `Could not extract job_id from callback_id or 'job' query param`);
+  }
+
   const job = await getVideoJob(env, jobId);
-  if (!job) return error(404, "job_not_found");
+  if (!job) {
+    webhookLog.error = "job_not_found";
+    console.warn(`webhook received for unknown job: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(404, "job_not_found", `Job ${jobId} not found in database`);
+  }
 
   // Idempotency: KV dedupe by HeyGen video_id + event_type
   const dedupeKey = `cb:heygen:${data.video_id || jobId}:${eventType}`;
   const seen = await env.VIDEO_KV.get(dedupeKey);
-  if (seen) return json({ ok: true, deduped: true });
+  if (seen) {
+    webhookLog.deduped = true;
+    console.log(`webhook ${jobId}: deduped (${eventType})`);
+    return json({ ok: true, deduped: true });
+  }
   await env.VIDEO_KV.put(dedupeKey, "1", { expirationTtl: 60 * 60 * 24 });
 
+  // Store successful webhook arrival in KV for debugging
+  const successKey = `webhook:received:${jobId}:${eventType}:${Date.now()}`;
+  await env.VIDEO_KV.put(successKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+
   if (eventType === "avatar_video.fail" || eventType === "video.fail") {
+    console.log(`webhook ${jobId}: HeyGen reported failure — ${data.message || "unknown"}`);
     await updateVideoJob(env, jobId, {
       status: "failed",
       error: data.message || "heygen reported failure",
@@ -306,5 +365,43 @@ async function handleCallback(request, env, ctx) {
     }
   }
 
+  // Unknown/unhandled event type
+  console.log(`webhook ${jobId}: unhandled event type — ${eventType}`);
   return json({ ok: true, ignored: eventType });
+}
+
+// Debug endpoint: retrieve recent webhook log entries from KV for diagnostics.
+// Shows both successful and failed webhook attempts, useful for understanding
+// why webhooks aren't firing or are being rejected.
+async function webhooksDebug(env, url) {
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
+  const jobId = url.searchParams.get("job_id");
+
+  // List keys pattern: webhook:received:* or webhook:failed:*
+  const list = await env.VIDEO_KV.list({ prefix: "webhook:" });
+
+  let entries = [];
+  for (const key of list.keys) {
+    const val = await env.VIDEO_KV.get(key.name);
+    if (val) {
+      try {
+        const entry = JSON.parse(val);
+        // Filter by job_id if specified
+        if (jobId && entry.job_id !== jobId) continue;
+        entries.push({ key: key.name, ...entry });
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+
+  // Sort by timestamp descending (most recent first)
+  entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  return json({
+    count: entries.length,
+    limit,
+    entries: entries.slice(0, limit),
+    note: "Shows webhook attempts (both successful and failed) from the last 24 hours. Use ?job_id=<id> to filter to a specific job.",
+  });
 }
