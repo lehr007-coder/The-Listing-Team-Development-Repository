@@ -31,8 +31,17 @@ const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enou
 const POLL_BATCH = 10;                      // cap per-tick
 
 export async function runHeygenPollFallback(env, ctx) {
-  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) return { skipped: "no_supabase" };
-  if (!env.HEYGEN_API_KEY) return { skipped: "no_heygen_key" };
+  const startTime = Date.now();
+  console.log("poll-fallback: cron triggered, looking for stuck jobs");
+
+  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
+    console.warn("poll-fallback: skipped — no supabase config");
+    return { skipped: "no_supabase" };
+  }
+  if (!env.HEYGEN_API_KEY) {
+    console.warn("poll-fallback: skipped — no heygen api key");
+    return { skipped: "no_heygen_key" };
+  }
 
   // RLS is off on video_jobs/video_events so SUPABASE_KEY works.
   const sbKey = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -52,13 +61,19 @@ export async function runHeygenPollFallback(env, ctx) {
     `&created_at=gt.${encodeURIComponent(maxAge)}` +
     `&order=created_at.asc&limit=${POLL_BATCH}`;
 
+  console.log("poll-fallback: querying stuck jobs (status=rendering, created between 60s-24h ago)");
   const r = await fetch(url, { headers: sbHeaders });
   if (!r.ok) {
-    console.error("poll-fallback: list failed", r.status, await r.text());
-    return { skipped: "list_failed" };
+    const errText = await r.text();
+    console.error(`poll-fallback: list failed: HTTP ${r.status} — ${errText.slice(0, 200)}`);
+    return { skipped: "list_failed", status: r.status };
   }
   const stuck = await r.json();
-  if (stuck.length === 0) return { checked: 0 };
+  if (stuck.length === 0) {
+    console.log("poll-fallback: no stuck jobs found");
+    return { checked: 0 };
+  }
+  console.log(`poll-fallback: found ${stuck.length} stuck job(s), processing...`);
 
   const out = { checked: stuck.length, recovered: 0, failed_marked: 0, still_processing: 0 };
 
@@ -101,5 +116,7 @@ export async function runHeygenPollFallback(env, ctx) {
     }
   }
 
-  return out;
+  const elapsed = Date.now() - startTime;
+  console.log(`poll-fallback: complete in ${elapsed}ms — recovered=${out.recovered}, failed=${out.failed_marked}, still_processing=${out.still_processing}`);
+  return { ...out, elapsed_ms: elapsed };
 }
