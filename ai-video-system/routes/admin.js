@@ -4,9 +4,11 @@
 //   GET    /v1/admin/jobs?limit=50&contact_id=<>&status=<>
 //   GET    /v1/admin/jobs/:id
 //   GET    /v1/admin/jobs/:id/events
+//   GET    /v1/admin/jobs/:id/diagnose    → why is this job stuck?
 //   POST   /v1/admin/jobs/:id/fail        { "reason": "..." }
 //   POST   /v1/admin/jobs/:id/reprocess   { "url": "<mp4 url>" }
 //   GET    /v1/admin/health-deep            → /v1/health + active job counters
+//   GET    /v1/admin/heygen/credits         → HeyGen API credit balance
 //
 //   GET    /v1/admin/kill                   → current kill-switch state
 //   POST   /v1/admin/kill                   → activate kill-switch (paused)
@@ -24,7 +26,7 @@ import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState
 import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
-import { getRenderStatus, getTemplateDetails, listAvatars, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
+import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 
@@ -86,6 +88,8 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/health-deep")                   return healthDeep(env);
   if (path === "/heygen/templates")              return listHeygenTemplates(env);
   if (path === "/heygen/avatars")                return json({ avatars: await listAvatars(env) });
+  if (path === "/heygen/credits")                return json(await getCreditBalance(env));
+  if (path.match(/^\/jobs\/[^/]+\/diagnose$/))   return jobDiagnose(env, path.split("/")[2]);
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
@@ -119,6 +123,89 @@ async function listJobs(env, url) {
 async function jobDetail(env, jobId) {
   const job = await getVideoJob(env, jobId);
   return job ? json(job) : error(404, "not_found");
+}
+
+// One-shot diagnostic: given a stuck job, fetch HeyGen's view of the
+// video and produce a single readable summary explaining exactly why
+// the job is where it is. Designed for ops: never throws, always
+// returns a JSON body the dashboard can render.
+async function jobDiagnose(env, jobId) {
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "not_found");
+
+  const out = {
+    job_id: jobId,
+    job_status: job.status,
+    job_error: job.error || null,
+    last_event: job.last_event || null,
+    last_event_at: job.last_event_at || null,
+    created_at: job.created_at,
+    rendered_at: job.rendered_at,
+    delivered_at: job.delivered_at,
+    has_hosted_url: !!job.hosted_url,
+    heygen_video_id: job.heygen_video_id || null,
+    heygen: null,
+    credits: null,
+    diagnosis: "",
+  };
+
+  if (job.heygen_video_id) {
+    try {
+      const hg = await getRenderStatus(env, job.heygen_video_id);
+      const d = hg?.data || {};
+      out.heygen = {
+        status: d.status || null,
+        error: d.error || null,
+        video_url: d.video_url || null,
+        thumbnail_url: d.thumbnail_url || null,
+        gif_url: d.gif_url || d.gif_download_url || null,
+        duration: d.duration ?? null,
+      };
+    } catch (e) {
+      out.heygen = { error: `getRenderStatus failed: ${e.message}` };
+    }
+  }
+
+  out.credits = await getCreditBalance(env);
+
+  // Build the diagnosis
+  const parts = [];
+  if (job.status === "delivered") {
+    parts.push("Job successfully delivered.");
+  } else if (job.status === "failed") {
+    parts.push(`Job marked failed: ${job.error || "no reason recorded"}`);
+  } else if (job.status === "rendering" && out.heygen?.status === "completed") {
+    parts.push("HeyGen finished but the webhook never fired or did not update the job. Use POST /v1/admin/jobs/:id/reprocess to pull the URL and trigger delivery.");
+  } else if (job.status === "rendering" && out.heygen?.status === "failed") {
+    parts.push(`HeyGen failed: ${out.heygen.error || "unknown reason"}.`);
+  } else if (job.status === "rendering" && out.heygen?.status === "processing") {
+    const ageMin = Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000);
+    if (ageMin > 15) {
+      parts.push(`HeyGen still processing after ${ageMin} min — unusually slow. Likely cause: credits exhausted mid-render (HeyGen accepts the job, then stalls). Verify credits: see credits panel.`);
+    } else {
+      parts.push(`HeyGen processing (${ageMin} min in) — within normal range.`);
+    }
+  } else if (job.status === "rendering" && !job.heygen_video_id) {
+    parts.push("Job is rendering but has no heygen_video_id. Render submission may have failed before HeyGen returned an id.");
+  } else if (job.status === "rendered" && !job.hosted_url) {
+    parts.push("Job marked rendered but hosted_url is null. Delivery refuses to fire — manual reprocess required.");
+  } else if (job.status === "rendered") {
+    parts.push("Rendered, awaiting delivery. Use POST /v1/admin/jobs/:id/reprocess if delivery did not auto-fire.");
+  } else {
+    parts.push(`Status=${job.status}; no specific diagnosis available.`);
+  }
+
+  if (out.credits?.ok && out.credits.remaining_quota !== null) {
+    parts.push(`HeyGen credit balance: ${out.credits.remaining_quota}.`);
+    if (out.credits.remaining_quota === 0) {
+      parts.push("HEYGEN CREDITS ARE ZERO — no new renders will succeed until topped up.");
+    }
+  } else if (out.credits && !out.credits.ok) {
+    parts.push(`Could not fetch HeyGen credit balance: ${out.credits.error}`);
+  }
+
+  out.diagnosis = parts.join(" ");
+  return json(out);
 }
 
 async function jobEvents(env, jobId) {

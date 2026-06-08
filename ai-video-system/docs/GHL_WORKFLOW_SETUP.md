@@ -57,11 +57,14 @@ Pick whichever `video_type` matches the situation — any of:
 
 ### Step 2 — Wait for HeyGen
 
-**Action:** Wait → 5 minutes
+**Action:** Wait → 10 minutes
 
-(HeyGen template renders typically complete in 2-4 min. 5 gives plenty of
-slack. The webhook fires automatically when HeyGen is done — by minute 5
-the job row already has `status=rendered` and `hosted_url` set.)
+(HeyGen template renders typically complete in 2-4 min. 10 leaves margin
+for HeyGen queue depth, and protects against false-positive delivery
+attempts when credits are low — HeyGen will accept a job, then stall it
+silently until credits free up. The webhook fires automatically when
+HeyGen completes the render, updating the job to `status=rendered`
+with `hosted_url` set.)
 
 ### Step 3 — Send email
 
@@ -79,6 +82,13 @@ the job row already has `status=rendered` and `hosted_url` set.)
 Response will include `results.email.threadId` + `messageId` from GHL's
 own conversations API — visible in the contact's conversation history
 right alongside any other emails you send.
+
+> **Safety guard.** As of v2026-06-08, `/v1/delivery/send` refuses to fire
+> when `hosted_url` is null. The error message names the failure mode
+> explicitly (HeyGen credits / webhook delivery). If you see this in the
+> step output, the render never completed — top up HeyGen credits, then
+> call `POST /v1/admin/jobs/<id>/reprocess` once HeyGen finishes the
+> stuck video.
 
 ### Step 4 — Archive to R2 (optional but recommended)
 
@@ -131,6 +141,9 @@ the steps externally bypasses this entire class of issues.
 | POST | `/v1/admin/jobs/:id/archive` | Copy HeyGen MP4 → R2 for permanent storage |
 | GET | `/v1/admin/jobs?limit=50` | List recent jobs |
 | GET | `/v1/admin/jobs/:id` | Full job detail |
+| GET | `/v1/admin/jobs/:id/diagnose` | One-shot diagnostic: why is this job stuck? |
+| POST | `/v1/admin/jobs/:id/reprocess` | Re-trigger pipeline (auto-fetches HeyGen status if no URL passed) |
+| GET | `/v1/admin/heygen/credits` | HeyGen API credit balance |
 | GET | `/admin` | Browser dashboard |
 
 All `/v1/*` paths require `Authorization: Bearer <PROXY_API_KEY>` (or
