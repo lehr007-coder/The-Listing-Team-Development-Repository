@@ -56,9 +56,18 @@ async function invokeViaAgentStudio(env, url, context) {
 
 async function invokeViaFallback(env, agentName, context) {
   const provider = (env.AGENT_FALLBACK_PROVIDER || "anthropic").toLowerCase();
-  if (provider === "anthropic") return callAnthropic(env, agentName, context);
-  if (provider === "openai")    return callOpenAi(env, agentName, context);
-  throw new Error(`No agent endpoint configured and unsupported fallback: ${provider}`);
+  if (provider === "anthropic" && env.ANTHROPIC_API_KEY) return callAnthropic(env, agentName, context);
+  if (provider === "openai" && env.OPENAI_API_KEY)       return callOpenAi(env, agentName, context);
+
+  // No AI credentials — return a safe static template so staging delivery
+  // can complete end-to-end without requiring an LLM API key.
+  if (STATIC_FALLBACK[agentName]) {
+    console.warn(`invokeAgent(${agentName}): no AI key configured, using static fallback`);
+    return typeof STATIC_FALLBACK[agentName] === "function"
+      ? STATIC_FALLBACK[agentName](context)
+      : STATIC_FALLBACK[agentName];
+  }
+  throw new Error(`No agent endpoint configured and no API key for ${provider}`);
 }
 
 const FALLBACK_SYSTEM = {
@@ -66,6 +75,26 @@ const FALLBACK_SYSTEM = {
   fcpxml_director: `You are the FCPXML VIDEO DIRECTOR AGENT. Produce a JSON storyboard for a cinematic 30–60s vertical (9:16) reel: {"storyboard": [{"scene_id": 1, "source_clip": "...", "in": "0s", "out": "3s", "captions": "...", "overlays": [], "transitions": "cut|fade|whip"}], "captions_global": {...}, "overlays_global": {...}, "music": {...}, "social_caption_tiktok": "...", "social_caption_instagram": "...", "social_caption_youtube_shorts": "...", "hashtags": [...], "duration_target_s": 45}. Use only listing/branding data provided. Never output anything outside the JSON.`,
   video_delivery: `You are the VIDEO DELIVERY AGENT. Generate ONLY the personalized copy that the worker's server-rendered email + SMS templates wrap. Output strict JSON: {"sms_copy": "<body only, no URL, no name prefix; ≤240 chars>", "email_subject": "<≤80 chars, optional>", "email_body_copy": "<2-3 conversational sentences for the email body — no greeting, no signoff, no HTML>", "cta_text": "<button label ≤32 chars>", "conversation_note": "<≤200 char GHL conversation note>"}. Never output HTML. Never include the hosted URL in any field — the worker injects it. Match tone to video_type. Output JSON only.`,
   social_content: `You are the SOCIAL CONTENT AGENT. Output JSON with platform-specific captions, hashtags, and short hooks for the rendered video: {"tiktok": {"caption": "...", "hashtags": [...], "hook": "..."}, "instagram_reels": {...}, "instagram_stories": {...}, "facebook_reels": {...}, "facebook_stories": {...}, "youtube_shorts": {"title": "...", "description": "...", "tags": [...]}}.`,
+};
+
+const STATIC_FALLBACK = {
+  video_delivery: (ctx) => ({
+    sms_copy: `Hi ${ctx.contact?.first_name || "there"}, I made a quick personal video for you — check it out!`,
+    email_subject: `A personal video for you, ${ctx.contact?.first_name || "there"}`,
+    email_body_copy: `I put together a quick personal video just for you. Take a look when you have a moment — I think you'll find it helpful.`,
+    cta_text: "Watch Your Video",
+    conversation_note: `Sent a personal ${(ctx.video_type || "").replace(/_/g, " ")} video`,
+  }),
+  heygen_script: (ctx) => ({
+    script: `Hi ${ctx.contact?.first_name || "there"}, thanks for your interest. I wanted to reach out personally to share some exciting updates with you.`,
+    sms_copy: "I made a quick video for you — check it out!",
+    email_subject: "A personal video update",
+    email_html: "",
+    cta_text: "Watch Now",
+    cta_url_token: "{{HOSTED_URL}}",
+    tone: "warm",
+    duration_target_s: 30,
+  }),
 };
 
 async function callAnthropic(env, agentName, context) {

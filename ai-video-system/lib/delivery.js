@@ -87,7 +87,21 @@ export async function runDelivery(env, jobId) {
     );
   }
 
-  const contact = await getContact(env, job.contact_id);
+  const hasGhlCreds = !!(env.GHL_V2_TOKEN || env.GHL_API_KEY);
+  let contact;
+  if (hasGhlCreds) {
+    contact = await getContact(env, job.contact_id);
+  } else {
+    console.warn(`runDelivery(${jobId}): no GHL credentials — using stub contact for staging`);
+    contact = {
+      id: job.contact_id,
+      firstName: "Staging",
+      lastName: "Test",
+      email: null,
+      phone: null,
+      locationId: null,
+    };
+  }
 
   const deliveryCtx = {
     job_id: jobId,
@@ -171,6 +185,10 @@ export async function runDelivery(env, jobId) {
 
   for (const ch of channels) {
     try {
+      if (!hasGhlCreds) {
+        results[`${ch}_skipped`] = "no GHL credentials (staging)";
+        continue;
+      }
       if (ch === "sms" && contact.phone) {
         results.sms = await sendSms(env, contact.id, smsBody, contact.locationId);
       } else if (ch === "email" && contact.email) {
@@ -194,34 +212,33 @@ export async function runDelivery(env, jobId) {
     delivery_results: results,
   });
 
-  // Latest-video custom fields (these DO overwrite each render — that's the
-  // intended behavior; they always reflect the most recent video).
-  try {
-    await writeOwnedFields(env, contact.id, {
-      video_status: "delivered",
-      video_last_sent: nowIso(),
-      video_delivery_method: channels.join(","),
-      last_video_cta: formatted.cta_text || "",
-    });
-  } catch (e) {
-    console.warn(`writeOwnedFields(${contact.id}) failed (non-fatal):`, e.message);
-  }
+  if (hasGhlCreds) {
+    try {
+      await writeOwnedFields(env, contact.id, {
+        video_status: "delivered",
+        video_last_sent: nowIso(),
+        video_delivery_method: channels.join(","),
+        last_video_cta: formatted.cta_text || "",
+      });
+    } catch (e) {
+      console.warn(`writeOwnedFields(${contact.id}) failed (non-fatal):`, e.message);
+    }
 
-  // History note on the contact timeline. Each delivery appends a NEW
-  // note (never overwrites). Gives users a chronological video log
-  // visible in the GHL UI without needing to query our admin API.
-  try {
-    const noteBody = buildVideoHistoryNote(job, channels, formatted);
-    const note = await appendContactNote(env, contact.id, noteBody);
-    await insertVideoEvent(env, {
-      job_id: jobId,
-      contact_id: contact.id,
-      event: "ghl_note_appended",
-      meta: { note_id: note?.note?.id || note?.id || null },
-      created_at: nowIso(),
-    });
-  } catch (e) {
-    console.warn(`appendContactNote(${contact.id}) failed (non-fatal):`, e.message);
+    try {
+      const historyNote = buildVideoHistoryNote(job, channels, formatted);
+      const note = await appendContactNote(env, contact.id, historyNote);
+      await insertVideoEvent(env, {
+        job_id: jobId,
+        contact_id: contact.id,
+        event: "ghl_note_appended",
+        meta: { note_id: note?.note?.id || note?.id || null },
+        created_at: nowIso(),
+      });
+    } catch (e) {
+      console.warn(`appendContactNote(${contact.id}) failed (non-fatal):`, e.message);
+    }
+  } else {
+    console.warn(`runDelivery(${jobId}): skipping GHL field writes + contact note (no credentials)`);
   }
 
   return { jobId, channels, results };
