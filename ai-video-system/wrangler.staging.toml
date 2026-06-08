@@ -50,8 +50,8 @@ id = "444a0a7edeb24d00b6063e3f17437efc"
 # reliable primary delivery path. See wrangler.toml for the full
 # context note. Re-enable by uncommenting:
 #
-# [triggers]
-# crons = ["* * * * *"]
+[triggers]
+crons = ["* * * * *"]
 
 # ── Queue: ai-video-staging-render-queue (created via dashboard) ──
 [[queues.producers]]
