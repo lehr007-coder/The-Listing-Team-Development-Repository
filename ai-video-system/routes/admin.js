@@ -28,6 +28,9 @@
 //   POST   /v1/admin/jobs/orphan-cleanup     → bulk-mark stale 'rendered' jobs
 //                                              as 'failed'. Body: { dry_run?,
 //                                              max_rows? } — defaults to dry-run.
+//   POST   /v1/admin/contacts/sync-scores   → resync GHL video_engagement_score for
+//                                              all contacts with delivered jobs. Body:
+//                                              { dry_run?, max? } — defaults to dry_run.
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
@@ -35,7 +38,8 @@
 //                                             context; NO HeyGen credit spent.
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
-import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
+import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
+import { writeOwnedFields } from "../lib/ghl.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
 import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
@@ -94,6 +98,14 @@ export default async function adminRoute(request, env, ctx, url) {
   // Defaults to dry_run=true — pass dry_run:false to commit.
   if (method === "POST" && path === "/jobs/orphan-cleanup") {
     return orphanCleanup(env, request);
+  }
+
+  // ── Phase 10 — GHL engagement score resync. Recomputes cumulative
+  // video_engagement_score for every contact with delivered video jobs and
+  // writes it back to GHL. Body: { dry_run?, max? } — dry_run defaults to
+  // true. max caps the number of contacts patched (default 50, cap 500).
+  if (method === "POST" && path === "/contacts/sync-scores") {
+    return contactsSyncScores(env, request, url);
   }
 
   // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
@@ -578,6 +590,72 @@ async function orphanCleanup(env, request) {
     console.error(`orphanCleanup failed:`, e.stack || e.message);
     return json({ ok: false, reason: "internal_error", error: e.message }, 500);
   }
+}
+
+// Phase 10 — POST /v1/admin/contacts/sync-scores
+// Recomputes cumulative video_engagement_score (across all delivered jobs)
+// for every contact and writes it back to GHL. Useful after a schema migration,
+// a bulk re-import, or to correct scores that drifted while tracking.js
+// was writing per-job scores instead of cumulative totals.
+//
+// Body: { dry_run?: bool (default true), max?: number (default 50, cap 500) }
+// dry_run=true returns the computed scores without touching GHL.
+async function contactsSyncScores(env, request, url) {
+  const { body } = await readJson(request);
+  const dryRun = body?.dry_run !== false;
+  const max = Math.min(parseInt(body?.max || "50", 10) || 50, 500);
+
+  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
+    return error(503, "no_supabase", "Supabase not configured");
+  }
+  if (!dryRun && !(env.GHL_V2_TOKEN || env.GHL_API_KEY)) {
+    return error(503, "no_ghl_credentials", "GHL credentials required for live sync — pass dry_run:true to preview");
+  }
+
+  let contacts;
+  try {
+    // listDeliveredEngagementByContact fetches up to 2000 delivered job rows
+    // and groups+sums in-memory, returning [{contact_id, total}] sorted by total desc.
+    contacts = await listDeliveredEngagementByContact(env, { limit: 2000 });
+  } catch (e) {
+    return error(502, "supabase_error", e.message);
+  }
+
+  const total_contacts_with_videos = contacts.length;
+  const batch = contacts.slice(0, max);
+
+  if (dryRun) {
+    return json({
+      ok: true,
+      dry_run: true,
+      total_contacts_with_videos,
+      contacts_in_batch: batch.length,
+      truncated: total_contacts_with_videos > max,
+      preview: batch,
+    });
+  }
+
+  // Live: parallel GHL writes, bounded by `max` (Cloudflare subrequest-safe
+  // since max is capped at 500 and each contact is one GHL PUT).
+  const settled = await Promise.allSettled(
+    batch.map(({ contact_id, total }) =>
+      writeOwnedFields(env, contact_id, { video_engagement_score: String(total) })
+        .then(() => ({ contact_id, score: total, ok: true }))
+        .catch(e => ({ contact_id, score: total, ok: false, error: e.message }))
+    )
+  );
+  const results = settled.map(s => s.status === "fulfilled" ? s.value : { ...s.reason, ok: false });
+  const synced = results.filter(r => r.ok).length;
+
+  return json({
+    ok: synced > 0 || batch.length === 0,
+    total_contacts_with_videos,
+    contacts_attempted: batch.length,
+    contacts_synced: synced,
+    contacts_failed: batch.length - synced,
+    truncated: total_contacts_with_videos > max,
+    results,
+  });
 }
 
 async function topContacts(env, url) {

@@ -140,6 +140,11 @@ const DASHBOARD_HTML = `<!doctype html>
   .alert .action-btn { background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer; margin-top:6px; }
   .alert .action-btn:hover { border-color:var(--accent); color:var(--accent); }
   .alerts-empty { padding:14px 16px; color:var(--muted); font-size:13px; }
+  .sync-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; flex-wrap:wrap; }
+  .sync-preview { padding:0 16px 14px; }
+  .sync-preview table { font-size:12px; }
+  .sync-preview th, .sync-preview td { padding:6px 10px; }
+  .sync-count { font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -179,6 +184,16 @@ const DASHBOARD_HTML = `<!doctype html>
       <thead><tr><th>Video type</th><th>Total</th><th>Delivered</th><th>Failed</th><th>Delivery %</th><th>Avg engagement</th></tr></thead>
       <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
     </table>
+  </div>
+
+  <div class="panel" id="ghl-sync-panel">
+    <h2>GHL Contact Field Sync</h2>
+    <div class="sync-bar">
+      <button id="sync-preview-btn">Preview score sync</button>
+      <button id="sync-commit-btn" class="ghost" style="display:none">Commit sync</button>
+      <span id="sync-status" class="sync-count">Resyncs <code>video_engagement_score</code>, <code>last_video_type</code>, <code>video_url</code> on GHL contacts from Supabase.</span>
+    </div>
+    <div class="sync-preview" id="sync-preview" style="display:none"></div>
   </div>
 
   <div class="panel" id="ctr-panel">
@@ -601,6 +616,68 @@ const DASHBOARD_HTML = `<!doctype html>
         "</div>";
     }).join("");
   }
+
+  // Phase 10 — GHL engagement score sync panel
+  let _syncPreviewData = null;
+
+  document.getElementById("sync-preview-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("sync-preview-btn");
+    const statusEl = document.getElementById("sync-status");
+    btn.disabled = true;
+    statusEl.textContent = "Loading preview…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: true, max: 100 });
+      _syncPreviewData = r;
+      const preview = r.preview || [];
+      const previewEl = document.getElementById("sync-preview");
+      const commitBtn = document.getElementById("sync-commit-btn");
+      if (r.ok === false) {
+        statusEl.textContent = "Error: " + (r.error || r.reason || "unknown");
+        previewEl.style.display = "none";
+        commitBtn.style.display = "none";
+      } else {
+        statusEl.textContent =
+          r.total_contacts_with_videos + " contacts with delivered videos" +
+          (r.truncated ? " (showing first " + preview.length + ")" : "") + ".";
+        previewEl.style.display = preview.length ? "block" : "none";
+        if (preview.length) {
+          previewEl.innerHTML = \`<table>
+            <thead><tr><th>Contact ID</th><th style="text-align:right">Cumulative score</th></tr></thead>
+            <tbody>\${preview.slice(0, 20).map(c =>
+              \`<tr><td style="font-family:monospace">\${c.contact_id}</td><td style="text-align:right">\${c.total}</td></tr>\`
+            ).join("")}\${preview.length > 20 ? \`<tr><td colspan="2" style="color:var(--muted);text-align:center">… \${preview.length - 20} more</td></tr>\` : ""}
+            </tbody></table>\`;
+        }
+        commitBtn.style.display = preview.length ? "inline-block" : "none";
+      }
+    } catch (e) {
+      document.getElementById("sync-status").textContent = "Preview failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("sync-commit-btn").addEventListener("click", async () => {
+    const count = _syncPreviewData?.contacts_in_batch || _syncPreviewData?.preview?.length || 0;
+    if (!confirm("Write cumulative engagement scores to " + count + " GHL contacts?\\n\\nThis updates the video_engagement_score custom field for each contact. Proceed?")) return;
+    const commitBtn = document.getElementById("sync-commit-btn");
+    const statusEl = document.getElementById("sync-status");
+    commitBtn.disabled = true;
+    statusEl.textContent = "Syncing…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: false, max: 100 });
+      statusEl.textContent = r.ok
+        ? "Synced " + r.contacts_synced + " / " + r.contacts_attempted + " contacts."
+        : "Sync failed: " + (r.error || r.reason || "unknown");
+      document.getElementById("sync-preview").style.display = "none";
+      commitBtn.style.display = "none";
+      _syncPreviewData = null;
+    } catch (e) {
+      statusEl.textContent = "Commit failed: " + e.message;
+    } finally {
+      commitBtn.disabled = false;
+    }
+  });
 
   async function refresh() {
     // Promise.allSettled (NOT all) so one slow/failed endpoint

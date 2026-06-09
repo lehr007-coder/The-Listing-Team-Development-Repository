@@ -113,18 +113,21 @@ export default {
       return;
     }
 
-    // Any non-minute cron → weekly report dispatch. Self-fetch so the
-    // GHL sends run in their own HTTP-handler invocation with a fresh
-    // CPU budget. ctx.waitUntil keeps the cron alive long enough for
-    // the dispatch to land without blocking on the email round trips.
-    console.log(`scheduled: dispatching weekly-report (cron='${cron}')`);
+    // Any non-minute cron → weekly report + orphan cleanup, both dispatched
+    // via self-fetch so they each run in their own HTTP-handler invocation
+    // with a fresh CPU budget. ctx.waitUntil keeps the scheduled handler
+    // alive long enough for both dispatches to land.
+    console.log(`scheduled: dispatching weekly-report + orphan-cleanup (cron='${cron}')`);
+
+    const authHeaders = {
+      "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+
     const p = fetch(`${env.BASE_URL}/v1/admin/reports/weekly/send`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${env.PROXY_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),  // empty body → use env recipients + default days
+      headers: authHeaders,
+      body: JSON.stringify({}),
     })
       .then(r => r.json())
       .then(res => console.log("scheduled: weekly-report dispatched", JSON.stringify({
@@ -135,6 +138,21 @@ export default {
         reason: res.reason,
       })))
       .catch(e => console.error("scheduled: weekly-report dispatch failed:", e.message));
-    ctx.waitUntil(p);
+
+    // Auto-cleanup orphaned 'rendered' jobs (delivered 6h–30d ago, never
+    // received a webhook) so they don't pollute dashboards or re-trigger
+    // delivery. Runs silently — failures are logged but don't block the report.
+    const q = fetch(`${env.BASE_URL}/v1/admin/jobs/orphan-cleanup`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ dry_run: false, max_rows: 50 }),
+    })
+      .then(r => r.json())
+      .then(res => console.log("scheduled: orphan-cleanup", JSON.stringify({
+        ok: res.ok, matched: res.matched, updated: res.updated,
+      })))
+      .catch(e => console.error("scheduled: orphan-cleanup failed:", e.message));
+
+    ctx.waitUntil(Promise.all([p, q]));
   },
 };
