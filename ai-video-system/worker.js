@@ -85,18 +85,56 @@ export default {
     return processRenderQueueBatch(batch, env, ctx);
   },
 
-  // Cron — invoked by [triggers] crons in wrangler.toml. Handles the
-  // safety-net polling for HeyGen renders whose webhook didn't fire.
-  // Lightweight: only queries Supabase + HeyGen, then fires a self-fetch
-  // to /v1/admin/jobs/:id/reprocess for each completed job. Each reprocess
-  // runs processOne in its own fresh HTTP handler Worker invocation so the
-  // scheduled handler's CPU limit cannot silently kill the pipeline.
+  // Cron — invoked by [triggers] crons in wrangler.toml.
+  //
+  // Two cron schedules share this handler:
+  //   * * * * *      (every minute)        → HeyGen poll-fallback
+  //   0 14 * * 1     (Mondays 14:00 UTC)   → Weekly performance report
+  //
+  // Routing: anything that ISN'T the per-minute schedule routes to the
+  // weekly report. This pattern is more resilient than literal string
+  // equality — equivalent expressions ("0 14 * * 1" vs "0 14 * * MON") or
+  // a future ops edit to the schedule won't accidentally fall through to
+  // the poll-fallback path. The report path itself is also dispatched via
+  // self-fetch so the actual GHL sends run in a fresh HTTP-handler Worker
+  // invocation with their own CPU budget — same silent-kill defense PR #45
+  // applied to processOne.
   async scheduled(event, env, ctx) {
-    try {
-      const r = await runHeygenPollFallback(env, ctx);
-      console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
-    } catch (e) {
-      console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
+    const cron = event?.cron || "";
+    const isEveryMinute = cron === "* * * * *";
+
+    if (isEveryMinute) {
+      try {
+        const r = await runHeygenPollFallback(env, ctx);
+        console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
+      } catch (e) {
+        console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
+      }
+      return;
     }
+
+    // Any non-minute cron → weekly report dispatch. Self-fetch so the
+    // GHL sends run in their own HTTP-handler invocation with a fresh
+    // CPU budget. ctx.waitUntil keeps the cron alive long enough for
+    // the dispatch to land without blocking on the email round trips.
+    console.log(`scheduled: dispatching weekly-report (cron='${cron}')`);
+    const p = fetch(`${env.BASE_URL}/v1/admin/reports/weekly/send`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),  // empty body → use env recipients + default days
+    })
+      .then(r => r.json())
+      .then(res => console.log("scheduled: weekly-report dispatched", JSON.stringify({
+        ok: res.ok,
+        recipients_attempted: res.recipients_attempted,
+        recipients_delivered: res.recipients_delivered,
+        totals: res.totals,
+        reason: res.reason,
+      })))
+      .catch(e => console.error("scheduled: weekly-report dispatch failed:", e.message));
+    ctx.waitUntil(p);
   },
 };
