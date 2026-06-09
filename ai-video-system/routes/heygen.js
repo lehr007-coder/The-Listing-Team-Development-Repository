@@ -103,18 +103,22 @@ async function handleRender(request, env) {
   const existing = await findActiveJobForContact(env, contact_id, video_type);
   if (existing) return json({ job_id: existing.id, status: existing.status, deduped: true });
 
-  // Rate-limit guardrail — protect against runaway spend
-  const rl = await checkRateLimit(env, contact_id);
+  // Fetch contact early so we can pass locationId to the rate limiter.
+  // getContact is cheap (single GHL API call, cached upstream).
+  const contact = await getContact(env, contact_id);
+  // Rate-limit guardrail — protect against runaway spend (three layers)
+  const locationId = contact?.locationId || null;
+  const rl = await checkRateLimit(env, contact_id, locationId);
   if (!rl.allowed) {
     return error(429, rl.reason, `Daily render limit reached`, {
       count: rl.count,
       limit: rl.limit,
       day: rl.day,
-      hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
+      location_id: rl.location_id || undefined,
+      hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT / PER_LOCATION_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
     });
   }
 
-  const contact = await getContact(env, contact_id);
   const intelligence = readLeadIntelligence(contact);
   const [events, lead, scoring] = await Promise.all([
     getRecentEvents(env, contact_id, 25),
@@ -187,7 +191,7 @@ async function handleRender(request, env) {
   }
 
   // Increment rate-limit counters AFTER successful HeyGen submission
-  await incrementRateLimit(env, contact_id).catch(e =>
+  await incrementRateLimit(env, contact_id, locationId).catch(e =>
     console.warn("incrementRateLimit failed (non-fatal):", e.message)
   );
 
