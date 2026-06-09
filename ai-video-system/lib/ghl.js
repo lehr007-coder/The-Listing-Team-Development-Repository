@@ -63,6 +63,36 @@ export async function getContact(env, contactId) {
   return data.contact || data;
 }
 
+// Look up a single contact by email via GHL v2 search. Returns the matched
+// contact object (or null if not found). Uses POST /contacts/search with an
+// `eq` filter on email — the documented v2 path for email lookup.
+//
+// locationId is required by GHL v2 search; falls back to env.GHL_LOCATION_ID.
+export async function findContactByEmail(env, email, locationId) {
+  const locId = locationId || env.GHL_LOCATION_ID;
+  if (!locId) throw new Error("findContactByEmail: locationId or env.GHL_LOCATION_ID required");
+
+  const r = await fetch(`${GHL_BASE}/contacts/search`, {
+    method: "POST",
+    headers: authHeaders(env),
+    body: JSON.stringify({
+      locationId: locId,
+      pageLimit: 5,
+      page: 1,
+      filters: [
+        { field: "email", operator: "eq", value: email },
+      ],
+    }),
+    signal: ghlSignal(),
+  });
+  if (!r.ok) {
+    throw new Error(`GHL findContactByEmail(${email}) failed: ${r.status} ${await r.text()}`);
+  }
+  const data = await r.json();
+  const contacts = data.contacts || [];
+  return contacts[0] || null;
+}
+
 export function readField(contact, key) {
   const fields = Array.isArray(contact?.customField)
     ? contact.customField
