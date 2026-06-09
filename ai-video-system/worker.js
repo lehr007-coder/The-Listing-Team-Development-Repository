@@ -20,6 +20,7 @@ import mediaRoute from "./routes/media.js";
 import adminRoute from "./routes/admin.js";
 import devstubRoute from "./routes/devstub.js";
 import dashboardRoute from "./routes/dashboard.js";
+import ghlWebhookRoute from "./routes/ghl_webhook.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
@@ -32,6 +33,7 @@ const ROUTES = [
   // /v1/heygen and /v1/fcpxml prefixes so the matcher picks them first.
   { prefix: "/v1/heygen/callback",   auth: false, handler: heygenRoute },
   { prefix: "/v1/fcpxml/callback",   auth: false, handler: fcpxmlRoute },
+  { prefix: "/v1/ghl/webhook",       auth: false, handler: ghlWebhookRoute },
   { prefix: "/v1/heygen",            auth: true,  handler: heygenRoute },
   { prefix: "/v1/fcpxml",            auth: true,  handler: fcpxmlRoute },
   { prefix: "/v1/delivery",          auth: true,  handler: deliveryRoute },
