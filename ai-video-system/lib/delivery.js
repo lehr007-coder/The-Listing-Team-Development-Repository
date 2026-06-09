@@ -219,6 +219,11 @@ export async function runDelivery(env, jobId) {
         video_last_sent: nowIso(),
         video_delivery_method: channels.join(","),
         last_video_cta: formatted.cta_text || "",
+        // Phase 10 — write video identity fields so GHL workflows can branch
+        // on "what type of video was just sent" and display the current video URL.
+        last_video_type: job.video_type || "",
+        video_url: job.hosted_url || "",
+        video_thumbnail_url: job.thumbnail_url || "",
       });
     } catch (e) {
       console.warn(`writeOwnedFields(${contact.id}) failed (non-fatal):`, e.message);

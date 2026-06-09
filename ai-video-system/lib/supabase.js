@@ -189,3 +189,42 @@ export async function insertVideoEvent(env, row) {
     console.warn("insertVideoEvent failed:", r.status);
   }
 }
+
+// Sum engagement_score across all delivered jobs for a single contact.
+// Used by tracking.js to write the cumulative (cross-video) score to GHL
+// instead of only the per-job score.
+export async function getContactEngagementTotal(env, contactId) {
+  const url = sbUrl(env,
+    `/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
+    `&status=eq.delivered&select=engagement_score`);
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
+  if (!r.ok) return 0;
+  const rows = await r.json();
+  return rows.reduce((sum, j) => sum + (Number(j.engagement_score) || 0), 0);
+}
+
+// Return [{contact_id, total}] grouped-and-summed across all delivered jobs,
+// capped at `limit` unique contacts (sorted by total desc so the highest
+// scorers get synced first when the batch is truncated). Used by the
+// POST /v1/admin/contacts/sync-scores bulk-resync endpoint.
+export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}) {
+  const cap = Math.min(limit, 2000);
+  const url = sbUrl(env,
+    `/rest/v1/video_jobs?status=eq.delivered` +
+    `&contact_id=not.is.null` +
+    `&select=contact_id,engagement_score` +
+    `&limit=${cap}`);
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
+  if (!r.ok) return [];
+  const rows = await r.json();
+
+  const map = new Map();
+  for (const row of rows) {
+    const cid = row.contact_id;
+    if (!cid) continue;
+    map.set(cid, (map.get(cid) || 0) + (Number(row.engagement_score) || 0));
+  }
+  return [...map.entries()]
+    .map(([contact_id, total]) => ({ contact_id, total }))
+    .sort((a, b) => b.total - a.total);
+}
