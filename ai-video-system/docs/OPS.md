@@ -26,6 +26,8 @@ Variables & Secrets → `PROXY_API_KEY`, or from `GET /v1/health`.
 | HeyGen credit balance | `GET /v1/admin/heygen/credits` |
 | Current rate limit counters | `GET /v1/admin/rate-limits` |
 | 30-day analytics summary | `GET /v1/admin/analytics/summary?days=30` |
+| Send the weekly report now | `POST /v1/admin/reports/weekly/send` |
+| Preview the weekly report (no email) | `POST /v1/admin/reports/weekly/send` body `{"dry_run":true}` |
 | Kill switch — halt ALL new renders | `DELETE /v1/admin/kill` |
 | Resume after kill switch | `POST /v1/admin/kill` |
 | Browser dashboard | `https://videos.reallistingteam.com/admin` |
@@ -394,5 +396,60 @@ All secrets set via `npx wrangler secret put <NAME>` or Cloudflare dashboard.
 | `DAILY_RENDER_LIMIT` | 100 | Global renders per day |
 | `PER_CONTACT_DAILY_LIMIT` | 3 | Renders per contact per day |
 | `PER_LOCATION_DAILY_LIMIT` | 50 | Renders per GHL location per day |
+| `WEEKLY_REPORT_CONTACT_IDS` | "" | Comma-separated GHL contact IDs that receive the weekly report email |
 | `ENVIRONMENT` | production/staging | Controls HeyGen test mode |
 | `BASE_URL` | https://videos.reallistingteam.com | Self-reference for self-fetches |
+
+---
+
+## Weekly Performance Report (Phase 8)
+
+A weekly summary email is sent every Monday at 14:00 UTC (≈9am ET / 10am EDT)
+to every GHL contact ID listed in `WEEKLY_REPORT_CONTACT_IDS`. The email
+contains last-7-day totals, a daily activity sparkline, and a per-video-type
+breakdown with delivery rate and average engagement.
+
+**Configure recipients:**
+```bash
+# Comma-separated list of GHL contact IDs (max 20)
+# Each must be a real contact in your GHL workspace.
+wrangler secret put WEEKLY_REPORT_CONTACT_IDS
+# Paste: contact_id_1,contact_id_2,contact_id_3
+```
+
+**Manual trigger (for testing or off-schedule sends):**
+```bash
+# Preview only — renders the email + recipient list, no actual send
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run": true}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Send now (uses recipients from env)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Send to specific recipients (overrides env)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"recipients": ["ghl_contact_id_1", "ghl_contact_id_2"]}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Custom window (default 7 days)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"days": 14}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+```
+
+**Why GHL conversations API for the report?**
+Reuses existing GHL credentials + proven email path. Each recipient must be a
+contact in your GHL workspace — typically the broker, ops lead, and any other
+stakeholder who already exists as a GHL contact. No new SMTP credentials,
+deliverability config, or unsubscribe handling required (GHL owns that).

@@ -23,6 +23,7 @@ import dashboardRoute from "./routes/dashboard.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
+import { generateAndSendWeeklyReport } from "./lib/weekly-report.js";
 
 const ROUTES = [
   { prefix: "/v1/health",            auth: false, handler: healthRoute },
@@ -85,13 +86,36 @@ export default {
     return processRenderQueueBatch(batch, env, ctx);
   },
 
-  // Cron — invoked by [triggers] crons in wrangler.toml. Handles the
-  // safety-net polling for HeyGen renders whose webhook didn't fire.
-  // Lightweight: only queries Supabase + HeyGen, then fires a self-fetch
-  // to /v1/admin/jobs/:id/reprocess for each completed job. Each reprocess
-  // runs processOne in its own fresh HTTP handler Worker invocation so the
-  // scheduled handler's CPU limit cannot silently kill the pipeline.
+  // Cron — invoked by [triggers] crons in wrangler.toml.
+  //
+  // Two cron schedules share this handler:
+  //   * * * * *      (every minute)        → HeyGen poll-fallback
+  //   0 14 * * 1     (Mondays 14:00 UTC)   → Weekly performance report
+  //
+  // event.cron carries the schedule string Cloudflare matched, so we
+  // route on it to keep the report path from running every minute.
+  // Both branches are guarded by try/catch — neither can crash the
+  // other and the cron itself always exits cleanly.
   async scheduled(event, env, ctx) {
+    const cron = event?.cron || "";
+
+    if (cron === "0 14 * * 1") {
+      try {
+        const r = await generateAndSendWeeklyReport(env);
+        console.log("scheduled: weekly-report", JSON.stringify({
+          ok: r.ok,
+          recipients_attempted: r.recipients_attempted,
+          recipients_delivered: r.recipients_delivered,
+          totals: r.totals,
+          reason: r.reason,
+        }));
+      } catch (e) {
+        console.error("scheduled: weekly-report failed:", e.stack || e.message);
+      }
+      return;
+    }
+
+    // Default: HeyGen poll-fallback runs on every other cron tick (every minute).
     try {
       const r = await runHeygenPollFallback(env, ctx);
       console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));

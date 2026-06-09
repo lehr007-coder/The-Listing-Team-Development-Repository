@@ -19,6 +19,9 @@
 //   GET    /v1/admin/analytics/summary?days=N  → 30-day analytics rollup
 //                                                with per-video-type breakdown
 //                                                + daily series for charts
+//   POST   /v1/admin/reports/weekly/send     → generate + email the weekly
+//                                              report. Body: { dry_run?, days?,
+//                                              recipients?:[contact_ids] }
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
@@ -32,6 +35,7 @@ import { processOne } from "../lib/queue-consumer.js";
 import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
+import { generateAndSendWeeklyReport } from "../lib/weekly-report.js";
 
 function sbHeaders(env) {
   const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -69,6 +73,11 @@ export default async function adminRoute(request, env, ctx, url) {
   // GHL workflow step: POST /v1/admin/jobs/<job_id>/archive
   if (method === "POST" && path.match(/^\/jobs\/[^/]+\/archive$/)) {
     return jobArchive(env, path.split("/")[2]);
+  }
+
+  // ── Weekly report — manual / on-demand trigger ──
+  if (method === "POST" && path === "/reports/weekly/send") {
+    return weeklyReportSend(env, request);
   }
 
   // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
@@ -568,6 +577,23 @@ async function analyticsSummary(env, url) {
     daily,
     by_video_type: byTypeArr,
   });
+}
+
+// Phase 8 — POST /v1/admin/reports/weekly/send.
+// Body: { dry_run?: bool, days?: number, recipients?: [contact_id, ...] }
+//   - dry_run: render the report + recipients but skip the GHL sends.
+//   - days: override window (default 7).
+//   - recipients: override the WEEKLY_REPORT_CONTACT_IDS env list.
+// Returns the same JSON shape generateAndSendWeeklyReport produces, including
+// per-recipient delivery result.
+async function weeklyReportSend(env, request) {
+  const { body } = await readJson(request);
+  const out = await generateAndSendWeeklyReport(env, {
+    days: body?.days,
+    recipients: Array.isArray(body?.recipients) ? body.recipients : undefined,
+    dryRun: !!body?.dry_run,
+  });
+  return json(out);
 }
 
 async function topContacts(env, url) {
