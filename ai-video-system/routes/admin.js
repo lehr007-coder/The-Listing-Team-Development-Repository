@@ -1080,7 +1080,7 @@ async function ghlWebhooksList(env) {
   const locId = env.GHL_LOCATION_ID;
   if (!locId) return error(500, "missing_config", "GHL_LOCATION_ID not set");
   const r = await fetch(
-    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
+    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}`,
     { headers: ghlAuthHeaders(env) }
   );
   if (!r.ok) {
@@ -1101,7 +1101,7 @@ async function ghlWebhooksRegister(env) {
 
   // Check for an existing registration to keep this idempotent
   const listR = await fetch(
-    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
+    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}`,
     { headers: ghlAuthHeaders(env) }
   );
   if (listR.ok) {
@@ -1113,13 +1113,11 @@ async function ghlWebhooksRegister(env) {
     }
   }
 
-  // GHL v2 POST /webhooks/ — altId/altType go in the body only (not query params)
-  const r = await fetch(`${GHL_BASE}/webhooks/`, {
+  const r = await fetch(`${GHL_BASE}/webhooks`, {
     method: "POST",
     headers: ghlAuthHeaders(env),
     body: JSON.stringify({
-      altId: locId,
-      altType: "location",
+      locationId: locId,
       name,
       url: webhookUrl,
       events: ["ContactTagUpdate"],
