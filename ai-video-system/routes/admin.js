@@ -22,6 +22,12 @@
 //   POST   /v1/admin/reports/weekly/send     → generate + email the weekly
 //                                              report. Body: { dry_run?, days?,
 //                                              recipients?:[contact_ids] }
+//   GET    /v1/admin/alerts                  → operational health alerts:
+//                                              credits, orphans, stuck jobs,
+//                                              missing config, kill-switch
+//   POST   /v1/admin/jobs/orphan-cleanup     → bulk-mark stale 'rendered' jobs
+//                                              as 'failed'. Body: { dry_run?,
+//                                              max_rows? } — defaults to dry-run.
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
@@ -36,6 +42,8 @@ import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VID
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 import { generateAndSendWeeklyReport } from "../lib/weekly-report.js";
+import { summarizeJobs } from "../lib/analytics.js";
+import { gatherAlerts, cleanupOrphanedRendered } from "../lib/alerts.js";
 
 function sbHeaders(env) {
   const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -80,6 +88,14 @@ export default async function adminRoute(request, env, ctx, url) {
     return weeklyReportSend(env, request);
   }
 
+  // ── Phase 9 — orphan cleanup. Bulk-mark stale 'rendered' jobs
+  // (older than 6h, younger than 30d) as 'failed' so they don't
+  // pollute dashboards. Body: { dry_run?: bool, max_rows?: number }.
+  // Defaults to dry_run=true — pass dry_run:false to commit.
+  if (method === "POST" && path === "/jobs/orphan-cleanup") {
+    return orphanCleanup(env, request);
+  }
+
   // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
   if (method === "POST" && path === "/agents/test") {
     return agentsTest(env, request);
@@ -103,6 +119,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/heygen/credits")                return json(await getCreditBalance(env));
   if (path.match(/^\/jobs\/[^/]+\/diagnose$/))   return jobDiagnose(env, path.split("/")[2]);
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
+  if (path === "/alerts")                        return json(await gatherAlerts(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/analytics/summary")             return analyticsSummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
@@ -504,79 +521,18 @@ async function dailySummary(env, url) {
 //   • per-day series (renders + delivered counts) for chart rendering
 //   • per-video-type rollup with delivery success rate
 //   • overall delivery + engagement totals
+//
+// Phase 9 — delegated to lib/analytics.js#summarizeJobs so the dashboard
+// and the weekly report email always show the same numbers for the same
+// window. The shared helper also fixes the avg_engagement quirk where
+// engagement was averaged across all statuses but divided by delivered.
 async function analyticsSummary(env, url) {
   const days = Math.min(parseInt(url.searchParams.get("days") || "30", 10) || 30, 90);
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?created_at=gte.${encodeURIComponent(since)}` +
-    `&select=id,status,render_engine,video_type,engagement_score,created_at,delivered_at` +
-    `&limit=5000`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) return error(502, "supabase_error", await r.text());
-  const jobs = await r.json();
-
-  // Per-day series: count of jobs created per day + delivered per day
-  const byDay = {};
-  for (let i = 0; i < days; i++) {
-    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    byDay[d] = { day: d, rendered: 0, delivered: 0, failed: 0 };
+  try {
+    return json(await summarizeJobs(env, days));
+  } catch (e) {
+    return error(502, "supabase_error", e.message);
   }
-  for (const j of jobs) {
-    const d = (j.created_at || "").slice(0, 10);
-    if (!byDay[d]) continue;
-    byDay[d].rendered++;
-    if (j.status === "delivered") byDay[d].delivered++;
-    if (j.status === "failed")    byDay[d].failed++;
-  }
-  const daily = Object.values(byDay).sort((a, b) => a.day.localeCompare(b.day));
-
-  // Per-video-type breakdown
-  const byType = {};
-  let totalEngagement = 0;
-  let totalDelivered = 0;
-  let totalFailed = 0;
-  for (const j of jobs) {
-    const vt = j.video_type || "unknown";
-    const t = byType[vt] = byType[vt] || {
-      video_type: vt,
-      total: 0,
-      delivered: 0,
-      failed: 0,
-      rendering: 0,
-      total_engagement: 0,
-    };
-    t.total++;
-    if (j.status === "delivered") { t.delivered++; totalDelivered++; }
-    if (j.status === "failed")    { t.failed++;    totalFailed++; }
-    if (j.status === "rendering") t.rendering++;
-    t.total_engagement += (j.engagement_score || 0);
-    totalEngagement += (j.engagement_score || 0);
-  }
-  const byTypeArr = Object.values(byType)
-    .map(t => ({
-      ...t,
-      delivery_rate_pct: t.total > 0 ? +(t.delivered / t.total * 100).toFixed(1) : null,
-      avg_engagement: t.delivered > 0 ? +(t.total_engagement / t.delivered).toFixed(1) : null,
-    }))
-    .sort((a, b) => b.total - a.total);
-
-  return json({
-    window: { days, since, until: new Date().toISOString() },
-    totals: {
-      jobs: jobs.length,
-      delivered: totalDelivered,
-      failed: totalFailed,
-      delivery_rate_pct: jobs.length > 0
-        ? +(totalDelivered / jobs.length * 100).toFixed(1)
-        : null,
-      total_engagement: totalEngagement,
-    },
-    daily,
-    by_video_type: byTypeArr,
-  });
 }
 
 // Phase 8 — POST /v1/admin/reports/weekly/send.
@@ -605,6 +561,22 @@ async function weeklyReportSend(env, request) {
       error: e.message,
       stack: (e.stack || "").split("\n").slice(0, 5).join(" | "),
     }, 500);
+  }
+}
+
+// Phase 9 — POST /v1/admin/jobs/orphan-cleanup
+// Body: { dry_run?: bool (default true), max_rows?: number (default 50, cap 200) }
+// Defaults to dry-run for safety — explicitly pass {dry_run:false} to commit.
+async function orphanCleanup(env, request) {
+  const { body } = await readJson(request);
+  const dryRun = body?.dry_run !== false;  // default to true
+  const maxRows = parseInt(body?.max_rows || "50", 10) || 50;
+  try {
+    const out = await cleanupOrphanedRendered(env, { dryRun, maxRows });
+    return json(out);
+  } catch (e) {
+    console.error(`orphanCleanup failed:`, e.stack || e.message);
+    return json({ ok: false, reason: "internal_error", error: e.message }, 500);
   }
 }
 
