@@ -32,6 +32,10 @@ PER_LOCATION_DAILY_LIMIT = "50"
 # manual POST /v1/admin/reports/weekly/send still works with explicit recipients.
 WEEKLY_REPORT_CONTACT_IDS = ""
 
+# GHL sub-account location ID — required for email→contact_id lookup via
+# POST /contacts/search. Same value used by thelistingteamproxy.
+GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ"
+
 # Cloudflare Stream customer code — used to build thumbnail/gif/iframe
 # URLs. Account-wide value, NOT per-video. Find via Stream → API → any
 # playback URL contains `customer-<code>.cloudflarestream.com`.
