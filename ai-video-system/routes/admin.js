@@ -1080,7 +1080,7 @@ async function ghlWebhooksList(env) {
   const locId = env.GHL_LOCATION_ID;
   if (!locId) return error(500, "missing_config", "GHL_LOCATION_ID not set");
   const r = await fetch(
-    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}&altType=location`,
+    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
     { headers: ghlAuthHeaders(env) }
   );
   if (!r.ok) {
@@ -1101,22 +1101,25 @@ async function ghlWebhooksRegister(env) {
 
   // Check for an existing registration to keep this idempotent
   const listR = await fetch(
-    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}&altType=location`,
+    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
     { headers: ghlAuthHeaders(env) }
   );
   if (listR.ok) {
     const listData = await listR.json();
-    const existing = (listData.webhooks || listData).find?.(w => w.name === name || w.url === webhookUrl);
+    const webhooks = listData.webhooks || (Array.isArray(listData) ? listData : []);
+    const existing = webhooks.find?.(w => w.name === name || w.url?.startsWith(`${env.BASE_URL}/v1/ghl/webhook`));
     if (existing) {
       return json({ ok: true, already_registered: true, webhook: existing });
     }
   }
 
-  const r = await fetch(`${GHL_BASE}/webhooks`, {
+  // GHL v2: altId/altType as query params; body uses altId/altType (not locationId)
+  const r = await fetch(`${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`, {
     method: "POST",
     headers: ghlAuthHeaders(env),
     body: JSON.stringify({
-      locationId: locId,
+      altId: locId,
+      altType: "location",
       name,
       url: webhookUrl,
       events: ["ContactTagUpdate"],
