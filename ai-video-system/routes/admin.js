@@ -36,6 +36,9 @@
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
+//   GET    /v1/admin/ghl/webhooks           → list GHL webhooks for this location
+//   POST   /v1/admin/ghl/webhooks/register  → register the ContactTagUpdate webhook (idempotent)
+//
 //   POST   /v1/admin/agents/test            → invoke an agent with a sample
 //                                             context; NO HeyGen credit spent.
 
@@ -120,6 +123,12 @@ export default async function adminRoute(request, env, ctx, url) {
       available_agents: AGENT_NAMES,
     });
   }
+
+  // ── GHL webhook management ──
+  // GET  /v1/admin/ghl/webhooks          → list existing GHL webhooks for this location
+  // POST /v1/admin/ghl/webhooks/register → register the ContactTagUpdate webhook (idempotent)
+  if (method === "GET"  && path === "/ghl/webhooks")          return ghlWebhooksList(env);
+  if (method === "POST" && path === "/ghl/webhooks/register") return ghlWebhooksRegister(env);
 
   if (method !== "GET") return error(405, "method_not_allowed");
 
@@ -1050,4 +1059,75 @@ async function healthDeep(env) {
 
   out.time = new Date().toISOString();
   return json(out);
+}
+
+// ── GHL webhook management ────────────────────────────────────────────────
+
+const GHL_BASE = "https://services.leadconnectorhq.com";
+const GHL_VER  = "2021-07-28";
+
+function ghlAuthHeaders(env) {
+  const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
+  if (!token) throw new Error("GHL_V2_TOKEN / GHL_API_KEY secret not set");
+  return {
+    "Authorization": `Bearer ${token}`,
+    "Version": GHL_VER,
+    "Content-Type": "application/json",
+  };
+}
+
+async function ghlWebhooksList(env) {
+  const locId = env.GHL_LOCATION_ID;
+  if (!locId) return error(500, "missing_config", "GHL_LOCATION_ID not set");
+  const r = await fetch(
+    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}&altType=location`,
+    { headers: ghlAuthHeaders(env) }
+  );
+  if (!r.ok) {
+    const txt = await r.text();
+    return error(502, "ghl_error", `GHL list webhooks failed: ${r.status} ${txt}`);
+  }
+  return json(await r.json());
+}
+
+async function ghlWebhooksRegister(env) {
+  const locId  = env.GHL_LOCATION_ID;
+  const apiKey = env.PROXY_API_KEY;
+  if (!locId)  return error(500, "missing_config", "GHL_LOCATION_ID not set");
+  if (!apiKey) return error(500, "missing_config", "PROXY_API_KEY not set");
+
+  const webhookUrl = `${env.BASE_URL}/v1/ghl/webhook?token=${apiKey}`;
+  const name = "AI Video — Tag Trigger";
+
+  // Check for an existing registration to keep this idempotent
+  const listR = await fetch(
+    `${GHL_BASE}/webhooks?locationId=${encodeURIComponent(locId)}&altType=location`,
+    { headers: ghlAuthHeaders(env) }
+  );
+  if (listR.ok) {
+    const listData = await listR.json();
+    const existing = (listData.webhooks || listData).find?.(w => w.name === name || w.url === webhookUrl);
+    if (existing) {
+      return json({ ok: true, already_registered: true, webhook: existing });
+    }
+  }
+
+  const r = await fetch(`${GHL_BASE}/webhooks`, {
+    method: "POST",
+    headers: ghlAuthHeaders(env),
+    body: JSON.stringify({
+      locationId: locId,
+      name,
+      url: webhookUrl,
+      events: ["ContactTagUpdate"],
+    }),
+  });
+
+  if (!r.ok) {
+    const txt = await r.text();
+    return error(502, "ghl_error", `GHL register webhook failed: ${r.status} ${txt}`);
+  }
+
+  const webhook = await r.json();
+  return json({ ok: true, registered: true, webhook });
 }
