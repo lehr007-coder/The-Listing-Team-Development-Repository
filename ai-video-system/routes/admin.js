@@ -582,18 +582,30 @@ async function analyticsSummary(env, url) {
 // Phase 8 — POST /v1/admin/reports/weekly/send.
 // Body: { dry_run?: bool, days?: number, recipients?: [contact_id, ...] }
 //   - dry_run: render the report + recipients but skip the GHL sends.
-//   - days: override window (default 7).
+//   - days: override window (default 7, capped at 90).
 //   - recipients: override the WEEKLY_REPORT_CONTACT_IDS env list.
 // Returns the same JSON shape generateAndSendWeeklyReport produces, including
-// per-recipient delivery result.
+// per-recipient delivery result. Errors are caught and surfaced as an `ok:false`
+// JSON body so callers can distinguish "all recipients failed" from
+// "request never started".
 async function weeklyReportSend(env, request) {
   const { body } = await readJson(request);
-  const out = await generateAndSendWeeklyReport(env, {
-    days: body?.days,
-    recipients: Array.isArray(body?.recipients) ? body.recipients : undefined,
-    dryRun: !!body?.dry_run,
-  });
-  return json(out);
+  try {
+    const out = await generateAndSendWeeklyReport(env, {
+      days: body?.days,
+      recipients: Array.isArray(body?.recipients) ? body.recipients : undefined,
+      dryRun: !!body?.dry_run,
+    });
+    return json(out);
+  } catch (e) {
+    console.error(`weeklyReportSend failed:`, e.stack || e.message);
+    return json({
+      ok: false,
+      reason: "internal_error",
+      error: e.message,
+      stack: (e.stack || "").split("\n").slice(0, 5).join(" | "),
+    }, 500);
+  }
 }
 
 async function topContacts(env, url) {

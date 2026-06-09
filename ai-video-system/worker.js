@@ -23,7 +23,6 @@ import dashboardRoute from "./routes/dashboard.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
-import { generateAndSendWeeklyReport } from "./lib/weekly-report.js";
 
 const ROUTES = [
   { prefix: "/v1/health",            auth: false, handler: healthRoute },
@@ -92,35 +91,50 @@ export default {
   //   * * * * *      (every minute)        → HeyGen poll-fallback
   //   0 14 * * 1     (Mondays 14:00 UTC)   → Weekly performance report
   //
-  // event.cron carries the schedule string Cloudflare matched, so we
-  // route on it to keep the report path from running every minute.
-  // Both branches are guarded by try/catch — neither can crash the
-  // other and the cron itself always exits cleanly.
+  // Routing: anything that ISN'T the per-minute schedule routes to the
+  // weekly report. This pattern is more resilient than literal string
+  // equality — equivalent expressions ("0 14 * * 1" vs "0 14 * * MON") or
+  // a future ops edit to the schedule won't accidentally fall through to
+  // the poll-fallback path. The report path itself is also dispatched via
+  // self-fetch so the actual GHL sends run in a fresh HTTP-handler Worker
+  // invocation with their own CPU budget — same silent-kill defense PR #45
+  // applied to processOne.
   async scheduled(event, env, ctx) {
     const cron = event?.cron || "";
+    const isEveryMinute = cron === "* * * * *";
 
-    if (cron === "0 14 * * 1") {
+    if (isEveryMinute) {
       try {
-        const r = await generateAndSendWeeklyReport(env);
-        console.log("scheduled: weekly-report", JSON.stringify({
-          ok: r.ok,
-          recipients_attempted: r.recipients_attempted,
-          recipients_delivered: r.recipients_delivered,
-          totals: r.totals,
-          reason: r.reason,
-        }));
+        const r = await runHeygenPollFallback(env, ctx);
+        console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
       } catch (e) {
-        console.error("scheduled: weekly-report failed:", e.stack || e.message);
+        console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
       }
       return;
     }
 
-    // Default: HeyGen poll-fallback runs on every other cron tick (every minute).
-    try {
-      const r = await runHeygenPollFallback(env, ctx);
-      console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
-    } catch (e) {
-      console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
-    }
+    // Any non-minute cron → weekly report dispatch. Self-fetch so the
+    // GHL sends run in their own HTTP-handler invocation with a fresh
+    // CPU budget. ctx.waitUntil keeps the cron alive long enough for
+    // the dispatch to land without blocking on the email round trips.
+    console.log(`scheduled: dispatching weekly-report (cron='${cron}')`);
+    const p = fetch(`${env.BASE_URL}/v1/admin/reports/weekly/send`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),  // empty body → use env recipients + default days
+    })
+      .then(r => r.json())
+      .then(res => console.log("scheduled: weekly-report dispatched", JSON.stringify({
+        ok: res.ok,
+        recipients_attempted: res.recipients_attempted,
+        recipients_delivered: res.recipients_delivered,
+        totals: res.totals,
+        reason: res.reason,
+      })))
+      .catch(e => console.error("scheduled: weekly-report dispatch failed:", e.message));
+    ctx.waitUntil(p);
   },
 };
