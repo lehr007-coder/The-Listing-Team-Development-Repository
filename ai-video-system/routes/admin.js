@@ -16,6 +16,9 @@
 //
 //   GET    /v1/admin/rate-limits            → live KV counters vs caps
 //   GET    /v1/admin/daily-summary?days=N   → 24h (or N-day) rollup
+//   GET    /v1/admin/analytics/summary?days=N  → 30-day analytics rollup
+//                                                with per-video-type breakdown
+//                                                + daily series for charts
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
@@ -92,6 +95,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path.match(/^\/jobs\/[^/]+\/diagnose$/))   return jobDiagnose(env, path.split("/")[2]);
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
+  if (path === "/analytics/summary")             return analyticsSummary(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
   if (path === "/stream-token-test")             return streamTokenTest(env);
   if (path === "/cf-images-test")                return cfImagesTest(env);
@@ -481,6 +485,88 @@ async function dailySummary(env, url) {
     delivery_rate_pct: jobs.length > 0
       ? +((byStatus.delivered || 0) / jobs.length * 100).toFixed(1)
       : null,
+  });
+}
+
+// Phase 7 — broader window analytics for the admin dashboard chart.
+//
+// dailySummary covers a 1-day rollup with channel CTR and watch funnel.
+// This endpoint covers a multi-day window (default 30) with:
+//   • per-day series (renders + delivered counts) for chart rendering
+//   • per-video-type rollup with delivery success rate
+//   • overall delivery + engagement totals
+async function analyticsSummary(env, url) {
+  const days = Math.min(parseInt(url.searchParams.get("days") || "30", 10) || 30, 90);
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const r = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
+    `?created_at=gte.${encodeURIComponent(since)}` +
+    `&select=id,status,render_engine,video_type,engagement_score,created_at,delivered_at` +
+    `&limit=5000`,
+    { headers: sbHeaders(env) }
+  );
+  if (!r.ok) return error(502, "supabase_error", await r.text());
+  const jobs = await r.json();
+
+  // Per-day series: count of jobs created per day + delivered per day
+  const byDay = {};
+  for (let i = 0; i < days; i++) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    byDay[d] = { day: d, rendered: 0, delivered: 0, failed: 0 };
+  }
+  for (const j of jobs) {
+    const d = (j.created_at || "").slice(0, 10);
+    if (!byDay[d]) continue;
+    byDay[d].rendered++;
+    if (j.status === "delivered") byDay[d].delivered++;
+    if (j.status === "failed")    byDay[d].failed++;
+  }
+  const daily = Object.values(byDay).sort((a, b) => a.day.localeCompare(b.day));
+
+  // Per-video-type breakdown
+  const byType = {};
+  let totalEngagement = 0;
+  let totalDelivered = 0;
+  let totalFailed = 0;
+  for (const j of jobs) {
+    const vt = j.video_type || "unknown";
+    const t = byType[vt] = byType[vt] || {
+      video_type: vt,
+      total: 0,
+      delivered: 0,
+      failed: 0,
+      rendering: 0,
+      total_engagement: 0,
+    };
+    t.total++;
+    if (j.status === "delivered") { t.delivered++; totalDelivered++; }
+    if (j.status === "failed")    { t.failed++;    totalFailed++; }
+    if (j.status === "rendering") t.rendering++;
+    t.total_engagement += (j.engagement_score || 0);
+    totalEngagement += (j.engagement_score || 0);
+  }
+  const byTypeArr = Object.values(byType)
+    .map(t => ({
+      ...t,
+      delivery_rate_pct: t.total > 0 ? +(t.delivered / t.total * 100).toFixed(1) : null,
+      avg_engagement: t.delivered > 0 ? +(t.total_engagement / t.delivered).toFixed(1) : null,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return json({
+    window: { days, since, until: new Date().toISOString() },
+    totals: {
+      jobs: jobs.length,
+      delivered: totalDelivered,
+      failed: totalFailed,
+      delivery_rate_pct: jobs.length > 0
+        ? +(totalDelivered / jobs.length * 100).toFixed(1)
+        : null,
+      total_engagement: totalEngagement,
+    },
+    daily,
+    by_video_type: byTypeArr,
   });
 }
 

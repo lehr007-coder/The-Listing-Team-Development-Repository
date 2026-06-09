@@ -112,6 +112,20 @@ const DASHBOARD_HTML = `<!doctype html>
   .funnel-bar .pct { color:var(--muted); font-size:11px; }
   .funnel-bar .count { font-size:20px; font-weight:600; }
   .funnel-bar .bar { height:4px; background:var(--accent); margin-top:6px; border-radius:2px; transition:width .3s; }
+  .analytics-totals { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:14px 16px; }
+  .analytics-totals .cell { background:#000; border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .analytics-totals .cell .ch { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .analytics-totals .cell .num { font-size:22px; font-weight:600; margin-top:4px; }
+  .sparkline { padding:0 16px 14px; }
+  .sparkline-bars { display:flex; gap:2px; height:60px; align-items:flex-end; }
+  .sparkline-bar { flex:1; background:var(--accent); opacity:.85; border-radius:2px 2px 0 0; min-height:2px; position:relative; }
+  .sparkline-bar.delivered { background:var(--ok); }
+  .sparkline-bar.failed    { background:var(--bad); }
+  .sparkline-axis { display:flex; justify-content:space-between; color:var(--muted); font-size:10px; margin-top:6px; }
+  .vtype-bar { background:var(--accent); height:4px; border-radius:2px; margin-top:4px; }
+  td.delivery-pct.high { color:var(--ok); }
+  td.delivery-pct.low  { color:var(--bad); }
+  td.delivery-pct.mid  { color:var(--warn); }
 </style>
 </head>
 <body>
@@ -135,6 +149,17 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-killswitch"><div class="label">Kill switch</div><div class="value">…</div></div>
     <div class="card" id="card-heygen-credits"><div class="label">HeyGen credits</div><div class="value">…</div></div>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
+  </div>
+
+  <div class="panel" id="analytics-panel">
+    <h2>Analytics · last 30 days</h2>
+    <div id="analytics-totals" class="empty">Loading…</div>
+    <div id="analytics-sparkline" class="sparkline"></div>
+    <div style="padding:0 16px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">By video type</div>
+    <table id="analytics-by-type-table">
+      <thead><tr><th>Video type</th><th>Total</th><th>Delivered</th><th>Failed</th><th>Delivery %</th><th>Avg engagement</th></tr></thead>
+      <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table>
   </div>
 
   <div class="panel" id="ctr-panel">
@@ -372,6 +397,61 @@ const DASHBOARD_HTML = `<!doctype html>
       }</div>\`;
   }
 
+  async function loadAnalyticsSummary() {
+    const s = await api("/v1/admin/analytics/summary?days=30");
+    const totals = s.totals || {};
+    const totalsEl = document.getElementById("analytics-totals");
+    totalsEl.classList.remove("empty");
+    totalsEl.innerHTML = \`<div class="analytics-totals">
+      <div class="cell"><div class="ch">Jobs (30d)</div><div class="num">\${totals.jobs ?? 0}</div></div>
+      <div class="cell"><div class="ch">Delivered</div><div class="num">\${totals.delivered ?? 0}</div></div>
+      <div class="cell"><div class="ch">Delivery rate</div><div class="num">\${totals.delivery_rate_pct == null ? "—" : totals.delivery_rate_pct + "%"}</div></div>
+      <div class="cell"><div class="ch">Engagement</div><div class="num">\${totals.total_engagement ?? 0}</div></div>
+    </div>\`;
+
+    // Sparkline of daily renders + delivered as side-by-side bars per day
+    const daily = s.daily || [];
+    const max = Math.max(1, ...daily.map(d => d.rendered || 0));
+    const barsEl = document.getElementById("analytics-sparkline");
+    barsEl.innerHTML = \`
+      <div style="padding:0 0 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Daily activity</div>
+      <div class="sparkline-bars">\${
+        daily.map(d => {
+          const totalH = Math.max(2, Math.round((d.rendered / max) * 60));
+          const deliveredH = d.rendered > 0 ? Math.round((d.delivered / d.rendered) * totalH) : 0;
+          const failedH = d.rendered > 0 ? Math.round((d.failed / d.rendered) * totalH) : 0;
+          const otherH = Math.max(0, totalH - deliveredH - failedH);
+          return \`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:60px;gap:0" title="\${d.day}: \${d.rendered} rendered, \${d.delivered} delivered, \${d.failed} failed">
+            \${otherH > 0 ? \`<div class="sparkline-bar" style="height:\${otherH}px"></div>\` : ""}
+            \${failedH > 0 ? \`<div class="sparkline-bar failed" style="height:\${failedH}px"></div>\` : ""}
+            \${deliveredH > 0 ? \`<div class="sparkline-bar delivered" style="height:\${deliveredH}px"></div>\` : ""}
+          </div>\`;
+        }).join("")
+      }</div>
+      <div class="sparkline-axis"><span>\${daily[0]?.day || ""}</span><span>\${daily[daily.length-1]?.day || ""}</span></div>
+    \`;
+
+    const byType = s.by_video_type || [];
+    const tbody = document.querySelector("#analytics-by-type-table tbody");
+    if (byType.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6' class='empty'>No jobs in the last 30 days.</td></tr>";
+      return;
+    }
+    tbody.innerHTML = byType.map(t => {
+      const pct = t.delivery_rate_pct;
+      const klass = pct == null ? "" : (pct >= 80 ? "high" : pct >= 50 ? "mid" : "low");
+      const pctText = pct == null ? "—" : pct + "%";
+      return \`<tr>
+        <td>\${t.video_type}</td>
+        <td>\${t.total}</td>
+        <td class="status delivered">\${t.delivered}</td>
+        <td class="status failed">\${t.failed}</td>
+        <td class="delivery-pct \${klass}">\${pctText}</td>
+        <td class="engagement">\${t.avg_engagement ?? "—"}</td>
+      </tr>\`;
+    }).join("");
+  }
+
   async function loadTopContacts() {
     const r = await api("/v1/admin/contacts/top?limit=10");
     const tbody = document.querySelector("#top-contacts-table tbody");
@@ -458,6 +538,7 @@ const DASHBOARD_HTML = `<!doctype html>
     await Promise.allSettled([
       wrap(loadHealth),
       wrap(loadRateLimits),
+      wrap(loadAnalyticsSummary),
       wrap(loadDailySummary),
       wrap(loadTopContacts),
       wrap(() => loadJobs(document.getElementById("contact-filter").value.trim())),
