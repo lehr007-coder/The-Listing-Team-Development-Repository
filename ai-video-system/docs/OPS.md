@@ -25,6 +25,7 @@ Variables & Secrets → `PROXY_API_KEY`, or from `GET /v1/health`.
 | Force delivery on a rendered job | `POST /v1/delivery/send` `{"job_id":"..."}` |
 | HeyGen credit balance | `GET /v1/admin/heygen/credits` |
 | Current rate limit counters | `GET /v1/admin/rate-limits` |
+| 30-day analytics summary | `GET /v1/admin/analytics/summary?days=30` |
 | Kill switch — halt ALL new renders | `DELETE /v1/admin/kill` |
 | Resume after kill switch | `POST /v1/admin/kill` |
 | Browser dashboard | `https://videos.reallistingteam.com/admin` |
