@@ -1113,8 +1113,8 @@ async function ghlWebhooksRegister(env) {
     }
   }
 
-  // GHL v2: altId/altType as query params; body uses altId/altType (not locationId)
-  const r = await fetch(`${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`, {
+  // GHL v2 POST /webhooks/ — altId/altType go in the body only (not query params)
+  const r = await fetch(`${GHL_BASE}/webhooks/`, {
     method: "POST",
     headers: ghlAuthHeaders(env),
     body: JSON.stringify({
