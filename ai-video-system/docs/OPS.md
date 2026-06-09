@@ -26,6 +26,9 @@ Variables & Secrets → `PROXY_API_KEY`, or from `GET /v1/health`.
 | HeyGen credit balance | `GET /v1/admin/heygen/credits` |
 | Current rate limit counters | `GET /v1/admin/rate-limits` |
 | 30-day analytics summary | `GET /v1/admin/analytics/summary?days=30` |
+| Operational health alerts | `GET /v1/admin/alerts` |
+| Bulk-clean orphaned `rendered` jobs (dry-run) | `POST /v1/admin/jobs/orphan-cleanup` body `{}` |
+| Bulk-clean orphaned `rendered` jobs (commit) | `POST /v1/admin/jobs/orphan-cleanup` body `{"dry_run":false}` |
 | Send the weekly report now | `POST /v1/admin/reports/weekly/send` |
 | Preview the weekly report (no email) | `POST /v1/admin/reports/weekly/send` body `{"dry_run":true}` |
 | Kill switch — halt ALL new renders | `DELETE /v1/admin/kill` |

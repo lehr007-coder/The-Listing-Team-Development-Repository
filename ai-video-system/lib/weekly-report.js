@@ -28,19 +28,11 @@
 //   }
 
 import { sendEmail, getContact } from "./ghl.js";
+import { summarizeJobs } from "./analytics.js";
 
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 90;
 const MAX_RECIPIENTS = 20;
-
-function sbHeaders(env) {
-  const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-  return {
-    "apikey": key,
-    "Authorization": `Bearer ${key}`,
-    "Content-Type": "application/json",
-  };
-}
 
 // Defense-in-depth HTML escape for any Supabase-derived string that lands
 // in the email. None of today's video_type values contain HTML metachars,
@@ -192,79 +184,9 @@ function renderReportHtml(env, summary) {
 </body></html>`;
 }
 
-// Build the summary in-process (same shape as /v1/admin/analytics/summary)
-// so the report endpoint doesn't need a self-fetch — saves CPU + one round
-// trip and means we get the same data the dashboard shows.
-async function buildSummary(env, days) {
-  const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
-  const since = new Date(sinceMs).toISOString();
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?created_at=gte.${encodeURIComponent(since)}` +
-    `&select=id,status,render_engine,video_type,engagement_score,created_at,delivered_at` +
-    `&limit=5000`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) throw new Error(`supabase summary fetch failed: ${r.status} ${await r.text()}`);
-  const jobs = await r.json();
-
-  // Day buckets keyed by UTC date string. The partial first day of the
-  // window (between sinceMs and the start of that calendar day) is
-  // included so the daily series always sums to totals.jobs — earlier
-  // versions floored the window via `now - i*24h` per day which dropped
-  // the first partial day's jobs from the chart while still counting
-  // them in totals.
-  const byDay = {};
-  const earliestDay = since.slice(0, 10);
-  const todayUtc = new Date().toISOString().slice(0, 10);
-  let cursor = earliestDay;
-  while (cursor <= todayUtc) {
-    byDay[cursor] = { day: cursor, rendered: 0, delivered: 0, failed: 0 };
-    cursor = new Date(new Date(cursor + "T00:00:00Z").getTime() + 24 * 60 * 60 * 1000)
-      .toISOString().slice(0, 10);
-  }
-  for (const j of jobs) {
-    const d = (j.created_at || "").slice(0, 10);
-    if (!byDay[d]) continue;  // job created before window-start cutoff time on earliestDay
-    byDay[d].rendered++;
-    if (j.status === "delivered") byDay[d].delivered++;
-    if (j.status === "failed")    byDay[d].failed++;
-  }
-  const daily = Object.values(byDay).sort((a, b) => a.day.localeCompare(b.day));
-
-  const byType = {};
-  let totalEngagement = 0, totalDelivered = 0, totalFailed = 0;
-  for (const j of jobs) {
-    const vt = j.video_type || "unknown";
-    const t = byType[vt] = byType[vt] || {
-      video_type: vt, total: 0, delivered: 0, failed: 0, rendering: 0, total_engagement: 0,
-    };
-    t.total++;
-    if (j.status === "delivered") { t.delivered++; totalDelivered++; }
-    if (j.status === "failed")    { t.failed++;    totalFailed++; }
-    if (j.status === "rendering") t.rendering++;
-    t.total_engagement += (j.engagement_score || 0);
-    totalEngagement += (j.engagement_score || 0);
-  }
-  const byTypeArr = Object.values(byType).map(t => ({
-    ...t,
-    delivery_rate_pct: t.total > 0 ? +(t.delivered / t.total * 100).toFixed(1) : null,
-    avg_engagement:    t.delivered > 0 ? +(t.total_engagement / t.delivered).toFixed(1) : null,
-  })).sort((a, b) => b.total - a.total);
-
-  return {
-    window: { days, since, until: new Date().toISOString() },
-    totals: {
-      jobs: jobs.length,
-      delivered: totalDelivered,
-      failed: totalFailed,
-      delivery_rate_pct: jobs.length > 0 ? +(totalDelivered / jobs.length * 100).toFixed(1) : null,
-      total_engagement: totalEngagement,
-    },
-    daily,
-    by_video_type: byTypeArr,
-  };
-}
+// Phase 9 — summarize now lives in lib/analytics.js so the email and
+// the /v1/admin/analytics/summary dashboard endpoint always render
+// the same numbers for the same window.
 
 // Parses comma-separated WEEKLY_REPORT_CONTACT_IDS into a recipient
 // list. Returns { recipients, truncated } so the caller can surface a
@@ -332,7 +254,7 @@ export async function generateAndSendWeeklyReport(env, { days, recipients, dryRu
   }
 
   const reportDays = clampDays(days);
-  const summary = await buildSummary(env, reportDays);
+  const summary = await summarizeJobs(env, reportDays);
   const subject = `AI Video Weekly Report — ${summary.totals.delivered} delivered, ${summary.totals.jobs} total`;
   const html = renderReportHtml(env, summary);
 

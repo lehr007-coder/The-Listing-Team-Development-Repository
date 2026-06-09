@@ -126,6 +126,20 @@ const DASHBOARD_HTML = `<!doctype html>
   td.delivery-pct.high { color:var(--ok); }
   td.delivery-pct.low  { color:var(--bad); }
   td.delivery-pct.mid  { color:var(--warn); }
+  .alert { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin:6px 16px; border-radius:6px; border:1px solid var(--line); background:#0f0f0f; font-size:13px; }
+  .alert.info  { border-color:#3a4a5a; background:#10141a; }
+  .alert.warn  { border-color:#5a4a1a; background:#161310; }
+  .alert.error { border-color:#5a1a1a; background:#180e0e; }
+  .alert .dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 auto; }
+  .alert.info  .dot { background:#4dabf7; }
+  .alert.warn  .dot { background:var(--warn); }
+  .alert.error .dot { background:var(--bad); }
+  .alert .body { flex:1; }
+  .alert .kind { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+  .alert .ids { color:var(--muted); font-size:11px; font-family:monospace; margin-top:4px; }
+  .alert .action-btn { background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer; margin-top:6px; }
+  .alert .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .alerts-empty { padding:14px 16px; color:var(--muted); font-size:13px; }
 </style>
 </head>
 <body>
@@ -149,6 +163,11 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-killswitch"><div class="label">Kill switch</div><div class="value">…</div></div>
     <div class="card" id="card-heygen-credits"><div class="label">HeyGen credits</div><div class="value">…</div></div>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
+  </div>
+
+  <div class="panel" id="alerts-panel">
+    <h2>Health alerts</h2>
+    <div id="alerts-body"><div class="alerts-empty">Loading…</div></div>
   </div>
 
   <div class="panel" id="analytics-panel">
@@ -397,6 +416,62 @@ const DASHBOARD_HTML = `<!doctype html>
       }</div>\`;
   }
 
+  async function loadAlerts() {
+    const r = await api("/v1/admin/alerts");
+    const body = document.getElementById("alerts-body");
+    const alerts = r.alerts || [];
+    if (alerts.length === 0) {
+      body.innerHTML = "<div class='alerts-empty'>All clear — no active alerts.</div>";
+      return;
+    }
+    body.innerHTML = alerts.map(a => {
+      const idsHtml = a.ids && a.ids.length
+        ? "<div class='ids'>" + a.ids.join(", ") + (a.count > a.ids.length ? " (+" + (a.count - a.ids.length) + " more)" : "") + "</div>"
+        : "";
+      let actionHtml = "";
+      if (a.action) {
+        const label = a.action.method === "OPEN_URL"
+          ? "Open →"
+          : a.action.method + " " + a.action.path;
+        if (a.action.method === "OPEN_URL") {
+          actionHtml = "<a class='action-btn' href='" + a.action.path + "' target='_blank' rel='noopener'>" + label + "</a>";
+        } else {
+          actionHtml = "<button class='action-btn' data-action-method='" + a.action.method +
+            "' data-action-path='" + a.action.path +
+            "' data-action-body='" + (a.action.body ? encodeURIComponent(JSON.stringify(a.action.body)) : "") +
+            "'>" + label + "</button>";
+        }
+      }
+      return "<div class='alert " + a.severity + "'>" +
+        "<div class='dot'></div>" +
+        "<div class='body'>" +
+          "<div class='kind'>" + a.kind + "</div>" +
+          "<div>" + a.message + "</div>" +
+          idsHtml +
+          actionHtml +
+        "</div></div>";
+    }).join("");
+    body.querySelectorAll("button.action-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const method = btn.dataset.actionMethod;
+        const path = btn.dataset.actionPath;
+        const bodyEnc = btn.dataset.actionBody;
+        const bodyObj = bodyEnc ? JSON.parse(decodeURIComponent(bodyEnc)) : null;
+        if (!confirm(method + " " + path + (bodyObj ? "\\n\\n" + JSON.stringify(bodyObj, null, 2) : "") + "\\n\\nProceed?")) return;
+        let res;
+        if (method === "POST") {
+          res = await apiPost(path, bodyObj);
+        } else if (method === "DELETE") {
+          res = await apiDelete(path);
+        } else if (method === "GET") {
+          res = await api(path);
+        }
+        alert(JSON.stringify(res, null, 2));
+        refresh();
+      });
+    });
+  }
+
   async function loadAnalyticsSummary() {
     const s = await api("/v1/admin/analytics/summary?days=30");
     const totals = s.totals || {};
@@ -538,6 +613,7 @@ const DASHBOARD_HTML = `<!doctype html>
     await Promise.allSettled([
       wrap(loadHealth),
       wrap(loadRateLimits),
+      wrap(loadAlerts),
       wrap(loadAnalyticsSummary),
       wrap(loadDailySummary),
       wrap(loadTopContacts),
