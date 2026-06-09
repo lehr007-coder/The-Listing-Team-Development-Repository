@@ -31,6 +31,8 @@
 //   POST   /v1/admin/contacts/sync-scores   → resync GHL video_engagement_score for
 //                                              all contacts with delivered jobs. Body:
 //                                              { dry_run?, max? } — defaults to dry_run.
+//   GET    /v1/admin/contacts/lookup?email=X → resolve GHL contact_id by email.
+//                                              Used to populate WEEKLY_REPORT_CONTACT_IDS.
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
@@ -39,7 +41,7 @@
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
-import { writeOwnedFields } from "../lib/ghl.js";
+import { writeOwnedFields, findContactByEmail } from "../lib/ghl.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
 import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
@@ -134,6 +136,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/alerts")                        return json(await gatherAlerts(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
   if (path === "/analytics/summary")             return analyticsSummary(env, url);
+  if (path === "/contacts/lookup")               return contactLookup(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
   if (path === "/stream-token-test")             return streamTokenTest(env);
   if (path === "/cf-images-test")                return cfImagesTest(env);
@@ -656,6 +659,32 @@ async function contactsSyncScores(env, request, url) {
     truncated: total_contacts_with_videos > max,
     results,
   });
+}
+
+// GET /v1/admin/contacts/lookup?email=lehr007@gmail.com
+// Resolve a GHL contact_id by email so ops can populate
+// WEEKLY_REPORT_CONTACT_IDS without digging through the GHL UI.
+async function contactLookup(env, url) {
+  const email = (url.searchParams.get("email") || "").trim().toLowerCase();
+  if (!email) return error(400, "missing_email", "Pass ?email=foo@bar.com");
+  if (!(env.GHL_V2_TOKEN || env.GHL_API_KEY)) {
+    return error(503, "no_ghl_credentials", "GHL_V2_TOKEN or GHL_API_KEY required");
+  }
+  try {
+    const c = await findContactByEmail(env, email);
+    if (!c) return json({ ok: false, email, found: false });
+    return json({
+      ok: true,
+      email,
+      found: true,
+      contact_id: c.id,
+      first_name: c.firstName || null,
+      last_name: c.lastName || null,
+      location_id: c.locationId || null,
+    });
+  } catch (e) {
+    return error(502, "ghl_error", e.message);
+  }
 }
 
 async function topContacts(env, url) {
