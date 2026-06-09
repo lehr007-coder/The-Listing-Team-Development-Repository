@@ -30,7 +30,11 @@ PER_LOCATION_DAILY_LIMIT = "50"
 # Each contact in this list receives the weekly performance report email
 # via the existing GHL conversations path. Empty = cron skips sending,
 # manual POST /v1/admin/reports/weekly/send still works with explicit recipients.
-WEEKLY_REPORT_CONTACT_IDS = ""
+WEEKLY_REPORT_CONTACT_IDS = "qmtAm8bQUuTPfgiIH9qX"
+
+# GHL sub-account location ID — required for email→contact_id lookup via
+# POST /contacts/search. Same value used by thelistingteamproxy.
+GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ"
 
 # GHL sub-account location ID — required for email→contact_id lookup via
 # POST /contacts/search. Same value used by thelistingteamproxy.
