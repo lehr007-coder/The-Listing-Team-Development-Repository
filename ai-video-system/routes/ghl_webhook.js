@@ -134,18 +134,32 @@ function extractContactId(body) {
 }
 
 function extractAddedTags(body) {
-  // Only return tags GHL explicitly marked as added. Falling back to the
-  // full contact tag list (as earlier versions did) re-fires renders on
-  // every tag-removal event for any video tag still on the contact —
-  // dedupe/rate-limits would absorb that but it still burns lookups.
-  const explicit =
-    body?.data?.addedTags ||
-    body?.data?.added_tags ||
-    body?.addedTags ||
-    body?.added_tags;
+  // GHL's ContactTagUpdate event carries the contact's FULL current tag
+  // list, not an added/removed delta — so we must consider the whole list
+  // and lean on the per-contact/per-video-type dedupe in /v1/heygen/render
+  // to stop a tag-removal event from re-rendering tags still on the contact.
+  // Sources, most-specific first:
+  //   - explicit addedTags/added_tags (if a future GHL shape provides them)
+  //   - the full tag list under data.contact.tags / data.tags / tags
+  // Each source may be a real array OR a comma/space-joined string (the form
+  // the Make.com HTTP forwarder emits when it coerces {{tags}} into JSON).
+  const sources = [
+    body?.data?.addedTags,
+    body?.data?.added_tags,
+    body?.addedTags,
+    body?.added_tags,
+    body?.data?.contact?.tags,
+    body?.data?.tags,
+    body?.tags,
+  ];
 
-  if (Array.isArray(explicit) && explicit.length > 0) {
-    return explicit.map(String);
+  for (const src of sources) {
+    if (Array.isArray(src) && src.length > 0) {
+      return src.map(String);
+    }
+    if (typeof src === "string" && src.trim()) {
+      return src.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+    }
   }
 
   return [];
