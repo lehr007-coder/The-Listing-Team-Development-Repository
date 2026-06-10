@@ -1,0 +1,43 @@
+{
+  "name": "GHL Tag -> AI Video System (staging)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "highlevel:watchEventsV2",
+      "version": 1,
+      "parameters": { "__IMTHOOK__": 2436696 },
+      "mapper": {},
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": { "parameters": { "__IMTHOOK__": { "label": "GHL Tag Events to AI Video System" } } }
+      }
+    },
+    {
+      "id": 2,
+      "module": "http:MakeRequest",
+      "version": 4,
+      "parameters": { "authenticationType": "noAuth" },
+      "mapper": {
+        "url": "https://ai-video-system-staging.lehr007.workers.dev/v1/ghl/webhook?token=__PASTE_STAGING_PROXY_API_KEY__",
+        "method": "post",
+        "headers": [],
+        "queryParameters": [],
+        "contentType": "json",
+        "inputMethod": "jsonString",
+        "jsonStringBodyContent": "{\"type\":\"ContactTagUpdate\",\"data\":{\"contact\":{\"id\":\"{{ifempty(1.contactId; 1.id)}}\"},\"tags\":\"{{join(1.tags; \",\")}}\"}}",
+        "parseResponse": true,
+        "stopOnHttpError": false,
+        "allowRedirects": true,
+        "shareCookies": false,
+        "requestCompressedContent": true
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true, "autoCommitTriggerLast": true, "sequential": false, "confidential": false, "dataloss": false, "dlq": false },
+    "designer": { "orphans": [] }
+  }
+}
