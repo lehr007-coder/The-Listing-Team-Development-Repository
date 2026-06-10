@@ -7,7 +7,7 @@
 //
 // Authentication: GHL does not sign webhooks with HMAC.  We require a
 // ?token= query parameter whose value must equal env.PROXY_API_KEY.
-// The URL is registered once (see curl in docs/GHL_WEBHOOK_SETUP.md)
+// The URL is registered once (see docs/GHL_WEBHOOK_REGISTRATION.md)
 // and the token never appears in GHL contacts/conversations.
 //
 // Route (unauthenticated at middleware level, validated here):
@@ -52,10 +52,16 @@ export default async function ghlWebhookRoute(request, env, ctx, url) {
     return error(400, "bad_json");
   }
 
-  // GHL fires many event types; only process tag updates
-  const eventType = body?.type || body?.event || "";
-  if (!eventType.toLowerCase().includes("tag")) {
-    return json({ ok: true, skipped: true, reason: "not a tag event", type: eventType });
+  // GHL fires many event types; only process tag updates. Match
+  // ContactTagUpdate exactly (case-insensitive). The Make.com forwarder
+  // sets this type explicitly; a native GHL custom-webhook action that
+  // omits the type but still carries tags is also accepted below.
+  const eventType = (body?.type || body?.event || "").toLowerCase();
+  const looksLikeTagEvent =
+    eventType === "contacttagupdate" ||
+    (eventType === "" && extractAddedTags(body).length > 0);
+  if (!looksLikeTagEvent) {
+    return json({ ok: true, skipped: true, reason: "not a tag event", type: body?.type || body?.event || "" });
   }
 
   const contactId = extractContactId(body);
@@ -95,7 +101,13 @@ export default async function ghlWebhookRoute(request, env, ctx, url) {
         delivery_channels: config.delivery_channels,
       }),
     })
-      .then(r => r.json())
+      .then(async r => {
+        const resBody = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(`render returned ${r.status}: ${resBody?.message || resBody?.error || "unknown"}`);
+        }
+        return resBody;
+      })
       .then(res => console.log(`ghl-webhook: dispatched ${config.video_type} for ${contactId}`, JSON.stringify({
         tag,
         job_id: res.job_id,
@@ -126,27 +138,33 @@ function extractContactId(body) {
 }
 
 function extractAddedTags(body) {
-  // Prefer explicit addedTags/added_tags list when GHL includes it
-  const explicit =
-    body?.data?.addedTags ||
-    body?.data?.added_tags ||
-    body?.addedTags ||
-    body?.added_tags;
+  // GHL's ContactTagUpdate event carries the contact's FULL current tag
+  // list, not an added/removed delta — so we consider the whole list and
+  // lean on the per-contact/per-video-type dedupe in /v1/heygen/render to
+  // stop a tag-removal event from re-rendering tags still on the contact.
+  // Sources, most-specific first:
+  //   - explicit addedTags/added_tags (if a future GHL shape provides them)
+  //   - the full tag list under data.contact.tags / data.tags / tags
+  // Each source may be a real array OR a comma/space-joined string (the form
+  // the Make.com HTTP forwarder emits when it coerces {{tags}} into JSON).
+  const sources = [
+    body?.data?.addedTags,
+    body?.data?.added_tags,
+    body?.addedTags,
+    body?.added_tags,
+    body?.data?.contact?.tags,
+    body?.data?.tags,
+    body?.tags,
+  ];
 
-  if (Array.isArray(explicit) && explicit.length > 0) {
-    return explicit.map(String);
+  for (const src of sources) {
+    if (Array.isArray(src) && src.length > 0) {
+      return src.map(String);
+    }
+    if (typeof src === "string" && src.trim()) {
+      return src.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+    }
   }
-
-  // Fallback: GHL sometimes sends just { data: { tags: [...] } } for
-  // ContactTagUpdate events.  Treat the full tag list as "added" —
-  // the rate-limiter and idempotency check in /v1/heygen/render prevent
-  // duplicate renders if the same tag fires multiple times.
-  const tags =
-    body?.data?.contact?.tags ||
-    body?.data?.tags ||
-    body?.tags;
-
-  if (Array.isArray(tags)) return tags.map(String);
 
   return [];
 }
