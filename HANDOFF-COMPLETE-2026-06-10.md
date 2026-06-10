@@ -103,6 +103,15 @@ action is needed there.
    in the workflow above; upload-and-parse and the double-Re-parse check
    remain manual via the dashboard.
 
+## Security observation (out of scope, flagging only)
+
+`GET /tos/admin/stats` responds 200 without authentication (confirmed during
+the deploy smoke check once a browser-style User-Agent was used — earlier
+403s were Cloudflare Browser Integrity Check, not worker auth). It exposes
+aggregate transaction/deadline counts only, and the main-proxy dashboard
+widget may rely on it being open. Decide deliberately whether to gate it
+behind `requireProxyAuth` in the TS source.
+
 ## Remaining operator checklist (GHL/Cloudflare UI — do not code)
 
 | What | Where |
