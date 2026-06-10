@@ -26,18 +26,34 @@ investigation record).
 
 ## Per-item status
 
-### Item 1 — role pick-list values
-- **1a (operator, pending):** add the 11 values in GHL → Settings → Custom
-  Objects → `tos_party` → `tos_party_role`.
-- **1b (ready to run):** workflow `TOS role probe (Item 1b)`
-  (`.github/workflows/tos-role-probe.yml`) probes all 15 roles and cleans up
-  after itself. It needs the repo secret `TOS_ADMIN_KEY` (the admin Bearer
-  token). **This repo is public — the key must only ever live in that
-  secret.** This session could not curl the worker directly (network policy).
+### Item 1 — role pick-list values — DONE ✅ (1a + 1b completed via API, 2026-06-10 23:01 UTC)
+Executed through a transient, token-gated `/tos/admin/golive` endpoint
+deployed onto the worker for the duration of the operation and removed
+afterwards (the worker holds the GHL token; CI drove the calls).
+- **1a DONE:** the live `tos_party_role` field (id `HUmGLWgDVVIHQ0CBaLYp`)
+  already had 15 options — several under different keys than the worker code
+  expects (`title_company`, `escrow_agent`, `hoa_management`,
+  `closing_attorney`, `transaction_coordinator`, `co_buyer`, `co_seller`).
+  An add-only merge appended the 7 missing keys the worker actually uses:
+  `buyer_brokerage`, `listing_brokerage`, `title`, `escrow`, `attorney`,
+  `hoa`, `vendor` (PUT 200; all existing options preserved; field now has
+  22 options).
+- **1b DONE:** post-apply probe — **all 15 roles create successfully**
+  (probe records deleted after each create). Before the apply, exactly the
+  7 missing keys failed with `"X isn't an allowed option for Role."`.
+- **Live lock verification (bonus):** two staggered parse calls on a
+  synthetic transaction returned `[200, 409]` — the Item 4 lock and the
+  Item 5 200-on-failure both confirmed in real traffic.
 - **1c (no action needed in deployed line):** the deployed worker never
   contained the `KNOWN_GOOD_ROLES` band-aid; its party-create is already the
   direct create the handoff asks to restore. Remove the band-aid in the local
   TS workspace only.
+- **Note for Scott:** the legacy keys (`title_company`, `escrow_agent`,
+  `hoa_management`, `closing_attorney`) remain as options alongside the new
+  worker-canonical keys. The worker's lookups (e.g. title-party email) match
+  `title`, not `title_company` — consider consolidating in the GHL UI later.
+- The `TOS role probe` workflow (`tos-role-probe.yml`, needs `TOS_ADMIN_KEY`
+  repo secret) remains available for future re-verification.
 
 ### Item 2 — invented packet field keys — FIXED + DEPLOYED ✅
 `createDocumentPacket` (URL-based intake) no longer writes
@@ -91,8 +107,8 @@ action is needed there.
 
 | What | Where |
 |---|---|
-| Add 11 role pick-list values, then run the `TOS role probe` workflow (needs `TOS_ADMIN_KEY` repo secret) | GHL UI + GitHub Actions |
+| ~~Add 11 role pick-list values + probe~~ **DONE via API 2026-06-10** | — |
 | Flip `tos_deadline_reminders_enabled` → true | GHL Custom Values |
 | Set real `tos_google_review_url` | GHL Custom Values |
-| Upload a real contract via "📤 Upload & Parse"; expect +1 doc, deadlines/parties, no dupes; double Re-parse → 409 | TOS dashboard |
+| Upload a real contract via "📤 Upload & Parse"; expect +1 doc, deadlines/parties, no dupes (Re-parse-twice 409 already verified live) | TOS dashboard |
 | Move `tos_cutover_pct` 0 → 100 when confident | GHL Custom Values |

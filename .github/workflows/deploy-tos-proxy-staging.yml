@@ -23,7 +23,4 @@ jobs:
       - name: Deploy via Cloudflare API (bindings preserved)
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          # Transient go-live mode: deploys a one-run token binding and runs
-          # inspect/probe/locktest via /tos/admin/golive. Remove when done.
-          GOLIVE: '1'
         run: python3 tos-proxy/deploy.py
