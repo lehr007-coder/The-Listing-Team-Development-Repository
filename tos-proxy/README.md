@@ -30,11 +30,15 @@ local TS workspace; remove it there per the handoff.
 
 ## Deploying
 
-Deploy from a machine with wrangler credentials, using the **existing**
-`wrangler.staging.toml` from the local workspace (it carries the `TOS_KV`
-binding and vars). Do **not** deploy with a fresh config that omits the
-worker's bindings — wrangler replaces the binding set on deploy and would
-detach `TOS_KV`. No wrangler config is committed here for that reason.
+Pushes touching `tos-proxy/**` on `main` or `claude/**` run
+`.github/workflows/deploy-tos-proxy-staging.yml`, which executes
+`deploy.py`: a raw Workers-API upload that re-sends the worker's current
+non-secret bindings verbatim, preserves secrets via `keep_bindings`, fails
+the run if the binding set changed, and smoke-checks the worker. No wrangler
+config is committed on purpose — a config missing the live bindings would
+detach `TOS_KV` on deploy. Local deploys from the Mac workspace's
+`wrangler.staging.toml` still work, but will revert these fixes unless the
+diffs are ported first.
 
 ## Verification after deploy (from the handoff)
 
