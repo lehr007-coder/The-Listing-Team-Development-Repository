@@ -1164,7 +1164,14 @@ async function setupGhlWebhook(env, request) {
 
   if (!response.ok) {
     console.error(`GHL webhook setup failed: ${response.status}`, responseData);
-    return error(response.status, "ghl_error", `GHL API returned ${response.status}: ${responseData.message || JSON.stringify(responseData)}`);
+    // Always return 502 so the failing status comes from US, not GHL —
+    // passing GHL's 404 through made callers think OUR endpoint was missing.
+    // Note: GHL's /webhooks REST API is marketplace-app only; private
+    // integration tokens cannot create/update webhooks here. Use the
+    // GHL Workflow trigger ("Contact Tag Added" → Webhook action) instead.
+    return error(502, "ghl_error", `GHL API returned ${response.status}: ${responseData.message || JSON.stringify(responseData)}`, {
+      hint: "GHL /webhooks is marketplace-app only. Configure via GHL Workflow: Automation → Workflows → Trigger 'Contact Tag Added' → Action 'Webhook' POST to " + (body?.webhook_url || `${env.BASE_URL}/v1/ghl/webhook?token=<PROXY_API_KEY>`),
+    });
   }
 
   return json({

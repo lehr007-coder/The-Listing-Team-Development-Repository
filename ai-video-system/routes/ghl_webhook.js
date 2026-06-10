@@ -52,9 +52,11 @@ export default async function ghlWebhookRoute(request, env, ctx, url) {
     return error(400, "bad_json");
   }
 
-  // GHL fires many event types; only process tag updates
+  // GHL fires many event types; only process tag updates.
+  // Match ContactTagUpdate exactly (case-insensitive) — substring matches
+  // like .includes("tag") would let unrelated future events through.
   const eventType = body?.type || body?.event || "";
-  if (!eventType.toLowerCase().includes("tag")) {
+  if (eventType.toLowerCase() !== "contacttagupdate") {
     return json({ ok: true, skipped: true, reason: "not a tag event", type: eventType });
   }
 
@@ -95,7 +97,13 @@ export default async function ghlWebhookRoute(request, env, ctx, url) {
         delivery_channels: config.delivery_channels,
       }),
     })
-      .then(r => r.json())
+      .then(async r => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(`render returned ${r.status}: ${body?.message || body?.error || "unknown"}`);
+        }
+        return body;
+      })
       .then(res => console.log(`ghl-webhook: dispatched ${config.video_type} for ${contactId}`, JSON.stringify({
         tag,
         job_id: res.job_id,
@@ -126,7 +134,10 @@ function extractContactId(body) {
 }
 
 function extractAddedTags(body) {
-  // Prefer explicit addedTags/added_tags list when GHL includes it
+  // Only return tags GHL explicitly marked as added. Falling back to the
+  // full contact tag list (as earlier versions did) re-fires renders on
+  // every tag-removal event for any video tag still on the contact —
+  // dedupe/rate-limits would absorb that but it still burns lookups.
   const explicit =
     body?.data?.addedTags ||
     body?.data?.added_tags ||
@@ -136,17 +147,6 @@ function extractAddedTags(body) {
   if (Array.isArray(explicit) && explicit.length > 0) {
     return explicit.map(String);
   }
-
-  // Fallback: GHL sometimes sends just { data: { tags: [...] } } for
-  // ContactTagUpdate events.  Treat the full tag list as "added" —
-  // the rate-limiter and idempotency check in /v1/heygen/render prevent
-  // duplicate renders if the same tag fires multiple times.
-  const tags =
-    body?.data?.contact?.tags ||
-    body?.data?.tags ||
-    body?.tags;
-
-  if (Array.isArray(tags)) return tags.map(String);
 
   return [];
 }
