@@ -26,6 +26,16 @@ DAILY_RENDER_LIMIT = "100"
 PER_CONTACT_DAILY_LIMIT = "3"
 PER_LOCATION_DAILY_LIMIT = "50"
 
+# Phase 8 — Weekly report recipients (comma-separated GHL contact IDs).
+# Each contact in this list receives the weekly performance report email
+# via the existing GHL conversations path. Empty = cron skips sending,
+# manual POST /v1/admin/reports/weekly/send still works with explicit recipients.
+WEEKLY_REPORT_CONTACT_IDS = "qmtAm8bQUuTPfgiIH9qX"
+
+# GHL sub-account location ID — required for email→contact_id lookup via
+# POST /contacts/search. Same value used by thelistingteamproxy.
+GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ"
+
 # Cloudflare Stream customer code — used to build thumbnail/gif/iframe
 # URLs. Account-wide value, NOT per-video. Find via Stream → API → any
 # playback URL contains `customer-<code>.cloudflarestream.com`.
@@ -71,7 +81,10 @@ id = "1e513d6498444e9e89af431f2308aba1"
 # so it runs in its own fresh HTTP Worker invocation with its own CPU budget.
 # ctx.waitUntil tracks all dispatches — the scheduled handler itself is lightweight.
 [triggers]
-crons = ["* * * * *"]
+crons = [
+  "* * * * *",      # heygen poll-fallback (every minute)
+  "0 14 * * 1",     # weekly report (Mon 14:00 UTC = 9am ET / 10am EDT)
+]
 
 # ── Queue: ai-video-render ──
 # Provision once before first deploy:

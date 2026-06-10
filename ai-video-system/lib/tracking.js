@@ -2,7 +2,7 @@
 // into the existing lead-scoring pipeline by appending a row to scoring_log
 // (READ-ONLY for the existing scoring engine — it just sees a new row).
 
-import { insertVideoEvent, updateVideoJob, getVideoJob, resolveLeadByGhlContactId } from "./supabase.js";
+import { insertVideoEvent, updateVideoJob, getVideoJob, resolveLeadByGhlContactId, getContactEngagementTotal } from "./supabase.js";
 import { writeOwnedFields } from "./ghl.js";
 import { nowIso } from "./util.js";
 
@@ -81,8 +81,17 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
   if (event === "click" || event === "cta_click") patch.video_clicked = "true";
   if (event.startsWith("watch_")) patch.video_watch_percent = event.replace("watch_", "");
 
-  if (cId && Object.keys(patch).length) {
-    patch.video_engagement_score = String((Number(job.engagement_score || 0) + delta));
+  // Write GHL video_engagement_score for any event that either sets a
+  // flag (open / click / watch) OR awards points (delta > 0). This closes
+  // the gap where rewatch events (delta=4) previously scored in Supabase
+  // but never propagated back to the GHL contact field.
+  //
+  // The score written is the CUMULATIVE total across all of the contact's
+  // delivered videos — not just the current job — so GHL always reflects
+  // lifetime video engagement rather than the most-recent-job score.
+  if (cId && (Object.keys(patch).length > 0 || delta > 0)) {
+    const totalInDB = await getContactEngagementTotal(env, cId).catch(() => 0);
+    patch.video_engagement_score = String(totalInDB + delta);
     await writeOwnedFields(env, cId, patch);
   }
 

@@ -126,6 +126,25 @@ const DASHBOARD_HTML = `<!doctype html>
   td.delivery-pct.high { color:var(--ok); }
   td.delivery-pct.low  { color:var(--bad); }
   td.delivery-pct.mid  { color:var(--warn); }
+  .alert { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin:6px 16px; border-radius:6px; border:1px solid var(--line); background:#0f0f0f; font-size:13px; }
+  .alert.info  { border-color:#3a4a5a; background:#10141a; }
+  .alert.warn  { border-color:#5a4a1a; background:#161310; }
+  .alert.error { border-color:#5a1a1a; background:#180e0e; }
+  .alert .dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 auto; }
+  .alert.info  .dot { background:#4dabf7; }
+  .alert.warn  .dot { background:var(--warn); }
+  .alert.error .dot { background:var(--bad); }
+  .alert .body { flex:1; }
+  .alert .kind { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+  .alert .ids { color:var(--muted); font-size:11px; font-family:monospace; margin-top:4px; }
+  .alert .action-btn { background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer; margin-top:6px; }
+  .alert .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .alerts-empty { padding:14px 16px; color:var(--muted); font-size:13px; }
+  .sync-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; flex-wrap:wrap; }
+  .sync-preview { padding:0 16px 14px; }
+  .sync-preview table { font-size:12px; }
+  .sync-preview th, .sync-preview td { padding:6px 10px; }
+  .sync-count { font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -151,6 +170,11 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
   </div>
 
+  <div class="panel" id="alerts-panel">
+    <h2>Health alerts</h2>
+    <div id="alerts-body"><div class="alerts-empty">Loading…</div></div>
+  </div>
+
   <div class="panel" id="analytics-panel">
     <h2>Analytics · last 30 days</h2>
     <div id="analytics-totals" class="empty">Loading…</div>
@@ -160,6 +184,16 @@ const DASHBOARD_HTML = `<!doctype html>
       <thead><tr><th>Video type</th><th>Total</th><th>Delivered</th><th>Failed</th><th>Delivery %</th><th>Avg engagement</th></tr></thead>
       <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
     </table>
+  </div>
+
+  <div class="panel" id="ghl-sync-panel">
+    <h2>GHL Contact Field Sync</h2>
+    <div class="sync-bar">
+      <button id="sync-preview-btn">Preview score sync</button>
+      <button id="sync-commit-btn" class="ghost" style="display:none">Commit sync</button>
+      <span id="sync-status" class="sync-count">Resyncs <code>video_engagement_score</code>, <code>last_video_type</code>, <code>video_url</code> on GHL contacts from Supabase.</span>
+    </div>
+    <div class="sync-preview" id="sync-preview" style="display:none"></div>
   </div>
 
   <div class="panel" id="ctr-panel">
@@ -397,6 +431,62 @@ const DASHBOARD_HTML = `<!doctype html>
       }</div>\`;
   }
 
+  async function loadAlerts() {
+    const r = await api("/v1/admin/alerts");
+    const body = document.getElementById("alerts-body");
+    const alerts = r.alerts || [];
+    if (alerts.length === 0) {
+      body.innerHTML = "<div class='alerts-empty'>All clear — no active alerts.</div>";
+      return;
+    }
+    body.innerHTML = alerts.map(a => {
+      const idsHtml = a.ids && a.ids.length
+        ? "<div class='ids'>" + a.ids.join(", ") + (a.count > a.ids.length ? " (+" + (a.count - a.ids.length) + " more)" : "") + "</div>"
+        : "";
+      let actionHtml = "";
+      if (a.action) {
+        const label = a.action.method === "OPEN_URL"
+          ? "Open →"
+          : a.action.method + " " + a.action.path;
+        if (a.action.method === "OPEN_URL") {
+          actionHtml = "<a class='action-btn' href='" + a.action.path + "' target='_blank' rel='noopener'>" + label + "</a>";
+        } else {
+          actionHtml = "<button class='action-btn' data-action-method='" + a.action.method +
+            "' data-action-path='" + a.action.path +
+            "' data-action-body='" + (a.action.body ? encodeURIComponent(JSON.stringify(a.action.body)) : "") +
+            "'>" + label + "</button>";
+        }
+      }
+      return "<div class='alert " + a.severity + "'>" +
+        "<div class='dot'></div>" +
+        "<div class='body'>" +
+          "<div class='kind'>" + a.kind + "</div>" +
+          "<div>" + a.message + "</div>" +
+          idsHtml +
+          actionHtml +
+        "</div></div>";
+    }).join("");
+    body.querySelectorAll("button.action-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const method = btn.dataset.actionMethod;
+        const path = btn.dataset.actionPath;
+        const bodyEnc = btn.dataset.actionBody;
+        const bodyObj = bodyEnc ? JSON.parse(decodeURIComponent(bodyEnc)) : null;
+        if (!confirm(method + " " + path + (bodyObj ? "\\n\\n" + JSON.stringify(bodyObj, null, 2) : "") + "\\n\\nProceed?")) return;
+        let res;
+        if (method === "POST") {
+          res = await apiPost(path, bodyObj);
+        } else if (method === "DELETE") {
+          res = await apiDelete(path);
+        } else if (method === "GET") {
+          res = await api(path);
+        }
+        alert(JSON.stringify(res, null, 2));
+        refresh();
+      });
+    });
+  }
+
   async function loadAnalyticsSummary() {
     const s = await api("/v1/admin/analytics/summary?days=30");
     const totals = s.totals || {};
@@ -527,6 +617,68 @@ const DASHBOARD_HTML = `<!doctype html>
     }).join("");
   }
 
+  // Phase 10 — GHL engagement score sync panel
+  let _syncPreviewData = null;
+
+  document.getElementById("sync-preview-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("sync-preview-btn");
+    const statusEl = document.getElementById("sync-status");
+    btn.disabled = true;
+    statusEl.textContent = "Loading preview…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: true, max: 100 });
+      _syncPreviewData = r;
+      const preview = r.preview || [];
+      const previewEl = document.getElementById("sync-preview");
+      const commitBtn = document.getElementById("sync-commit-btn");
+      if (r.ok === false) {
+        statusEl.textContent = "Error: " + (r.error || r.reason || "unknown");
+        previewEl.style.display = "none";
+        commitBtn.style.display = "none";
+      } else {
+        statusEl.textContent =
+          r.total_contacts_with_videos + " contacts with delivered videos" +
+          (r.truncated ? " (showing first " + preview.length + ")" : "") + ".";
+        previewEl.style.display = preview.length ? "block" : "none";
+        if (preview.length) {
+          previewEl.innerHTML = \`<table>
+            <thead><tr><th>Contact ID</th><th style="text-align:right">Cumulative score</th></tr></thead>
+            <tbody>\${preview.slice(0, 20).map(c =>
+              \`<tr><td style="font-family:monospace">\${c.contact_id}</td><td style="text-align:right">\${c.total}</td></tr>\`
+            ).join("")}\${preview.length > 20 ? \`<tr><td colspan="2" style="color:var(--muted);text-align:center">… \${preview.length - 20} more</td></tr>\` : ""}
+            </tbody></table>\`;
+        }
+        commitBtn.style.display = preview.length ? "inline-block" : "none";
+      }
+    } catch (e) {
+      document.getElementById("sync-status").textContent = "Preview failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("sync-commit-btn").addEventListener("click", async () => {
+    const count = _syncPreviewData?.contacts_in_batch || _syncPreviewData?.preview?.length || 0;
+    if (!confirm("Write cumulative engagement scores to " + count + " GHL contacts?\\n\\nThis updates the video_engagement_score custom field for each contact. Proceed?")) return;
+    const commitBtn = document.getElementById("sync-commit-btn");
+    const statusEl = document.getElementById("sync-status");
+    commitBtn.disabled = true;
+    statusEl.textContent = "Syncing…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: false, max: 100 });
+      statusEl.textContent = r.ok
+        ? "Synced " + r.contacts_synced + " / " + r.contacts_attempted + " contacts."
+        : "Sync failed: " + (r.error || r.reason || "unknown");
+      document.getElementById("sync-preview").style.display = "none";
+      commitBtn.style.display = "none";
+      _syncPreviewData = null;
+    } catch (e) {
+      statusEl.textContent = "Commit failed: " + e.message;
+    } finally {
+      commitBtn.disabled = false;
+    }
+  });
+
   async function refresh() {
     // Promise.allSettled (NOT all) so one slow/failed endpoint
     // doesn't block the rest from rendering. The HeyGen template
@@ -538,6 +690,7 @@ const DASHBOARD_HTML = `<!doctype html>
     await Promise.allSettled([
       wrap(loadHealth),
       wrap(loadRateLimits),
+      wrap(loadAlerts),
       wrap(loadAnalyticsSummary),
       wrap(loadDailySummary),
       wrap(loadTopContacts),

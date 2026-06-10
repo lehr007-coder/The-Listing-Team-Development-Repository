@@ -26,6 +26,13 @@ Variables & Secrets → `PROXY_API_KEY`, or from `GET /v1/health`.
 | HeyGen credit balance | `GET /v1/admin/heygen/credits` |
 | Current rate limit counters | `GET /v1/admin/rate-limits` |
 | 30-day analytics summary | `GET /v1/admin/analytics/summary?days=30` |
+| Operational health alerts | `GET /v1/admin/alerts` |
+| Bulk-clean orphaned `rendered` jobs (dry-run) | `POST /v1/admin/jobs/orphan-cleanup` body `{}` |
+| Bulk-clean orphaned `rendered` jobs (commit) | `POST /v1/admin/jobs/orphan-cleanup` body `{"dry_run":false}` |
+| Send the weekly report now | `POST /v1/admin/reports/weekly/send` |
+| Preview the weekly report (no email) | `POST /v1/admin/reports/weekly/send` body `{"dry_run":true}` |
+| Preview GHL score resync | `POST /v1/admin/contacts/sync-scores` body `{"dry_run":true}` |
+| Commit GHL score resync | `POST /v1/admin/contacts/sync-scores` body `{"dry_run":false}` |
 | Kill switch — halt ALL new renders | `DELETE /v1/admin/kill` |
 | Resume after kill switch | `POST /v1/admin/kill` |
 | Browser dashboard | `https://videos.reallistingteam.com/admin` |
@@ -394,5 +401,114 @@ All secrets set via `npx wrangler secret put <NAME>` or Cloudflare dashboard.
 | `DAILY_RENDER_LIMIT` | 100 | Global renders per day |
 | `PER_CONTACT_DAILY_LIMIT` | 3 | Renders per contact per day |
 | `PER_LOCATION_DAILY_LIMIT` | 50 | Renders per GHL location per day |
+| `WEEKLY_REPORT_CONTACT_IDS` | "" | Comma-separated GHL contact IDs that receive the weekly report email |
 | `ENVIRONMENT` | production/staging | Controls HeyGen test mode |
 | `BASE_URL` | https://videos.reallistingteam.com | Self-reference for self-fetches |
+
+---
+
+## Weekly Performance Report (Phase 8)
+
+A weekly summary email is sent every Monday at 14:00 UTC (≈9am ET / 10am EDT)
+to every GHL contact ID listed in `WEEKLY_REPORT_CONTACT_IDS`. The email
+contains last-7-day totals, a daily activity sparkline, and a per-video-type
+breakdown with delivery rate and average engagement.
+
+**Configure recipients:**
+```bash
+# Comma-separated list of GHL contact IDs (max 20)
+# Each must be a real contact in your GHL workspace.
+wrangler secret put WEEKLY_REPORT_CONTACT_IDS
+# Paste: contact_id_1,contact_id_2,contact_id_3
+```
+
+**Manual trigger (for testing or off-schedule sends):**
+```bash
+# Preview only — renders the email + recipient list, no actual send
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run": true}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Send now (uses recipients from env)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Send to specific recipients (overrides env)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"recipients": ["ghl_contact_id_1", "ghl_contact_id_2"]}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+
+# Custom window (default 7 days)
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"days": 14}' \
+  https://videos.reallistingteam.com/v1/admin/reports/weekly/send | jq .
+```
+
+**Why GHL conversations API for the report?**
+Reuses existing GHL credentials + proven email path. Each recipient must be a
+contact in your GHL workspace — typically the broker, ops lead, and any other
+stakeholder who already exists as a GHL contact. No new SMTP credentials,
+deliverability config, or unsubscribe handling required (GHL owns that).
+
+---
+
+## GHL Contact Field Sync (Phase 10)
+
+Every time a contact engages with a video (open, click, watch), the system
+writes their cumulative `video_engagement_score` back to GHL automatically.
+Additionally, on each delivery the system now writes:
+
+| GHL Custom Field | What it contains |
+|-----------------|-----------------|
+| `last_video_type` | The video type just delivered (e.g. `new_listing_match`) |
+| `video_url` | Hosted URL for the most recently delivered video |
+| `video_thumbnail_url` | Thumbnail URL for the most recently delivered video |
+| `video_engagement_score` | Cumulative engagement points across ALL delivered videos |
+| `video_watch_percent` | Highest watch milestone hit on the most recent video (25/50/75/100) |
+
+These fields are in GHL "owned fields" and are set by this sidecar only — safe
+to use in GHL workflow conditions and smart list filters.
+
+**Resync GHL scores after a migration or data fix:**
+
+If scores in GHL are stale (e.g., after a data fix or system upgrade), use the
+batch resync endpoint. It queries Supabase for all delivered jobs, computes
+cumulative engagement per contact, and writes them back to GHL.
+
+```bash
+# Preview — shows which contacts would be updated and their computed scores
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run": true, "max": 100}' \
+  https://videos.reallistingteam.com/v1/admin/contacts/sync-scores | jq .
+
+# Commit — writes video_engagement_score to GHL for the first 100 contacts
+curl -s -X POST \
+  -H "Authorization: Bearer <KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run": false, "max": 100}' \
+  https://videos.reallistingteam.com/v1/admin/contacts/sync-scores | jq .
+```
+
+The `max` param caps GHL writes per request (default 50, hard cap 500). For
+large contact lists run multiple times — the scores are computed fresh each time
+so repeated calls are safe. The dashboard also has a "Preview score sync" +
+"Commit sync" button pair in the **GHL Contact Field Sync** panel.
+
+**Auto-cleanup of orphaned jobs (weekly cron):**
+
+The Monday 14:00 UTC cron now also auto-runs `orphan-cleanup` (dry_run=false,
+max_rows=50) alongside the weekly report. This bulk-marks any `rendered` jobs
+older than 6 hours that never received a delivery webhook as `failed`, keeping
+the dashboard counters accurate. The cleanup covers jobs from 6 hours to 30 days
+old — anything newer is still live, anything older isn't recoverable.
