@@ -22,6 +22,7 @@ import uuid
 
 API = "https://api.cloudflare.com/client/v4"
 SCRIPT = "tos-proxy-staging"
+UA = "Mozilla/5.0 (compatible; tos-deploy/1.0)"
 WORKER_URL = "https://tos-proxy-staging.lehr007.workers.dev"
 SECRET_TYPES = ("secret_text", "secret_key")
 REQUIRED_SECRETS = (
@@ -105,6 +106,9 @@ def main():
     print("bindings verified unchanged:", sorted(after_names))
 
     smoke = urllib.request.Request(WORKER_URL + "/tos/admin/stats")
+    # workers.dev sits behind Browser Integrity Check, which 403s (error
+    # 1010) the default Python-urllib User-Agent
+    smoke.add_header("User-Agent", UA)
     try:
         with urllib.request.urlopen(smoke) as r:
             status = r.status
@@ -127,6 +131,7 @@ def golive_call(token, payload, timeout=240):
     )
     req.add_header("Authorization", "Bearer " + token)
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.status, json.load(r)
 
@@ -139,7 +144,7 @@ def run_golive(token):
             status, body = golive_call(token, {"action": "inspect"})
             break
         except urllib.error.HTTPError as e:
-            if e.code in (401, 404) and attempt < 9:
+            if e.code in (401, 403, 404) and attempt < 9:
                 time.sleep(3)
                 continue
             print(f"golive inspect failed: HTTP {e.code} {e.read().decode()[:500]}")

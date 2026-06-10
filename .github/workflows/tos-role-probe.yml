@@ -32,13 +32,13 @@ jobs:
           fi
           FAILED=0
           for ROLE in buyer seller buyer_agent listing_agent buyer_brokerage listing_brokerage title escrow lender attorney inspector appraiser hoa vendor other; do
-            RESP=$(curl -sS -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+            RESP=$(curl -sS -A "Mozilla/5.0 (compatible; tos-probe/1.0)" -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
               -d "{\"transactionId\":\"$TXN\",\"name\":\"PROBE_$ROLE\",\"role\":\"$ROLE\"}" \
               "$WORKER/tos/admin/parties/create")
             PID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('partyId',''))" 2>/dev/null || true)
             if [ -n "$PID" ]; then
               echo "$ROLE -> OK ($PID)"
-              curl -sS -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+              curl -sS -A "Mozilla/5.0 (compatible; tos-probe/1.0)" -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
                 -d "{\"records\":[{\"objectKey\":\"custom_objects.tos_party\",\"id\":\"$PID\"}]}" \
                 "$WORKER/tos/admin/bulk-delete" > /dev/null
             else
