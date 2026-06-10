@@ -73172,6 +73172,51 @@ var src_default = {
         }
         return json7({ ok: true, attempts });
       }
+      if (gbody.action === "apply") {
+        const listRes = await gclient.request("GET", `/custom-fields/object-key/${OBJECT_KEYS.party}`, { locationId: glocation }, void 0, "2021-07-28");
+        if (!listRes.ok) {
+          return json7({ ok: false, step: "list", status: listRes.status, body: redact(listRes.json) }, 502);
+        }
+        const fields = listRes.json.fields ?? [];
+        const roleField = fields.find((f2) => String(f2.fieldKey ?? "").endsWith(".tos_party_role"));
+        if (!roleField || roleField.dataType !== "SINGLE_OPTIONS" || !Array.isArray(roleField.options)) {
+          return json7({ ok: false, step: "find", error: "tos_party_role SINGLE_OPTIONS field not found", fieldKeys: fields.map((f2) => f2.fieldKey) }, 502);
+        }
+        const existingKeys = new Set(roleField.options.map((o2) => o2.key));
+        if (!existingKeys.has("buyer") || !existingKeys.has("other")) {
+          return json7({ ok: false, step: "sanity", error: "field options missing expected baseline keys", options: roleField.options }, 502);
+        }
+        const wanted = [
+          ["buyer_brokerage", "Buyer Brokerage"],
+          ["listing_brokerage", "Listing Brokerage"],
+          ["title", "Title"],
+          ["escrow", "Escrow"],
+          ["lender", "Lender"],
+          ["attorney", "Attorney"],
+          ["inspector", "Inspector"],
+          ["appraiser", "Appraiser"],
+          ["hoa", "HOA"],
+          ["vendor", "Vendor"],
+          ["other", "Other"]
+        ];
+        const missing = wanted.filter(([k2]) => !existingKeys.has(k2));
+        if (missing.length === 0) {
+          return json7({ ok: true, applied: [], note: "all wanted role options already present", options: roleField.options.map((o2) => o2.key) });
+        }
+        const merged = [...roleField.options, ...missing.map(([key, label]) => ({ key, label }))];
+        const putRes = await gclient.request("PUT", `/custom-fields/${encodeURIComponent(roleField.id)}`, void 0, {
+          locationId: glocation,
+          name: roleField.name,
+          options: merged
+        }, "2021-07-28");
+        return json7({
+          ok: putRes.ok,
+          step: "put",
+          status: putRes.status,
+          applied: missing.map(([k2]) => k2),
+          body: JSON.stringify(redact(putRes.json)).slice(0, 3e3)
+        }, putRes.ok ? 200 : 502);
+      }
       if (gbody.action === "probe") {
         const roles = Array.isArray(gbody.roles) && gbody.roles.length > 0 ? gbody.roles : ["buyer", "seller", "buyer_agent", "listing_agent", "buyer_brokerage", "listing_brokerage", "title", "escrow", "lender", "attorney", "inspector", "appraiser", "hoa", "vendor", "other"];
         const results = [];

@@ -153,6 +153,7 @@ def run_golive(token):
     print(json.dumps(body, indent=2)[:9000])
 
     for action, extra, limit in (
+        ("apply", {}, 4000),
         ("probe", {}, 6000),
         ("locktest", {"transactionId": "GOLIVE_LOCKTEST"}, 4000),
     ):
@@ -160,6 +161,9 @@ def run_golive(token):
             status, body = golive_call(token, {"action": action, **extra})
             print(f"=== golive: {action} ===")
             print(json.dumps(body, indent=2)[:limit])
+        except urllib.error.HTTPError as e:
+            print(f"=== golive: {action} -> HTTP {e.code} ===")
+            print(e.read().decode()[:limit])
         except Exception as e:
             print(f"golive {action} failed: {str(e)[:300]}")
 
