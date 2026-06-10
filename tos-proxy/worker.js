@@ -73140,6 +73140,76 @@ var src_default = {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
+    if (pathname === "/tos/admin/golive" && req.method === "POST") {
+      const expectTok = env2.TOS_GOLIVE_TOKEN ?? "";
+      const gotTok = (req.headers.get("authorization") ?? "").replace(/^[Bb]earer\s+/, "").trim();
+      if (!expectTok || !constantTimeEquals(gotTok, expectTok)) {
+        return json7({ ok: false, error: "unauthorized" }, 401);
+      }
+      let gbody;
+      try {
+        gbody = await req.json();
+      } catch {
+        return json7({ ok: false, error: "invalid JSON" }, 400);
+      }
+      const gclient = new GhlClient(env2);
+      const glocation = env2.TOS_GHL_LOCATION_ID ?? "";
+      const redact = (v2) => JSON.parse(JSON.stringify(v2 ?? null).split(glocation).join("<loc>"));
+      if (gbody.action === "inspect") {
+        const attempts = [];
+        const tries = [
+          ["custom-fields-v2 object-key (prefixed)", `/custom-fields/object-key/${OBJECT_KEYS.party}`, { locationId: glocation }, "2021-07-28"],
+          ["custom-fields-v2 object-key (bare)", `/custom-fields/object-key/tos_party`, { locationId: glocation }, "2021-07-28"],
+          ["objects schema", `/objects/${OBJECT_KEYS.party}`, { locationId: glocation, fetchProperties: "true" }, "2023-02-21"]
+        ];
+        for (const [label, path, query, ver] of tries) {
+          try {
+            const r2 = await gclient.request("GET", path, query, void 0, ver);
+            attempts.push({ label, status: r2.status, body: JSON.stringify(redact(r2.json)).slice(0, 6e3) });
+          } catch (e2) {
+            attempts.push({ label, error: String(e2).slice(0, 200) });
+          }
+        }
+        return json7({ ok: true, attempts });
+      }
+      if (gbody.action === "probe") {
+        const roles = Array.isArray(gbody.roles) && gbody.roles.length > 0 ? gbody.roles : ["buyer", "seller", "buyer_agent", "listing_agent", "buyer_brokerage", "listing_brokerage", "title", "escrow", "lender", "attorney", "inspector", "appraiser", "hoa", "vendor", "other"];
+        const results = [];
+        for (const role of roles) {
+          try {
+            const pid = await createRecord(gclient, env2, OBJECT_KEYS.party, {
+              tos_party_name: `PROBE_${role}`,
+              tos_party_role: role
+            });
+            results.push({ role, ok: true });
+            try {
+              await gclient.request("DELETE", `/objects/${OBJECT_KEYS.party}/records/${encodeURIComponent(pid)}`, void 0, void 0, "2023-02-21");
+            } catch {
+            }
+          } catch (e2) {
+            results.push({ role, ok: false, error: String(redact(String(e2))).slice(0, 220) });
+          }
+        }
+        return json7({ ok: results.every((r2) => r2.ok), results });
+      }
+      if (gbody.action === "locktest") {
+        const { handleParserExtract: hpe } = await Promise.resolve().then(() => (init_parser_handlers(), parser_handlers_exports));
+        const txn = String(gbody.transactionId ?? "GOLIVE_LOCKTEST");
+        const mkReq = () => new Request("https://internal/tos/parser/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId: txn, fileUrl: "https://tos-golive.invalid/nonexistent.pdf" })
+        });
+        const p1 = hpe(mkReq(), env2);
+        await new Promise((r2) => setTimeout(r2, 500));
+        const p2 = hpe(mkReq(), env2);
+        const [r1, r22] = await Promise.all([p1, p2]);
+        const b1 = await r1.json();
+        const b2 = await r22.json();
+        return json7({ ok: true, statuses: [r1.status, r22.status], bodies: redact([b1, b2]) });
+      }
+      return json7({ ok: false, error: "unknown action" }, 400);
+    }
     if (pathname === "/tos/admin/stats") {
       return await handleAdminStats(req, env2);
     }

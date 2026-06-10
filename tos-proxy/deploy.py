@@ -13,7 +13,9 @@ Required env: CF_API_TOKEN (Workers Scripts edit permission).
 
 import json
 import os
+import secrets as pysecrets
 import sys
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -54,9 +56,19 @@ def main():
     print(f"account: {account['name']} ({account['id']})")
     base = f"/accounts/{account['id']}/workers/scripts/{SCRIPT}"
 
+    golive = os.environ.get("GOLIVE") == "1"
+    golive_token = pysecrets.token_hex(32) if golive else None
+
     settings = call("GET", base + "/settings")["result"]
     bindings = settings.get("bindings") or []
-    nonsecret = [b for b in bindings if b["type"] not in SECRET_TYPES]
+    # TOS_GOLIVE_TOKEN is a transient per-run binding; never carry a stale one
+    nonsecret = [
+        b for b in bindings
+        if b["type"] not in SECRET_TYPES and b["name"] != "TOS_GOLIVE_TOKEN"
+    ]
+    if golive:
+        print(f"::add-mask::{golive_token}")
+        nonsecret.append({"type": "plain_text", "name": "TOS_GOLIVE_TOKEN", "text": golive_token})
     secrets = sorted(b["name"] for b in bindings if b["type"] in SECRET_TYPES)
     print("bindings to re-send:", [(b["type"], b["name"]) for b in nonsecret])
     print("secrets preserved via keep_bindings:", secrets)
@@ -85,8 +97,9 @@ def main():
     print(f"deployed: id={result.get('id')} tag={result.get('etag', '')[:12]}")
 
     after = call("GET", base + "/settings")["result"]
-    before_names = {(b["type"], b["name"]) for b in bindings}
-    after_names = {(b["type"], b["name"]) for b in (after.get("bindings") or [])}
+    transient = {("plain_text", "TOS_GOLIVE_TOKEN")}
+    before_names = {(b["type"], b["name"]) for b in bindings} - transient
+    after_names = {(b["type"], b["name"]) for b in (after.get("bindings") or [])} - transient
     if before_names != after_names:
         sys.exit(f"BINDINGS CHANGED!\nbefore: {sorted(before_names)}\nafter:  {sorted(after_names)}")
     print("bindings verified unchanged:", sorted(after_names))
@@ -101,6 +114,49 @@ def main():
     if status >= 500:
         sys.exit(f"smoke check failed: GET /tos/admin/stats -> {status}")
     print(f"smoke check: GET /tos/admin/stats -> {status} (worker is serving)")
+
+    if golive:
+        run_golive(golive_token)
+
+
+def golive_call(token, payload, timeout=240):
+    req = urllib.request.Request(
+        WORKER_URL + "/tos/admin/golive",
+        data=json.dumps(payload).encode(),
+        method="POST",
+    )
+    req.add_header("Authorization", "Bearer " + token)
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.status, json.load(r)
+
+
+def run_golive(token):
+    """Post-deploy go-live checks via the transient /tos/admin/golive endpoint."""
+    # New code/binding can take a few seconds to propagate to the edge
+    for attempt in range(10):
+        try:
+            status, body = golive_call(token, {"action": "inspect"})
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 404) and attempt < 9:
+                time.sleep(3)
+                continue
+            print(f"golive inspect failed: HTTP {e.code} {e.read().decode()[:500]}")
+            return
+    print("=== golive: inspect tos_party_role field ===")
+    print(json.dumps(body, indent=2)[:9000])
+
+    for action, extra, limit in (
+        ("probe", {}, 6000),
+        ("locktest", {"transactionId": "GOLIVE_LOCKTEST"}, 4000),
+    ):
+        try:
+            status, body = golive_call(token, {"action": action, **extra})
+            print(f"=== golive: {action} ===")
+            print(json.dumps(body, indent=2)[:limit])
+        except Exception as e:
+            print(f"golive {action} failed: {str(e)[:300]}")
 
 
 if __name__ == "__main__":
