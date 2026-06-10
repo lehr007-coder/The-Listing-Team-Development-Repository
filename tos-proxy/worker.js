@@ -65842,6 +65842,27 @@ async function handleParserExtract(req, env2) {
   if (!body.fileUrl && !body.documentPacketId && !body.fileBase64) {
     return json2({ ok: false, error: "one of fileUrl, documentPacketId, or fileBase64 is required" }, 400);
   }
+  const lockKey = `parse-lock:${body.transactionId}`;
+  const LOCK_TTL = 120;
+  if (env2.TOS_KV) {
+    const existingLock = await env2.TOS_KV.get(lockKey);
+    if (existingLock) {
+      return json2({ ok: false, error: "parse already in progress for this transaction", retryAfter: LOCK_TTL }, 409);
+    }
+    await env2.TOS_KV.put(lockKey, crypto.randomUUID(), { expirationTtl: LOCK_TTL });
+  }
+  try {
+    return await runParserExtract(body, env2);
+  } finally {
+    if (env2.TOS_KV) {
+      try {
+        await env2.TOS_KV.delete(lockKey);
+      } catch {
+      }
+    }
+  }
+}
+async function runParserExtract(body, env2) {
   const client = new GhlClient(env2);
   let fileUrl = body.fileUrl;
   let packetRecordId = null;
@@ -65921,7 +65942,7 @@ async function handleParserExtract(req, env2) {
       storedPacketId,
       // operator can Re-parse later
       hint: storedPacketId ? "Contract was saved (you can download it from the deal). Parse failed \u2014 hit Re-parse once the underlying issue is fixed." : "Contract was NOT saved (writes disabled). Check TOS_WRITE_ENABLED + tos_ai_parsing_enabled."
-    }, 500);
+    }, 200);
   }
   const agentStudioUrl = env2.TOS_AGENT_STUDIO_WEBHOOK;
   if (agentStudioUrl) {
@@ -65992,37 +66013,27 @@ async function handleParserExtract(req, env2) {
       else if (otherKey === OBJECT_KEYS.party)
         partyIds.push(otherId);
     }
-    const [dlSearchRes, partySearchRes] = await Promise.all([
-      deadlineIds.length > 0 ? client.request(
-        "POST",
-        `/objects/${OBJECT_KEYS.deadline}/records/search`,
-        void 0,
-        { locationId: locationIdForAssoc, page: 1, pageLimit: 100, query: "" },
-        "2023-02-21"
-      ) : Promise.resolve({ ok: false, json: {} }),
-      partyIds.length > 0 ? client.request(
-        "POST",
-        `/objects/${OBJECT_KEYS.party}/records/search`,
-        void 0,
-        { locationId: locationIdForAssoc, page: 1, pageLimit: 100, query: "" },
-        "2023-02-21"
-      ) : Promise.resolve({ ok: false, json: {} })
+    const [dlFetches, partyFetches] = await Promise.all([
+      Promise.all(deadlineIds.map(
+        (id) => client.request("GET", `/objects/${OBJECT_KEYS.deadline}/records/${encodeURIComponent(id)}`, void 0, void 0, "2023-02-21").then((r2) => r2.ok ? r2.json.record : null).catch(() => null)
+      )),
+      Promise.all(partyIds.map(
+        (id) => client.request("GET", `/objects/${OBJECT_KEYS.party}/records/${encodeURIComponent(id)}`, void 0, void 0, "2023-02-21").then((r2) => r2.ok ? r2.json.record : null).catch(() => null)
+      ))
     ]);
-    if (dlSearchRes.ok) {
-      const allDls = (dlSearchRes.json.records ?? []).filter((r2) => deadlineIds.includes(r2.id));
-      for (const r2 of allDls) {
-        const dueDate = String(r2.properties[DEADLINE_FIELDS.dueDate] ?? "");
-        const type = normType(String(r2.properties[DEADLINE_FIELDS.type] ?? ""));
-        existingDeadlines.add(`${type}|${dueDate}`);
-      }
+    for (const r2 of dlFetches) {
+      if (!r2)
+        continue;
+      const dueDate = String(r2.properties[DEADLINE_FIELDS.dueDate] ?? "");
+      const type = normType(String(r2.properties[DEADLINE_FIELDS.type] ?? ""));
+      existingDeadlines.add(`${type}|${dueDate}`);
     }
-    if (partySearchRes.ok) {
-      const allParties = (partySearchRes.json.records ?? []).filter((r2) => partyIds.includes(r2.id));
-      for (const r2 of allParties) {
-        const role = String(r2.properties["tos_party_role"] ?? "").toLowerCase().trim();
-        const name = String(r2.properties["tos_party_name"] ?? "").toLowerCase().trim();
-        existingParties.add(`${role}|${name}`);
-      }
+    for (const r2 of partyFetches) {
+      if (!r2)
+        continue;
+      const role = String(r2.properties["tos_party_role"] ?? "").toLowerCase().trim();
+      const name = String(r2.properties["tos_party_name"] ?? "").toLowerCase().trim();
+      existingParties.add(`${role}|${name}`);
     }
     structuredLog("parser.dedup.snapshot", { txn: body.transactionId, deadlines: existingDeadlines.size, parties: existingParties.size });
   } catch (e2) {
@@ -66241,10 +66252,7 @@ async function createTransaction(client, env2, data) {
 async function createDocumentPacket(client, env2, fileUrl) {
   return createRecord(client, env2, OBJECT_KEYS.documentPacket, {
     [PACKET_FIELDS.label]: "Inbound Contract",
-    [PACKET_FIELDS.docType]: "Contract",
-    "tos_doc_uploaded_at": (/* @__PURE__ */ new Date()).toISOString(),
-    "tos_doc_file_ref": fileUrl,
-    "tos_doc_parser_status": "Pending"
+    [PACKET_FIELDS.docType]: "contract"
   });
 }
 async function linkRecords(client, env2, associationKey, records) {

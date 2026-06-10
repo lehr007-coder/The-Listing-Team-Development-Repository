@@ -86,21 +86,24 @@ The handoff's diagnosis is accurate for items 2, 3, 4, and 5 — all four bugs
 are confirmed in the live worker. Item 1c is already moot in the deployed
 code but presumably still pending in the local workspace.
 
-## To unblock, one of:
+## Update (2026-06-10 22:30 UTC) — fixes applied to a vendored bundle
 
-1. **Push the TOS proxy source to this repository** (e.g. `proxy/` at repo
-   root, from the local workspace clone). A cloud session can then make the
-   four code fixes exactly as the handoff specifies. Deploy and live curls
-   would still need to run from a machine with wrangler credentials and
-   network access, or the environment's network policy / secrets would need
-   to include them.
-2. **Run the handoff prompt locally** on the Mac that has the workspace —
-   the handoff was written for that environment and everything in it works
-   there as-is.
-3. **(Fallback, not recommended)** Vendor the deployed bundle into this repo
-   and patch it directly — this repo already uses the checked-in-bundle
-   pattern for `thelistingteamproxy/worker.js`, but it would fork the TOS
-   worker away from its TypeScript source of truth.
+Scott approved proceeding. Since the TS source remains unavailable here, the
+deployed bundle was vendored into this repo at `tos-proxy/worker.js` (pristine
+vendor commit, then a separate fix commit so the diff is a clean port
+reference) and the fixes for **items 2, 3, 4, and 5** were applied to it.
+Item 1c needs no code change in the deployed line (band-aid never deployed).
+See `tos-proxy/README.md` for the patch table, the warning about porting the
+fixes back to the TS workspace, and deploy/verification steps.
 
-No code was changed and nothing was deployed in this session. The only file
-added is this report.
+Still outstanding (cannot be done from this session):
+
+1. **Deploy** — no wrangler credentials here. Deploy from the Mac with the
+   existing `wrangler.staging.toml` (it carries the `TOS_KV` binding), either
+   from the patched TS source after porting, or pointing at this `worker.js`.
+2. **Item 1a/1b** — add the 11 role pick-list values in the GHL UI, then run
+   the role probe (network to the worker is blocked from this environment).
+3. **Live verification curls** — upload-and-parse and double-Re-parse checks
+   per the handoff, after deploy.
+4. **Port items 2–5 to the TS workspace** and remove the Item 1c band-aid
+   there, or the next local deploy reverts everything.
