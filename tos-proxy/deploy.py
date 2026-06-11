@@ -143,27 +143,29 @@ def run_golive(token):
     parse a synthetic contract PDF twice; the second pass must dedup to zero
     new deadlines/parties.
     """
-    records_json = os.environ.get("GOLIVE_DELETE_RECORDS")
-    if not records_json:
-        print("golive: GOLIVE_DELETE_RECORDS not set — nothing to run")
+    sets_json = os.environ.get("GOLIVE_CV_SETS")
+    if not sets_json:
+        print("golive: GOLIVE_CV_SETS not set — nothing to run")
         return
-    payload = {"action": "delete", "records": json.loads(records_json)}
-    # New code/binding can take a few seconds to propagate to the edge
-    for attempt in range(10):
-        try:
-            status, body = golive_call(token, payload, timeout=300)
-            break
-        except urllib.error.HTTPError as e:
-            if e.code in (401, 403, 404) and attempt < 9:
-                time.sleep(3)
-                continue
-            print(f"golive delete failed: HTTP {e.code} {e.read().decode()[:1500]}")
-            return
-        except Exception as e:
-            print(f"golive delete failed: {str(e)[:300]}")
-            return
-    print("=== golive: delete e2e test records ===")
-    print(json.dumps(body, indent=2)[:8000])
+    sets = json.loads(sets_json)
+    for key, value in sets:
+        payload = {"action": "cv-set", "key": key, "value": value}
+        # New code/binding can take a few seconds to propagate to the edge
+        for attempt in range(10):
+            try:
+                status, body = golive_call(token, payload, timeout=120)
+                print(f"=== golive: cv-set {key} -> {value} ===")
+                print(json.dumps(body, indent=2)[:2000])
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403, 404) and attempt < 9:
+                    time.sleep(3)
+                    continue
+                print(f"::error::cv-set {key} failed: HTTP {e.code} {e.read().decode()[:800]}")
+                break
+            except Exception as e:
+                print(f"::error::cv-set {key} failed: {str(e)[:300]}")
+                break
 
 
 if __name__ == "__main__":
