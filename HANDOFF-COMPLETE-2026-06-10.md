@@ -163,12 +163,24 @@ send real reminders to real clients, and with `tos_shadow_mode=false` +
 immediately. Flip it from the dashboard kill-switch panel when ready.
 The `TOS status snapshot` workflow can re-capture this state any time.
 
-## Remaining operator checklist (GHL/Cloudflare UI — do not code)
+## Go-live flips (2026-06-11 14:41 UTC) — DONE ✅ (operator-approved in session)
+
+Scott approved via the session prompt; executed through the worker's own
+`handleAdminKillSwitch` path (run 27354904340):
+
+- `tos_deadline_reminders_enabled`: `false` → **`true`** (cv `fLk2E7BOqawnBVSSt2Zh`)
+- `tos_cutover_pct`: `0` → **`100`** (cv `V3Zi9w4wRw7HgmA97n55`)
+
+**The system is fully live.** Deadline reminders will send to deal parties as
+deadlines come due, and all new transactions run on TOS.
+
+## Remaining operator checklist
 
 | What | Where |
 |---|---|
 | ~~Add 11 role pick-list values + probe~~ **DONE via API 2026-06-10** | — |
-| Flip `tos_deadline_reminders_enabled` → true | GHL Custom Values |
-| Set real `tos_google_review_url` | GHL Custom Values |
-| Upload a real contract via "📤 Upload & Parse"; expect +1 doc, deadlines/parties, no dupes (Re-parse-twice 409 already verified live) | TOS dashboard |
-| Move `tos_cutover_pct` 0 → 100 when confident | GHL Custom Values |
+| ~~Flip `tos_deadline_reminders_enabled` → true~~ **DONE 2026-06-11** | — |
+| ~~Move `tos_cutover_pct` 0 → 100~~ **DONE 2026-06-11** | — |
+| ~~Upload-and-parse verification~~ **DONE (synthetic e2e) 2026-06-11** — optionally repeat with a real contract | — |
+| Set real `tos_google_review_url` (deliberately skipped — value not provided; review emails would carry a broken link until set) | GHL Custom Values |
+| Port fixes to the Mac TS workspace (`tos-proxy/PORTING-TO-TS.md`) | Mac |
