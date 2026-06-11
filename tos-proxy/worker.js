@@ -73165,6 +73165,12 @@ var src_default = {
         });
         const r2 = await haks(innerReq, env2);
         const b2 = await r2.json();
+        if (r2.status === 404) {
+          init_ghl();
+          const client = new GhlClient(env2);
+          const createRes = await client.request("POST", `/locations/${getLocationId(env2)}/customValues`, void 0, { name: gbody.key, value: String(gbody.value) }, "2021-07-28");
+          return json7({ status: createRes.status, created: true, result: createRes.json }, createRes.ok ? 200 : 500);
+        }
         return json7({ status: r2.status, result: b2 }, r2.status);
       }
       return json7({ ok: false, error: "unknown action" }, 400);
