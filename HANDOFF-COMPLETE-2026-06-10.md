@@ -112,6 +112,29 @@ aggregate transaction/deadline counts only, and the main-proxy dashboard
 widget may rely on it being open. Decide deliberately whether to gate it
 behind `requireProxyAuth` in the TS source.
 
+## Live state snapshot (2026-06-11 01:29 UTC, via `TOS status snapshot` workflow)
+
+```
+tos_master_enabled              = true
+tos_shadow_mode                 = false   ← live-writing, NOT shadow
+tos_cutover_pct                 = 0
+tos_deadline_reminders_enabled  = false   ← intentionally left off (see below)
+tos_ai_parsing_enabled          = true
+tos_ai_autowrite_enabled        = true
+tos_intake_form_enabled         = true
+tos_intake_email_enabled        = false
+tos_postclose_enabled           = false
+tos_risk_engine_enabled         = true
+transactions: total=1 open=1 (test deal) · deadlines: 8 (no status set)
+```
+
+`tos_deadline_reminders_enabled` was deliberately NOT flipped from this
+session: the worker's own runbook says to wait until you trust the system to
+send real reminders to real clients, and with `tos_shadow_mode=false` +
+`tos_master_enabled=true` the flag is hot — flipping it starts real sends
+immediately. Flip it from the dashboard kill-switch panel when ready.
+The `TOS status snapshot` workflow can re-capture this state any time.
+
 ## Remaining operator checklist (GHL/Cloudflare UI — do not code)
 
 | What | Where |
