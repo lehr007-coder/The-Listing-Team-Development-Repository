@@ -1,0 +1,39 @@
+# Read-only snapshot of the TOS worker's go-live state: kill switches,
+# transaction counts, and which custom values are still at their
+# pre-cutover defaults. Uses only the public stats endpoint.
+name: TOS status snapshot
+
+on:
+  workflow_dispatch:
+  # workflow_dispatch only registers from the default branch; pushing this
+  # file also runs the snapshot so it works from feature branches too
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - '.github/workflows/tos-status.yml'
+
+jobs:
+  status:
+    name: Snapshot tos-proxy-staging state
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch /tos/admin/stats
+        run: |
+          curl -sS -A "Mozilla/5.0 (compatible; tos-status/1.0)" \
+            https://tos-proxy-staging.lehr007.workers.dev/tos/admin/stats \
+          | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)
+          print("== kill switches / custom values ==")
+          for k, v in sorted((d.get("killSwitches") or {}).items()):
+              print("  " + str(k) + " = " + str(v))
+          t = d.get("transactions") or {}
+          print("== transactions ==")
+          print("  total=" + str(t.get("total")) + " open=" + str(t.get("open")) + " byRiskBand=" + json.dumps(t.get("byRiskBand")))
+          for key in ("deadlines", "parties", "documents"):
+              if key in d:
+                  print("== " + key + " ==")
+                  print("  " + json.dumps(d[key])[:400])
+          '
