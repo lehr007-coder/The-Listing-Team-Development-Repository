@@ -143,34 +143,27 @@ def run_golive(token):
     parse a synthetic contract PDF twice; the second pass must dedup to zero
     new deadlines/parties.
     """
-    pdf_path = os.environ.get("GOLIVE_E2E_PDF")
-    txn = os.environ.get("GOLIVE_E2E_TXN")
-    if not pdf_path or not txn:
-        print("golive: GOLIVE_E2E_PDF/GOLIVE_E2E_TXN not set — nothing to run")
+    records_json = os.environ.get("GOLIVE_DELETE_RECORDS")
+    if not records_json:
+        print("golive: GOLIVE_DELETE_RECORDS not set — nothing to run")
         return
-    import base64
-    payload = {
-        "action": "e2e",
-        "transactionId": txn,
-        "fileBase64": base64.b64encode(open(pdf_path, "rb").read()).decode(),
-        "filename": "SYNTHETIC-TEST-CONTRACT.pdf",
-    }
+    payload = {"action": "delete", "records": json.loads(records_json)}
     # New code/binding can take a few seconds to propagate to the edge
     for attempt in range(10):
         try:
-            status, body = golive_call(token, payload, timeout=480)
+            status, body = golive_call(token, payload, timeout=300)
             break
         except urllib.error.HTTPError as e:
             if e.code in (401, 403, 404) and attempt < 9:
                 time.sleep(3)
                 continue
-            print(f"golive e2e failed: HTTP {e.code} {e.read().decode()[:1500]}")
+            print(f"golive delete failed: HTTP {e.code} {e.read().decode()[:1500]}")
             return
         except Exception as e:
-            print(f"golive e2e failed: {str(e)[:300]}")
+            print(f"golive delete failed: {str(e)[:300]}")
             return
-    print("=== golive: e2e upload-and-parse (parse twice, expect dedup) ===")
-    print(json.dumps(body, indent=2)[:9000])
+    print("=== golive: delete e2e test records ===")
+    print(json.dumps(body, indent=2)[:8000])
 
 
 if __name__ == "__main__":
