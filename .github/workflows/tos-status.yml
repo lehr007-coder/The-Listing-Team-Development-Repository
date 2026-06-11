@@ -28,12 +28,12 @@ jobs:
           d = json.load(sys.stdin)
           print("== kill switches / custom values ==")
           for k, v in sorted((d.get("killSwitches") or {}).items()):
-              print(f"  {k} = {v}")
+              print("  " + str(k) + " = " + str(v))
           t = d.get("transactions") or {}
           print("== transactions ==")
-          print(f"  total={t.get(\"total\")} open={t.get(\"open\")} byRiskBand={t.get(\"byRiskBand\")}")
+          print("  total=" + str(t.get("total")) + " open=" + str(t.get("open")) + " byRiskBand=" + json.dumps(t.get("byRiskBand")))
           for key in ("deadlines", "parties", "documents"):
               if key in d:
-                  print(f"== {key} ==")
-                  print(f"  {json.dumps(d[key])[:400]}")
+                  print("== " + key + " ==")
+                  print("  " + json.dumps(d[key])[:400])
           '
