@@ -137,35 +137,40 @@ def golive_call(token, payload, timeout=240):
 
 
 def run_golive(token):
-    """Post-deploy go-live checks via the transient /tos/admin/golive endpoint."""
+    """Post-deploy go-live checks via the transient /tos/admin/golive endpoint.
+
+    Current round: end-to-end upload-and-parse verification on the test deal —
+    parse a synthetic contract PDF twice; the second pass must dedup to zero
+    new deadlines/parties.
+    """
+    pdf_path = os.environ.get("GOLIVE_E2E_PDF")
+    txn = os.environ.get("GOLIVE_E2E_TXN")
+    if not pdf_path or not txn:
+        print("golive: GOLIVE_E2E_PDF/GOLIVE_E2E_TXN not set — nothing to run")
+        return
+    import base64
+    payload = {
+        "action": "e2e",
+        "transactionId": txn,
+        "fileBase64": base64.b64encode(open(pdf_path, "rb").read()).decode(),
+        "filename": "SYNTHETIC-TEST-CONTRACT.pdf",
+    }
     # New code/binding can take a few seconds to propagate to the edge
     for attempt in range(10):
         try:
-            status, body = golive_call(token, {"action": "inspect"})
+            status, body = golive_call(token, payload, timeout=480)
             break
         except urllib.error.HTTPError as e:
             if e.code in (401, 403, 404) and attempt < 9:
                 time.sleep(3)
                 continue
-            print(f"golive inspect failed: HTTP {e.code} {e.read().decode()[:500]}")
+            print(f"golive e2e failed: HTTP {e.code} {e.read().decode()[:1500]}")
             return
-    print("=== golive: inspect tos_party_role field ===")
-    print(json.dumps(body, indent=2)[:9000])
-
-    for action, extra, limit in (
-        ("apply", {}, 4000),
-        ("probe", {}, 6000),
-        ("locktest", {"transactionId": "GOLIVE_LOCKTEST"}, 4000),
-    ):
-        try:
-            status, body = golive_call(token, {"action": action, **extra})
-            print(f"=== golive: {action} ===")
-            print(json.dumps(body, indent=2)[:limit])
-        except urllib.error.HTTPError as e:
-            print(f"=== golive: {action} -> HTTP {e.code} ===")
-            print(e.read().decode()[:limit])
         except Exception as e:
-            print(f"golive {action} failed: {str(e)[:300]}")
+            print(f"golive e2e failed: {str(e)[:300]}")
+            return
+    print("=== golive: e2e upload-and-parse (parse twice, expect dedup) ===")
+    print(json.dumps(body, indent=2)[:9000])
 
 
 if __name__ == "__main__":

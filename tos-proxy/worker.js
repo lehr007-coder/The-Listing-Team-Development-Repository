@@ -73140,6 +73140,85 @@ var src_default = {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
+    if (pathname === "/tos/admin/golive" && req.method === "POST") {
+      const expectTok = env2.TOS_GOLIVE_TOKEN ?? "";
+      const gotTok = (req.headers.get("authorization") ?? "").replace(/^[Bb]earer\s+/, "").trim();
+      if (!expectTok || !constantTimeEquals(gotTok, expectTok)) {
+        return json7({ ok: false, error: "unauthorized" }, 401);
+      }
+      let gbody;
+      try {
+        gbody = await req.json();
+      } catch {
+        return json7({ ok: false, error: "invalid JSON" }, 400);
+      }
+      const gclient = new GhlClient(env2);
+      const glocation = env2.TOS_GHL_LOCATION_ID ?? "";
+      const redact = (v2) => JSON.parse(JSON.stringify(v2 ?? null).split(glocation).join("<loc>"));
+      if (gbody.action === "e2e") {
+        const txn = String(gbody.transactionId ?? "");
+        if (!txn || !gbody.fileBase64) {
+          return json7({ ok: false, error: "transactionId and fileBase64 required" }, 400);
+        }
+        const countRelated = async () => {
+          const relRes = await gclient.request("GET", `/associations/relations/${encodeURIComponent(txn)}`, { locationId: glocation }, void 0, "2021-07-28");
+          const rels = relRes.json && relRes.json.relations || [];
+          const counts = { deadlines: 0, parties: 0, packets: 0 };
+          for (const rl of rels) {
+            const k2 = rl.firstRecordId === txn ? rl.secondObjectKey : rl.firstObjectKey;
+            if (k2 === OBJECT_KEYS.deadline)
+              counts.deadlines++;
+            else if (k2 === OBJECT_KEYS.party)
+              counts.parties++;
+            else if (k2 === OBJECT_KEYS.documentPacket)
+              counts.packets++;
+          }
+          return counts;
+        };
+        const slim = (b2) => ({
+          ok: b2.ok,
+          parseError: b2.parseError,
+          skipped: b2.skipped,
+          reason: b2.reason,
+          storedPacketId: b2.storedPacketId,
+          createdDeadlineIds: b2.createdDeadlineIds,
+          skippedDeadlines: b2.skippedDeadlines,
+          deadlineErrors: b2.deadlineErrors,
+          createdPartyIds: b2.createdPartyIds,
+          skippedParties: b2.skippedParties,
+          partyErrors: b2.partyErrors,
+          wrote: b2.wrote,
+          extractedSummary: b2.extracted ? {
+            address: b2.extracted.propertyAddress,
+            deadlines: (b2.extracted.contingencyDeadlines ?? []).length,
+            parties: (b2.extracted.parties ?? []).length
+          } : void 0
+        });
+        const { handleParserExtract: hpe } = await Promise.resolve().then(() => (init_parser_handlers(), parser_handlers_exports));
+        const mkReq = () => new Request("https://internal/tos/parser/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId: txn, fileBase64: gbody.fileBase64, filename: gbody.filename ?? "synthetic-test-contract.pdf" })
+        });
+        const before = await countRelated();
+        const r1 = await hpe(mkReq(), env2);
+        const b1 = await r1.json();
+        const afterFirst = await countRelated();
+        const r22 = await hpe(mkReq(), env2);
+        const b22 = await r22.json();
+        const afterSecond = await countRelated();
+        return json7({
+          ok: true,
+          statuses: [r1.status, r22.status],
+          before,
+          afterFirst,
+          afterSecond,
+          first: redact(slim(b1)),
+          second: redact(slim(b22))
+        });
+      }
+      return json7({ ok: false, error: "unknown action" }, 400);
+    }
     if (pathname === "/tos/admin/stats") {
       return await handleAdminStats(req, env2);
     }

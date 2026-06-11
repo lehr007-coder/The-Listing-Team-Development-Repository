@@ -20,7 +20,53 @@ jobs:
       - uses: actions/checkout@v5
       - name: Syntax check
         run: node --check tos-proxy/worker.js
+      # Transient go-live round: generate a synthetic contract and run the
+      # end-to-end upload-and-parse verification on the test deal. Remove
+      # the PDF step and GOLIVE_* envs when done.
+      - name: Generate synthetic test contract PDF
+        run: |
+          pip install --quiet fpdf2
+          python3 - <<'EOF'
+          from fpdf import FPDF
+          pdf = FPDF()
+          pdf.add_page()
+          pdf.set_font("Helvetica", "B", 14)
+          pdf.cell(0, 10, "RESIDENTIAL PURCHASE AND SALE AGREEMENT", new_x="LMARGIN", new_y="NEXT")
+          pdf.set_font("Helvetica", "B", 10)
+          pdf.cell(0, 8, "*** SYNTHETIC TEST DOCUMENT - PIPELINE VERIFICATION ONLY ***", new_x="LMARGIN", new_y="NEXT")
+          pdf.set_font("Helvetica", "", 11)
+          for line in [
+              "",
+              "Property Address: 4119 Maplewood Court, Tampa, FL 33611",
+              "Buyer: Steve Lambevrt",
+              "Seller: Karen T. Holloway",
+              "Purchase Price: $412,000.00",
+              "Effective Date: June 10, 2026",
+              "",
+              "CONTINGENCIES AND DEADLINES",
+              "Inspection Period: Buyer shall complete inspections by June 20, 2026.",
+              "Financing Contingency: Buyer shall obtain loan approval by July 1, 2026.",
+              "Title Evidence: Seller shall deliver title evidence by June 25, 2026.",
+              "Closing Date: The transaction shall close on July 15, 2026.",
+              "",
+              "PARTIES AND CONTACTS",
+              "Buyer's Agent: Dana Whitfield, The Listing Team",
+              "Listing Agent: Marcus Bell, Sunshine Realty Group",
+              "Lender: Gulf Coast Home Loans, attn. Priya Nair",
+              "Title Company: Bayshore Title Services LLC",
+              "Inspector: Reliable Home Inspections, Tom Garza",
+              "",
+              "This synthetic document exists solely to verify the Transaction OS",
+              "contract-parsing pipeline end to end on the designated test deal.",
+          ]:
+              pdf.cell(0, 7, line, new_x="LMARGIN", new_y="NEXT")
+          pdf.output("/tmp/synthetic-test-contract.pdf")
+          print("wrote /tmp/synthetic-test-contract.pdf")
+          EOF
       - name: Deploy via Cloudflare API (bindings preserved)
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GOLIVE: '1'
+          GOLIVE_E2E_PDF: /tmp/synthetic-test-contract.pdf
+          GOLIVE_E2E_TXN: 6a27632808ed2724d05d0bcd
         run: python3 tos-proxy/deploy.py
