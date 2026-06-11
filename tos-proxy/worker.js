@@ -73140,36 +73140,6 @@ var src_default = {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
-    if (pathname === "/tos/admin/golive" && req.method === "POST") {
-      const expectTok = env2.TOS_GOLIVE_TOKEN ?? "";
-      const gotTok = (req.headers.get("authorization") ?? "").replace(/^[Bb]earer\s+/, "").trim();
-      if (!expectTok || !constantTimeEquals(gotTok, expectTok)) {
-        return json7({ ok: false, error: "unauthorized" }, 401);
-      }
-      let gbody;
-      try {
-        gbody = await req.json();
-      } catch {
-        return json7({ ok: false, error: "invalid JSON" }, 400);
-      }
-      const gclient = new GhlClient(env2);
-      const glocation = env2.TOS_GHL_LOCATION_ID ?? "";
-      const redact = (v2) => JSON.parse(JSON.stringify(v2 ?? null).split(glocation).join("<loc>"));
-      if (gbody.action === "delete") {
-        const recs = Array.isArray(gbody.records) ? gbody.records : [];
-        const results = [];
-        for (const rec of recs) {
-          try {
-            const r2 = await gclient.request("DELETE", `/objects/${rec.objectKey}/records/${encodeURIComponent(rec.id)}`, void 0, void 0, "2023-02-21");
-            results.push({ id: rec.id, status: r2.status });
-          } catch (e2) {
-            results.push({ id: rec.id, error: String(e2).slice(0, 150) });
-          }
-        }
-        return json7({ ok: results.every((r2) => r2.status === 200 || r2.status === 204), results });
-      }
-      return json7({ ok: false, error: "unknown action" }, 400);
-    }
     if (pathname === "/tos/admin/stats") {
       return await handleAdminStats(req, env2);
     }

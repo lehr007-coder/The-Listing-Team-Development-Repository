@@ -20,30 +20,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Syntax check
         run: node --check tos-proxy/worker.js
-      # Transient go-live round: delete the synthetic records the e2e
-      # upload-and-parse test created on the test deal. Remove the GOLIVE_*
-      # envs when done.
       - name: Deploy via Cloudflare API (bindings preserved)
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GOLIVE: '1'
-          GOLIVE_DELETE_RECORDS: >-
-            [{"objectKey":"custom_objects.tos_deadline","id":"6a2a127725db590fb4822ba9"},
-             {"objectKey":"custom_objects.tos_deadline","id":"6a2a12786888d03181b0e0df"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a12799f811a81b1566b0e"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1279492f4534a5f552a5"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a127a17f0247782f07bda"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a127bad29c24cc934bd03"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a127b36400891e97d8147"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1282689669618ffdb436"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a12830f6ce52f2ea01f20"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1283cc8e91270d536383"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1284f75e9c28e9ad4210"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a12857af04bd40deb9de6"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1295e1fcf04eb46e85d2"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a12968f2d4d6dce5de1da"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a12969c7adb19599c29f3"},
-             {"objectKey":"custom_objects.tos_party","id":"6a2a1297cafb6e541f86ec3d"},
-             {"objectKey":"custom_objects.tos_document_packet","id":"6a2a126a7f1e80c8acd6ca1a"},
-             {"objectKey":"custom_objects.tos_document_packet","id":"6a2a12860f6ce5fc9ca01f22"}]
         run: python3 tos-proxy/deploy.py
