@@ -5,6 +5,14 @@ name: TOS status snapshot
 
 on:
   workflow_dispatch:
+  # workflow_dispatch only registers from the default branch; pushing this
+  # file also runs the snapshot so it works from feature branches too
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - '.github/workflows/tos-status.yml'
 
 jobs:
   status:
