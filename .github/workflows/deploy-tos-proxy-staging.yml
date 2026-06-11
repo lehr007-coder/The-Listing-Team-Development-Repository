@@ -20,7 +20,12 @@ jobs:
       - uses: actions/checkout@v5
       - name: Syntax check
         run: node --check tos-proxy/worker.js
+      # Transient round (operator-provided value): set the Google review
+      # link custom value via the worker's kill-switch handler. Remove the
+      # GOLIVE_* envs when done.
       - name: Deploy via Cloudflare API (bindings preserved)
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GOLIVE: '1'
+          GOLIVE_CV_SETS: '[["tos_google_review_url","https://links.reallistingteam.com/widget/survey/tJdaRjMSL5aB5YkzTtwb"]]'
         run: python3 tos-proxy/deploy.py
