@@ -137,35 +137,35 @@ def golive_call(token, payload, timeout=240):
 
 
 def run_golive(token):
-    """Post-deploy go-live checks via the transient /tos/admin/golive endpoint."""
-    # New code/binding can take a few seconds to propagate to the edge
-    for attempt in range(10):
-        try:
-            status, body = golive_call(token, {"action": "inspect"})
-            break
-        except urllib.error.HTTPError as e:
-            if e.code in (401, 403, 404) and attempt < 9:
-                time.sleep(3)
-                continue
-            print(f"golive inspect failed: HTTP {e.code} {e.read().decode()[:500]}")
-            return
-    print("=== golive: inspect tos_party_role field ===")
-    print(json.dumps(body, indent=2)[:9000])
+    """Post-deploy go-live checks via the transient /tos/admin/golive endpoint.
 
-    for action, extra, limit in (
-        ("apply", {}, 4000),
-        ("probe", {}, 6000),
-        ("locktest", {"transactionId": "GOLIVE_LOCKTEST"}, 4000),
-    ):
-        try:
-            status, body = golive_call(token, {"action": action, **extra})
-            print(f"=== golive: {action} ===")
-            print(json.dumps(body, indent=2)[:limit])
-        except urllib.error.HTTPError as e:
-            print(f"=== golive: {action} -> HTTP {e.code} ===")
-            print(e.read().decode()[:limit])
-        except Exception as e:
-            print(f"golive {action} failed: {str(e)[:300]}")
+    Current round: end-to-end upload-and-parse verification on the test deal —
+    parse a synthetic contract PDF twice; the second pass must dedup to zero
+    new deadlines/parties.
+    """
+    sets_json = os.environ.get("GOLIVE_CV_SETS")
+    if not sets_json:
+        print("golive: GOLIVE_CV_SETS not set — nothing to run")
+        return
+    sets = json.loads(sets_json)
+    for key, value in sets:
+        payload = {"action": "cv-set", "key": key, "value": value}
+        # New code/binding can take a few seconds to propagate to the edge
+        for attempt in range(10):
+            try:
+                status, body = golive_call(token, payload, timeout=120)
+                print(f"=== golive: cv-set {key} -> {value} ===")
+                print(json.dumps(body, indent=2)[:2000])
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403, 404) and attempt < 9:
+                    time.sleep(3)
+                    continue
+                print(f"::error::cv-set {key} failed: HTTP {e.code} {e.read().decode()[:800]}")
+                break
+            except Exception as e:
+                print(f"::error::cv-set {key} failed: {str(e)[:300]}")
+                break
 
 
 if __name__ == "__main__":

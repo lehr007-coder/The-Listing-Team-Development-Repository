@@ -143,6 +143,16 @@ The parse-failure return whose body is
 change `}, 500);` to `}, 200);`. (The comment above it already says
 "Return 200 not 500".)
 
+## Edit 6 (optional, cosmetic) — onboarding runbook HTML
+
+The embedded onboarding page's "Flip the right kill switches" step (step 4 in
+the HTML served by the worker — find the `WAIT</strong> on
+<code>tos_deadline_reminders_enabled` text in the TS source) was updated on
+the deployed bundle to reflect the completed go-live: all switches shown as
+on, shadow off + cutover 100 since 2026-06-11, and a warning that
+`tos_google_review_url` is still unset. Mirror the same text in the TS source
+or the next local deploy reverts the page to the stale "WAIT" guidance.
+
 ---
 
 ## Paste-able prompt for Claude Code on the Mac

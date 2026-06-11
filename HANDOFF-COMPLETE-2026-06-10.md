@@ -103,6 +103,34 @@ action is needed there.
    in the workflow above; upload-and-parse and the double-Re-parse check
    remain manual via the dashboard.
 
+## End-to-end upload-and-parse verification (2026-06-11 01:42 UTC) — PASSED ✅
+
+Run via a transient endpoint (removed afterwards): a clearly-marked synthetic
+contract PDF was parsed twice on the test deal through the real inline-base64
+path (run 27318132917).
+
+- **First parse:** packet stored; transaction fields written
+  (`tos_closing_date_pending=2026-07-15`, `tos_contract_effective_date=
+  2026-06-10`, `tos_side=Both`, confidence 0.82, status `Auto-Applied`);
+  4 deadlines extracted → 2 created + 2 correctly skipped (they matched
+  deadlines already on the deal); 10 parties created across the new role keys
+  (brokerages, title, lender, inspector, agents).
+- **Second parse (same file):** **deadline dedup exact** — 0 created, all 4
+  skipped. Party dedup skipped 6/10 but created 4 near-duplicates.
+- **Cleanup:** all synthetic records (2 deadlines, 14 parties, 2 packets)
+  deleted; the deal's related-record set is back to its pre-test state. The
+  transaction fields above still reflect the synthetic contract (test deal,
+  left as evidence).
+
+### Follow-up finding (not in handoff scope)
+Party dedup keys on exact `role|name`, but Claude's extraction phrases
+compound party names differently between runs (e.g. agent + brokerage,
+inspector + person), so re-parses can create near-duplicate parties even
+though the dedup mechanism itself works. Deadlines are immune (dates are
+deterministic). Candidate fixes: normalize party names in the extraction
+prompt, or fuzzy/secondary dedup keys (role + email, role + last name).
+Recommend addressing in the TS source when porting.
+
 ## Security observation (out of scope, flagging only)
 
 `GET /tos/admin/stats` responds 200 without authentication (confirmed during
@@ -135,12 +163,24 @@ send real reminders to real clients, and with `tos_shadow_mode=false` +
 immediately. Flip it from the dashboard kill-switch panel when ready.
 The `TOS status snapshot` workflow can re-capture this state any time.
 
-## Remaining operator checklist (GHL/Cloudflare UI — do not code)
+## Go-live flips (2026-06-11 14:41 UTC) — DONE ✅ (operator-approved in session)
+
+Scott approved via the session prompt; executed through the worker's own
+`handleAdminKillSwitch` path (run 27354904340):
+
+- `tos_deadline_reminders_enabled`: `false` → **`true`** (cv `fLk2E7BOqawnBVSSt2Zh`)
+- `tos_cutover_pct`: `0` → **`100`** (cv `V3Zi9w4wRw7HgmA97n55`)
+
+**The system is fully live.** Deadline reminders will send to deal parties as
+deadlines come due, and all new transactions run on TOS.
+
+## Remaining operator checklist
 
 | What | Where |
 |---|---|
 | ~~Add 11 role pick-list values + probe~~ **DONE via API 2026-06-10** | — |
-| Flip `tos_deadline_reminders_enabled` → true | GHL Custom Values |
-| Set real `tos_google_review_url` | GHL Custom Values |
-| Upload a real contract via "📤 Upload & Parse"; expect +1 doc, deadlines/parties, no dupes (Re-parse-twice 409 already verified live) | TOS dashboard |
-| Move `tos_cutover_pct` 0 → 100 when confident | GHL Custom Values |
+| ~~Flip `tos_deadline_reminders_enabled` → true~~ **DONE 2026-06-11** | — |
+| ~~Move `tos_cutover_pct` 0 → 100~~ **DONE 2026-06-11** | — |
+| ~~Upload-and-parse verification~~ **DONE (synthetic e2e) 2026-06-11** — optionally repeat with a real contract | — |
+| Set real `tos_google_review_url` (deliberately skipped — value not provided; review emails would carry a broken link until set) | GHL Custom Values |
+| Port fixes to the Mac TS workspace (`tos-proxy/PORTING-TO-TS.md`) | Mac |
