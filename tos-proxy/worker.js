@@ -78158,15 +78158,16 @@ function renderHelpDashboardHtml(_env, url) {
         <div class="step">
           <div class="step-num">4</div>
           <div class="step-body">
-            <h3>Flip the right kill switches</h3>
-            <p>Open <a href="/tos/admin">/tos/admin</a> \u2192 unlock with API key \u2192 \u{1F518} Kill Switch Toggles section. Flip these:</p>
+            <h3>Kill switches \u2014 go-live complete (2026-06-11)</h3>
+            <p>Open <a href="/tos/admin">/tos/admin</a> \u2192 unlock with API key \u2192 \u{1F518} Kill Switch Toggles section. Current state:</p>
             <ul>
-              <li>\u2705 <code>tos_master_enabled</code> \u2014 already on</li>
-              <li>\u2705 <code>tos_intake_form_enabled</code> \u2014 turn on if not already</li>
-              <li>\u2705 <code>tos_risk_engine_enabled</code> \u2014 already on</li>
-              <li><strong>WAIT</strong> on <code>tos_ai_parsing_enabled</code> until you're ready to spend Claude tokens (~$0.02/contract)</li>
-              <li><strong>WAIT</strong> on <code>tos_deadline_reminders_enabled</code> until you trust the system enough to send real reminders to real clients</li>
-              <li><code>tos_shadow_mode</code> stays <strong>true</strong> until cutover (writes go to shadow, not live workflows yet)</li>
+              <li>\u2705 <code>tos_master_enabled</code> \u2014 on</li>
+              <li>\u2705 <code>tos_intake_form_enabled</code> \u2014 on</li>
+              <li>\u2705 <code>tos_risk_engine_enabled</code> \u2014 on</li>
+              <li>\u2705 <code>tos_ai_parsing_enabled</code> \u2014 on (Claude tokens ~$0.02/contract)</li>
+              <li>\u2705 <code>tos_deadline_reminders_enabled</code> \u2014 on since 2026-06-11; reminders send to real deal parties as deadlines come due</li>
+              <li>\u2705 <code>tos_shadow_mode</code> off + <code>tos_cutover_pct</code> 100 \u2014 fully live since 2026-06-11</li>
+              <li>\u26A0\uFE0F <code>tos_google_review_url</code> still unset \u2014 set it before enabling <code>tos_postclose_enabled</code> or review emails carry a broken link</li>
             </ul>
           </div>
         </div>
