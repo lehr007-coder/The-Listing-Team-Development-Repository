@@ -73140,6 +73140,41 @@ var src_default = {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
+    if (pathname === "/tos/admin/golive" && req.method === "POST") {
+      const expectTok = env2.TOS_GOLIVE_TOKEN ?? "";
+      const gotTok = (req.headers.get("authorization") ?? "").replace(/^[Bb]earer\s+/, "").trim();
+      if (!expectTok || !constantTimeEquals(gotTok, expectTok)) {
+        return json7({ ok: false, error: "unauthorized" }, 401);
+      }
+      let gbody;
+      try {
+        gbody = await req.json();
+      } catch {
+        return json7({ ok: false, error: "invalid JSON" }, 400);
+      }
+      if (gbody.action === "cv-set") {
+        const allowedKeys = ["tos_postclose_enabled"];
+        if (!allowedKeys.includes(String(gbody.key))) {
+          return json7({ ok: false, error: "key not in go-live whitelist" }, 400);
+        }
+        const { handleAdminKillSwitch: haks } = await Promise.resolve().then(() => (init_admin_stats(), admin_stats_exports));
+        const innerReq = new Request("https://internal/tos/admin/kill-switch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: gbody.key, value: gbody.value })
+        });
+        const r2 = await haks(innerReq, env2);
+        const b2 = await r2.json();
+        if (r2.status === 404) {
+          init_ghl();
+          const client = new GhlClient(env2);
+          const createRes = await client.request("POST", `/locations/${getLocationId(env2)}/customValues`, void 0, { name: gbody.key, value: String(gbody.value) }, "2021-07-28");
+          return json7({ status: createRes.status, created: true, result: createRes.json }, createRes.ok ? 200 : 500);
+        }
+        return json7({ status: r2.status, result: b2 }, r2.status);
+      }
+      return json7({ ok: false, error: "unknown action" }, 400);
+    }
     if (pathname === "/tos/admin/stats") {
       return await handleAdminStats(req, env2);
     }
@@ -78167,7 +78202,7 @@ function renderHelpDashboardHtml(_env, url) {
               <li>\u2705 <code>tos_ai_parsing_enabled</code> \u2014 on (Claude tokens ~$0.02/contract)</li>
               <li>\u2705 <code>tos_deadline_reminders_enabled</code> \u2014 on since 2026-06-11; reminders send to real deal parties as deadlines come due</li>
               <li>\u2705 <code>tos_shadow_mode</code> off + <code>tos_cutover_pct</code> 100 \u2014 fully live since 2026-06-11</li>
-              <li>\u26A0\uFE0F <code>tos_google_review_url</code> still unset \u2014 set it before enabling <code>tos_postclose_enabled</code> or review emails carry a broken link</li>
+              <li>\u2705 <code>tos_google_review_url</code> \u2014 set 2026-06-11 (review survey link)</li>\n              <li>\u2705 <code>tos_postclose_enabled</code> \u2014 on since 2026-06-12; closed deals get per-deal follow-ups (7d review request, 30/90d check-ins, 1y anniversary)</li>
             </ul>
           </div>
         </div>
