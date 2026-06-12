@@ -20,7 +20,11 @@ jobs:
       - uses: actions/checkout@v5
       - name: Syntax check
         run: node --check tos-proxy/worker.js
+      # Transient round (operator-approved): enable post-close follow-ups.
+      # Remove the GOLIVE_* envs when done.
       - name: Deploy via Cloudflare API (bindings preserved)
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GOLIVE: '1'
+          GOLIVE_CV_SETS: '[["tos_postclose_enabled","true"]]'
         run: python3 tos-proxy/deploy.py
