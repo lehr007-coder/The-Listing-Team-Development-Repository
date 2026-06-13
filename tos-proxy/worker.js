@@ -73140,41 +73140,6 @@ var src_default = {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
-    if (pathname === "/tos/admin/golive" && req.method === "POST") {
-      const expectTok = env2.TOS_GOLIVE_TOKEN ?? "";
-      const gotTok = (req.headers.get("authorization") ?? "").replace(/^[Bb]earer\s+/, "").trim();
-      if (!expectTok || !constantTimeEquals(gotTok, expectTok)) {
-        return json7({ ok: false, error: "unauthorized" }, 401);
-      }
-      let gbody;
-      try {
-        gbody = await req.json();
-      } catch {
-        return json7({ ok: false, error: "invalid JSON" }, 400);
-      }
-      if (gbody.action === "cv-set") {
-        const allowedKeys = ["tos_postclose_enabled"];
-        if (!allowedKeys.includes(String(gbody.key))) {
-          return json7({ ok: false, error: "key not in go-live whitelist" }, 400);
-        }
-        const { handleAdminKillSwitch: haks } = await Promise.resolve().then(() => (init_admin_stats(), admin_stats_exports));
-        const innerReq = new Request("https://internal/tos/admin/kill-switch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: gbody.key, value: gbody.value })
-        });
-        const r2 = await haks(innerReq, env2);
-        const b2 = await r2.json();
-        if (r2.status === 404) {
-          init_ghl();
-          const client = new GhlClient(env2);
-          const createRes = await client.request("POST", `/locations/${getLocationId(env2)}/customValues`, void 0, { name: gbody.key, value: String(gbody.value) }, "2021-07-28");
-          return json7({ status: createRes.status, created: true, result: createRes.json }, createRes.ok ? 200 : 500);
-        }
-        return json7({ status: r2.status, result: b2 }, r2.status);
-      }
-      return json7({ ok: false, error: "unknown action" }, 400);
-    }
     if (pathname === "/tos/admin/stats") {
       return await handleAdminStats(req, env2);
     }
