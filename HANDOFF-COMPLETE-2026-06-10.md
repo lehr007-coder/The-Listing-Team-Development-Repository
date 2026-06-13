@@ -182,5 +182,6 @@ deadlines come due, and all new transactions run on TOS.
 | ~~Flip `tos_deadline_reminders_enabled` → true~~ **DONE 2026-06-11** | — |
 | ~~Move `tos_cutover_pct` 0 → 100~~ **DONE 2026-06-11** | — |
 | ~~Upload-and-parse verification~~ **DONE (synthetic e2e) 2026-06-11** — optionally repeat with a real contract | — |
-| ~~Set real `tos_google_review_url`~~ **DONE 2026-06-11** — created in GHL (id `pvZepafILqZAOB4YDJ90`) with the operator-provided survey link; `tos_postclose_enabled` still off, enable when ready | — |
-| Port fixes to the Mac TS workspace (`tos-proxy/PORTING-TO-TS.md`) | Mac |
+| ~~Set real `tos_google_review_url`~~ **DONE 2026-06-11** — created in GHL (id `pvZepafILqZAOB4YDJ90`) with the operator-provided survey link | — |
+| ~~Flip `tos_postclose_enabled` → true~~ **DONE 2026-06-12** — per-deal, forward-only follow-ups (7d review / 30d / 90d / 1y) | — |
+| ~~Port fixes to the Mac TS workspace~~ **DONE 2026-06-12** — all six edits in TS source, redeployed from the Mac, drift check green | — |
