@@ -78167,7 +78167,7 @@ function renderHelpDashboardHtml(_env, url) {
               <li>\u2705 <code>tos_ai_parsing_enabled</code> \u2014 on (Claude tokens ~$0.02/contract)</li>
               <li>\u2705 <code>tos_deadline_reminders_enabled</code> \u2014 on since 2026-06-11; reminders send to real deal parties as deadlines come due</li>
               <li>\u2705 <code>tos_shadow_mode</code> off + <code>tos_cutover_pct</code> 100 \u2014 fully live since 2026-06-11</li>
-              <li>\u26A0\uFE0F <code>tos_google_review_url</code> still unset \u2014 set it before enabling <code>tos_postclose_enabled</code> or review emails carry a broken link</li>
+              <li>\u2705 <code>tos_google_review_url</code> \u2014 set 2026-06-11 (review survey link)</li>\n              <li>\u2705 <code>tos_postclose_enabled</code> \u2014 on since 2026-06-12; closed deals get per-deal follow-ups (7d review request, 30/90d check-ins, 1y anniversary)</li>
             </ul>
           </div>
         </div>

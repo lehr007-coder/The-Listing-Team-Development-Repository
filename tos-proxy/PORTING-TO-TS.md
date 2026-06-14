@@ -1,3 +1,8 @@
+> **STATUS: COMPLETED 2026-06-12.** All six edits were applied to the Mac TS
+> workspace, `npx tsc --noEmit` passed, the workspace redeployed
+> `tos-proxy-staging`, and the `TOS fix drift check` workflow passed against
+> the new artifact. This file is retained as the record of what was ported.
+
 # Porting the deployed go-live fixes to the TypeScript workspace
 
 **Target workspace:** `/Users/Scott/Documents/Claude/Projects/Listing Team Transaction Operating System/proxy/src/`
