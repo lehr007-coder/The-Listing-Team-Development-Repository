@@ -40,6 +40,9 @@ DEFAULT_BINDINGS = [
     {"type": "kv_namespace", "name": "TOS_KV", "namespace_id": PROD_TOS_KV_ID},
 ]
 
+# Required for node:stream and other node: built-ins used by worker.js
+DEFAULT_COMPAT_FLAGS = ["nodejs_compat"]
+
 
 def call(method, path, body=None, content_type="application/json"):
     req = urllib.request.Request(API + path, method=method)
@@ -71,7 +74,7 @@ def main():
         print("worker does not exist yet — first deploy, using default bindings")
         bindings = list(DEFAULT_BINDINGS)
         compat_date = "2024-09-23"
-        compat_flags = []
+        compat_flags = list(DEFAULT_COMPAT_FLAGS)
     else:
         settings = settings_resp["result"]
         bindings = settings.get("bindings") or []
