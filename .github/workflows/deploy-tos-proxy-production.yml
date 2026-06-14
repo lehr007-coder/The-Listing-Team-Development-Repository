@@ -1,0 +1,40 @@
+name: Deploy tos-proxy-production
+
+# Production deploys are manual-only (workflow_dispatch with "DEPLOY" confirmation).
+# After the very first deploy, set secrets from the Mac workspace:
+#   npx wrangler secret put ANTHROPIC_API_KEY              --name tos-proxy
+#   npx wrangler secret put TOS_PORTAL_SIGNING_SECRET      --name tos-proxy
+#   npx wrangler secret put TOS_NOTIFY_GHL_WEBHOOK_URL     --name tos-proxy
+#   npx wrangler secret put TOS_REVIEW_REQUEST_GHL_WEBHOOK_URL --name tos-proxy
+# Then re-run to confirm bindings.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "DEPLOY" to confirm production deploy'
+        required: true
+        default: ''
+
+concurrency: deploy-tos-proxy-production
+
+jobs:
+  deploy:
+    name: Deploy tos-proxy (production)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "::error::Confirmation text must be 'DEPLOY' (got: '${{ github.event.inputs.confirm }}')"
+            exit 1
+          fi
+          echo "Production deploy confirmed."
+      - uses: actions/checkout@v5
+      - name: Syntax check
+        run: node --check tos-proxy/worker.js
+      - name: Deploy via Cloudflare API (bindings preserved)
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 tos-proxy/deploy_prod.py
