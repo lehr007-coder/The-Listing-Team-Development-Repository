@@ -508,8 +508,11 @@ async function buildBrandScript(env) {
   // Initial application
   setTimeout(applyBrand, 500);
 
-  // Re-apply every 3s to catch GHL re-renders
+  // Re-apply every 3s to catch GHL re-renders. Skip the work while the tab
+  // is hidden — a backgrounded GHL tab doesn't need re-styling, and this
+  // avoids burning CPU on every open tab indefinitely.
   setInterval(function () {
+    if (document.hidden) return;
     if (lastBrandKey) applyBrandInlineStyles(lastBrandKey);
   }, 3000);
 
@@ -1590,7 +1593,23 @@ var worker_default = {
     if ([301, 302, 303, 307, 308].includes(originResponse.status)) {
       const loc = originResponse.headers.get("Location");
       if (loc) {
-        const newLoc = loc.replace("https://app.gohighlevel.com", "https://" + url.hostname).replace("http://app.gohighlevel.com", "https://" + url.hostname);
+        // Rewrite GHL-origin redirects back onto the proxy host by parsing
+        // the URL and matching the host exactly — the previous naive string
+        // replace could misfire if "app.gohighlevel.com" appeared inside a
+        // query param. Non-GHL redirects (OAuth, payment, etc.) pass through
+        // unchanged so legitimate external flows aren't broken.
+        let newLoc = loc;
+        try {
+          const locUrl = new URL(loc, originUrl);
+          if (locUrl.hostname === "app.gohighlevel.com") {
+            locUrl.protocol = "https:";
+            locUrl.hostname = url.hostname;
+            locUrl.port = "";
+            newLoc = locUrl.toString();
+          }
+        } catch (_) {
+          // Unparseable Location header — forward it untouched.
+        }
         const rHeaders = new Headers(originResponse.headers);
         rHeaders.set("Location", newLoc);
         return new Response(null, { status: originResponse.status, headers: rHeaders });
