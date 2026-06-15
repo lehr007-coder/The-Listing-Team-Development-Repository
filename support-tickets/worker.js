@@ -349,7 +349,7 @@ textarea.form-input{resize:vertical;min-height:90px}
 
 <script>
 var SUPP_API = '/api/tickets';
-var SUPP_ADMIN = 'TeamListing2027!';
+var SUPP_ADMIN_PW = ''; // set at runtime via server verification, never hardcoded
 var SUPP_SESSION = 'tlt_supp_admin';
 var isAdmin = false;
 var allTickets = [];
@@ -519,7 +519,7 @@ async function loadAllTickets(){
   var list=g('adminTicketList');
   list.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try{
-    var r=await fetch(SUPP_API+'/all',{headers:{'X-Support-Admin':SUPP_ADMIN}});
+    var r=await fetch(SUPP_API+'/all',{headers:{'X-Support-Admin':SUPP_ADMIN_PW}});
     var d=await r.json();
     if(!r.ok)throw new Error(d.error||'Failed to load');
     allTickets=d.tickets||[];
@@ -623,7 +623,7 @@ async function saveTicket(id){
   var priority=g('editPriority')&&g('editPriority').value;
   var notes=g('editAdminNotes')&&g('editAdminNotes').value;
   try{
-    var r=await fetch(SUPP_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Support-Admin':SUPP_ADMIN},
+    var r=await fetch(SUPP_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Support-Admin':SUPP_ADMIN_PW},
       body:JSON.stringify({id:id,status:status,priority:priority,admin_notes:notes})});
     var d=await r.json();
     if(!r.ok)throw new Error(d.error||'Save failed');
@@ -638,7 +638,7 @@ async function saveTicket(id){
 async function deleteTicket(id){
   if(!confirm('Delete this ticket permanently? This cannot be undone.'))return;
   try{
-    var r=await fetch(SUPP_API,{method:'DELETE',headers:{'Content-Type':'application/json','X-Support-Admin':SUPP_ADMIN},body:JSON.stringify({id:id})});
+    var r=await fetch(SUPP_API,{method:'DELETE',headers:{'Content-Type':'application/json','X-Support-Admin':SUPP_ADMIN_PW},body:JSON.stringify({id:id})});
     if(!r.ok)throw new Error('Delete failed');
     delete ticketCache[id];
     allTickets=allTickets.filter(function(t){return t.id!==id;});
@@ -653,24 +653,32 @@ function openAdminModal(){
   setTimeout(function(){var p=g('adminPassword');if(p){p.value='';p.focus();}},80);
 }
 function closeAdminModal(){g('adminModal').classList.remove('open');}
-function adminUnlock(){
+async function adminUnlock(){
   var pw=g('adminPassword');
-  if(pw&&pw.value===SUPP_ADMIN){
-    isAdmin=true;
-    try{sessionStorage.setItem(SUPP_SESSION,'1');}catch(e){}
-    closeAdminModal();
-    g('adminBadge').style.display='inline-flex';
-    g('adminBtn').style.display='none';
-    g('adminTabBtn').style.display='inline-block';
-    showToast('⭐ Admin mode active','success');
-  }else{
-    if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
-  }
+  var entered=pw?pw.value.trim():'';
+  if(!entered){if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}return;}
+  try{
+    var r=await fetch(SUPP_API+'/auth',{method:'POST',headers:{'X-Support-Admin':entered}});
+    if(r.ok){
+      SUPP_ADMIN_PW=entered;
+      isAdmin=true;
+      try{sessionStorage.setItem(SUPP_SESSION,entered);}catch(e){}
+      closeAdminModal();
+      g('adminBadge').style.display='inline-flex';
+      g('adminBtn').style.display='none';
+      g('adminTabBtn').style.display='inline-block';
+      showToast('⭐ Admin mode active','success');
+    }else{
+      if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
+    }
+  }catch(e){showToast('Error verifying password','error');}
 }
 
 document.addEventListener('DOMContentLoaded',function(){
   var sq=g('setupSql');if(sq)sq.textContent=SETUP_SQL;
-  if(sessionStorage.getItem(SUPP_SESSION)==='1'){
+  var savedPw=sessionStorage.getItem(SUPP_SESSION);
+  if(savedPw){
+    SUPP_ADMIN_PW=savedPw;
     isAdmin=true;
     var ab=g('adminBadge'),btn=g('adminBtn'),atb=g('adminTabBtn');
     if(ab)ab.style.display='inline-flex';
@@ -715,7 +723,8 @@ export default {
     if (path.startsWith("/api/tickets")) {
       var SB_URL = env.SUPABASE_URL || "";
       var SB_KEY = env.SUPABASE_KEY || "";
-      var ADMIN_PASS = env.SUPPORT_ADMIN_PASS || "TeamListing2027!";
+      var ADMIN_PASS = env.SUPPORT_ADMIN_PASS || "";
+      if (!ADMIN_PASS) return json({ error: "Admin password not configured. Set SUPPORT_ADMIN_PASS." }, 503, request);
 
       if (!SB_URL || !SB_KEY) {
         return json({ error: "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY." }, 503, request);
@@ -763,6 +772,14 @@ export default {
         } catch (e) {
           return safeError(e, "GET /api/tickets/all", request);
         }
+      }
+
+      // POST /api/tickets/auth - verify admin password (returns 200 or 401, no data)
+      if (method === "POST" && path === "/api/tickets/auth") {
+        if (request.headers.get("X-Support-Admin") !== ADMIN_PASS) {
+          return json({ error: "Unauthorized" }, 401, request);
+        }
+        return json({ ok: true }, 200, request);
       }
 
       // POST /api/tickets - create ticket (public)

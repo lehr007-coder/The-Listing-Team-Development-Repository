@@ -213,19 +213,19 @@ async function handleCallback(request, env, ctx) {
     job_from_params: new URL(request.url).searchParams.get("job"),
   };
 
-  // Optional HMAC verification
-  let signatureOk = true;
-  if (env.HEYGEN_CALLBACK_SECRET) {
-    const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
-    const ok = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
-    if (!ok) {
-      webhookLog.signature_error = "verification_failed";
-      signatureOk = false;
-      console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
-      const failKey = `webhook:failed:${Date.now()}`;
-      await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
-      return error(401, "bad_signature", "HMAC verification failed");
-    }
+  // Required HMAC verification — reject if secret is not configured
+  if (!env.HEYGEN_CALLBACK_SECRET) {
+    console.error("HEYGEN_CALLBACK_SECRET is not set — rejecting webhook to prevent unsigned callback abuse");
+    return error(503, "misconfigured", "HEYGEN_CALLBACK_SECRET not set");
+  }
+  const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
+  const signatureOk = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
+  if (!signatureOk) {
+    webhookLog.signature_error = "verification_failed";
+    console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(401, "bad_signature", "HMAC verification failed");
   }
 
   if (!body) {
