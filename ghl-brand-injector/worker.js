@@ -127,6 +127,20 @@ async function fetchLocationCustomValues(env, locationId, apiKey) {
   return data.customValues || [];
 }
 __name(fetchLocationCustomValues, "fetchLocationCustomValues");
+// Only allow CSS color literals. GHL custom values are interpolated raw
+// into client-side gradient strings (linear-gradient(...)), so an
+// unvalidated value like "red;} body{display:none" would inject arbitrary
+// CSS. Reject anything that isn't a hex / rgb(a) / hsl(a) / named color.
+function sanitizeColor(v, fallback) {
+  if (typeof v !== "string") return fallback;
+  const s = v.trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
+  if (/^rgba?\(\s*[\d.,%\s/]+\)$/.test(s)) return s;
+  if (/^hsla?\(\s*[\d.,%\s/]+\)$/.test(s)) return s;
+  if (/^[a-zA-Z]{3,20}$/.test(s)) return s;
+  return fallback;
+}
+__name(sanitizeColor, "sanitizeColor");
 function extractColorsFromCustomValues(customValues) {
   const colors = {};
   const valueMap = {};
@@ -135,11 +149,11 @@ function extractColorsFromCustomValues(customValues) {
       valueMap[cv.name.toLowerCase()] = cv.value;
     }
   });
-  colors.gradLeft = valueMap["branding colors primary"] || valueMap["branding color primary"] || "#0066cc";
-  colors.gradMid = valueMap["branding color secondary"] || "#0066cc";
-  colors.textStrong = valueMap["primary color"] || "#000000";
-  colors.gradRight = valueMap["secondary color"] || "#0066cc";
-  colors.textMuted = valueMap["branding color text"] || "#666666";
+  colors.gradLeft = sanitizeColor(valueMap["branding colors primary"] || valueMap["branding color primary"], "#0066cc");
+  colors.gradMid = sanitizeColor(valueMap["branding color secondary"], "#0066cc");
+  colors.textStrong = sanitizeColor(valueMap["primary color"], "#000000");
+  colors.gradRight = sanitizeColor(valueMap["secondary color"], "#0066cc");
+  colors.textMuted = sanitizeColor(valueMap["branding color text"], "#666666");
   colors.logo = valueMap["company logo"] || valueMap["logo image url"];
   return colors;
 }

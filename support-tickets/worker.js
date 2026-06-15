@@ -48,6 +48,46 @@ function safeError(e, context, request) {
 }
 
 // -------------------------------------------------------------------
+// Crypto-strong ticket reference. Math.random() was predictable and the
+// GET /api/tickets?ref= lookup is unauthenticated, so guessable refs let
+// anyone enumerate other people's tickets. 8 chars from a 32-symbol
+// alphabet (ambiguous 0/O/1/I removed) ≈ 1.1e12 keyspace.
+// -------------------------------------------------------------------
+function genTicketRef() {
+  var alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  var bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  var s = "";
+  for (var i = 0; i < bytes.length; i++) s += alphabet[bytes[i] % alphabet.length];
+  return "TLT-" + s;
+}
+
+// -------------------------------------------------------------------
+// In-memory rate limit for the public ticket-creation endpoint. Per
+// isolate (no KV binding on this worker), so it's a best-effort guard
+// against spam from a single IP, not a global quota. Mirrors the
+// in-memory login limiter pattern in thelistingteamproxy.
+// -------------------------------------------------------------------
+var RL_WINDOW_MS = 60 * 1000;
+var RL_MAX = 5;
+var rlMap = new Map();
+function rateLimited(ip) {
+  var now = Date.now();
+  if (rlMap.size > 10000) {
+    for (var k of rlMap.keys()) {
+      if (now - rlMap.get(k).start >= RL_WINDOW_MS) rlMap.delete(k);
+    }
+  }
+  var rec = rlMap.get(ip);
+  if (!rec || now - rec.start >= RL_WINDOW_MS) {
+    rlMap.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  rec.count++;
+  return rec.count > RL_MAX;
+}
+
+// -------------------------------------------------------------------
 // GHL Webhook notification
 // -------------------------------------------------------------------
 async function sendNotification(env, eventType, data) {
@@ -785,12 +825,16 @@ export default {
       // POST /api/tickets - create ticket (public)
       if (method === "POST" && path === "/api/tickets") {
         try {
+          var ip = request.headers.get("CF-Connecting-IP") || "unknown";
+          if (rateLimited(ip)) {
+            return json({ error: "Too many requests. Please wait a minute and try again." }, 429, request);
+          }
           var body = await request.json();
           if (!body.title || !String(body.title).trim()) return json({ error: "Title required" }, 400, request);
           if (!body.submitter_email || !String(body.submitter_email).trim()) return json({ error: "Email required" }, 400, request);
           var VALID_CATS = ["general", "technical", "account", "billing", "feature", "bug", "other"];
           var VALID_PRIS = ["low", "medium", "high", "urgent"];
-          var ref2 = "TLT-" + Math.random().toString(36).toUpperCase().slice(2, 8);
+          var ref2 = genTicketRef();
           var item = {
             ticket_ref: ref2,
             title: String(body.title).slice(0, 160),
