@@ -42,6 +42,14 @@ export async function runHeygenPollFallback(env, ctx) {
     console.warn("poll-fallback: skipped — no heygen api key");
     return { skipped: "no_heygen_key" };
   }
+  if (!env.PROXY_API_KEY) {
+    console.warn("poll-fallback: skipped — no PROXY_API_KEY (needed to auth reprocess self-fetch)");
+    return { skipped: "no_proxy_api_key" };
+  }
+  if (!env.BASE_URL) {
+    console.warn("poll-fallback: skipped — no BASE_URL (needed to build reprocess self-fetch URL)");
+    return { skipped: "no_base_url" };
+  }
 
   // RLS is off on video_jobs/video_events so SUPABASE_KEY works.
   const sbKey = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -111,10 +119,15 @@ export async function runHeygenPollFallback(env, ctx) {
           body: JSON.stringify({ url: data.video_url }),
         })
           .then(r => r.json())
-          .then(res => console.log(`poll-fallback: reprocess dispatched ${job.id} — ok=${res.ok}`))
+          .then(res => {
+            // Only count as recovered once the reprocess endpoint confirms ok.
+            // Incrementing before the fetch resolves caused failed recoveries
+            // to be logged as successful, masking permanently-stuck jobs.
+            if (res.ok) out.recovered++;
+            console.log(`poll-fallback: reprocess dispatched ${job.id} — ok=${res.ok}`);
+          })
           .catch(e => console.error(`poll-fallback: reprocess self-fetch failed ${job.id}:`, e.message));
         ctx.waitUntil(p);
-        out.recovered++;
         continue;
       }
 

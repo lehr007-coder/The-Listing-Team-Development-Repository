@@ -85,6 +85,21 @@ export default async function ghlWebhookRoute(request, env, ctx, url) {
 
   const { tag, config } = matched;
 
+  // Guard against re-renders after delivery. Because extractAddedTags returns
+  // the contact's FULL tag list (not just added tags), any ContactTagUpdate
+  // event — including tag removals — would re-queue a render for every
+  // trigger tag still on the contact, even after delivery. We use KV to
+  // remember the last tag we dispatched per contact and skip duplicates.
+  // TTL is 7 days — long enough to survive a GHL re-tag after a week.
+  const dispatchKey = `ghl:dispatch:${contactId}:${tag}`;
+  if (env.VIDEO_KV) {
+    const alreadyDispatched = await env.VIDEO_KV.get(dispatchKey);
+    if (alreadyDispatched) {
+      return json({ ok: true, contact_id: contactId, tag, video_type: config.video_type, skipped: "already_dispatched" });
+    }
+    await env.VIDEO_KV.put(dispatchKey, "1", { expirationTtl: 60 * 60 * 24 * 7 });
+  }
+
   // Dispatch render via self-fetch so it runs in its own CPU budget
   ctx.waitUntil(
     fetch(`${env.BASE_URL}/v1/heygen/render`, {

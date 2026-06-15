@@ -222,9 +222,8 @@ async function handleCallback(request, env, ctx) {
       webhookLog.signature_error = "verification_failed";
       signatureOk = false;
       console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
-      // Store failed webhook attempt in KV for debugging
       const failKey = `webhook:failed:${Date.now()}`;
-      await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+      await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
       return error(401, "bad_signature", "HMAC verification failed");
     }
   }
@@ -233,7 +232,7 @@ async function handleCallback(request, env, ctx) {
     webhookLog.error = "bad_json";
     console.warn(`webhook received invalid JSON: ${JSON.stringify(webhookLog)}`);
     const failKey = `webhook:failed:${Date.now()}`;
-    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
     return error(400, "bad_json");
   }
 
@@ -248,7 +247,7 @@ async function handleCallback(request, env, ctx) {
     webhookLog.error = "missing_job_id";
     console.warn(`webhook missing job_id: ${JSON.stringify(webhookLog)}`);
     const failKey = `webhook:failed:${Date.now()}`;
-    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
     return error(400, "missing_job_id", `Could not extract job_id from callback_id or 'job' query param`);
   }
 
@@ -257,7 +256,7 @@ async function handleCallback(request, env, ctx) {
     webhookLog.error = "job_not_found";
     console.warn(`webhook received for unknown job: ${JSON.stringify(webhookLog)}`);
     const failKey = `webhook:failed:${Date.now()}`;
-    await env.VIDEO_KV.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
     return error(404, "job_not_found", `Job ${jobId} not found in database`);
   }
 
@@ -384,15 +383,15 @@ async function webhooksDebug(env, url) {
   // List keys pattern: webhook:received:* or webhook:failed:*
   const list = await env.VIDEO_KV.list({ prefix: "webhook:" });
 
+  const vals = await Promise.all(list.keys.map(k => env.VIDEO_KV.get(k.name)));
   let entries = [];
-  for (const key of list.keys) {
-    const val = await env.VIDEO_KV.get(key.name);
+  for (let i = 0; i < list.keys.length; i++) {
+    const val = vals[i];
     if (val) {
       try {
         const entry = JSON.parse(val);
-        // Filter by job_id if specified
         if (jobId && entry.job_id !== jobId) continue;
-        entries.push({ key: key.name, ...entry });
+        entries.push({ key: list.keys[i].name, ...entry });
       } catch {
         // Ignore parse errors
       }
