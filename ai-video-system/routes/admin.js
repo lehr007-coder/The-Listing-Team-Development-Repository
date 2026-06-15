@@ -42,6 +42,9 @@
 //
 //   POST   /v1/admin/agents/test            → invoke an agent with a sample
 //                                             context; NO HeyGen credit spent.
+//   POST   /v1/admin/review/email           → render branded HTML review notification.
+//                                             Make.com calls this and uses the returned
+//                                             { subject, html } in its Gmail send step.
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
 import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
@@ -52,6 +55,7 @@ import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VID
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 import { generateAndSendWeeklyReport } from "../lib/weekly-report.js";
+import { renderReviewHtml } from "../lib/templates.js";
 import { summarizeJobs } from "../lib/analytics.js";
 import { gatherAlerts, cleanupOrphanedRendered } from "../lib/alerts.js";
 
@@ -96,6 +100,17 @@ export default async function adminRoute(request, env, ctx, url) {
   // ── Weekly report — manual / on-demand trigger ──
   if (method === "POST" && path === "/reports/weekly/send") {
     return weeklyReportSend(env, request);
+  }
+
+  // ── Review notification email renderer ──
+  // Make.com POSTs the job data here; gets back { html, subject } to use
+  // as the Gmail email body — keeps all branding + logo in code, not in Make.
+  //   POST /v1/admin/review/email
+  //   Body: { articleTitle, qualityCheck, qualityPassed, youtubeTitle,
+  //           youtubeDescription, tags, script, synthesiaVideoId?,
+  //           runwayTaskId?, approveUrl }
+  if (method === "POST" && path === "/review/email") {
+    return reviewEmailRender(env, request);
   }
 
   // ── Phase 9 — orphan cleanup. Bulk-mark stale 'rendered' jobs
@@ -588,6 +603,38 @@ async function weeklyReportSend(env, request) {
       stack: (e.stack || "").split("\n").slice(0, 5).join(" | "),
     }, 500);
   }
+}
+
+// POST /v1/admin/review/email
+// Called by Make.com after a video renders to get a branded HTML review email.
+// Returns { subject, html } — Make.com uses these directly in the Gmail send step.
+async function reviewEmailRender(env, request) {
+  const { body } = await readJson(request);
+  if (!body) return error(400, "bad_json");
+
+  const {
+    articleTitle = "",
+    qualityCheck = "",
+    qualityPassed = false,
+    youtubeTitle = "",
+    youtubeDescription = "",
+    tags = "",
+    script = "",
+    synthesiaVideoId = "",
+    runwayTaskId = "",
+    approveUrl = "",
+  } = body;
+
+  const html = renderReviewHtml({
+    env, articleTitle, qualityCheck, qualityPassed,
+    youtubeTitle, youtubeDescription, tags, script,
+    synthesiaVideoId, runwayTaskId, approveUrl,
+  });
+
+  const overallLabel = qualityPassed ? "APPROVE" : "REVIEW REQUIRED";
+  const subject = `REVIEW: ${articleTitle || "New Video"} — ${overallLabel}`;
+
+  return json({ subject, html });
 }
 
 // Phase 9 — POST /v1/admin/jobs/orphan-cleanup
