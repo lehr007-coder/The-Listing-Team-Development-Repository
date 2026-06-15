@@ -24,12 +24,15 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v5
+      # Gate: real deploys only from main or a manual run. claude/** branch
+      # pushes validate with --dry-run so unfinished work doesn't land on
+      # the shared staging worker.
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: ai-video-system
-          command: deploy --config wrangler.staging.toml
+          command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
           secrets: |
             CF_STREAM_API_TOKEN
         env:
