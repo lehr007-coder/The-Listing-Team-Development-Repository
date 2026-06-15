@@ -27,7 +27,7 @@
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
-import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
+import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
@@ -329,8 +329,15 @@ async function handleCallback(request, env, ctx) {
       data.preview_image_url ||
       gifUrl ||  // fallback so email always has SOME preview image
       null;
+    // Atomically claim the rendered transition. If another callback (a
+    // HeyGen retry or the cron poll-fallback racing in the same instant)
+    // already flipped the job to rendered/delivered, we get null back and
+    // must NOT dispatch delivery again — otherwise the recipient gets two
+    // emails. The KV dedupe above catches spaced-out repeats; this catches
+    // truly-simultaneous ones the KV check-then-set can't.
+    let claimed;
     try {
-      await updateVideoJob(env, jobId, {
+      claimed = await claimVideoJobTransition(env, jobId, {
         status: "rendered",
         r2_url: sourceMp4Url,
         hosted_url: hostedUrl,
@@ -338,10 +345,15 @@ async function handleCallback(request, env, ctx) {
         gif_url: gifUrl,
         rendered_at: nowIso(),
         error: null,
-      });
+      }, ["rendered", "delivered"]);
     } catch (e) {
-      console.error(`callback updateVideoJob failed for ${jobId}:`, e.stack || e.message);
+      console.error(`callback claim failed for ${jobId}:`, e.stack || e.message);
       return json({ ok: false, error: e.message });
+    }
+    if (!claimed) {
+      webhookLog.deduped = true;
+      console.log(`webhook ${jobId}: already rendered/delivered — skipping duplicate delivery dispatch`);
+      return json({ ok: true, deduped: true });
     }
     console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly, thumbnail=${!!thumbnailUrl}, gif=${!!gifUrl}) — triggering delivery`);
 
