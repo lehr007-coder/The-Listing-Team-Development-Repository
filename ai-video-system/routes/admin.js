@@ -1149,7 +1149,11 @@ async function setupGhlWebhook(env, request) {
   if (!apiKey) return error(503, "missing_config", "PROXY_API_KEY not set");
 
   const { body } = await readJson(request);
-  const webhookId  = body?.webhook_id  || "080e57ee-7cd3-45c1-bac2-a76b7c6c4120";
+  const webhookId  = body?.webhook_id;
+  if (!webhookId) {
+    return error(400, "missing_webhook_id",
+      "webhook_id is required — find it in GHL → Settings → Integrations → Webhooks and pass it in the request body");
+  }
   const webhookUrl = body?.webhook_url  || `${env.BASE_URL}/v1/ghl/webhook?token=${apiKey}`;
   const webhookName = body?.webhook_name || "AI Video — Tag Trigger";
   const events = body?.events || ["ContactTagUpdate"];

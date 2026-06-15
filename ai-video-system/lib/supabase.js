@@ -209,11 +209,14 @@ export async function getContactEngagementTotal(env, contactId) {
 // POST /v1/admin/contacts/sync-scores bulk-resync endpoint.
 export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}) {
   const cap = Math.min(limit, 2000);
+  // Fetch all rows without a row-level LIMIT so the JS grouping sees every
+  // delivered job. Applying LIMIT to raw rows (not contacts) caused high-volume
+  // contacts to be silently truncated and receive understated scores.
+  // The cap is applied after grouping so it correctly limits unique contacts.
   const url = sbUrl(env,
     `/rest/v1/video_jobs?status=eq.delivered` +
     `&contact_id=not.is.null` +
-    `&select=contact_id,engagement_score` +
-    `&limit=${cap}`);
+    `&select=contact_id,engagement_score`);
   const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
   if (!r.ok) return [];
   const rows = await r.json();
@@ -226,5 +229,6 @@ export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}
   }
   return [...map.entries()]
     .map(([contact_id, total]) => ({ contact_id, total }))
-    .sort((a, b) => b.total - a.total);
+    .sort((a, b) => b.total - a.total)
+    .slice(0, cap);
 }
