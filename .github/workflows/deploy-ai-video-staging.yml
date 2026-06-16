@@ -28,7 +28,7 @@ jobs:
       # pushes validate with --dry-run so unfinished work doesn't land on
       # the shared staging worker.
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: ai-video-system
