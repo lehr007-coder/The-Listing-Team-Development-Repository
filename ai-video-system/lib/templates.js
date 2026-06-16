@@ -216,6 +216,128 @@ export function renderSmsBody({ videoType, agentSmsCopy, firstName, hostedUrl })
   return truncate(`${t.smsPrefix}${name}made you a quick 30-sec video — ${hostedUrl}`, 320);
 }
 
+// Render the internal video-review notification email.
+// Sent to the account owner (via Make.com / Gmail) after a video renders.
+// Much richer than the plain-HTML version Make.com was previously building —
+// includes branding, a colour-coded quality-check badge, and clear sections.
+//
+// Required params:
+//   env            — worker env (for brand resolution)
+//   articleTitle   — article or video topic
+//   qualityCheck   — raw quality-check text (FACT_CHECK / COMPLIANCE / etc)
+//   qualityPassed  — boolean — drives badge colour (true = green PASS, false = red FAIL)
+//   youtubeTitle
+//   youtubeDescription
+//   tags           — comma-separated string
+//   script
+//   synthesiaVideoId  — Synthesia/HeyGen video ID
+//   runwayTaskId      — Runway thumbnail task ID (may be empty)
+//   approveUrl        — Make.com webhook URL (pre-encoded with all metadata)
+export function renderReviewHtml({ env, articleTitle, qualityCheck, qualityPassed,
+                                    youtubeTitle, youtubeDescription, tags, script,
+                                    synthesiaVideoId, runwayTaskId, approveUrl }) {
+  const brand = getBrand(env);
+  const qcBg    = qualityPassed ? "#e8f5e9" : "#ffebee";
+  const qcBorder = qualityPassed ? "#2e7d32" : "#c62828";
+  const qcColor  = qualityPassed ? "#1b5e20" : "#b71c1c";
+  const qcLabel  = qualityPassed ? "✓ PASS — OVERALL APPROVED" : "✗ FAIL — REVIEW REQUIRED";
+
+  const row = (label, value, mono = false) => {
+    if (!value && value !== 0) return "";
+    const content = mono
+      ? `<pre style="margin:0;white-space:pre-wrap;font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.55;color:#333;background:#fafafa;padding:12px 16px;border-radius:6px;border:1px solid #e5e5e5">${escapeHtml(String(value))}</pre>`
+      : `<div style="font-size:14px;line-height:1.55;color:#333">${escapeHtml(String(value))}</div>`;
+    return `<tr><td style="padding:16px 32px 0">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#888;font-weight:700;margin-bottom:6px">${escapeHtml(label)}</div>
+        ${content}
+      </td></tr>`;
+  };
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>Video Review</title>
+</head>
+<body style="margin:0;padding:0;background:#efefef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#222">
+<div style="display:none;font-size:1px;color:#efefef;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(qualityPassed ? "✓ Quality check passed — ready to approve" : "✗ Quality check failed — review before approving")} · ${escapeHtml(articleTitle || "")}</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background:#efefef">
+  <tr><td align="center" style="padding:24px 16px">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.10)">
+
+      <!-- branded header -->
+      <tr><td align="center" style="padding:24px 32px 18px;background:#0a0a0a">
+        <a href="${escapeHtml(brand.websiteUrl)}" style="text-decoration:none">
+          <img src="${escapeHtml(brand.logoUrl)}" alt="${escapeHtml(brand.name)}"
+               style="height:56px;max-height:56px;width:auto;border:0;display:block;margin:0 auto">
+        </a>
+        <div style="margin-top:12px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:${escapeHtml(brand.primaryColor)};font-weight:700">AI Video System</div>
+        <div style="margin-top:4px;font-size:19px;font-weight:700;color:#ffffff">New Video Ready for Review</div>
+      </td></tr>
+
+      <!-- quality-check badge -->
+      <tr><td style="padding:20px 32px 4px">
+        <div style="background:${qcBg};color:${qcColor};border:2px solid ${qcBorder};border-radius:8px;padding:13px 20px;font-size:14px;font-weight:700;text-align:center;letter-spacing:.03em">
+          ${qcLabel}
+        </div>
+      </td></tr>
+
+      ${row("Article", articleTitle)}
+      ${row("YouTube Title", youtubeTitle)}
+      ${row("Quality Check Details", qualityCheck, true)}
+      ${row("YouTube Description", youtubeDescription, true)}
+      ${row("Tags", tags)}
+      ${row("Script", script, true)}
+      ${synthesiaVideoId ? `<tr><td style="padding:16px 32px 0">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#888;font-weight:700;margin-bottom:6px">Synthesia Video ID</div>
+        <div style="font-size:13px;font-family:'Courier New',Courier,monospace;color:#333">${escapeHtml(synthesiaVideoId)}</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Rendered video appears in your synthesia.io dashboard in a few minutes.</div>
+      </td></tr>` : ""}
+      ${runwayTaskId ? `<tr><td style="padding:12px 32px 0">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#888;font-weight:700;margin-bottom:4px">Runway Thumbnail Task ID</div>
+        <div style="font-size:13px;font-family:'Courier New',Courier,monospace;color:#333">${escapeHtml(runwayTaskId)}</div>
+      </td></tr>` : ""}
+
+      <!-- divider + instructions -->
+      <tr><td style="padding:24px 32px 0">
+        <div style="border-top:1px solid #e5e5e5"></div>
+        <div style="margin-top:18px;font-size:14px;line-height:1.7;color:#444">
+          <strong>1.</strong> Wait ~10 minutes for the Synthesia video to finish rendering, then review it in your dashboard.<br>
+          <strong>2.</strong> If the quality check passed and the video looks good, click the button below.
+        </div>
+      </td></tr>
+
+      <!-- CTA -->
+      <tr><td align="center" style="padding:20px 32px 8px">
+        ${approveUrl
+          ? `<a href="${escapeHtml(approveUrl)}" style="display:inline-block;padding:15px 36px;background:#2e7d32;color:#ffffff;font-weight:700;text-decoration:none;border-radius:8px;font-size:15px;letter-spacing:.03em">APPROVE &amp; UPLOAD TO YOUTUBE</a>`
+          : `<div style="color:#888;font-size:13px;font-style:italic">No approve URL provided.</div>`
+        }
+      </td></tr>
+      <tr><td style="padding:8px 32px 24px">
+        <p style="margin:0;font-size:12px;color:#999;text-align:center;line-height:1.6">
+          This uploads the video as <strong>unlisted</strong> with the metadata above and the AI disclosure flag set.<br>
+          You then publish it from YouTube Studio when ready.<br>
+          <em>Note: the upload scenario must be turned ON in Make for the button to work.</em>
+        </p>
+      </td></tr>
+
+      <!-- footer -->
+      <tr><td align="center" style="padding:14px 32px 18px;border-top:1px solid #eee;background:#fafafa;font-size:11px;color:#aaa;line-height:1.6">
+        <div>${escapeHtml(brand.footerText)}</div>
+        <div style="margin-top:4px"><a href="${escapeHtml(brand.websiteUrl)}" style="color:#aaa;text-decoration:underline">${escapeHtml(brand.name)}</a></div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
 function truncate(s, max) {
   if (!s) return s;
   if (s.length <= max) return s;

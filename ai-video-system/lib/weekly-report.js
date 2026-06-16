@@ -29,6 +29,7 @@
 
 import { sendEmail, getContact } from "./ghl.js";
 import { summarizeJobs } from "./analytics.js";
+import { getBrand } from "./brand.js";
 
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 90;
@@ -64,6 +65,7 @@ function clampDays(days) {
 // Render the report HTML. Self-contained — inline styles so every
 // email client (including Outlook desktop) shows it correctly.
 function renderReportHtml(env, summary) {
+  const brand = getBrand(env);
   const totals = summary.totals || {};
   const byType = summary.by_video_type || [];
   const daily = summary.daily || [];
@@ -118,8 +120,12 @@ function renderReportHtml(env, summary) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-        <tr><td style="padding:24px 32px;background:#0a0a0a;color:#fff">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#ff6a00;font-weight:600">AI Video System</div>
+        <tr><td align="center" style="padding:24px 32px 18px;background:#0a0a0a;color:#fff">
+          <a href="${brand.websiteUrl}" style="text-decoration:none">
+            <img src="${brand.logoUrl}" alt="${escapeHtml(brand.name)}"
+                 style="height:50px;max-height:50px;width:auto;border:0;display:block;margin:0 auto">
+          </a>
+          <div style="margin-top:12px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:${brand.primaryColor};font-weight:600">AI Video System</div>
           <div style="font-size:22px;font-weight:700;margin-top:6px">Weekly Performance Report</div>
           <div style="font-size:13px;color:#aaa;margin-top:4px">${since} → ${until}</div>
         </td></tr>

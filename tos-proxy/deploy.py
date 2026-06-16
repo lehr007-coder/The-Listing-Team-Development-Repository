@@ -35,6 +35,12 @@ REQUIRED_SECRETS = (
 )
 
 
+# Cloudflare occasionally returns 429/5xx or drops the connection under
+# load; the GET/PUT calls here are idempotent (PUT is a full replace), so
+# retrying transient failures with exponential backoff is safe.
+TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+
+
 def call(method, path, body=None, content_type="application/json"):
     req = urllib.request.Request(API + path, method=method)
     req.add_header("Authorization", "Bearer " + os.environ["CF_API_TOKEN"])
@@ -42,11 +48,25 @@ def call(method, path, body=None, content_type="application/json"):
     if body is not None:
         data = body if isinstance(body, bytes) else json.dumps(body).encode()
         req.add_header("Content-Type", content_type)
-    try:
-        with urllib.request.urlopen(req, data) as r:
-            return json.load(r)
-    except urllib.error.HTTPError as e:
-        sys.exit(f"{method} {path} -> HTTP {e.code}\n{e.read().decode()[:2000]}")
+    delay = 2
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, data) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code in TRANSIENT_STATUS and attempt < 3:
+                print(f"{method} {path} -> HTTP {e.code}, retrying in {delay}s")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            sys.exit(f"{method} {path} -> HTTP {e.code}\n{e.read().decode()[:2000]}")
+        except urllib.error.URLError as e:
+            if attempt < 3:
+                print(f"{method} {path} -> network error ({e.reason}), retrying in {delay}s")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            sys.exit(f"{method} {path} -> network error: {e.reason}")
 
 
 def main():

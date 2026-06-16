@@ -198,25 +198,32 @@ export async function cleanupOrphanedRendered(env, { dryRun = true, maxRows = 50
     return { ok: true, dry_run: true, matched: rows.length, ids: rows.map(j => j.id), preview: rows };
   }
 
-  // PATCH each row individually — the PostgREST `in` filter works for
-  // bulk SELECT but Supabase rejects bulk PATCH by id list in a single
-  // request when count is high. Sequential is fine here (capped at 50).
+  // Bulk PATCH in chunks via the PostgREST `in` filter — was one request
+  // per row (an N+1; up to 200 sequential round-trips). Chunked by 50 to
+  // keep the id-list URL a sane length. Keep `status=eq.rendered` in the
+  // filter so we only flip rows still orphaned, not ones a late delivery
+  // rescued between our SELECT and now.
   const failedAt = new Date().toISOString();
   const errMsg = "marked failed by orphan-cleanup — rendered but delivery never fired";
+  const CHUNK = 50;
   let updated = 0;
   const results = [];
-  for (const j of rows) {
-    const patchUrl = `${env.SUPABASE_URL}/rest/v1/video_jobs?id=eq.${encodeURIComponent(j.id)}`;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const batch = rows.slice(i, i + CHUNK);
+    const idList = batch.map(j => encodeURIComponent(j.id)).join(",");
+    const patchUrl = `${env.SUPABASE_URL}/rest/v1/video_jobs?id=in.(${idList})&status=eq.rendered`;
     const pr = await fetch(patchUrl, {
       method: "PATCH",
-      headers: { ...sbHeaders(env), "Prefer": "return=minimal" },
+      headers: { ...sbHeaders(env), "Prefer": "return=representation" },
       body: JSON.stringify({ status: "failed", error: errMsg, failed_at: failedAt }),
     });
     if (pr.ok) {
-      updated++;
-      results.push({ id: j.id, ok: true });
+      const patched = await pr.json().catch(() => []);
+      const okIds = new Set((Array.isArray(patched) ? patched : []).map(p => p.id));
+      updated += okIds.size;
+      for (const j of batch) results.push({ id: j.id, ok: okIds.has(j.id) });
     } else {
-      results.push({ id: j.id, ok: false, status: pr.status });
+      for (const j of batch) results.push({ id: j.id, ok: false, status: pr.status });
     }
   }
 

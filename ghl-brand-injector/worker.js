@@ -22,6 +22,82 @@ function invalidateCache() {
   brandsCacheTime = 0;
 }
 __name(invalidateCache, "invalidateCache");
+
+// ── Secret-at-rest encryption for brand.ghlApiKey ───────────────────
+// GHL API keys were stored plaintext in KV and — worse — serialized into
+// the client-side inject script and the admin export. They're now:
+//   1. stripped from everything that leaves the worker (redactBrand /
+//      buildBrandScript), and
+//   2. encrypted at rest with AES-GCM keyed off the BRAND_KMS_KEY secret.
+// Stored format: "enc:v1:<base64 iv>:<base64 ciphertext>". If BRAND_KMS_KEY
+// is unset we fall back to plaintext storage (backward compatible) — the
+// client-leak fix still applies regardless. Migration is lazy: existing
+// plaintext keys decrypt as-is and get encrypted on the next write.
+function _b64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function _ub64(str) {
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+var _kmsKeyPromise = null;
+async function getKmsKey(env) {
+  if (!env.BRAND_KMS_KEY) return null;
+  if (!_kmsKeyPromise) {
+    _kmsKeyPromise = (async () => {
+      const raw = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(env.BRAND_KMS_KEY));
+      return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+    })();
+  }
+  return _kmsKeyPromise;
+}
+__name(getKmsKey, "getKmsKey");
+async function encryptSecret(env, plaintext) {
+  if (!plaintext || typeof plaintext !== "string") return plaintext;
+  if (plaintext.startsWith("enc:v1:")) return plaintext; // already encrypted
+  const key = await getKmsKey(env);
+  if (!key) return plaintext; // no KMS configured — store as-is
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
+  return `enc:v1:${_b64(iv)}:${_b64(new Uint8Array(ct))}`;
+}
+__name(encryptSecret, "encryptSecret");
+async function decryptSecret(env, stored) {
+  if (typeof stored !== "string" || !stored.startsWith("enc:v1:")) return stored; // plaintext / legacy
+  const key = await getKmsKey(env);
+  if (!key) {
+    console.error("[kms] encrypted ghlApiKey present but BRAND_KMS_KEY not set");
+    return null;
+  }
+  try {
+    const [, , ivB64, ctB64] = stored.split(":");
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: _ub64(ivB64) }, key, _ub64(ctB64));
+    return new TextDecoder().decode(pt);
+  } catch (e) {
+    console.error("[kms] decrypt failed:", e.message);
+    return null;
+  }
+}
+__name(decryptSecret, "decryptSecret");
+// Strip the secret from anything returned to a client. Replaces the raw
+// key with a boolean so the admin UI can show "key set" without seeing it.
+function redactBrand(brand) {
+  if (!brand || typeof brand !== "object") return brand;
+  const { ghlApiKey, ...rest } = brand;
+  return { ...rest, hasGhlApiKey: !!ghlApiKey };
+}
+__name(redactBrand, "redactBrand");
+function redactBrands(brands) {
+  const out = {};
+  for (const [k, v] of Object.entries(brands || {})) out[k] = redactBrand(v);
+  return out;
+}
+__name(redactBrands, "redactBrands");
+
 async function getBrand(env, key) {
   if (brandsCache && Date.now() - brandsCacheTime < CACHE_TTL) {
     return brandsCache[key] || null;
@@ -39,9 +115,13 @@ async function getBrand(env, key) {
 __name(getBrand, "getBrand");
 async function setBrand(env, key, brand) {
   const kvKey = key.startsWith("brand:") ? key : `brand:${key}`;
-  await env.BRANDS.put(kvKey, JSON.stringify(brand));
+  const toStore = { ...brand };
+  if (toStore.ghlApiKey) {
+    toStore.ghlApiKey = await encryptSecret(env, toStore.ghlApiKey);
+  }
+  await env.BRANDS.put(kvKey, JSON.stringify(toStore));
   if (brandsCache) {
-    brandsCache[key] = brand;
+    brandsCache[key] = toStore;
   }
   invalidateCache();
 }
@@ -127,6 +207,20 @@ async function fetchLocationCustomValues(env, locationId, apiKey) {
   return data.customValues || [];
 }
 __name(fetchLocationCustomValues, "fetchLocationCustomValues");
+// Only allow CSS color literals. GHL custom values are interpolated raw
+// into client-side gradient strings (linear-gradient(...)), so an
+// unvalidated value like "red;} body{display:none" would inject arbitrary
+// CSS. Reject anything that isn't a hex / rgb(a) / hsl(a) / named color.
+function sanitizeColor(v, fallback) {
+  if (typeof v !== "string") return fallback;
+  const s = v.trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
+  if (/^rgba?\(\s*[\d.,%\s/]+\)$/.test(s)) return s;
+  if (/^hsla?\(\s*[\d.,%\s/]+\)$/.test(s)) return s;
+  if (/^[a-zA-Z]{3,20}$/.test(s)) return s;
+  return fallback;
+}
+__name(sanitizeColor, "sanitizeColor");
 function extractColorsFromCustomValues(customValues) {
   const colors = {};
   const valueMap = {};
@@ -135,11 +229,11 @@ function extractColorsFromCustomValues(customValues) {
       valueMap[cv.name.toLowerCase()] = cv.value;
     }
   });
-  colors.gradLeft = valueMap["branding colors primary"] || valueMap["branding color primary"] || "#0066cc";
-  colors.gradMid = valueMap["branding color secondary"] || "#0066cc";
-  colors.textStrong = valueMap["primary color"] || "#000000";
-  colors.gradRight = valueMap["secondary color"] || "#0066cc";
-  colors.textMuted = valueMap["branding color text"] || "#666666";
+  colors.gradLeft = sanitizeColor(valueMap["branding colors primary"] || valueMap["branding color primary"], "#0066cc");
+  colors.gradMid = sanitizeColor(valueMap["branding color secondary"], "#0066cc");
+  colors.textStrong = sanitizeColor(valueMap["primary color"], "#000000");
+  colors.gradRight = sanitizeColor(valueMap["secondary color"], "#0066cc");
+  colors.textMuted = sanitizeColor(valueMap["branding color text"], "#666666");
   colors.logo = valueMap["company logo"] || valueMap["logo image url"];
   return colors;
 }
@@ -162,7 +256,8 @@ async function syncBrandFromGHL(env, locationId, brandKey) {
     name: locationData.name
   };
   if (brand.ghlApiKey) {
-    const customValues = await fetchLocationCustomValues(env, locationId, brand.ghlApiKey);
+    const apiKey = await decryptSecret(env, brand.ghlApiKey);
+    const customValues = apiKey ? await fetchLocationCustomValues(env, locationId, apiKey) : null;
     if (customValues) {
       const extracted = extractColorsFromCustomValues(customValues);
       if (extracted.logo) brand.logo = extracted.logo;
@@ -232,7 +327,14 @@ async function autoDetectBrand(env, pathname) {
 __name(autoDetectBrand, "autoDetectBrand");
 async function buildBrandScript(env) {
   const brands = await getAllBrands(env);
-  const brandsJson = JSON.stringify(brands);
+  // Never ship ghlApiKey to the browser — strip it from every brand
+  // before serializing into the injected client script.
+  const clientBrands = {};
+  for (const [k, v] of Object.entries(brands)) {
+    const { ghlApiKey, ...safe } = v || {};
+    clientBrands[k] = safe;
+  }
+  const brandsJson = JSON.stringify(clientBrands);
   return `
 <script data-injected-by="cf-brand-worker">
 (function () {
@@ -406,8 +508,11 @@ async function buildBrandScript(env) {
   // Initial application
   setTimeout(applyBrand, 500);
 
-  // Re-apply every 3s to catch GHL re-renders
+  // Re-apply every 3s to catch GHL re-renders. Skip the work while the tab
+  // is hidden — a backgrounded GHL tab doesn't need re-styling, and this
+  // avoids burning CPU on every open tab indefinitely.
   setInterval(function () {
+    if (document.hidden) return;
     if (lastBrandKey) applyBrandInlineStyles(lastBrandKey);
   }, 3000);
 
@@ -471,13 +576,13 @@ async function handleAdminAPI(req, env, path) {
   const parts = path.split("/").filter(Boolean);
   if (method === "GET" && parts.length === 1 && parts[0] === "brands") {
     const brands = await getAllBrands(env);
-    return new Response(JSON.stringify(brands), {
+    return new Response(JSON.stringify(redactBrands(brands)), {
       headers: { "Content-Type": "application/json" }
     });
   }
   if (method === "GET" && parts.length === 2 && parts[0] === "brands") {
     const brand = await getBrand(env, parts[1]);
-    return new Response(JSON.stringify(brand || {}), {
+    return new Response(JSON.stringify(brand ? redactBrand(brand) : {}), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -485,7 +590,7 @@ async function handleAdminAPI(req, env, path) {
     const body = await req.json();
     const key = body.key || crypto.randomUUID();
     await setBrand(env, key, body);
-    return new Response(JSON.stringify({ key, ...body }), {
+    return new Response(JSON.stringify({ key, ...redactBrand(body) }), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -496,8 +601,14 @@ async function handleAdminAPI(req, env, path) {
     if (body.colors && existing.colors) {
       merged.colors = { ...existing.colors, ...body.colors };
     }
+    // The admin form never receives the real key (it's redacted), so an
+    // empty/absent ghlApiKey in the body means "unchanged" — keep the
+    // existing (encrypted) key rather than wiping it.
+    if (!body.ghlApiKey) {
+      merged.ghlApiKey = existing.ghlApiKey;
+    }
     await setBrand(env, parts[1], merged);
-    return new Response(JSON.stringify(merged), {
+    return new Response(JSON.stringify(redactBrand(merged)), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -517,7 +628,8 @@ async function handleAdminAPI(req, env, path) {
       });
     }
     const locationId = brand.ids[0];
-    const customValues = await fetchLocationCustomValues(env, locationId, brand.ghlApiKey);
+    const apiKey = await decryptSecret(env, brand.ghlApiKey);
+    const customValues = apiKey ? await fetchLocationCustomValues(env, locationId, apiKey) : null;
     if (!customValues) {
       return new Response(JSON.stringify({ error: "Failed to fetch custom values" }), {
         status: 500,
@@ -528,7 +640,7 @@ async function handleAdminAPI(req, env, path) {
     if (extracted.logo) brand.logo = extracted.logo;
     brand.colors = { ...brand.colors, ...extracted };
     await setBrand(env, brandKey, brand);
-    return new Response(JSON.stringify(brand), {
+    return new Response(JSON.stringify(redactBrand(brand)), {
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -1481,7 +1593,23 @@ var worker_default = {
     if ([301, 302, 303, 307, 308].includes(originResponse.status)) {
       const loc = originResponse.headers.get("Location");
       if (loc) {
-        const newLoc = loc.replace("https://app.gohighlevel.com", "https://" + url.hostname).replace("http://app.gohighlevel.com", "https://" + url.hostname);
+        // Rewrite GHL-origin redirects back onto the proxy host by parsing
+        // the URL and matching the host exactly — the previous naive string
+        // replace could misfire if "app.gohighlevel.com" appeared inside a
+        // query param. Non-GHL redirects (OAuth, payment, etc.) pass through
+        // unchanged so legitimate external flows aren't broken.
+        let newLoc = loc;
+        try {
+          const locUrl = new URL(loc, originUrl);
+          if (locUrl.hostname === "app.gohighlevel.com") {
+            locUrl.protocol = "https:";
+            locUrl.hostname = url.hostname;
+            locUrl.port = "";
+            newLoc = locUrl.toString();
+          }
+        } catch (_) {
+          // Unparseable Location header — forward it untouched.
+        }
         const rHeaders = new Headers(originResponse.headers);
         rHeaders.set("Location", newLoc);
         return new Response(null, { status: originResponse.status, headers: rHeaders });

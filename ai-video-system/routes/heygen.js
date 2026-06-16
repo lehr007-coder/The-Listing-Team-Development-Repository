@@ -27,7 +27,7 @@
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
-import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
+import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
@@ -213,19 +213,19 @@ async function handleCallback(request, env, ctx) {
     job_from_params: new URL(request.url).searchParams.get("job"),
   };
 
-  // Optional HMAC verification
-  let signatureOk = true;
-  if (env.HEYGEN_CALLBACK_SECRET) {
-    const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
-    const ok = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
-    if (!ok) {
-      webhookLog.signature_error = "verification_failed";
-      signatureOk = false;
-      console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
-      const failKey = `webhook:failed:${Date.now()}`;
-      await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
-      return error(401, "bad_signature", "HMAC verification failed");
-    }
+  // Required HMAC verification — reject if secret is not configured
+  if (!env.HEYGEN_CALLBACK_SECRET) {
+    console.error("HEYGEN_CALLBACK_SECRET is not set — rejecting webhook to prevent unsigned callback abuse");
+    return error(503, "misconfigured", "HEYGEN_CALLBACK_SECRET not set");
+  }
+  const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
+  const signatureOk = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
+  if (!signatureOk) {
+    webhookLog.signature_error = "verification_failed";
+    console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(401, "bad_signature", "HMAC verification failed");
   }
 
   if (!body) {
@@ -329,8 +329,15 @@ async function handleCallback(request, env, ctx) {
       data.preview_image_url ||
       gifUrl ||  // fallback so email always has SOME preview image
       null;
+    // Atomically claim the rendered transition. If another callback (a
+    // HeyGen retry or the cron poll-fallback racing in the same instant)
+    // already flipped the job to rendered/delivered, we get null back and
+    // must NOT dispatch delivery again — otherwise the recipient gets two
+    // emails. The KV dedupe above catches spaced-out repeats; this catches
+    // truly-simultaneous ones the KV check-then-set can't.
+    let claimed;
     try {
-      await updateVideoJob(env, jobId, {
+      claimed = await claimVideoJobTransition(env, jobId, {
         status: "rendered",
         r2_url: sourceMp4Url,
         hosted_url: hostedUrl,
@@ -338,10 +345,15 @@ async function handleCallback(request, env, ctx) {
         gif_url: gifUrl,
         rendered_at: nowIso(),
         error: null,
-      });
+      }, ["rendered", "delivered"]);
     } catch (e) {
-      console.error(`callback updateVideoJob failed for ${jobId}:`, e.stack || e.message);
+      console.error(`callback claim failed for ${jobId}:`, e.stack || e.message);
       return json({ ok: false, error: e.message });
+    }
+    if (!claimed) {
+      webhookLog.deduped = true;
+      console.log(`webhook ${jobId}: already rendered/delivered — skipping duplicate delivery dispatch`);
+      return json({ ok: true, deduped: true });
     }
     console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly, thumbnail=${!!thumbnailUrl}, gif=${!!gifUrl}) — triggering delivery`);
 

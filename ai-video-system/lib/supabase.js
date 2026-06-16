@@ -115,6 +115,29 @@ export async function updateVideoJob(env, jobId, patch) {
   return rows[0] || null;
 }
 
+// Atomic "claim this state transition". PATCH only matches rows whose
+// status is NOT already in `fromNotIn`, so concurrent callers serialize
+// at the Postgres row level: the first to flip the status gets the row
+// back, the rest match zero rows and get null. Used by the HeyGen
+// success callback to dispatch delivery exactly once even when a real
+// webhook and the cron poll-fallback (or a HeyGen retry) arrive at the
+// same instant — a check-then-set on KV could let both through.
+export async function claimVideoJobTransition(env, jobId, patch, fromNotIn) {
+  const notIn = fromNotIn.map(encodeURIComponent).join(",");
+  const r = await fetch(
+    sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&status=not.in.(${notIn})`),
+    {
+      method: "PATCH",
+      headers: sbHeaders(env, "return=representation"),
+      body: JSON.stringify(patch),
+      signal: sbSignal(),
+    }
+  );
+  if (!r.ok) throw new Error(`claimVideoJobTransition failed: ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
 // Atomic claim: try to mark the job as "being processed" by setting
 // last_event='processing'. Concurrent claim attempts on the same row
 // serialize at the Postgres row level — first wins, the rest get 0
