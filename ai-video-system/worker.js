@@ -20,6 +20,7 @@ import mediaRoute from "./routes/media.js";
 import adminRoute from "./routes/admin.js";
 import devstubRoute from "./routes/devstub.js";
 import dashboardRoute from "./routes/dashboard.js";
+import ghlWebhookRoute from "./routes/ghl_webhook.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
@@ -32,6 +33,7 @@ const ROUTES = [
   // /v1/heygen and /v1/fcpxml prefixes so the matcher picks them first.
   { prefix: "/v1/heygen/callback",   auth: false, handler: heygenRoute },
   { prefix: "/v1/fcpxml/callback",   auth: false, handler: fcpxmlRoute },
+  { prefix: "/v1/ghl/webhook",       auth: false, handler: ghlWebhookRoute },
   { prefix: "/v1/heygen",            auth: true,  handler: heygenRoute },
   { prefix: "/v1/fcpxml",            auth: true,  handler: fcpxmlRoute },
   { prefix: "/v1/delivery",          auth: true,  handler: deliveryRoute },
@@ -85,18 +87,74 @@ export default {
     return processRenderQueueBatch(batch, env, ctx);
   },
 
-  // Cron — invoked by [triggers] crons in wrangler.toml. Handles the
-  // safety-net polling for HeyGen renders whose webhook didn't fire.
-  // AWAIT (not ctx.waitUntil) so the inner processOne calls run in
-  // the scheduled handler's active context — detached promises
-  // (waitUntil / queue path) were observed to die silently mid-
-  // pipeline in this runtime.
+  // Cron — invoked by [triggers] crons in wrangler.toml.
+  //
+  // Two cron schedules share this handler:
+  //   * * * * *      (every minute)        → HeyGen poll-fallback
+  //   0 14 * * 1     (Mondays 14:00 UTC)   → Weekly performance report
+  //
+  // Routing: anything that ISN'T the per-minute schedule routes to the
+  // weekly report. This pattern is more resilient than literal string
+  // equality — equivalent expressions ("0 14 * * 1" vs "0 14 * * MON") or
+  // a future ops edit to the schedule won't accidentally fall through to
+  // the poll-fallback path. The report path itself is also dispatched via
+  // self-fetch so the actual GHL sends run in a fresh HTTP-handler Worker
+  // invocation with their own CPU budget — same silent-kill defense PR #45
+  // applied to processOne.
   async scheduled(event, env, ctx) {
-    try {
-      const r = await runHeygenPollFallback(env, ctx);
-      console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
-    } catch (e) {
-      console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
+    const cron = event?.cron || "";
+    const isEveryMinute = cron === "* * * * *";
+
+    if (isEveryMinute) {
+      try {
+        const r = await runHeygenPollFallback(env, ctx);
+        console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));
+      } catch (e) {
+        console.error("scheduled: heygen-poll-fallback failed:", e.stack || e.message);
+      }
+      return;
     }
+
+    // Any non-minute cron → weekly report + orphan cleanup, both dispatched
+    // via self-fetch so they each run in their own HTTP-handler invocation
+    // with a fresh CPU budget. ctx.waitUntil keeps the scheduled handler
+    // alive long enough for both dispatches to land.
+    console.log(`scheduled: dispatching weekly-report + orphan-cleanup (cron='${cron}')`);
+
+    const authHeaders = {
+      "Authorization": `Bearer ${env.PROXY_API_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    const p = fetch(`${env.BASE_URL}/v1/admin/reports/weekly/send`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({}),
+    })
+      .then(r => r.json())
+      .then(res => console.log("scheduled: weekly-report dispatched", JSON.stringify({
+        ok: res.ok,
+        recipients_attempted: res.recipients_attempted,
+        recipients_delivered: res.recipients_delivered,
+        totals: res.totals,
+        reason: res.reason,
+      })))
+      .catch(e => console.error("scheduled: weekly-report dispatch failed:", e.message));
+
+    // Auto-cleanup orphaned 'rendered' jobs (delivered 6h–30d ago, never
+    // received a webhook) so they don't pollute dashboards or re-trigger
+    // delivery. Runs silently — failures are logged but don't block the report.
+    const q = fetch(`${env.BASE_URL}/v1/admin/jobs/orphan-cleanup`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ dry_run: false, max_rows: 50 }),
+    })
+      .then(r => r.json())
+      .then(res => console.log("scheduled: orphan-cleanup", JSON.stringify({
+        ok: res.ok, matched: res.matched, updated: res.updated,
+      })))
+      .catch(e => console.error("scheduled: orphan-cleanup failed:", e.message));
+
+    ctx.waitUntil(Promise.all([p, q]));
   },
 };

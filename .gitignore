@@ -20,7 +20,12 @@ next-env.d.ts
 out/
 build/
 .tsbuildinfo
+*.tsbuildinfo
 .vercel
+
+# Python bytecode cache (from local py_compile / running deploy scripts)
+__pycache__/
+*.pyc
 
 # Environment files
 .env

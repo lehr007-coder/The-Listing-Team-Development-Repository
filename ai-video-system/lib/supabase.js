@@ -115,6 +115,29 @@ export async function updateVideoJob(env, jobId, patch) {
   return rows[0] || null;
 }
 
+// Atomic "claim this state transition". PATCH only matches rows whose
+// status is NOT already in `fromNotIn`, so concurrent callers serialize
+// at the Postgres row level: the first to flip the status gets the row
+// back, the rest match zero rows and get null. Used by the HeyGen
+// success callback to dispatch delivery exactly once even when a real
+// webhook and the cron poll-fallback (or a HeyGen retry) arrive at the
+// same instant — a check-then-set on KV could let both through.
+export async function claimVideoJobTransition(env, jobId, patch, fromNotIn) {
+  const notIn = fromNotIn.map(encodeURIComponent).join(",");
+  const r = await fetch(
+    sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&status=not.in.(${notIn})`),
+    {
+      method: "PATCH",
+      headers: sbHeaders(env, "return=representation"),
+      body: JSON.stringify(patch),
+      signal: sbSignal(),
+    }
+  );
+  if (!r.ok) throw new Error(`claimVideoJobTransition failed: ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
 // Atomic claim: try to mark the job as "being processed" by setting
 // last_event='processing'. Concurrent claim attempts on the same row
 // serialize at the Postgres row level — first wins, the rest get 0
@@ -188,4 +211,47 @@ export async function insertVideoEvent(env, row) {
     // Best-effort. Tracking should never break delivery.
     console.warn("insertVideoEvent failed:", r.status);
   }
+}
+
+// Sum engagement_score across all delivered jobs for a single contact.
+// Used by tracking.js to write the cumulative (cross-video) score to GHL
+// instead of only the per-job score.
+export async function getContactEngagementTotal(env, contactId) {
+  const url = sbUrl(env,
+    `/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
+    `&status=eq.delivered&select=engagement_score`);
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
+  if (!r.ok) return 0;
+  const rows = await r.json();
+  return rows.reduce((sum, j) => sum + (Number(j.engagement_score) || 0), 0);
+}
+
+// Return [{contact_id, total}] grouped-and-summed across all delivered jobs,
+// capped at `limit` unique contacts (sorted by total desc so the highest
+// scorers get synced first when the batch is truncated). Used by the
+// POST /v1/admin/contacts/sync-scores bulk-resync endpoint.
+export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}) {
+  const cap = Math.min(limit, 2000);
+  // Fetch all rows without a row-level LIMIT so the JS grouping sees every
+  // delivered job. Applying LIMIT to raw rows (not contacts) caused high-volume
+  // contacts to be silently truncated and receive understated scores.
+  // The cap is applied after grouping so it correctly limits unique contacts.
+  const url = sbUrl(env,
+    `/rest/v1/video_jobs?status=eq.delivered` +
+    `&contact_id=not.is.null` +
+    `&select=contact_id,engagement_score`);
+  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
+  if (!r.ok) return [];
+  const rows = await r.json();
+
+  const map = new Map();
+  for (const row of rows) {
+    const cid = row.contact_id;
+    if (!cid) continue;
+    map.set(cid, (map.get(cid) || 0) + (Number(row.engagement_score) || 0));
+  }
+  return [...map.entries()]
+    .map(([contact_id, total]) => ({ contact_id, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, cap);
 }

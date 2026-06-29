@@ -9,6 +9,22 @@ export const maxDuration = 60;
 // Admin-only: pull all contacts for the caller's location from GHL and
 // upsert them into our DB, rebuilding assignments from GHL's `assignedTo`.
 export async function POST(req: NextRequest) {
+  // CSRF guard: this is a cookie-authenticated, state-changing POST.
+  // Browsers always attach Origin on a cross-origin POST, so reject any
+  // request whose Origin isn't same-origin with the app host.
+  const origin = req.headers.get("origin");
+  if (origin) {
+    let originHost: string | null = null;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      originHost = null;
+    }
+    if (!originHost || originHost !== req.headers.get("host")) {
+      return NextResponse.json({ error: "Bad origin" }, { status: 403 });
+    }
+  }
+
   const session = await requireSession();
   if (session.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

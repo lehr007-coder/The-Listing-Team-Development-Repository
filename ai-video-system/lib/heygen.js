@@ -189,6 +189,46 @@ export async function getTemplateDetails(env, templateId) {
   }
 }
 
+// HeyGen API credit balance. Used by the admin dashboard so we know
+// when to top up before renders silently get stuck mid-flight. Returns
+// { ok, remaining_quota?, details, error? } — never throws so the
+// dashboard panel can render even when HeyGen is unreachable.
+export async function getCreditBalance(env) {
+  // HeyGen has shipped this under several paths over the years. Try the
+  // current v2 path first, then fall back to v1 variants. Best-effort —
+  // returns the first response that parses out a remaining_quota value.
+  const paths = [
+    "/v2/user/remaining_quota",
+    "/v1/user/remaining_quota",
+    "/v1/user.get",
+  ];
+  let lastErr = null;
+  for (const p of paths) {
+    try {
+      const r = await fetch(`${HEYGEN_BASE}${p}`, {
+        headers: heygenHeaders(env), signal: heygenSignal(),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        lastErr = { http_status: r.status, path: p, error: body?.error || body?.message || `HTTP ${r.status}` };
+        continue;
+      }
+      const remaining =
+        body?.data?.remaining_quota ??
+        body?.data?.user?.remaining_quota ??
+        body?.remaining_quota ??
+        null;
+      if (remaining !== null) {
+        return { ok: true, remaining_quota: remaining, path: p, details: body?.data || body };
+      }
+      lastErr = { path: p, error: "no remaining_quota in response", body };
+    } catch (e) {
+      lastErr = { path: p, error: e.message };
+    }
+  }
+  return { ok: false, ...lastErr };
+}
+
 // HeyGen's avatar list. Returns an array of { avatar_id, avatar_name,
 // preview_image_url, ... } objects. Used to populate avatar pickers in
 // the admin UI for the non-template fallback render path.

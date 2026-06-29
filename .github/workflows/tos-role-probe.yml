@@ -1,0 +1,53 @@
+# Handoff Item 1b: verify every tos_party_role pick-list value accepts a
+# create on the live worker, deleting each probe record afterwards.
+#
+# Requires the repo secret TOS_ADMIN_KEY (the worker's admin Bearer token).
+# This repository is public — the key must only ever live in that secret.
+# Run AFTER adding the 11 pick-list values in GHL (Settings → Custom
+# Objects → tos_party → tos_party_role).
+name: TOS role probe (Item 1b)
+
+on:
+  workflow_dispatch:
+    inputs:
+      transaction_id:
+        description: Test deal record id to attach probe parties to
+        required: true
+        default: 6a27632808ed2724d05d0bcd
+
+jobs:
+  probe:
+    name: Probe tos_party_role values
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe each role
+        env:
+          KEY: ${{ secrets.TOS_ADMIN_KEY }}
+          TXN: ${{ inputs.transaction_id }}
+          WORKER: https://tos-proxy-staging.lehr007.workers.dev
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::repo secret TOS_ADMIN_KEY is not set — add the worker admin Bearer token as a repository secret and re-run"
+            exit 1
+          fi
+          FAILED=0
+          for ROLE in buyer seller buyer_agent listing_agent buyer_brokerage listing_brokerage title escrow lender attorney inspector appraiser hoa vendor other; do
+            RESP=$(curl -sS -A "Mozilla/5.0 (compatible; tos-probe/1.0)" -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+              -d "{\"transactionId\":\"$TXN\",\"name\":\"PROBE_$ROLE\",\"role\":\"$ROLE\"}" \
+              "$WORKER/tos/admin/parties/create")
+            PID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('partyId',''))" 2>/dev/null || true)
+            if [ -n "$PID" ]; then
+              echo "$ROLE -> OK ($PID)"
+              curl -sS -A "Mozilla/5.0 (compatible; tos-probe/1.0)" -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+                -d "{\"records\":[{\"objectKey\":\"custom_objects.tos_party\",\"id\":\"$PID\"}]}" \
+                "$WORKER/tos/admin/bulk-delete" > /dev/null
+            else
+              echo "::error::$ROLE -> FAIL: $(echo "$RESP" | head -c 200)"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::some roles failed — the corresponding pick-list values are missing in GHL (Item 1a)"
+            exit 1
+          fi
+          echo "all 15 roles accepted — Item 1b verified"

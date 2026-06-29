@@ -112,6 +112,39 @@ const DASHBOARD_HTML = `<!doctype html>
   .funnel-bar .pct { color:var(--muted); font-size:11px; }
   .funnel-bar .count { font-size:20px; font-weight:600; }
   .funnel-bar .bar { height:4px; background:var(--accent); margin-top:6px; border-radius:2px; transition:width .3s; }
+  .analytics-totals { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:14px 16px; }
+  .analytics-totals .cell { background:#000; border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .analytics-totals .cell .ch { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .analytics-totals .cell .num { font-size:22px; font-weight:600; margin-top:4px; }
+  .sparkline { padding:0 16px 14px; }
+  .sparkline-bars { display:flex; gap:2px; height:60px; align-items:flex-end; }
+  .sparkline-bar { flex:1; background:var(--accent); opacity:.85; border-radius:2px 2px 0 0; min-height:2px; position:relative; }
+  .sparkline-bar.delivered { background:var(--ok); }
+  .sparkline-bar.failed    { background:var(--bad); }
+  .sparkline-axis { display:flex; justify-content:space-between; color:var(--muted); font-size:10px; margin-top:6px; }
+  .vtype-bar { background:var(--accent); height:4px; border-radius:2px; margin-top:4px; }
+  td.delivery-pct.high { color:var(--ok); }
+  td.delivery-pct.low  { color:var(--bad); }
+  td.delivery-pct.mid  { color:var(--warn); }
+  .alert { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin:6px 16px; border-radius:6px; border:1px solid var(--line); background:#0f0f0f; font-size:13px; }
+  .alert.info  { border-color:#3a4a5a; background:#10141a; }
+  .alert.warn  { border-color:#5a4a1a; background:#161310; }
+  .alert.error { border-color:#5a1a1a; background:#180e0e; }
+  .alert .dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 auto; }
+  .alert.info  .dot { background:#4dabf7; }
+  .alert.warn  .dot { background:var(--warn); }
+  .alert.error .dot { background:var(--bad); }
+  .alert .body { flex:1; }
+  .alert .kind { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px; }
+  .alert .ids { color:var(--muted); font-size:11px; font-family:monospace; margin-top:4px; }
+  .alert .action-btn { background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer; margin-top:6px; }
+  .alert .action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .alerts-empty { padding:14px 16px; color:var(--muted); font-size:13px; }
+  .sync-bar { display:flex; align-items:center; gap:10px; padding:12px 16px; flex-wrap:wrap; }
+  .sync-preview { padding:0 16px 14px; }
+  .sync-preview table { font-size:12px; }
+  .sync-preview th, .sync-preview td { padding:6px 10px; }
+  .sync-count { font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -133,7 +166,34 @@ const DASHBOARD_HTML = `<!doctype html>
     <div class="card" id="card-rl-global"><div class="label">Renders today (global)</div><div class="value">…</div></div>
     <div class="card" id="card-rl-contacts"><div class="label">Contacts today</div><div class="value">…</div></div>
     <div class="card" id="card-killswitch"><div class="label">Kill switch</div><div class="value">…</div></div>
+    <div class="card" id="card-heygen-credits"><div class="label">HeyGen credits</div><div class="value">…</div></div>
     <div class="card" id="card-uptime"><div class="label">Last health</div><div class="value">…</div></div>
+  </div>
+
+  <div class="panel" id="alerts-panel">
+    <h2>Health alerts</h2>
+    <div id="alerts-body"><div class="alerts-empty">Loading…</div></div>
+  </div>
+
+  <div class="panel" id="analytics-panel">
+    <h2>Analytics · last 30 days</h2>
+    <div id="analytics-totals" class="empty">Loading…</div>
+    <div id="analytics-sparkline" class="sparkline"></div>
+    <div style="padding:0 16px 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">By video type</div>
+    <table id="analytics-by-type-table">
+      <thead><tr><th>Video type</th><th>Total</th><th>Delivered</th><th>Failed</th><th>Delivery %</th><th>Avg engagement</th></tr></thead>
+      <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="ghl-sync-panel">
+    <h2>GHL Contact Field Sync</h2>
+    <div class="sync-bar">
+      <button id="sync-preview-btn">Preview score sync</button>
+      <button id="sync-commit-btn" class="ghost" style="display:none">Commit sync</button>
+      <span id="sync-status" class="sync-count">Resyncs <code>video_engagement_score</code>, <code>last_video_type</code>, <code>video_url</code> on GHL contacts from Supabase.</span>
+    </div>
+    <div class="sync-preview" id="sync-preview" style="display:none"></div>
   </div>
 
   <div class="panel" id="ctr-panel">
@@ -271,6 +331,21 @@ const DASHBOARD_HTML = `<!doctype html>
     set("card-uptime", "OK", "ok");
   }
 
+  async function loadHeygenCredits() {
+    const r = await api("/v1/admin/heygen/credits");
+    if (!r.ok) {
+      set("card-heygen-credits", "error", "warn");
+      return;
+    }
+    const q = r.remaining_quota;
+    if (q === null || q === undefined) {
+      set("card-heygen-credits", "—");
+      return;
+    }
+    const cls = q === 0 ? "bad" : (q < 20 ? "warn" : "ok");
+    set("card-heygen-credits", String(q), cls);
+  }
+
   async function loadJobs(filter) {
     const url = filter
       ? "/v1/admin/jobs?limit=50&contact_id=" + encodeURIComponent(filter)
@@ -356,6 +431,117 @@ const DASHBOARD_HTML = `<!doctype html>
       }</div>\`;
   }
 
+  async function loadAlerts() {
+    const r = await api("/v1/admin/alerts");
+    const body = document.getElementById("alerts-body");
+    const alerts = r.alerts || [];
+    if (alerts.length === 0) {
+      body.innerHTML = "<div class='alerts-empty'>All clear — no active alerts.</div>";
+      return;
+    }
+    body.innerHTML = alerts.map(a => {
+      const idsHtml = a.ids && a.ids.length
+        ? "<div class='ids'>" + a.ids.join(", ") + (a.count > a.ids.length ? " (+" + (a.count - a.ids.length) + " more)" : "") + "</div>"
+        : "";
+      let actionHtml = "";
+      if (a.action) {
+        const label = a.action.method === "OPEN_URL"
+          ? "Open →"
+          : a.action.method + " " + a.action.path;
+        if (a.action.method === "OPEN_URL") {
+          actionHtml = "<a class='action-btn' href='" + a.action.path + "' target='_blank' rel='noopener'>" + label + "</a>";
+        } else {
+          actionHtml = "<button class='action-btn' data-action-method='" + a.action.method +
+            "' data-action-path='" + a.action.path +
+            "' data-action-body='" + (a.action.body ? encodeURIComponent(JSON.stringify(a.action.body)) : "") +
+            "'>" + label + "</button>";
+        }
+      }
+      return "<div class='alert " + a.severity + "'>" +
+        "<div class='dot'></div>" +
+        "<div class='body'>" +
+          "<div class='kind'>" + a.kind + "</div>" +
+          "<div>" + a.message + "</div>" +
+          idsHtml +
+          actionHtml +
+        "</div></div>";
+    }).join("");
+    body.querySelectorAll("button.action-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const method = btn.dataset.actionMethod;
+        const path = btn.dataset.actionPath;
+        const bodyEnc = btn.dataset.actionBody;
+        const bodyObj = bodyEnc ? JSON.parse(decodeURIComponent(bodyEnc)) : null;
+        if (!confirm(method + " " + path + (bodyObj ? "\\n\\n" + JSON.stringify(bodyObj, null, 2) : "") + "\\n\\nProceed?")) return;
+        let res;
+        if (method === "POST") {
+          res = await apiPost(path, bodyObj);
+        } else if (method === "DELETE") {
+          res = await apiDelete(path);
+        } else if (method === "GET") {
+          res = await api(path);
+        }
+        alert(JSON.stringify(res, null, 2));
+        refresh();
+      });
+    });
+  }
+
+  async function loadAnalyticsSummary() {
+    const s = await api("/v1/admin/analytics/summary?days=30");
+    const totals = s.totals || {};
+    const totalsEl = document.getElementById("analytics-totals");
+    totalsEl.classList.remove("empty");
+    totalsEl.innerHTML = \`<div class="analytics-totals">
+      <div class="cell"><div class="ch">Jobs (30d)</div><div class="num">\${totals.jobs ?? 0}</div></div>
+      <div class="cell"><div class="ch">Delivered</div><div class="num">\${totals.delivered ?? 0}</div></div>
+      <div class="cell"><div class="ch">Delivery rate</div><div class="num">\${totals.delivery_rate_pct == null ? "—" : totals.delivery_rate_pct + "%"}</div></div>
+      <div class="cell"><div class="ch">Engagement</div><div class="num">\${totals.total_engagement ?? 0}</div></div>
+    </div>\`;
+
+    // Sparkline of daily renders + delivered as side-by-side bars per day
+    const daily = s.daily || [];
+    const max = Math.max(1, ...daily.map(d => d.rendered || 0));
+    const barsEl = document.getElementById("analytics-sparkline");
+    barsEl.innerHTML = \`
+      <div style="padding:0 0 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Daily activity</div>
+      <div class="sparkline-bars">\${
+        daily.map(d => {
+          const totalH = Math.max(2, Math.round((d.rendered / max) * 60));
+          const deliveredH = d.rendered > 0 ? Math.round((d.delivered / d.rendered) * totalH) : 0;
+          const failedH = d.rendered > 0 ? Math.round((d.failed / d.rendered) * totalH) : 0;
+          const otherH = Math.max(0, totalH - deliveredH - failedH);
+          return \`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:60px;gap:0" title="\${d.day}: \${d.rendered} rendered, \${d.delivered} delivered, \${d.failed} failed">
+            \${otherH > 0 ? \`<div class="sparkline-bar" style="height:\${otherH}px"></div>\` : ""}
+            \${failedH > 0 ? \`<div class="sparkline-bar failed" style="height:\${failedH}px"></div>\` : ""}
+            \${deliveredH > 0 ? \`<div class="sparkline-bar delivered" style="height:\${deliveredH}px"></div>\` : ""}
+          </div>\`;
+        }).join("")
+      }</div>
+      <div class="sparkline-axis"><span>\${daily[0]?.day || ""}</span><span>\${daily[daily.length-1]?.day || ""}</span></div>
+    \`;
+
+    const byType = s.by_video_type || [];
+    const tbody = document.querySelector("#analytics-by-type-table tbody");
+    if (byType.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='6' class='empty'>No jobs in the last 30 days.</td></tr>";
+      return;
+    }
+    tbody.innerHTML = byType.map(t => {
+      const pct = t.delivery_rate_pct;
+      const klass = pct == null ? "" : (pct >= 80 ? "high" : pct >= 50 ? "mid" : "low");
+      const pctText = pct == null ? "—" : pct + "%";
+      return \`<tr>
+        <td>\${t.video_type}</td>
+        <td>\${t.total}</td>
+        <td class="status delivered">\${t.delivered}</td>
+        <td class="status failed">\${t.failed}</td>
+        <td class="delivery-pct \${klass}">\${pctText}</td>
+        <td class="engagement">\${t.avg_engagement ?? "—"}</td>
+      </tr>\`;
+    }).join("");
+  }
+
   async function loadTopContacts() {
     const r = await api("/v1/admin/contacts/top?limit=10");
     const tbody = document.querySelector("#top-contacts-table tbody");
@@ -431,6 +617,68 @@ const DASHBOARD_HTML = `<!doctype html>
     }).join("");
   }
 
+  // Phase 10 — GHL engagement score sync panel
+  let _syncPreviewData = null;
+
+  document.getElementById("sync-preview-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("sync-preview-btn");
+    const statusEl = document.getElementById("sync-status");
+    btn.disabled = true;
+    statusEl.textContent = "Loading preview…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: true, max: 100 });
+      _syncPreviewData = r;
+      const preview = r.preview || [];
+      const previewEl = document.getElementById("sync-preview");
+      const commitBtn = document.getElementById("sync-commit-btn");
+      if (r.ok === false) {
+        statusEl.textContent = "Error: " + (r.error || r.reason || "unknown");
+        previewEl.style.display = "none";
+        commitBtn.style.display = "none";
+      } else {
+        statusEl.textContent =
+          r.total_contacts_with_videos + " contacts with delivered videos" +
+          (r.truncated ? " (showing first " + preview.length + ")" : "") + ".";
+        previewEl.style.display = preview.length ? "block" : "none";
+        if (preview.length) {
+          previewEl.innerHTML = \`<table>
+            <thead><tr><th>Contact ID</th><th style="text-align:right">Cumulative score</th></tr></thead>
+            <tbody>\${preview.slice(0, 20).map(c =>
+              \`<tr><td style="font-family:monospace">\${c.contact_id}</td><td style="text-align:right">\${c.total}</td></tr>\`
+            ).join("")}\${preview.length > 20 ? \`<tr><td colspan="2" style="color:var(--muted);text-align:center">… \${preview.length - 20} more</td></tr>\` : ""}
+            </tbody></table>\`;
+        }
+        commitBtn.style.display = preview.length ? "inline-block" : "none";
+      }
+    } catch (e) {
+      document.getElementById("sync-status").textContent = "Preview failed: " + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("sync-commit-btn").addEventListener("click", async () => {
+    const count = _syncPreviewData?.contacts_in_batch || _syncPreviewData?.preview?.length || 0;
+    if (!confirm("Write cumulative engagement scores to " + count + " GHL contacts?\\n\\nThis updates the video_engagement_score custom field for each contact. Proceed?")) return;
+    const commitBtn = document.getElementById("sync-commit-btn");
+    const statusEl = document.getElementById("sync-status");
+    commitBtn.disabled = true;
+    statusEl.textContent = "Syncing…";
+    try {
+      const r = await apiPost("/v1/admin/contacts/sync-scores", { dry_run: false, max: 100 });
+      statusEl.textContent = r.ok
+        ? "Synced " + r.contacts_synced + " / " + r.contacts_attempted + " contacts."
+        : "Sync failed: " + (r.error || r.reason || "unknown");
+      document.getElementById("sync-preview").style.display = "none";
+      commitBtn.style.display = "none";
+      _syncPreviewData = null;
+    } catch (e) {
+      statusEl.textContent = "Commit failed: " + e.message;
+    } finally {
+      commitBtn.disabled = false;
+    }
+  });
+
   async function refresh() {
     // Promise.allSettled (NOT all) so one slow/failed endpoint
     // doesn't block the rest from rendering. The HeyGen template
@@ -442,12 +690,15 @@ const DASHBOARD_HTML = `<!doctype html>
     await Promise.allSettled([
       wrap(loadHealth),
       wrap(loadRateLimits),
+      wrap(loadAlerts),
+      wrap(loadAnalyticsSummary),
       wrap(loadDailySummary),
       wrap(loadTopContacts),
       wrap(() => loadJobs(document.getElementById("contact-filter").value.trim())),
     ]);
-    // Templates + avatars fire AFTER the main panels render so the
-    // dashboard is interactive even if HeyGen's API is slow.
+    // Templates, avatars, and credits fire AFTER the main panels render
+    // so the dashboard is interactive even if HeyGen's API is slow.
+    wrap(loadHeygenCredits);
     wrap(loadTemplates);
     wrap(loadAvatars);
   }

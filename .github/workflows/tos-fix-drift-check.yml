@@ -1,0 +1,28 @@
+# Guards the deployed go-live fixes: fails (and notifies via Actions email)
+# if a deploy from the Mac TS workspace reverts them. Remedy:
+# tos-proxy/PORTING-TO-TS.md, or re-run the Deploy tos-proxy-staging workflow
+# to restore the patched bundle.
+name: TOS fix drift check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 14 * * *'   # daily 14:17 UTC (morning US Eastern)
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'tos-proxy/check_drift.py'
+      - '.github/workflows/tos-fix-drift-check.yml'
+
+jobs:
+  check:
+    name: Verify live worker still has the fixes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check deployed code for fix markers
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 tos-proxy/check_drift.py

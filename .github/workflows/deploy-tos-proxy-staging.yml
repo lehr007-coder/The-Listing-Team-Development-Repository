@@ -1,0 +1,30 @@
+name: Deploy tos-proxy-staging
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+    paths:
+      - 'tos-proxy/**'
+      - '.github/workflows/deploy-tos-proxy-staging.yml'
+  workflow_dispatch:
+
+concurrency: deploy-tos-proxy-staging
+
+jobs:
+  deploy:
+    name: Deploy tos-proxy-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Syntax check always runs — gives branch pushes a validation signal.
+      - name: Syntax check
+        run: node --check tos-proxy/worker.js
+      # Gate: the actual deploy runs only from main or a manual run, so
+      # claude/** branch pushes validate without landing on staging.
+      - name: Deploy via Cloudflare API (bindings preserved)
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 tos-proxy/deploy.py

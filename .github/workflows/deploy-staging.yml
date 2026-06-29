@@ -5,6 +5,13 @@ on:
     branches:
       - main
       - 'claude/**'
+  workflow_dispatch: {}
+
+# Gate: real deploys to the shared staging workers happen only from main
+# or a manual "Run workflow". Pushes to claude/** feature branches run the
+# same wrangler step with --dry-run, so they validate/build the worker and
+# give a green/red signal without landing unfinished work on staging. To
+# push a branch to staging on purpose, trigger this workflow manually.
 
 # Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
 # on 2026-06-02. Remove when the action publishes a Node-24-native release.
@@ -22,7 +29,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: thelistingteamproxy
-          command: deploy --config wrangler.staging.toml
+          command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
 
   deploy-support-tickets:
     name: Deploy tlt-support-tickets-staging
@@ -34,7 +41,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: support-tickets
-          command: deploy --config wrangler.staging.toml
+          command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
 
   deploy-brand-injector:
     name: Deploy ghl-brand-injector-staging
@@ -46,4 +53,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: ghl-brand-injector
-          command: deploy --config wrangler.staging.toml
+          command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}

@@ -1,16 +1,21 @@
 # GHL Workflow: AI Video — Render & Deliver
 
-The Cloudflare-side delivery orchestration (cron + webhook → self-fetch)
-turned out to be unreliable in this runtime. The proven-working
-architecture is to drive the timing from a GHL workflow that calls our
-worker endpoints directly.
+The Cloudflare-side pipeline is fully autonomous:
+1. GHL workflow (or manual call) triggers `POST /v1/heygen/render`
+2. HeyGen renders the video and fires the account-level webhook to `/v1/heygen/callback`
+3. The callback marks the job `rendered` and immediately triggers delivery via self-fetch
+4. A cron fallback polls every minute for any jobs the webhook missed
+
+The GHL workflow only needs to handle Step 1 (trigger the render). Steps 2–4
+are handled automatically by the Cloudflare worker. The optional GHL step
+for delivery is available as a belt-and-suspenders fallback.
 
 Every endpoint used here has been validated end-to-end:
 
 | Endpoint | Proven via |
 |----------|------------|
-| `POST /v1/heygen/render` | every render call this session |
-| `POST /v1/delivery/send` | `vj_mpy9lwvc`, `vj_mpx84ptv` (3 successful runs) |
+| `POST /v1/heygen/render` | production + staging — multiple successful runs |
+| `POST /v1/delivery/send` | production + staging — emails delivered to GHL Conversations |
 | `POST /v1/admin/jobs/:id/archive` | minimal — designed to fit CPU budget cleanly |
 
 ---
@@ -35,7 +40,7 @@ choices:
 
 - URL: `https://videos.reallistingteam.com/v1/heygen/render`
 - Headers:
-  - `Authorization: Bearer mNQAeneDVLq2zG1Rk9PFszFZ1OVwdoXFJKnWysEXT48`
+  - `Authorization: Bearer <PROXY_API_KEY>`  ← get current value from `GET /v1/admin/health-deep` or the Cloudflare worker secrets
   - `Content-Type: application/json`
 - Body (JSON):
   ```json
@@ -57,18 +62,21 @@ Pick whichever `video_type` matches the situation — any of:
 
 ### Step 2 — Wait for HeyGen
 
-**Action:** Wait → 5 minutes
+**Action:** Wait → 10 minutes
 
-(HeyGen template renders typically complete in 2-4 min. 5 gives plenty of
-slack. The webhook fires automatically when HeyGen is done — by minute 5
-the job row already has `status=rendered` and `hosted_url` set.)
+(HeyGen template renders typically complete in 2-4 min. 10 leaves margin
+for HeyGen queue depth, and protects against false-positive delivery
+attempts when credits are low — HeyGen will accept a job, then stall it
+silently until credits free up. The webhook fires automatically when
+HeyGen completes the render, updating the job to `status=rendered`
+with `hosted_url` set.)
 
 ### Step 3 — Send email
 
 **Action:** Webhooks → Custom Webhook → POST
 
 - URL: `https://videos.reallistingteam.com/v1/delivery/send`
-- Headers: same auth as step 1
+- Headers: same auth as step 1 (`Authorization: Bearer <PROXY_API_KEY>`)
 - Body:
   ```json
   {
@@ -79,6 +87,13 @@ the job row already has `status=rendered` and `hosted_url` set.)
 Response will include `results.email.threadId` + `messageId` from GHL's
 own conversations API — visible in the contact's conversation history
 right alongside any other emails you send.
+
+> **Safety guard.** As of v2026-06-08, `/v1/delivery/send` refuses to fire
+> when `hosted_url` is null. The error message names the failure mode
+> explicitly (HeyGen credits / webhook delivery). If you see this in the
+> step output, the render never completed — top up HeyGen credits, then
+> call `POST /v1/admin/jobs/<id>/reprocess` once HeyGen finishes the
+> stuck video.
 
 ### Step 4 — Archive to R2 (optional but recommended)
 
@@ -110,14 +125,20 @@ Recommended: clone the production workflow, rename to `AI Video — Render
 
 ---
 
-## Why not Cloudflare cron / webhook chains?
+## Architecture notes
 
-Documented in this session: every attempt to chain processing inside
-Cloudflare's runtime — queue consumer, scheduled cron, `ctx.waitUntil`,
-HTTP-handler self-fetch — exhibited a silent-kill pattern partway through
-the pipeline. The HeyGen render itself, individual webhook handlers, and
-single-purpose endpoints all work fine in isolation. GHL orchestrating
-the steps externally bypasses this entire class of issues.
+**The GHL workflow only needs to fire the render.** Delivery is fully
+automatic via the HeyGen account-level webhook → `/v1/heygen/callback` →
+self-fetch `/v1/delivery/send`. The cron fallback (`* * * * *`) catches any
+jobs the webhook misses.
+
+The optional Steps 2–4 in the workflow above are a belt-and-suspenders
+fallback. If the webhook fires (which it does for >99% of renders), delivery
+has already happened by the time the 10-minute wait completes, and the second
+`/v1/delivery/send` call is a no-op (the job is already `delivered`).
+
+**GHL workflow = just the trigger.** The Cloudflare worker owns the render →
+deliver → archive lifecycle autonomously.
 
 ---
 
@@ -131,6 +152,9 @@ the steps externally bypasses this entire class of issues.
 | POST | `/v1/admin/jobs/:id/archive` | Copy HeyGen MP4 → R2 for permanent storage |
 | GET | `/v1/admin/jobs?limit=50` | List recent jobs |
 | GET | `/v1/admin/jobs/:id` | Full job detail |
+| GET | `/v1/admin/jobs/:id/diagnose` | One-shot diagnostic: why is this job stuck? |
+| POST | `/v1/admin/jobs/:id/reprocess` | Re-trigger pipeline (auto-fetches HeyGen status if no URL passed) |
+| GET | `/v1/admin/heygen/credits` | HeyGen API credit balance |
 | GET | `/admin` | Browser dashboard |
 
 All `/v1/*` paths require `Authorization: Bearer <PROXY_API_KEY>` (or

@@ -81,8 +81,19 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
   if (event === "click" || event === "cta_click") patch.video_clicked = "true";
   if (event.startsWith("watch_")) patch.video_watch_percent = event.replace("watch_", "");
 
-  if (cId && Object.keys(patch).length) {
-    patch.video_engagement_score = String((Number(job.engagement_score || 0) + delta));
+  // Write GHL video_engagement_score for any event that either sets a
+  // flag (open / click / watch) OR awards points (delta > 0).
+  //
+  // Use the already-fetched job row to derive the new cumulative score —
+  // no extra DB round-trip needed, and this avoids two races:
+  //   1. getContactEngagementTotal only counts status=delivered jobs, so
+  //      events on a still-rendering/delivering job would see a stale (low)
+  //      total and write the wrong value to GHL.
+  //   2. Two concurrent events reading the same stale DB total would each
+  //      add their own delta and the second write would overwrite the first.
+  // Cross-job aggregation is reconciled by POST /v1/admin/contacts/sync-scores.
+  if (cId && (Object.keys(patch).length > 0 || delta > 0)) {
+    patch.video_engagement_score = String(Number(job.engagement_score || 0) + delta);
     await writeOwnedFields(env, cId, patch);
   }
 

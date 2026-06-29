@@ -1,10 +1,31 @@
 "use client";
 import { createElement, useEffect, useState } from "react";
+
+const isGhlOrigin = (origin: string) => {
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return (
+      host === "app.gohighlevel.com" ||
+      host === "app.leadconnectorhq.com" ||
+      host.endsWith(".gohighlevel.com") ||
+      host.endsWith(".leadconnectorhq.com") ||
+      host.endsWith(".msgsndr.com") ||
+      host.endsWith(".highlevel.com")
+    );
+  } catch {
+    return false;
+  }
+};
+
 export default function SsoHandshake() {
   const [status, setStatus] = useState("Connecting to GoHighLevel...");
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       console.log("[sso] msg", event.origin, event.data);
+      if (!isGhlOrigin(event.origin)) {
+        console.log("[sso] origin rejected:", event.origin);
+        return;
+      }
       const data: any = event.data;
       if (!data) return;
       let token: string | undefined;

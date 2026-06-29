@@ -20,6 +20,7 @@
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getListing, insertVideoJob, updateVideoJob, getVideoJob } from "../lib/supabase.js";
+import { getContact } from "../lib/ghl.js";
 import { invokeAgent } from "../lib/agents.js";
 import { submitFcpxmlRender } from "../lib/fcpxml.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
@@ -86,8 +87,11 @@ async function handleRender(request, env) {
     return error(400, "invalid_distribution");
   }
 
-  // Rate-limit guardrail
-  const rl = await checkRateLimit(env, contact_id || `social:${listing_id || "unknown"}`);
+  // Fetch contact to get locationId for the per-location rate-limit cap.
+  const contact = contact_id ? await getContact(env, contact_id).catch(() => null) : null;
+  const locationId = contact?.locationId || null;
+
+  const rl = await checkRateLimit(env, contact_id || `social:${listing_id || "unknown"}`, locationId);
   if (!rl.allowed) {
     return error(429, rl.reason, `Daily render limit reached`, {
       count: rl.count, limit: rl.limit, day: rl.day,
@@ -134,7 +138,7 @@ async function handleRender(request, env) {
     created_at: nowIso(),
   });
 
-  await incrementRateLimit(env, contact_id || `social:${listing_id || "unknown"}`).catch(e =>
+  await incrementRateLimit(env, contact_id || `social:${listing_id || "unknown"}`, locationId).catch(e =>
     console.warn("incrementRateLimit failed (non-fatal):", e.message)
   );
 

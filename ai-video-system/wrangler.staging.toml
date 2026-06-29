@@ -13,6 +13,11 @@ DEFAULT_BRAND = "the-listing-team"
 # Generous limits for staging — testing can burst more
 DAILY_RENDER_LIMIT = "200"
 PER_CONTACT_DAILY_LIMIT = "10"
+PER_LOCATION_DAILY_LIMIT = "200"
+
+# Phase 8 — Weekly report recipients (comma-separated GHL contact IDs).
+# Empty in staging by default; populate via wrangler secret put for testing.
+WEEKLY_REPORT_CONTACT_IDS = ""
 
 # Cloudflare Stream customer code (same account as prod)
 CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
@@ -50,8 +55,11 @@ id = "444a0a7edeb24d00b6063e3f17437efc"
 # reliable primary delivery path. See wrangler.toml for the full
 # context note. Re-enable by uncommenting:
 #
-# [triggers]
-# crons = ["* * * * *"]
+[triggers]
+crons = [
+  "* * * * *",      # heygen poll-fallback (every minute)
+  "0 14 * * 1",     # weekly report (Mon 14:00 UTC)
+]
 
 # ── Queue: ai-video-staging-render-queue (created via dashboard) ──
 [[queues.producers]]

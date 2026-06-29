@@ -20,10 +20,14 @@
 //   HeyGen → us. Body shape per HeyGen docs:
 //     { event_type: "avatar_video.success", event_data: { video_id, url, callback_id, ... } }
 //   We verify HMAC if HEYGEN_CALLBACK_SECRET is set.
+//
+// GET /v1/heygen/webhooks/debug?limit=20&job_id=<id>
+//   Debug endpoint: lists recent webhook attempts (successful + failed) from last 24h.
+//   Helps diagnose why webhooks aren't firing or are being rejected (signature, missing job, etc).
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
-import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
+import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
@@ -55,6 +59,9 @@ export default async function heygenRoute(request, env, ctx, url) {
     const jobId = path.split("/")[2];
     const job = await getVideoJob(env, jobId);
     return job ? json(job) : error(404, "not_found", `job ${jobId} not found`);
+  }
+  if (method === "GET" && path === "/webhooks/debug") {
+    return webhooksDebug(env, url);
   }
 
   return error(404, "not_found", `No HeyGen route: ${method} ${path}`);
@@ -96,18 +103,22 @@ async function handleRender(request, env) {
   const existing = await findActiveJobForContact(env, contact_id, video_type);
   if (existing) return json({ job_id: existing.id, status: existing.status, deduped: true });
 
-  // Rate-limit guardrail — protect against runaway spend
-  const rl = await checkRateLimit(env, contact_id);
+  // Fetch contact early so we can pass locationId to the rate limiter.
+  // getContact is cheap (single GHL API call, cached upstream).
+  const contact = await getContact(env, contact_id);
+  // Rate-limit guardrail — protect against runaway spend (three layers)
+  const locationId = contact?.locationId || null;
+  const rl = await checkRateLimit(env, contact_id, locationId);
   if (!rl.allowed) {
     return error(429, rl.reason, `Daily render limit reached`, {
       count: rl.count,
       limit: rl.limit,
       day: rl.day,
-      hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
+      location_id: rl.location_id || undefined,
+      hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT / PER_LOCATION_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
     });
   }
 
-  const contact = await getContact(env, contact_id);
   const intelligence = readLeadIntelligence(contact);
   const [events, lead, scoring] = await Promise.all([
     getRecentEvents(env, contact_id, 25),
@@ -180,7 +191,7 @@ async function handleRender(request, env) {
   }
 
   // Increment rate-limit counters AFTER successful HeyGen submission
-  await incrementRateLimit(env, contact_id).catch(e =>
+  await incrementRateLimit(env, contact_id, locationId).catch(e =>
     console.warn("incrementRateLimit failed (non-fatal):", e.message)
   );
 
@@ -188,32 +199,83 @@ async function handleRender(request, env) {
 }
 
 async function handleCallback(request, env, ctx) {
+  const startTime = Date.now();
   const { text, body } = await readJson(request);
 
-  // Optional HMAC verification
-  if (env.HEYGEN_CALLBACK_SECRET) {
-    const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
-    const ok = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
-    if (!ok) return error(401, "bad_signature");
+  // Log all webhook arrivals for debugging
+  const webhookLog = {
+    timestamp: new Date().toISOString(),
+    has_body: !!body,
+    has_signature: !!(request.headers.get("X-Signature") || request.headers.get("x-signature")),
+    event_type: body?.event_type || body?.type || "unknown",
+    heygen_video_id: body?.event_data?.video_id || body?.data?.video_id || null,
+    callback_id: body?.event_data?.callback_id || body?.data?.callback_id || null,
+    job_from_params: new URL(request.url).searchParams.get("job"),
+  };
+
+  // Required HMAC verification — reject if secret is not configured
+  if (!env.HEYGEN_CALLBACK_SECRET) {
+    console.error("HEYGEN_CALLBACK_SECRET is not set — rejecting webhook to prevent unsigned callback abuse");
+    return error(503, "misconfigured", "HEYGEN_CALLBACK_SECRET not set");
+  }
+  const sig = request.headers.get("X-Signature") || request.headers.get("x-signature");
+  const signatureOk = await verifyHmacSignature(text, sig, env.HEYGEN_CALLBACK_SECRET);
+  if (!signatureOk) {
+    webhookLog.signature_error = "verification_failed";
+    console.warn(`webhook signature verification failed: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(401, "bad_signature", "HMAC verification failed");
   }
 
-  if (!body) return error(400, "bad_json");
+  if (!body) {
+    webhookLog.error = "bad_json";
+    console.warn(`webhook received invalid JSON: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(400, "bad_json");
+  }
 
   const eventType = body.event_type || body.type;
   const data = body.event_data || body.data || {};
   const jobId = data.callback_id || new URL(request.url).searchParams.get("job");
 
-  if (!jobId) return error(400, "missing_job_id");
+  webhookLog.job_id = jobId;
+  webhookLog.signature_ok = signatureOk;
+
+  if (!jobId) {
+    webhookLog.error = "missing_job_id";
+    console.warn(`webhook missing job_id: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(400, "missing_job_id", `Could not extract job_id from callback_id or 'job' query param`);
+  }
+
   const job = await getVideoJob(env, jobId);
-  if (!job) return error(404, "job_not_found");
+  if (!job) {
+    webhookLog.error = "job_not_found";
+    console.warn(`webhook received for unknown job: ${JSON.stringify(webhookLog)}`);
+    const failKey = `webhook:failed:${Date.now()}`;
+    await env.VIDEO_KV?.put(failKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+    return error(404, "job_not_found", `Job ${jobId} not found in database`);
+  }
 
   // Idempotency: KV dedupe by HeyGen video_id + event_type
   const dedupeKey = `cb:heygen:${data.video_id || jobId}:${eventType}`;
   const seen = await env.VIDEO_KV.get(dedupeKey);
-  if (seen) return json({ ok: true, deduped: true });
+  if (seen) {
+    webhookLog.deduped = true;
+    console.log(`webhook ${jobId}: deduped (${eventType})`);
+    return json({ ok: true, deduped: true });
+  }
   await env.VIDEO_KV.put(dedupeKey, "1", { expirationTtl: 60 * 60 * 24 });
 
+  // Store successful webhook arrival in KV for debugging
+  const successKey = `webhook:received:${jobId}:${eventType}:${Date.now()}`;
+  await env.VIDEO_KV.put(successKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
+
   if (eventType === "avatar_video.fail" || eventType === "video.fail") {
+    console.log(`webhook ${jobId}: HeyGen reported failure — ${data.message || "unknown"}`);
     await updateVideoJob(env, jobId, {
       status: "failed",
       error: data.message || "heygen reported failure",
@@ -267,8 +329,15 @@ async function handleCallback(request, env, ctx) {
       data.preview_image_url ||
       gifUrl ||  // fallback so email always has SOME preview image
       null;
+    // Atomically claim the rendered transition. If another callback (a
+    // HeyGen retry or the cron poll-fallback racing in the same instant)
+    // already flipped the job to rendered/delivered, we get null back and
+    // must NOT dispatch delivery again — otherwise the recipient gets two
+    // emails. The KV dedupe above catches spaced-out repeats; this catches
+    // truly-simultaneous ones the KV check-then-set can't.
+    let claimed;
     try {
-      await updateVideoJob(env, jobId, {
+      claimed = await claimVideoJobTransition(env, jobId, {
         status: "rendered",
         r2_url: sourceMp4Url,
         hosted_url: hostedUrl,
@@ -276,10 +345,15 @@ async function handleCallback(request, env, ctx) {
         gif_url: gifUrl,
         rendered_at: nowIso(),
         error: null,
-      });
+      }, ["rendered", "delivered"]);
     } catch (e) {
-      console.error(`callback updateVideoJob failed for ${jobId}:`, e.stack || e.message);
+      console.error(`callback claim failed for ${jobId}:`, e.stack || e.message);
       return json({ ok: false, error: e.message });
+    }
+    if (!claimed) {
+      webhookLog.deduped = true;
+      console.log(`webhook ${jobId}: already rendered/delivered — skipping duplicate delivery dispatch`);
+      return json({ ok: true, deduped: true });
     }
     console.log(`callback ${jobId}: marked rendered (using HeyGen URL directly, thumbnail=${!!thumbnailUrl}, gif=${!!gifUrl}) — triggering delivery`);
 
@@ -306,5 +380,43 @@ async function handleCallback(request, env, ctx) {
     }
   }
 
+  // Unknown/unhandled event type
+  console.log(`webhook ${jobId}: unhandled event type — ${eventType}`);
   return json({ ok: true, ignored: eventType });
+}
+
+// Debug endpoint: retrieve recent webhook log entries from KV for diagnostics.
+// Shows both successful and failed webhook attempts, useful for understanding
+// why webhooks aren't firing or are being rejected.
+async function webhooksDebug(env, url) {
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 100);
+  const jobId = url.searchParams.get("job_id");
+
+  // List keys pattern: webhook:received:* or webhook:failed:*
+  const list = await env.VIDEO_KV.list({ prefix: "webhook:" });
+
+  const vals = await Promise.all(list.keys.map(k => env.VIDEO_KV.get(k.name)));
+  let entries = [];
+  for (let i = 0; i < list.keys.length; i++) {
+    const val = vals[i];
+    if (val) {
+      try {
+        const entry = JSON.parse(val);
+        if (jobId && entry.job_id !== jobId) continue;
+        entries.push({ key: list.keys[i].name, ...entry });
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+
+  // Sort by timestamp descending (most recent first)
+  entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  return json({
+    count: entries.length,
+    limit,
+    entries: entries.slice(0, limit),
+    note: "Shows webhook attempts (both successful and failed) from the last 24 hours. Use ?job_id=<id> to filter to a specific job.",
+  });
 }

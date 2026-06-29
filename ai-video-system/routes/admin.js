@@ -4,9 +4,11 @@
 //   GET    /v1/admin/jobs?limit=50&contact_id=<>&status=<>
 //   GET    /v1/admin/jobs/:id
 //   GET    /v1/admin/jobs/:id/events
+//   GET    /v1/admin/jobs/:id/diagnose    → why is this job stuck?
 //   POST   /v1/admin/jobs/:id/fail        { "reason": "..." }
 //   POST   /v1/admin/jobs/:id/reprocess   { "url": "<mp4 url>" }
 //   GET    /v1/admin/health-deep            → /v1/health + active job counters
+//   GET    /v1/admin/heygen/credits         → HeyGen API credit balance
 //
 //   GET    /v1/admin/kill                   → current kill-switch state
 //   POST   /v1/admin/kill                   → activate kill-switch (paused)
@@ -14,19 +16,48 @@
 //
 //   GET    /v1/admin/rate-limits            → live KV counters vs caps
 //   GET    /v1/admin/daily-summary?days=N   → 24h (or N-day) rollup
+//   GET    /v1/admin/analytics/summary?days=N  → 30-day analytics rollup
+//                                                with per-video-type breakdown
+//                                                + daily series for charts
+//   POST   /v1/admin/reports/weekly/send     → generate + email the weekly
+//                                              report. Body: { dry_run?, days?,
+//                                              recipients?:[contact_ids] }
+//   GET    /v1/admin/alerts                  → operational health alerts:
+//                                              credits, orphans, stuck jobs,
+//                                              missing config, kill-switch
+//   POST   /v1/admin/jobs/orphan-cleanup     → bulk-mark stale 'rendered' jobs
+//                                              as 'failed'. Body: { dry_run?,
+//                                              max_rows? } — defaults to dry-run.
+//   POST   /v1/admin/contacts/sync-scores   → resync GHL video_engagement_score for
+//                                              all contacts with delivered jobs. Body:
+//                                              { dry_run?, max? } — defaults to dry_run.
+//   GET    /v1/admin/contacts/lookup?email=X → resolve GHL contact_id by email.
+//                                              Used to populate WEEKLY_REPORT_CONTACT_IDS.
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
+//   GET    /v1/admin/ghl/webhooks           → list GHL webhooks for this location
+//   POST   /v1/admin/ghl/webhooks/register  → register the ContactTagUpdate webhook (idempotent)
+//   POST   /v1/admin/ghl/webhooks/setup     → PUT existing webhook by ID with correct URL+events
+//
 //   POST   /v1/admin/agents/test            → invoke an agent with a sample
 //                                             context; NO HeyGen credit spent.
+//   POST   /v1/admin/review/email           → render branded HTML review notification.
+//                                             Make.com calls this and uses the returned
+//                                             { subject, html } in its Gmail send step.
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
-import { getVideoJob, updateVideoJob } from "../lib/supabase.js";
+import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
+import { writeOwnedFields, findContactByEmail } from "../lib/ghl.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
-import { getRenderStatus, getTemplateDetails, listAvatars, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
+import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
 import { rateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
+import { generateAndSendWeeklyReport } from "../lib/weekly-report.js";
+import { renderReviewHtml } from "../lib/templates.js";
+import { summarizeJobs } from "../lib/analytics.js";
+import { gatherAlerts, cleanupOrphanedRendered } from "../lib/alerts.js";
 
 function sbHeaders(env) {
   const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,6 +97,38 @@ export default async function adminRoute(request, env, ctx, url) {
     return jobArchive(env, path.split("/")[2]);
   }
 
+  // ── Weekly report — manual / on-demand trigger ──
+  if (method === "POST" && path === "/reports/weekly/send") {
+    return weeklyReportSend(env, request);
+  }
+
+  // ── Review notification email renderer ──
+  // Make.com POSTs the job data here; gets back { html, subject } to use
+  // as the Gmail email body — keeps all branding + logo in code, not in Make.
+  //   POST /v1/admin/review/email
+  //   Body: { articleTitle, qualityCheck, qualityPassed, youtubeTitle,
+  //           youtubeDescription, tags, script, synthesiaVideoId?,
+  //           runwayTaskId?, approveUrl }
+  if (method === "POST" && path === "/review/email") {
+    return reviewEmailRender(env, request);
+  }
+
+  // ── Phase 9 — orphan cleanup. Bulk-mark stale 'rendered' jobs
+  // (older than 6h, younger than 30d) as 'failed' so they don't
+  // pollute dashboards. Body: { dry_run?: bool, max_rows?: number }.
+  // Defaults to dry_run=true — pass dry_run:false to commit.
+  if (method === "POST" && path === "/jobs/orphan-cleanup") {
+    return orphanCleanup(env, request);
+  }
+
+  // ── Phase 10 — GHL engagement score resync. Recomputes cumulative
+  // video_engagement_score for every contact with delivered video jobs and
+  // writes it back to GHL. Body: { dry_run?, max? } — dry_run defaults to
+  // true. max caps the number of contacts patched (default 50, cap 500).
+  if (method === "POST" && path === "/contacts/sync-scores") {
+    return contactsSyncScores(env, request, url);
+  }
+
   // ── Agent test runner (zero-cost — no render, no GHL send, just the LLM call) ──
   if (method === "POST" && path === "/agents/test") {
     return agentsTest(env, request);
@@ -77,6 +140,13 @@ export default async function adminRoute(request, env, ctx, url) {
     });
   }
 
+  // ── GHL webhook management ──
+  // GET  /v1/admin/ghl/webhooks          → list existing GHL webhooks for this location
+  // POST /v1/admin/ghl/webhooks/register → register the ContactTagUpdate webhook (idempotent)
+  if (method === "GET"  && path === "/ghl/webhooks")           return ghlWebhooksList(env);
+  if (method === "POST" && path === "/ghl/webhooks/register")  return ghlWebhooksRegister(env);
+  if (method === "POST" && path === "/ghl/webhooks/setup")     return setupGhlWebhook(env, request);
+
   if (method !== "GET") return error(405, "method_not_allowed");
 
   if (path === "/jobs")                          return listJobs(env, url);
@@ -86,8 +156,13 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/health-deep")                   return healthDeep(env);
   if (path === "/heygen/templates")              return listHeygenTemplates(env);
   if (path === "/heygen/avatars")                return json({ avatars: await listAvatars(env) });
+  if (path === "/heygen/credits")                return json(await getCreditBalance(env));
+  if (path.match(/^\/jobs\/[^/]+\/diagnose$/))   return jobDiagnose(env, path.split("/")[2]);
   if (path === "/rate-limits")                   return json(await rateLimitState(env));
+  if (path === "/alerts")                        return json(await gatherAlerts(env));
   if (path === "/daily-summary")                 return dailySummary(env, url);
+  if (path === "/analytics/summary")             return analyticsSummary(env, url);
+  if (path === "/contacts/lookup")               return contactLookup(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
   if (path === "/stream-token-test")             return streamTokenTest(env);
   if (path === "/cf-images-test")                return cfImagesTest(env);
@@ -119,6 +194,89 @@ async function listJobs(env, url) {
 async function jobDetail(env, jobId) {
   const job = await getVideoJob(env, jobId);
   return job ? json(job) : error(404, "not_found");
+}
+
+// One-shot diagnostic: given a stuck job, fetch HeyGen's view of the
+// video and produce a single readable summary explaining exactly why
+// the job is where it is. Designed for ops: never throws, always
+// returns a JSON body the dashboard can render.
+async function jobDiagnose(env, jobId) {
+  const job = await getVideoJob(env, jobId);
+  if (!job) return error(404, "not_found");
+
+  const out = {
+    job_id: jobId,
+    job_status: job.status,
+    job_error: job.error || null,
+    last_event: job.last_event || null,
+    last_event_at: job.last_event_at || null,
+    created_at: job.created_at,
+    rendered_at: job.rendered_at,
+    delivered_at: job.delivered_at,
+    has_hosted_url: !!job.hosted_url,
+    heygen_video_id: job.heygen_video_id || null,
+    heygen: null,
+    credits: null,
+    diagnosis: "",
+  };
+
+  if (job.heygen_video_id) {
+    try {
+      const hg = await getRenderStatus(env, job.heygen_video_id);
+      const d = hg?.data || {};
+      out.heygen = {
+        status: d.status || null,
+        error: d.error || null,
+        video_url: d.video_url || null,
+        thumbnail_url: d.thumbnail_url || null,
+        gif_url: d.gif_url || d.gif_download_url || null,
+        duration: d.duration ?? null,
+      };
+    } catch (e) {
+      out.heygen = { error: `getRenderStatus failed: ${e.message}` };
+    }
+  }
+
+  out.credits = await getCreditBalance(env);
+
+  // Build the diagnosis
+  const parts = [];
+  if (job.status === "delivered") {
+    parts.push("Job successfully delivered.");
+  } else if (job.status === "failed") {
+    parts.push(`Job marked failed: ${job.error || "no reason recorded"}`);
+  } else if (job.status === "rendering" && out.heygen?.status === "completed") {
+    parts.push("HeyGen finished but the webhook never fired or did not update the job. Use POST /v1/admin/jobs/:id/reprocess to pull the URL and trigger delivery.");
+  } else if (job.status === "rendering" && out.heygen?.status === "failed") {
+    parts.push(`HeyGen failed: ${out.heygen.error || "unknown reason"}.`);
+  } else if (job.status === "rendering" && out.heygen?.status === "processing") {
+    const ageMin = Math.floor((Date.now() - new Date(job.created_at).getTime()) / 60000);
+    if (ageMin > 15) {
+      parts.push(`HeyGen still processing after ${ageMin} min — unusually slow. Likely cause: credits exhausted mid-render (HeyGen accepts the job, then stalls). Verify credits: see credits panel.`);
+    } else {
+      parts.push(`HeyGen processing (${ageMin} min in) — within normal range.`);
+    }
+  } else if (job.status === "rendering" && !job.heygen_video_id) {
+    parts.push("Job is rendering but has no heygen_video_id. Render submission may have failed before HeyGen returned an id.");
+  } else if (job.status === "rendered" && !job.hosted_url) {
+    parts.push("Job marked rendered but hosted_url is null. Delivery refuses to fire — manual reprocess required.");
+  } else if (job.status === "rendered") {
+    parts.push("Rendered, awaiting delivery. Use POST /v1/admin/jobs/:id/reprocess if delivery did not auto-fire.");
+  } else {
+    parts.push(`Status=${job.status}; no specific diagnosis available.`);
+  }
+
+  if (out.credits?.ok && out.credits.remaining_quota !== null) {
+    parts.push(`HeyGen credit balance: ${out.credits.remaining_quota}.`);
+    if (out.credits.remaining_quota === 0) {
+      parts.push("HEYGEN CREDITS ARE ZERO — no new renders will succeed until topped up.");
+    }
+  } else if (out.credits && !out.credits.ok) {
+    parts.push(`Could not fetch HeyGen credit balance: ${out.credits.error}`);
+  }
+
+  out.diagnosis = parts.join(" ");
+  return json(out);
 }
 
 async function jobEvents(env, jobId) {
@@ -397,6 +555,196 @@ async function dailySummary(env, url) {
   });
 }
 
+// Phase 7 — broader window analytics for the admin dashboard chart.
+//
+// dailySummary covers a 1-day rollup with channel CTR and watch funnel.
+// This endpoint covers a multi-day window (default 30) with:
+//   • per-day series (renders + delivered counts) for chart rendering
+//   • per-video-type rollup with delivery success rate
+//   • overall delivery + engagement totals
+//
+// Phase 9 — delegated to lib/analytics.js#summarizeJobs so the dashboard
+// and the weekly report email always show the same numbers for the same
+// window. The shared helper also fixes the avg_engagement quirk where
+// engagement was averaged across all statuses but divided by delivered.
+async function analyticsSummary(env, url) {
+  const days = Math.min(parseInt(url.searchParams.get("days") || "30", 10) || 30, 90);
+  try {
+    return json(await summarizeJobs(env, days));
+  } catch (e) {
+    return error(502, "supabase_error", e.message);
+  }
+}
+
+// Phase 8 — POST /v1/admin/reports/weekly/send.
+// Body: { dry_run?: bool, days?: number, recipients?: [contact_id, ...] }
+//   - dry_run: render the report + recipients but skip the GHL sends.
+//   - days: override window (default 7, capped at 90).
+//   - recipients: override the WEEKLY_REPORT_CONTACT_IDS env list.
+// Returns the same JSON shape generateAndSendWeeklyReport produces, including
+// per-recipient delivery result. Errors are caught and surfaced as an `ok:false`
+// JSON body so callers can distinguish "all recipients failed" from
+// "request never started".
+async function weeklyReportSend(env, request) {
+  const { body } = await readJson(request);
+  try {
+    const out = await generateAndSendWeeklyReport(env, {
+      days: body?.days,
+      recipients: Array.isArray(body?.recipients) ? body.recipients : undefined,
+      dryRun: !!body?.dry_run,
+    });
+    return json(out);
+  } catch (e) {
+    console.error(`weeklyReportSend failed:`, e.stack || e.message);
+    return json({
+      ok: false,
+      reason: "internal_error",
+      error: e.message,
+      stack: (e.stack || "").split("\n").slice(0, 5).join(" | "),
+    }, 500);
+  }
+}
+
+// POST /v1/admin/review/email
+// Called by Make.com after a video renders to get a branded HTML review email.
+// Returns { subject, html } — Make.com uses these directly in the Gmail send step.
+async function reviewEmailRender(env, request) {
+  const { body } = await readJson(request);
+  if (!body) return error(400, "bad_json");
+
+  const {
+    articleTitle = "",
+    qualityCheck = "",
+    qualityPassed = false,
+    youtubeTitle = "",
+    youtubeDescription = "",
+    tags = "",
+    script = "",
+    synthesiaVideoId = "",
+    runwayTaskId = "",
+    approveUrl = "",
+  } = body;
+
+  const html = renderReviewHtml({
+    env, articleTitle, qualityCheck, qualityPassed,
+    youtubeTitle, youtubeDescription, tags, script,
+    synthesiaVideoId, runwayTaskId, approveUrl,
+  });
+
+  const overallLabel = qualityPassed ? "APPROVE" : "REVIEW REQUIRED";
+  const subject = `REVIEW: ${articleTitle || "New Video"} — ${overallLabel}`;
+
+  return json({ subject, html });
+}
+
+// Phase 9 — POST /v1/admin/jobs/orphan-cleanup
+// Body: { dry_run?: bool (default true), max_rows?: number (default 50, cap 200) }
+// Defaults to dry-run for safety — explicitly pass {dry_run:false} to commit.
+async function orphanCleanup(env, request) {
+  const { body } = await readJson(request);
+  const dryRun = body?.dry_run !== false;  // default to true
+  const maxRows = parseInt(body?.max_rows || "50", 10) || 50;
+  try {
+    const out = await cleanupOrphanedRendered(env, { dryRun, maxRows });
+    return json(out);
+  } catch (e) {
+    console.error(`orphanCleanup failed:`, e.stack || e.message);
+    return json({ ok: false, reason: "internal_error", error: e.message }, 500);
+  }
+}
+
+// Phase 10 — POST /v1/admin/contacts/sync-scores
+// Recomputes cumulative video_engagement_score (across all delivered jobs)
+// for every contact and writes it back to GHL. Useful after a schema migration,
+// a bulk re-import, or to correct scores that drifted while tracking.js
+// was writing per-job scores instead of cumulative totals.
+//
+// Body: { dry_run?: bool (default true), max?: number (default 50, cap 500) }
+// dry_run=true returns the computed scores without touching GHL.
+async function contactsSyncScores(env, request, url) {
+  const { body } = await readJson(request);
+  const dryRun = body?.dry_run !== false;
+  const max = Math.min(parseInt(body?.max || "50", 10) || 50, 500);
+
+  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
+    return error(503, "no_supabase", "Supabase not configured");
+  }
+  if (!dryRun && !(env.GHL_V2_TOKEN || env.GHL_API_KEY)) {
+    return error(503, "no_ghl_credentials", "GHL credentials required for live sync — pass dry_run:true to preview");
+  }
+
+  let contacts;
+  try {
+    // listDeliveredEngagementByContact fetches up to 2000 delivered job rows
+    // and groups+sums in-memory, returning [{contact_id, total}] sorted by total desc.
+    contacts = await listDeliveredEngagementByContact(env, { limit: 2000 });
+  } catch (e) {
+    return error(502, "supabase_error", e.message);
+  }
+
+  const total_contacts_with_videos = contacts.length;
+  const batch = contacts.slice(0, max);
+
+  if (dryRun) {
+    return json({
+      ok: true,
+      dry_run: true,
+      total_contacts_with_videos,
+      contacts_in_batch: batch.length,
+      truncated: total_contacts_with_videos > max,
+      preview: batch,
+    });
+  }
+
+  // Live: parallel GHL writes, bounded by `max` (Cloudflare subrequest-safe
+  // since max is capped at 500 and each contact is one GHL PUT).
+  const settled = await Promise.allSettled(
+    batch.map(({ contact_id, total }) =>
+      writeOwnedFields(env, contact_id, { video_engagement_score: String(total) })
+        .then(() => ({ contact_id, score: total, ok: true }))
+        .catch(e => ({ contact_id, score: total, ok: false, error: e.message }))
+    )
+  );
+  const results = settled.map(s => s.status === "fulfilled" ? s.value : { ...s.reason, ok: false });
+  const synced = results.filter(r => r.ok).length;
+
+  return json({
+    ok: synced > 0 || batch.length === 0,
+    total_contacts_with_videos,
+    contacts_attempted: batch.length,
+    contacts_synced: synced,
+    contacts_failed: batch.length - synced,
+    truncated: total_contacts_with_videos > max,
+    results,
+  });
+}
+
+// GET /v1/admin/contacts/lookup?email=lehr007@gmail.com
+// Resolve a GHL contact_id by email so ops can populate
+// WEEKLY_REPORT_CONTACT_IDS without digging through the GHL UI.
+async function contactLookup(env, url) {
+  const email = (url.searchParams.get("email") || "").trim().toLowerCase();
+  if (!email) return error(400, "missing_email", "Pass ?email=foo@bar.com");
+  if (!(env.GHL_V2_TOKEN || env.GHL_API_KEY)) {
+    return error(503, "no_ghl_credentials", "GHL_V2_TOKEN or GHL_API_KEY required");
+  }
+  try {
+    const c = await findContactByEmail(env, email);
+    if (!c) return json({ ok: false, email, found: false });
+    return json({
+      ok: true,
+      email,
+      found: true,
+      contact_id: c.id,
+      first_name: c.firstName || null,
+      last_name: c.lastName || null,
+      location_id: c.locationId || null,
+    });
+  } catch (e) {
+    return error(502, "ghl_error", e.message);
+  }
+}
+
 async function topContacts(env, url) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10) || 10, 50);
   const r = await fetch(
@@ -486,6 +834,10 @@ async function killGet(env) {
 
 async function killSet(request, env) {
   const { body } = await readJson(request);
+  // Allow clearing via POST when DELETE is blocked by WAF/proxy
+  if (body?.action === "clear" || body?.kill === false) {
+    return killClear(env);
+  }
   const result = await setKillSwitch(env, true, {
     reason: body?.reason || "no reason provided",
     set_by: body?.set_by || "admin-api",
@@ -756,4 +1108,124 @@ async function healthDeep(env) {
 
   out.time = new Date().toISOString();
   return json(out);
+}
+
+// ── GHL webhook management ────────────────────────────────────────────────
+
+const GHL_BASE = "https://services.leadconnectorhq.com";
+const GHL_VER  = "2021-07-28";
+
+function ghlAuthHeaders(env) {
+  const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
+  if (!token) throw new Error("GHL_V2_TOKEN / GHL_API_KEY secret not set");
+  return {
+    "Authorization": `Bearer ${token}`,
+    "Version": GHL_VER,
+    "Content-Type": "application/json",
+  };
+}
+
+async function ghlWebhooksList(env) {
+  const locId = env.GHL_LOCATION_ID;
+  if (!locId) return error(500, "missing_config", "GHL_LOCATION_ID not set");
+  const r = await fetch(
+    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
+    { headers: ghlAuthHeaders(env) }
+  );
+  if (!r.ok) {
+    const txt = await r.text();
+    return error(502, "ghl_error", `GHL list webhooks failed: ${r.status} ${txt}`);
+  }
+  return json(await r.json());
+}
+
+async function ghlWebhooksRegister(env) {
+  const locId  = env.GHL_LOCATION_ID;
+  const apiKey = env.PROXY_API_KEY;
+  if (!locId)  return error(500, "missing_config", "GHL_LOCATION_ID not set");
+  if (!apiKey) return error(500, "missing_config", "PROXY_API_KEY not set");
+
+  const webhookUrl = `${env.BASE_URL}/v1/ghl/webhook?token=${apiKey}`;
+  const name = "AI Video — Tag Trigger";
+
+  // Check for an existing registration to keep this idempotent
+  const listR = await fetch(
+    `${GHL_BASE}/webhooks/?altId=${encodeURIComponent(locId)}&altType=location`,
+    { headers: ghlAuthHeaders(env) }
+  );
+  if (listR.ok) {
+    const listData = await listR.json();
+    const webhooks = listData.webhooks || (Array.isArray(listData) ? listData : []);
+    const existing = webhooks.find?.(w => w.name === name || w.url?.startsWith(`${env.BASE_URL}/v1/ghl/webhook`));
+    if (existing) {
+      return json({ ok: true, already_registered: true, webhook: existing });
+    }
+  }
+
+  // GHL v2 POST /webhooks/ — altId/altType go in the body only (not query params)
+  const r = await fetch(`${GHL_BASE}/webhooks/`, {
+    method: "POST",
+    headers: ghlAuthHeaders(env),
+    body: JSON.stringify({
+      altId: locId,
+      altType: "location",
+      name,
+      url: webhookUrl,
+      events: ["ContactTagUpdate"],
+    }),
+  });
+
+  if (!r.ok) {
+    const txt = await r.text();
+    return error(502, "ghl_error", `GHL register webhook failed: ${r.status} ${txt}`);
+  }
+
+  const webhook = await r.json();
+  return json({ ok: true, registered: true, webhook });
+}
+
+// POST /v1/admin/ghl/webhooks/setup
+// PUTs to an existing GHL webhook by ID — bypasses CORS from browser.
+// Use this when /register fails because GHL's POST endpoint returns 404.
+// Defaults to the known webhook ID; pass webhook_id in body to override.
+async function setupGhlWebhook(env, request) {
+  const ghlToken = env.GHL_V2_TOKEN || env.GHL_API_KEY;
+  if (!ghlToken) return error(503, "missing_config", "GHL_V2_TOKEN / GHL_API_KEY not set");
+
+  const apiKey = env.PROXY_API_KEY;
+  if (!apiKey) return error(503, "missing_config", "PROXY_API_KEY not set");
+
+  const { body } = await readJson(request);
+  const webhookId  = body?.webhook_id;
+  if (!webhookId) {
+    return error(400, "missing_webhook_id",
+      "webhook_id is required — find it in GHL → Settings → Integrations → Webhooks and pass it in the request body");
+  }
+  const webhookUrl = body?.webhook_url  || `${env.BASE_URL}/v1/ghl/webhook?token=${apiKey}`;
+  const webhookName = body?.webhook_name || "AI Video — Tag Trigger";
+  const events = body?.events || ["ContactTagUpdate"];
+
+  const response = await fetch(`${GHL_BASE}/webhooks/${webhookId}`, {
+    method: "PUT",
+    headers: ghlAuthHeaders(env),
+    body: JSON.stringify({ name: webhookName, url: webhookUrl, events, active: true }),
+  });
+
+  const responseData = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.error(`GHL webhook setup failed: ${response.status}`, responseData);
+    return error(response.status, "ghl_error", `GHL API returned ${response.status}: ${responseData.message || JSON.stringify(responseData)}`);
+  }
+
+  return json({
+    ok: true,
+    webhook_id: webhookId,
+    name: webhookName,
+    url: webhookUrl,
+    events,
+    status: "active",
+    configured_at: new Date().toISOString(),
+    message: "Webhook configured. ContactTagUpdate events will now trigger the AI video system.",
+  });
 }
