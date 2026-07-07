@@ -264,7 +264,16 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">10 sub-accounts</div>
         </div>
       </a>
-      <a href="https://social-post-importer.lehr007.workers.dev" target="_blank" class="card orange">
+            <a href='https://admin.reallistingagent.com' target='_blank' class='card cyan'>
+        <span class='arrow'>→</span>
+        <div class='icon-wrap'>🔎</div>
+        <div class='card-body'>
+          <div class='card-title'>SEO Admin Dashboard</div>
+          <div class='card-desc'>Manage SEO page mappings for reallistingagent.com — bulk import/export, KV-backed page map, stats and monitoring for the SEO proxy.</div>
+          <div class='card-tag'>SEO · KV Management</div>
+        </div>
+      </a>
+<a href="https://social-post-importer.lehr007.workers.dev" target="_blank" class="card orange">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4F1}</div>
         <div class="card-body">
