@@ -318,7 +318,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Brand \u00b7 Templates \u00b7 Settings</div>
         </div>
       </a>
-      <a id="link-tos-admin-main" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" class="card green">
+      <a id="link-tos-admin-main" href="https://tos-proxy.lehr007.workers.dev/tos/admin" target="_blank" class="card green">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4DD}</div>
         <div class="card-body">
@@ -336,7 +336,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <script>
       (async () => {
         try {
-          const r = await fetch('https://tos-proxy-staging.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+          const r = await fetch('https://tos-proxy.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -449,7 +449,7 @@ fetch('/auth/me').then(function(r){return r.json();}).then(function(d){
 
 // Check proxy health
 fetch('/health').then(r=>r.json()).then(d=>{
-  if(!d.ok||!d.tokenPresent){
+  if(d.status !== 'ok'){
     document.querySelector('.status-bar .status-item:first-child .status-dot').className='status-dot idle';
   }
 }).catch(()=>{});
@@ -20582,12 +20582,12 @@ a{color:#3b82f6;text-decoration:none}
 
   <!-- CTA + link card -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
-    <a id="link-tos-admin" href="https://tos-proxy-staging.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #22c55e;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#16a34a';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#22c55e';this.style.transform='translateY(0)'">
+    <a id="link-tos-admin" href="https://tos-proxy.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #22c55e;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#16a34a';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#22c55e';this.style.transform='translateY(0)'">
       <div style="font-size:28px;line-height:1">&#128640;</div>
       <div style="min-width:0">
         <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Full TOS HTML Admin</div>
         <div style="font-size:13px;color:#94a3b8;line-height:1.5">Goes to the live HTML control panel we built &mdash; deeper navigation into GHL workflows, kill-switch toggles, every TOS custom-object record list, documentation. The data above is a live summary; this is the full operator interface.</div>
-        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">https://tos-proxy-staging.lehr007.workers.dev/tos/admin &rarr;</div>
+        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">https://tos-proxy.lehr007.workers.dev/tos/admin &rarr;</div>
       </div>
     </a>
   </div>
@@ -20641,7 +20641,7 @@ a{color:#3b82f6;text-decoration:none}
   (async () => {
     if (document.getElementById('tos-mini-stats')) return; // main dashboard fetcher will populate
     try {
-      const r = await fetch('https://tos-proxy-staging.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+      const r = await fetch('https://tos-proxy.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       window.__populateTosAdminModule(d);
