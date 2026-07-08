@@ -5,7 +5,7 @@ name: Deploy Production Workers
 #   gh workflow run deploy-production.yml
 #
 # Uses prod wrangler.toml configs (no -staging suffix) for each worker.
-# All three workers deploy in parallel. If one fails, the others still run.
+# All workers deploy in parallel. If one fails, the others still run.
 
 on:
   workflow_dispatch:
@@ -15,8 +15,6 @@ on:
         required: true
         default: ''
 
-# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
-# on 2026-06-02. Remove when the action publishes a Node-24-native release.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -102,29 +100,15 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: python3 deploy_prod.py
 
-  deploy-ai-video-system:
-    name: Deploy ai-video-system (prod)
-    needs: guard
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v5
-      - name: Deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: ai-video-system
-          command: deploy --config wrangler.toml
-
-  deploy-tos-proxy:
-    name: Deploy tos-proxy (prod, Python/raw API deploy)
+  deploy-social-post-importer:
+    name: Deploy social-post-importer (prod, Python/raw API deploy)
     needs: guard
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v5
       - name: Deploy via deploy_prod.py
-        working-directory: tos-proxy
+        working-directory: social-post-importer-deploy
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: python3 deploy_prod.py

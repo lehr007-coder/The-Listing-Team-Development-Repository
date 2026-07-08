@@ -7,14 +7,6 @@ on:
       - 'claude/**'
   workflow_dispatch: {}
 
-# Gate: real deploys to the shared staging workers happen only from main
-# or a manual "Run workflow". Pushes to claude/** feature branches run the
-# same wrangler step with --dry-run, so they validate/build the worker and
-# give a green/red signal without landing unfinished work on staging. To
-# push a branch to staging on purpose, trigger this workflow manually.
-
-# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
-# on 2026-06-02. Remove when the action publishes a Node-24-native release.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -75,6 +67,18 @@ jobs:
       - uses: actions/checkout@v5
       - name: Deploy via deploy.py
         working-directory: tos-proxy
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 deploy.py
+
+  deploy-social-post-importer:
+    name: Deploy social-post-importer-staging (Python/raw API deploy)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy via deploy.py
+        working-directory: social-post-importer-deploy
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: python3 deploy.py
