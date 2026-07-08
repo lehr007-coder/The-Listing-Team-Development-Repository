@@ -17,7 +17,7 @@ jobs:
     name: Deploy tos-proxy-staging
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # Syntax check always runs — gives branch pushes a validation signal.
       - name: Syntax check
         run: node --check tos-proxy/worker.js
