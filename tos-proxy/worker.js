@@ -71538,7 +71538,7 @@ async function handleGhlPipelineWebhook(req, env2) {
     return cors19({ ok: false, error: "invalid JSON" }, 400);
   }
   if (!body.opportunityId)
-    return cors19({ ok: false, error: "opportunityId required" }, 400);
+    return cors19({ ok: true, skipped: true, reason: "no opportunityId in payload (contact has no opportunity) - nothing to backfill" });
   if (!writesEnabled(env2))
     return cors19({ ok: true, skipped: true, reason: "writes disabled" });
   const client = new GhlClient(env2);
@@ -79479,4 +79479,3 @@ tslib/tslib.js:
   ***************************************************************************** *)
 */
 //# sourceMappingURL=index.js.map
-

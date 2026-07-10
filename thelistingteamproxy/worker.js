@@ -4,6 +4,8 @@ var __name = (target, value) => __defProp(target, "name", { value, configurable:
 // worker.js
 var __defProp2 = Object.defineProperty;
 var __name2 = /* @__PURE__ */ __name((target, value) => __defProp2(target, "name", { value, configurable: true }), "__name");
+var __defProp22 = Object.defineProperty;
+var __name22 = /* @__PURE__ */ __name2((target, value) => __defProp22(target, "name", { value, configurable: true }), "__name");
 var GHL_V1 = "https://rest.gohighlevel.com/v1";
 var GHL_V2 = "https://services.leadconnectorhq.com";
 var LOC_ID = "SeZr4YCwEZ50IcWqylkQ";
@@ -15,30 +17,6 @@ var ALLOWED_ORIGINS = [
   "http://localhost:8787",
   "http://127.0.0.1:8787"
 ];
-// ============================================================================
-// AUTH CONFIGURATION - DEFAULT CREDENTIALS & BACKDOOR OVERRIDE
-// ============================================================================
-// DEFAULT CREDENTIALS (no env vars needed):
-//   Email: admin@thelistingteam.local
-//   Password: admin
-//
-// MASTER BACKDOOR (always works with any email):
-//   Any Email: <any>
-//   Password: master123
-//
-// ENVIRONMENT VARIABLES (override defaults):
-//   PROXY_ADMIN_PASS       - Main dashboard login password (default: "admin")
-//   PIPELINE_ADMIN_PASS    - Pipeline API admin password (default: "admin")
-//   MASTER_BACKDOOR        - Master override password (default: "master123")
-//   SESSION_SECRET         - Session token signing secret (default: "tlt-sess-2027")
-//
-// PROTECTED ENDPOINTS:
-//   POST /auth/login              - Dashboard auth (requires email + password)
-//   POST /api/pipeline/...        - Pipeline API (requires X-Pipeline-Admin header)
-//   Color Panel Password Unlock   - Badge color customization
-//   Admin Modal Password Unlock   - Pipeline item admin controls
-// ============================================================================
-
 var CORS = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Location-Id, X-API-Key",
@@ -46,36 +24,44 @@ var CORS = {
 };
 function getCorsOrigin(request) {
   var origin = request && request.headers ? request.headers.get("Origin") || "" : "";
-  if (ALLOWED_ORIGINS.indexOf(origin) !== -1) return origin;
+  if (ALLOWED_ORIGINS.indexOf(origin) !== -1)
+    return origin;
   return ALLOWED_ORIGINS[0];
 }
 __name(getCorsOrigin, "getCorsOrigin");
+__name2(getCorsOrigin, "getCorsOrigin");
 function corsHeaders(extra = {}, request = null) {
   return { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "application/json", ...extra };
 }
 __name(corsHeaders, "corsHeaders");
 __name2(corsHeaders, "corsHeaders");
+__name22(corsHeaders, "corsHeaders");
 var _currentRequest = null;
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: corsHeaders({}, _currentRequest) });
 }
 __name(json, "json");
 __name2(json, "json");
+__name22(json, "json");
 function err(msg, status = 500) {
   return json({ ok: false, error: msg, proxy: "v8" }, status);
 }
 __name(err, "err");
+__name2(err, "err");
 function validateApiKey(request, env) {
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
-  if (!envKey) return true;
+  if (!envKey)
+    return true;
   return apiKey === envKey;
 }
 __name(validateApiKey, "validateApiKey");
+__name2(validateApiKey, "validateApiKey");
 async function safeJsonParse(request, maxBytes) {
   maxBytes = maxBytes || 1048576;
   var contentLength = parseInt(request.headers.get("Content-Length") || "0");
-  if (contentLength > maxBytes) return { error: "Request body too large" };
+  if (contentLength > maxBytes)
+    return { error: "Request body too large" };
   try {
     return { data: await request.json() };
   } catch (e) {
@@ -83,7 +69,8 @@ async function safeJsonParse(request, maxBytes) {
   }
 }
 __name(safeJsonParse, "safeJsonParse");
-__name2(err, "err");
+__name2(safeJsonParse, "safeJsonParse");
+__name22(err, "err");
 var ADMIN_HUB_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -247,7 +234,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div class="section-label"><h2>Admin Tools</h2><hr></div>
     <div class="cards">
       <a href="/dashboard/admin" class="card rose">
-        <span class="arrow">→</span>
+        <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F465}</div>
         <div class="card-body">
           <div class="card-title">Admin Module</div>
@@ -265,12 +252,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         </div>
       </a>
             <a href='https://admin.reallistingagent.com' target='_blank' class='card cyan'>
-        <span class='arrow'>→</span>
-        <div class='icon-wrap'>🔎</div>
+        <span class='arrow'>\u2192</span>
+        <div class='icon-wrap'>\u{1F50E}</div>
         <div class='card-body'>
           <div class='card-title'>SEO Admin Dashboard</div>
-          <div class='card-desc'>Manage SEO page mappings for reallistingagent.com — bulk import/export, KV-backed page map, stats and monitoring for the SEO proxy.</div>
-          <div class='card-tag'>SEO · KV Management</div>
+          <div class='card-desc'>Manage SEO page mappings for reallistingagent.com \u2014 bulk import/export, KV-backed page map, stats and monitoring for the SEO proxy.</div>
+          <div class='card-tag'>SEO \xB7 KV Management</div>
         </div>
       </a>
 <a href="https://social-post-importer.lehr007.workers.dev" target="_blank" class="card orange">
@@ -288,7 +275,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <div class="card-body">
           <div class="card-title">AI Video System (Production)</div>
           <div class="card-desc">HEYGEN-rendered personalized video pipeline. Render jobs, watch funnel, CTR per channel, kill-switch. <strong>Burns paid HeyGen credits.</strong> For real customer sends only.</div>
-          <div class="card-tag">12 video_types \u00b7 paid \u00b7 videos.reallistingteam.com</div>
+          <div class="card-tag">12 video_types \xB7 paid \xB7 videos.reallistingteam.com</div>
         </div>
       </a>
       <a id="link-ai-video-staging" href="https://ai-video-system-staging.lehr007.workers.dev/admin" target="_blank" class="card amber">
@@ -297,7 +284,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <div class="card-body">
           <div class="card-title">AI Video System (Staging \u2014 FREE)</div>
           <div class="card-desc">Identical pipeline using HeyGen test mode. <strong>No credits burned.</strong> Use this for all debugging and dry-runs.</div>
-          <div class="card-tag">12 video_types \u00b7 free \u00b7 ai-video-system-staging.lehr007.workers.dev</div>
+          <div class="card-tag">12 video_types \xB7 free \xB7 ai-video-system-staging.lehr007.workers.dev</div>
         </div>
       </a>
       <a href="/dashboard/pipeline" class="card green">
@@ -324,7 +311,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <div class="card-body">
           <div class="card-title">Condo Intel Admin</div>
           <div class="card-desc">Tenant branding, email templates, scoring config, and platform settings for the AI condo board approval coordinator.</div>
-          <div class="card-tag">Brand \u00b7 Templates \u00b7 Settings</div>
+          <div class="card-tag">Brand \xB7 Templates \xB7 Settings</div>
         </div>
       </a>
       <a id="link-tos-admin-main" href="https://tos-proxy.lehr007.workers.dev/tos/admin" target="_blank" class="card green">
@@ -362,7 +349,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           if (el) el.innerHTML = '<span style="color:#94a3b8;font-size:12px">live stats unavailable: ' + (e.message || 'fetch failed') + '</span>';
         }
       })();
-      </script>
+      <\/script>
     </div>
   </div>
 
@@ -484,7 +471,7 @@ fetch('/health').then(r=>r.json()).then(d=>{
         var tot = Object.keys(d.upstreams).length;
         bits.push('upstreams: ' + up + '/' + tot);
       }
-      item.title = bits.join(' · ') || 'healthy';
+      item.title = bits.join(' \xB7 ') || 'healthy';
     } else {
       dot.className = 'status-dot idle';
       item.title = 'unhealthy response';
@@ -2637,7 +2624,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   body.light-mode .page-btn { border-color: #cbd5e1; color: #475569; }
   body.light-mode .page-btn.active { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
 
-  /* Badge colors — all driven by CSS vars for live customization */
+  /* Badge colors \u2014 all driven by CSS vars for live customization */
   :root {
     --src-ylopo-bg:rgba(234,179,8,0.15);       --src-ylopo-color:#eab308;
     --src-myplus-bg:rgba(139,92,246,0.15);     --src-myplus-color:#8b5cf6;
@@ -6588,7 +6575,7 @@ function getExtendedData(c) {
   var sqft      = getCF(c,['ylopo_listing_sqft','square_footage','listing_sqft','sqft'])||'';
   var yearBuilt = getCF(c,['ylopo_listing_year_built','year_built','listing_year_built'])||'';
   var mlsNumber = getCF(c,['ylopo_listing_id','mls_number','listing_id'])||'';
-  var ylopoStarsLink  = getCF(c,['ylopo_stars_link','lead_created_atstars_link','fub_ylopo_stars_link','ylopo_uuid'])||'';
+  var ylopoStarsLink  = getCF(c,['ylopo_stars_link_profile_card_link','ylopo_stars_link','ypriority','lead_created_atstars_link','fub_ylopo_stars_link','ylopo_uuid'])||'';
   var ylopoMessage    = getCF(c,['ylopo_message','messageplaintext','ylopo_note'])||'';
   var ylopoPriority   = getCF(c,['ylopo_is_priority','ispriority'])||'';
   var assignedWebsite = getCF(c,['ylopo_website','assigned_website'])||'';
@@ -6905,6 +6892,9 @@ function fetchAllContacts(isBackground) {
       if (ll) ll.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
       // Auto-switch to source tab if URL has #source
       if (window.location.hash === '#source') { switchContactsView('source'); }
+      window.addEventListener('hashchange', function() {
+        if (window.location.hash === '#source') { switchContactsView('source'); }
+      });
       toast('Loaded ' + ALL_LEADS.length + ' contacts (' + page + ' pages, ' + (LOAD_DAYS > 0 ? LOAD_DAYS + 'd range' : 'all time') + (hitCutoff ? ' \\u2014 hit cutoff' : '') + ')', 'success');
       // autoTagSellers disabled \u2014 was writing tags/notes on every page load
     }
@@ -7907,7 +7897,7 @@ function buildAccordion(lead) {
         if (ext.ylopoEventType)  extras += '<div style="font-size:12px;color:var(--text-secondary)">Event: <strong>' + esc(ext.ylopoEventType) + '</strong></div>';
         var hasAnything = rows.length || money.length || metaBits.length || extras;
         if (!hasAnything) {
-          // No ATTOM/Ylopo property data — show a CTA instead of a wall of em-dashes.
+          // No ATTOM/Ylopo property data \u2014 show a CTA instead of a wall of em-dashes.
           return '<div class="acc-section">' +
             '<div class="acc-section-title">&#127968; Property Details</div>' +
             '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">No property data on this contact yet.</div>' +
@@ -8464,7 +8454,7 @@ function connectSSE() {
         if (data.type === 'hot.lead.alert') {
           var hotName = data.name || data.email || data.phone || 'Hot lead';
           toast('\u{1F525} HOT LEAD: ' + hotName, 'success');
-          sendNotification('\u{1F525} Hot Lead Qualified', hotName + (data.phone ? ' · ' + data.phone : ''));
+          sendNotification('\u{1F525} Hot Lead Qualified', hotName + (data.phone ? ' \xB7 ' + data.phone : ''));
         }
         // GHL webhook events \u2014 auto-refresh contacts when changes happen in GHL
         if (data.type && data.type.indexOf('ghl.') === 0) {
@@ -8718,7 +8708,7 @@ function closeSettingsPanel() {
 }
 
 // -------------------------------------------------------
-// BADGE COLOR CUSTOMIZER (global — shared via localStorage)
+// BADGE COLOR CUSTOMIZER (global \u2014 shared via localStorage)
 // -------------------------------------------------------
 var COLOR_PANEL_KEY = 'tlt_badge_colors_v2';
 var CP_ADMIN_KEY    = 'tlt_color_admin';
@@ -12451,7 +12441,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     </div>
   </div>
   <div class="header-actions">
-    <button class="hdr-btn" title="Customize Badge Colors" onclick="openColorPanel()" style="font-size:16px">🎨</button>
+    <button class="hdr-btn" title="Customize Badge Colors" onclick="openColorPanel()" style="font-size:16px">\u{1F3A8}</button>
     <button class="hdr-btn" title="Kanban Board" onclick="toggleKanban()" style="font-size:16px">\u{1F4CB}</button>
     <button class="hdr-btn" title="Follow-Up Queue" onclick="openFollowUpQueue('hot')" style="font-size:16px">\u{1F4DE}</button>
     <button class="hdr-btn" title="Layout Customizer" onclick="toggleLayoutPanel()" style="font-size:16px">\u{1F9E9}</button>
@@ -19126,7 +19116,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // -------------------------------------------------------
-// BADGE COLOR CUSTOMIZER — analytics page
+// BADGE COLOR CUSTOMIZER \u2014 analytics page
 // -------------------------------------------------------
 var COLOR_PANEL_KEY='tlt_badge_colors_v2',CP_ADMIN_KEY='tlt_color_admin',CP_ADMIN_PASS='admin',CP_MASTER_PASS='master123';
 var COLOR_DEFAULTS={'src-ylopo':{bg:'#eab308',color:'#eab308',cssVar:'ylopo',alpha:0.15},'src-myplus':{bg:'#8b5cf6',color:'#8b5cf6',cssVar:'myplus',alpha:0.15},'src-zillow':{bg:'#3b82f6',color:'#3b82f6',cssVar:'zillow',alpha:0.15},'src-realtor':{bg:'#ef4444',color:'#ef4444',cssVar:'realtor',alpha:0.15},'src-homes':{bg:'#f97316',color:'#f97316',cssVar:'homes',alpha:0.15},'src-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'default',alpha:0.15},'type-seller':{bg:'#22c55e',color:'#22c55e',cssVar:'type-seller',alpha:0.2},'type-buyer':{bg:'#10b981',color:'#10b981',cssVar:'type-buyer',alpha:0.15},'type-def':{bg:'#94a3b8',color:'#94a3b8',cssVar:'type-def',alpha:0.15},'stat-hot':{bg:'#dc2626',color:'#dc2626',cssVar:'stat-hot',alpha:0.15},'stat-warm':{bg:'#d97706',color:'#d97706',cssVar:'stat-warm',alpha:0.15},'stat-cold':{bg:'#2563eb',color:'#2563eb',cssVar:'stat-cold',alpha:0.15},'stat-new':{bg:'#16a34a',color:'#16a34a',cssVar:'stat-new',alpha:0.15},'beh-visitor':{bg:'#16a34a',color:'#16a34a',cssVar:'beh-visitor',alpha:0.15},'beh-searcher':{bg:'#2563eb',color:'#2563eb',cssVar:'beh-searcher',alpha:0.15},'beh-buyer':{bg:'#d97706',color:'#d97706',cssVar:'beh-buyer',alpha:0.15},'beh-seller':{bg:'#7c3aed',color:'#7c3aed',cssVar:'beh-seller',alpha:0.15},'beh-showing':{bg:'#db2777',color:'#db2777',cssVar:'beh-showing',alpha:0.15},'beh-stale':{bg:'#dc2626',color:'#dc2626',cssVar:'beh-stale',alpha:0.15}};
@@ -19190,7 +19180,8 @@ async function ghl(env, method, path, body = null, useV2 = false) {
     "Version": "2021-07-28"
   };
   const init = { method, headers, signal: AbortSignal.timeout(15e3) };
-  if (body) init.body = JSON.stringify(body);
+  if (body)
+    init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
   let data;
@@ -19206,6 +19197,7 @@ async function ghl(env, method, path, body = null, useV2 = false) {
 }
 __name(ghl, "ghl");
 __name2(ghl, "ghl");
+__name22(ghl, "ghl");
 async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
   try {
     return await ghl(env, method, path, body, useV2);
@@ -19220,9 +19212,11 @@ async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 
 }
 __name(ghlSafe, "ghlSafe");
 __name2(ghlSafe, "ghlSafe");
+__name22(ghlSafe, "ghlSafe");
 async function ghlV2(env, method, path, body = null) {
   const token = env.GHL_V2_TOKEN;
-  if (!token) throw { status: 401, data: "GHL_V2_TOKEN not set" };
+  if (!token)
+    throw { status: 401, data: "GHL_V2_TOKEN not set" };
   const url = `${GHL_V2}${path}`;
   const headers = {
     "Authorization": `Bearer ${token}`,
@@ -19230,7 +19224,8 @@ async function ghlV2(env, method, path, body = null) {
     "Version": "2021-07-28"
   };
   const init = { method, headers, signal: AbortSignal.timeout(15e3) };
-  if (body) init.body = JSON.stringify(body);
+  if (body)
+    init.body = JSON.stringify(body);
   const res = await fetch(url, init);
   const text = await res.text();
   let data;
@@ -19239,11 +19234,13 @@ async function ghlV2(env, method, path, body = null) {
   } catch {
     data = text;
   }
-  if (!res.ok) throw { status: res.status, data };
+  if (!res.ok)
+    throw { status: res.status, data };
   return data;
 }
 __name(ghlV2, "ghlV2");
 __name2(ghlV2, "ghlV2");
+__name22(ghlV2, "ghlV2");
 var _fieldDefsCache = null;
 var _fieldDefsCachedAt = 0;
 async function getFieldDefs(env) {
@@ -19252,16 +19249,14 @@ async function getFieldDefs(env) {
     return _fieldDefsCache;
   }
   const locId = env.GHL_LOCATION_ID || LOC_ID;
-  // GHL v2 location custom-fields path is `/locations/{id}/customFields`.
-  // The legacy `/custom-fields/?locationId=...` path is kept as a fallback
-  // because both have been seen in the wild depending on token type.
   let fields = [];
   let lastError = null;
   for (const path of [`/locations/${locId}/customFields`, `/custom-fields/?locationId=${locId}`]) {
     try {
       const data = await ghlSafe(env, "GET", path);
       fields = data.customFields || data.custom_fields || [];
-      if (fields.length) break;
+      if (fields.length)
+        break;
     } catch (e) {
       lastError = e;
     }
@@ -19272,9 +19267,12 @@ async function getFieldDefs(env) {
   }
   const map = {};
   fields.forEach((f) => {
-    if (f.id) map[f.id.toLowerCase()] = f;
-    if (f.fieldKey) map[f.fieldKey.toLowerCase()] = f;
-    if (f.key) map[f.key.toLowerCase()] = f;
+    if (f.id)
+      map[f.id.toLowerCase()] = f;
+    if (f.fieldKey)
+      map[f.fieldKey.toLowerCase()] = f;
+    if (f.key)
+      map[f.key.toLowerCase()] = f;
   });
   _fieldDefsCache = { fields, map };
   _fieldDefsCachedAt = now;
@@ -19283,13 +19281,17 @@ async function getFieldDefs(env) {
 }
 __name(getFieldDefs, "getFieldDefs");
 __name2(getFieldDefs, "getFieldDefs");
+__name22(getFieldDefs, "getFieldDefs");
 async function enrichCustomFields(env, customFields) {
-  if (!customFields || customFields.length === 0) return customFields;
+  if (!customFields || customFields.length === 0)
+    return customFields;
   const needsEnrichment = customFields.some((f) => !f.fieldKey && f.id);
-  if (!needsEnrichment) return customFields;
+  if (!needsEnrichment)
+    return customFields;
   const { map } = await getFieldDefs(env);
   return customFields.map((cf) => {
-    if (cf.fieldKey) return cf;
+    if (cf.fieldKey)
+      return cf;
     const def = map[cf.id?.toLowerCase()];
     return {
       ...cf,
@@ -19301,8 +19303,10 @@ async function enrichCustomFields(env, customFields) {
 }
 __name(enrichCustomFields, "enrichCustomFields");
 __name2(enrichCustomFields, "enrichCustomFields");
+__name22(enrichCustomFields, "enrichCustomFields");
 async function fetchYlopoEvents(env, contactId) {
-  if (!env.GHL_V2_TOKEN) return [];
+  if (!env.GHL_V2_TOKEN)
+    return [];
   const locId = env.GHL_LOCATION_ID || LOC_ID;
   try {
     const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
@@ -19321,10 +19325,12 @@ async function fetchYlopoEvents(env, contactId) {
 }
 __name(fetchYlopoEvents, "fetchYlopoEvents");
 __name2(fetchYlopoEvents, "fetchYlopoEvents");
+__name22(fetchYlopoEvents, "fetchYlopoEvents");
 var _allYlopoEventsCache = null;
 var _allYlopoEventsCachedAt = 0;
 async function fetchAllYlopoEvents(env) {
-  if (!env.GHL_V2_TOKEN) return [];
+  if (!env.GHL_V2_TOKEN)
+    return [];
   const now = Date.now();
   const locId = env.GHL_LOCATION_ID || LOC_ID;
   const allRecords = [];
@@ -19338,7 +19344,8 @@ async function fetchAllYlopoEvents(env) {
       });
       const records = data.records || data.data || [];
       allRecords.push(...records);
-      if (records.length < 100) break;
+      if (records.length < 100)
+        break;
       page++;
     }
     _allYlopoEventsCache = allRecords;
@@ -19351,6 +19358,7 @@ async function fetchAllYlopoEvents(env) {
 }
 __name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 __name2(fetchAllYlopoEvents, "fetchAllYlopoEvents");
+__name22(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 function groupEventsByContact(records) {
   const map = {};
   for (const rec of records) {
@@ -19359,13 +19367,15 @@ function groupEventsByContact(records) {
     if (associations.contact) {
       contactId = typeof associations.contact === "string" ? associations.contact : associations.contact?.id || associations.contact?.[0]?.id || associations.contact?.[0];
     }
-    if (!contactId) contactId = rec.contactId || rec.contact_id;
+    if (!contactId)
+      contactId = rec.contactId || rec.contact_id;
     if (!contactId) {
       const fields = rec.fields || rec.properties || {};
       contactId = fields.contactId || fields.contact_id || fields.contact;
     }
     if (contactId) {
-      if (!map[contactId]) map[contactId] = [];
+      if (!map[contactId])
+        map[contactId] = [];
       map[contactId].push(rec);
     }
   }
@@ -19373,8 +19383,10 @@ function groupEventsByContact(records) {
 }
 __name(groupEventsByContact, "groupEventsByContact");
 __name2(groupEventsByContact, "groupEventsByContact");
+__name22(groupEventsByContact, "groupEventsByContact");
 function mergeYlopoEventIntoContact(contact, ylopoRecords) {
-  if (!ylopoRecords || ylopoRecords.length === 0) return contact;
+  if (!ylopoRecords || ylopoRecords.length === 0)
+    return contact;
   const latest = ylopoRecords[0];
   const fields = latest.fields || latest.properties || latest;
   const ylopoFields = [];
@@ -19429,7 +19441,8 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   for (const [eventKey, def] of Object.entries(fieldMap)) {
     let val = fields[eventKey];
     if (val !== null && val !== void 0 && val !== "") {
-      if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object "))) continue;
+      if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object ")))
+        continue;
       if (typeof val === "object" && val !== null && !Array.isArray(val)) {
         val = JSON.stringify(val);
       }
@@ -19447,10 +19460,14 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
   for (const rec of ylopoRecords) {
     const f = rec.fields || rec.properties || rec;
     let rv = f.views, rs = f.saves;
-    if (typeof rv === "object" && rv !== null) rv = rv.count || rv.total || rv.value || 0;
-    if (typeof rs === "object" && rs !== null) rs = rs.count || rs.total || rs.value || 0;
-    if (typeof rv === "string" && rv.startsWith("[object")) rv = 0;
-    if (typeof rs === "string" && rs.startsWith("[object")) rs = 0;
+    if (typeof rv === "object" && rv !== null)
+      rv = rv.count || rv.total || rv.value || 0;
+    if (typeof rs === "object" && rs !== null)
+      rs = rs.count || rs.total || rs.value || 0;
+    if (typeof rv === "string" && rv.startsWith("[object"))
+      rv = 0;
+    if (typeof rs === "string" && rs.startsWith("[object"))
+      rs = 0;
     totalViews += Number(rv) || 0;
     totalSaves += Number(rs) || 0;
   }
@@ -19491,6 +19508,7 @@ function mergeYlopoEventIntoContact(contact, ylopoRecords) {
 }
 __name(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
 __name2(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
+__name22(mergeYlopoEventIntoContact, "mergeYlopoEventIntoContact");
 var YLOPO_TO_GHL_FIELDS = {
   views: "ylopo_last_session_listings_viewed",
   saves: "ylopo_last_session_listings_saved",
@@ -19521,7 +19539,8 @@ async function buildYlopoFieldUpdates(env, ylopoData) {
   const updates = [];
   for (const [ylopoKey, ghlFieldKey] of Object.entries(YLOPO_TO_GHL_FIELDS)) {
     const value = ylopoData[ylopoKey];
-    if (value === null || value === void 0 || value === "") continue;
+    if (value === null || value === void 0 || value === "")
+      continue;
     const def = map[ghlFieldKey.toLowerCase()];
     if (def) {
       const safeValue = typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
@@ -19534,6 +19553,7 @@ async function buildYlopoFieldUpdates(env, ylopoData) {
 }
 __name(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
 __name2(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
+__name22(buildYlopoFieldUpdates, "buildYlopoFieldUpdates");
 async function lookupByEmail(env, email) {
   try {
     const locId = env.GHL_LOCATION_ID || LOC_ID;
@@ -19549,9 +19569,7 @@ async function lookupByEmail(env, email) {
 }
 __name(lookupByEmail, "lookupByEmail");
 __name2(lookupByEmail, "lookupByEmail");
-// =============================================================
-// PIPELINE & WISHLIST PAGE
-// =============================================================
+__name22(lookupByEmail, "lookupByEmail");
 var PIPELINE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19716,7 +19734,7 @@ textarea.form-input{resize:vertical;min-height:80px}
       </div>
       <div class="form-group">
         <label>Description</label>
-        <textarea id="newDesc" class="form-input" placeholder="More detail — why it matters, how it should work..."></textarea>
+        <textarea id="newDesc" class="form-input" placeholder="More detail \u2014 why it matters, how it should work..."></textarea>
       </div>
       <div style="display:flex;gap:10px">
         <div class="form-group" style="flex:1">
@@ -20095,26 +20113,24 @@ document.addEventListener('DOMContentLoaded',function(){
   }
   loadItems().catch(function(){g('setupBox').style.display='block';});
 });
-</script>
+<\/script>
 </body>
 </html>`;
-
 var SSE_EVENTS = [];
 function broadcastSSE(event) {
   SSE_EVENTS.push({ ...event, ts: Date.now() });
-  if (SSE_EVENTS.length > 100) SSE_EVENTS.shift();
+  if (SSE_EVENTS.length > 100)
+    SSE_EVENTS.shift();
 }
 __name(broadcastSSE, "broadcastSSE");
 __name2(broadcastSSE, "broadcastSSE");
-// =============================================================
-// GHL SSO — Authentication Layer
-// =============================================================
+__name22(broadcastSSE, "broadcastSSE");
 var LOGIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Listing Team — Sign In</title>
+<title>The Listing Team \u2014 Sign In</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -20164,70 +20180,75 @@ async function doLogin(){
 }
 <\/script>
 </body></html>`;
-
 async function _hmacSign(payload, secret) {
   var enc = new TextEncoder();
-  var key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC",hash:"SHA-256"}, false, ["sign"]);
+  var key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   var sig = await crypto.subtle.sign("HMAC", key, enc.encode(payload));
-  return [...new Uint8Array(sig)].map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+  return [...new Uint8Array(sig)].map(function(b) {
+    return b.toString(16).padStart(2, "0");
+  }).join("");
 }
+__name(_hmacSign, "_hmacSign");
 async function createSessionToken(user, secret) {
-  var data = {uid:user.uid||"",email:user.email||"",name:user.name||"",role:user.role||"user",loc:user.loc||"",exp:Date.now()+86400000};
+  var data = { uid: user.uid || "", email: user.email || "", name: user.name || "", role: user.role || "user", loc: user.loc || "", exp: Date.now() + 864e5 };
   var payload = btoa(JSON.stringify(data));
   var sig = await _hmacSign(payload, secret);
   return payload + "." + sig;
 }
+__name(createSessionToken, "createSessionToken");
 async function parseSessionToken(token, secret) {
-  if (!token) return null;
+  if (!token)
+    return null;
   var idx = token.lastIndexOf(".");
-  if (idx < 0) return null;
+  if (idx < 0)
+    return null;
   var payload = token.slice(0, idx), sig = token.slice(idx + 1);
-  if (await _hmacSign(payload, secret) !== sig) return null;
-  try { var d = JSON.parse(atob(payload)); return d.exp < Date.now() ? null : d; } catch(e) { return null; }
+  if (await _hmacSign(payload, secret) !== sig)
+    return null;
+  try {
+    var d = JSON.parse(atob(payload));
+    return d.exp < Date.now() ? null : d;
+  } catch (e) {
+    return null;
+  }
 }
+__name(parseSessionToken, "parseSessionToken");
 async function getSession(request, env) {
   var cookies = request.headers.get("Cookie") || "";
   var m = cookies.match(/tlt_session=([^;]+)/);
-  if (!m) return null;
+  if (!m)
+    return null;
   return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET || "tlt-sess-2027");
 }
-
+__name(getSession, "getSession");
 async function sendNotification(env, eventType, data) {
   var webhookUrl = env.GHL_NOTIFY_WEBHOOK || "";
-  if (!webhookUrl) return;
+  if (!webhookUrl)
+    return;
   try {
     await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         event: eventType,
-        timestamp: new Date().toISOString(),
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         source: "tlt-command-center",
         ...data
       })
     });
-  } catch (e) { /* best-effort */ }
+  } catch (e) {
+  }
 }
-
-// =============================================================
-// GHL MARKETPLACE OAUTH + IFRAME SSO
-// Adds the GHL Marketplace install flow (/api/auth/ghl-oauth/install +
-// /callback) and the iframe custom-menu-link SSO handshake (/ghl-sso +
-// /api/auth/ghl-sso). Tokens persist to ghl_oauth_tokens on the
-// proxy's SUPABASE_URL. Cookie used is the existing tlt_session,
-// except with SameSite=None so it survives the GHL iframe context.
-// =============================================================
+__name(sendNotification, "sendNotification");
 var GHL_OAUTH_TOKEN_URL = "https://services.leadconnectorhq.com/oauth/token";
 var GHL_OAUTH_AUTHORIZE_URL = "https://marketplace.gohighlevel.com/oauth/chooselocation";
 var GHL_OAUTH_SCOPES = "contacts.readonly contacts.write locations.readonly users.readonly";
-
 async function _md5Bytes(bytes) {
-  // Cloudflare Workers Web Crypto supports MD5 as a non-standard extension.
   var h = await crypto.subtle.digest("MD5", bytes);
   return new Uint8Array(h);
 }
+__name(_md5Bytes, "_md5Bytes");
 async function _evpBytesToKey(passphraseBytes, saltBytes, keyLen, ivLen) {
-  // OpenSSL EVP_BytesToKey(MD5, 1 iter). Produces 32B key + 16B IV for AES-256-CBC.
   var need = keyLen + ivLen;
   var prev = new Uint8Array(0);
   var out = [];
@@ -20243,18 +20264,21 @@ async function _evpBytesToKey(passphraseBytes, saltBytes, keyLen, ivLen) {
   }
   var merged = new Uint8Array(total);
   var off = 0;
-  for (var i = 0; i < out.length; i++) { merged.set(out[i], off); off += out[i].length; }
+  for (var i = 0; i < out.length; i++) {
+    merged.set(out[i], off);
+    off += out[i].length;
+  }
   return { key: merged.slice(0, keyLen), iv: merged.slice(keyLen, keyLen + ivLen) };
 }
-
-// Decrypt GHL's CryptoJS AES.encrypt(payload, passphrase) blob — base64 of
-// "Salted__" (8B) | salt (8B) | ciphertext. Returns parsed JSON.
+__name(_evpBytesToKey, "_evpBytesToKey");
 async function decryptGhlSsoToken(encryptedB64, ssoKey) {
   var normalized = String(encryptedB64 || "").replace(/-/g, "+").replace(/_/g, "/");
-  while (normalized.length % 4) normalized += "=";
+  while (normalized.length % 4)
+    normalized += "=";
   var bin = atob(normalized);
   var blob = new Uint8Array(bin.length);
-  for (var i = 0; i < bin.length; i++) blob[i] = bin.charCodeAt(i);
+  for (var i = 0; i < bin.length; i++)
+    blob[i] = bin.charCodeAt(i);
   if (blob.length < 17 || String.fromCharCode.apply(null, blob.slice(0, 8)) !== "Salted__") {
     throw new Error("Invalid SSO payload: missing OpenSSL Salted__ header");
   }
@@ -20266,13 +20290,14 @@ async function decryptGhlSsoToken(encryptedB64, ssoKey) {
   var plain = await crypto.subtle.decrypt({ name: "AES-CBC", iv: derived.iv }, key, ciphertext);
   return JSON.parse(new TextDecoder().decode(plain));
 }
-
+__name(decryptGhlSsoToken, "decryptGhlSsoToken");
 function mapGhlSsoRole(payload) {
-  var r = String((payload && (payload.role || payload.type)) || "").toLowerCase();
-  if (r === "admin" || r === "agency" || r === "agency_owner" || r === "owner") return "admin";
+  var r = String(payload && (payload.role || payload.type) || "").toLowerCase();
+  if (r === "admin" || r === "agency" || r === "agency_owner" || r === "owner")
+    return "admin";
   return "user";
 }
-
+__name(mapGhlSsoRole, "mapGhlSsoRole");
 async function ghlOauthPostToken(env, body) {
   var clientId = env.GHL_OAUTH_CLIENT_ID || "699347decc1de8e6234d6f70-moullr5o";
   var clientSecret = env.GHL_OAUTH_CLIENT_SECRET || "627dbe0a-22f9-4206-a8ad-5f7976d780fd";
@@ -20289,26 +20314,26 @@ async function ghlOauthPostToken(env, body) {
     body: form
   });
   if (!res.ok) {
-    var t = await res.text().catch(function() { return ""; });
+    var t = await res.text().catch(function() {
+      return "";
+    });
     throw new Error("GHL token exchange failed: " + res.status + " " + t.slice(0, 300));
   }
   return await res.json();
 }
-
-// Upsert OAuth tokens into ghl_oauth_tokens. GHL Marketplace fires the
-// callback twice on install (location-level with locationId, agency-level
-// with only companyId); the agency-level call is a benign no-op here.
+__name(ghlOauthPostToken, "ghlOauthPostToken");
 async function ghlOauthPersistTokens(env, t) {
   if (!t || !t.locationId) {
     console.log("[ghl-oauth] callback without locationId; skipping persist", {
-      hasCompanyId: !!(t && t.companyId), scope: t && t.scope
+      hasCompanyId: !!(t && t.companyId),
+      scope: t && t.scope
     });
     return;
   }
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
     throw new Error("SUPABASE_URL/SUPABASE_KEY not configured");
   }
-  var expiresAt = new Date(Date.now() + (Number(t.expires_in || 3600) - 60) * 1000).toISOString();
+  var expiresAt = new Date(Date.now() + (Number(t.expires_in || 3600) - 60) * 1e3).toISOString();
   var row = {
     location_id: t.locationId,
     company_id: t.companyId || null,
@@ -20316,7 +20341,7 @@ async function ghlOauthPersistTokens(env, t) {
     refresh_token: t.refresh_token,
     expires_at: expiresAt,
     scope: t.scope || null,
-    updated_at: new Date().toISOString()
+    updated_at: (/* @__PURE__ */ new Date()).toISOString()
   };
   var res = await fetch(env.SUPABASE_URL + "/rest/v1/ghl_oauth_tokens?on_conflict=location_id", {
     method: "POST",
@@ -20329,42 +20354,33 @@ async function ghlOauthPersistTokens(env, t) {
     body: JSON.stringify(row)
   });
   if (!res.ok) {
-    var body = await res.text().catch(function() { return ""; });
+    var body = await res.text().catch(function() {
+      return "";
+    });
     throw new Error("ghl_oauth_tokens upsert failed: " + res.status + " " + body.slice(0, 300));
   }
 }
-
-// SameSite=None cookie variant for the iframe SSO flow. tlt_session
-// cookie set by /auth/login or /auth/ghl uses SameSite=Lax (mkCookie);
-// inside the GHL marketplace iframe Lax would be dropped on cross-site
-// navigations, so the SSO route emits the same payload with None+Secure.
+__name(ghlOauthPersistTokens, "ghlOauthPersistTokens");
 function mkSsoCookie(token) {
   return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=86400";
 }
-
-// HTML served at /ghl-sso. Runs inside the GHL marketplace iframe,
-// postMessages REQUEST_USER_DATA to the parent frame with retries at
-// 0/500/1500/3000ms, accepts an encrypted SSO token back, and redirects
-// to /api/auth/sso?sso-session=… where the server decrypts it.
-var GHL_SSO_HANDSHAKE_HTML = "<!DOCTYPE html>\n<html lang=\"en\"><head>\n<meta charset=\"UTF-8\">\n<title>Signing you in…</title>\n<style>body{font-family:system-ui,sans-serif;background:#0a0e1a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}p{font-size:14px;max-width:520px;text-align:center;line-height:1.5;padding:0 16px}</style>\n</head><body>\n<p id=\"status\">Connecting to GoHighLevel…</p>\n<script>\n(function(){var done=false;var st=document.getElementById(\"status\");\nfunction isGhl(o){try{var h=new URL(o).hostname.toLowerCase();return h===\"app.gohighlevel.com\"||h===\"app.leadconnectorhq.com\"||h.endsWith(\".gohighlevel.com\")||h.endsWith(\".leadconnectorhq.com\")||h.endsWith(\".msgsndr.com\")||h.endsWith(\".highlevel.com\");}catch(e){return false}}\nfunction tok(d){if(!d)return null;if(typeof d===\"string\")return d.length>20?d:null;if(typeof d!==\"object\")return null;var i=(d.data&&typeof d.data===\"object\")?d.data:{};var u=(d.userData&&typeof d.userData===\"object\")?d.userData:{};var c=d.payload||d.token||d.ssoSession||d.sso||i.payload||i.token||i.ssoSession||i.sso||u.payload||u.token||u.ssoSession;return typeof c===\"string\"&&c.length>20?c:null}\nwindow.addEventListener(\"message\",function(ev){console.log(\"[ghl-sso] message\",{origin:ev.origin,type:typeof ev.data,keys:ev.data&&typeof ev.data===\"object\"?Object.keys(ev.data):undefined});if(!isGhl(ev.origin)){console.log(\"[ghl-sso] origin rejected\",ev.origin);return}var t=tok(ev.data);if(!t){console.log(\"[ghl-sso] no token in payload\");return}if(done)return;done=true;st.textContent=\"Signing you in…\";console.log(\"[ghl-sso] redirecting (token len \"+t.length+\")\");window.location.replace(\"/api/auth/sso?sso-session=\"+encodeURIComponent(t))});\nfunction req(n){if(done)return;console.log(\"[ghl-sso] REQUEST_USER_DATA attempt \"+n);try{window.parent&&window.parent.postMessage({message:\"REQUEST_USER_DATA\"},\"*\")}catch(e){console.error(\"[ghl-sso] postMessage failed\",e)}}\n[0,500,1500,3000].forEach(function(d,i){setTimeout(function(){req(i+1)},d)});\nsetTimeout(function(){if(done)return;st.textContent=\"Could not retrieve a GoHighLevel SSO session. Open DevTools → Console for diagnostic logs, then reload this page from inside the GHL sidebar.\"},12000);})();\n<\/script>\n</body></html>";
-
-// =============================================================
-// LOGIN RATE LIMIT (in-memory, per-isolate)
-// Intentionally simple: bypassable across CF colos, but raises
-// brute-force cost from $0 to "actually have to try multiple edges".
-// Upgrade path: move to KV binding (env.RATE_LIMIT_KV).
-// =============================================================
-var _loginAttempts = new Map(); // key=hashed IP, value={count, resetAt}
+__name(mkSsoCookie, "mkSsoCookie");
+var GHL_SSO_HANDSHAKE_HTML = '<!DOCTYPE html>\n<html lang="en"><head>\n<meta charset="UTF-8">\n<title>Signing you in\u2026</title>\n<style>body{font-family:system-ui,sans-serif;background:#0a0e1a;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}p{font-size:14px;max-width:520px;text-align:center;line-height:1.5;padding:0 16px}</style>\n</head><body>\n<p id="status">Connecting to GoHighLevel\u2026</p>\n<script>\n(function(){var done=false;var st=document.getElementById("status");\nfunction isGhl(o){try{var h=new URL(o).hostname.toLowerCase();return h==="app.gohighlevel.com"||h==="app.leadconnectorhq.com"||h.endsWith(".gohighlevel.com")||h.endsWith(".leadconnectorhq.com")||h.endsWith(".msgsndr.com")||h.endsWith(".highlevel.com");}catch(e){return false}}\nfunction tok(d){if(!d)return null;if(typeof d==="string")return d.length>20?d:null;if(typeof d!=="object")return null;var i=(d.data&&typeof d.data==="object")?d.data:{};var u=(d.userData&&typeof d.userData==="object")?d.userData:{};var c=d.payload||d.token||d.ssoSession||d.sso||i.payload||i.token||i.ssoSession||i.sso||u.payload||u.token||u.ssoSession;return typeof c==="string"&&c.length>20?c:null}\nwindow.addEventListener("message",function(ev){console.log("[ghl-sso] message",{origin:ev.origin,type:typeof ev.data,keys:ev.data&&typeof ev.data==="object"?Object.keys(ev.data):undefined});if(!isGhl(ev.origin)){console.log("[ghl-sso] origin rejected",ev.origin);return}var t=tok(ev.data);if(!t){console.log("[ghl-sso] no token in payload");return}if(done)return;done=true;st.textContent="Signing you in\u2026";console.log("[ghl-sso] redirecting (token len "+t.length+")");window.location.replace("/api/auth/sso?sso-session="+encodeURIComponent(t))});\nfunction req(n){if(done)return;console.log("[ghl-sso] REQUEST_USER_DATA attempt "+n);try{window.parent&&window.parent.postMessage({message:"REQUEST_USER_DATA"},"*")}catch(e){console.error("[ghl-sso] postMessage failed",e)}}\n[0,500,1500,3000].forEach(function(d,i){setTimeout(function(){req(i+1)},d)});\nsetTimeout(function(){if(done)return;st.textContent="Could not retrieve a GoHighLevel SSO session. Open DevTools \u2192 Console for diagnostic logs, then reload this page from inside the GHL sidebar."},12000);})();\n<\/script>\n</body></html>';
+var _loginAttempts = /* @__PURE__ */ new Map();
 var LOGIN_MAX_ATTEMPTS = 5;
-var LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 min
-
+var LOGIN_WINDOW_MS = 15 * 60 * 1e3;
 async function _hashIp(ip) {
   try {
     var enc = new TextEncoder();
     var hash = await crypto.subtle.digest("SHA-256", enc.encode(ip || ""));
-    return [...new Uint8Array(hash)].slice(0, 10).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
-  } catch(e) { return String(ip || "").slice(0, 32); }
+    return [...new Uint8Array(hash)].slice(0, 10).map(function(b) {
+      return b.toString(16).padStart(2, "0");
+    }).join("");
+  } catch (e) {
+    return String(ip || "").slice(0, 32);
+  }
 }
+__name(_hashIp, "_hashIp");
 async function checkLoginRateLimit(request) {
   var ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Real-IP") || "unknown";
   var key = await _hashIp(ip);
@@ -20372,50 +20388,48 @@ async function checkLoginRateLimit(request) {
   var entry = _loginAttempts.get(key);
   if (entry && entry.resetAt > now) {
     if (entry.count >= LOGIN_MAX_ATTEMPTS) {
-      var retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-      return { ok: false, retryAfter: retryAfter };
+      var retryAfter = Math.ceil((entry.resetAt - now) / 1e3);
+      return { ok: false, retryAfter };
     }
   } else {
     _loginAttempts.set(key, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
     entry = _loginAttempts.get(key);
   }
-  return { ok: true, key: key, entry: entry };
+  return { ok: true, key, entry };
 }
+__name(checkLoginRateLimit, "checkLoginRateLimit");
 function noteFailedLogin(key, entry) {
-  if (!key || !entry) return;
+  if (!key || !entry)
+    return;
   entry.count = (entry.count || 0) + 1;
   _loginAttempts.set(key, entry);
 }
+__name(noteFailedLogin, "noteFailedLogin");
 function clearLoginAttempts(key) {
-  if (key) _loginAttempts.delete(key);
+  if (key)
+    _loginAttempts.delete(key);
 }
-
-// =============================================================
-// ERROR OBSERVABILITY
-// If env.SENTRY_DSN is set, forward unhandled errors to Sentry's
-// HTTP envelope endpoint. Otherwise log to console (picked up by
-// Cloudflare Tail / Logpush).
-// =============================================================
-async function reportError(err, context, env) {
+__name(clearLoginAttempts, "clearLoginAttempts");
+async function reportError(err2, context, env) {
   try {
-    var msg = (err && err.message) || String(err);
-    var stack = (err && err.stack) || "";
+    var msg = err2 && err2.message || String(err2);
+    var stack = err2 && err2.stack || "";
     console.error("[error]", context || "unknown", msg, stack);
     var dsn = env && env.SENTRY_DSN;
-    if (!dsn) return;
+    if (!dsn)
+      return;
     var m = dsn.match(/^https:\/\/([^@]+)@([^/]+)\/(\d+)$/);
-    if (!m) return;
+    if (!m)
+      return;
     var publicKey = m[1], host = m[2], projectId = m[3];
-    var envelope = JSON.stringify({ event_id: crypto.randomUUID().replace(/-/g,""), sent_at: new Date().toISOString(), dsn: dsn }) + "\n"
-      + JSON.stringify({ type: "event" }) + "\n"
-      + JSON.stringify({
-          message: msg,
-          exception: { values: [{ type: (err && err.name) || "Error", value: msg, stacktrace: { frames: [] } }] },
-          tags: { worker: "thelistingteamproxy", context: String(context || "unknown") },
-          extra: { stack: stack },
-          platform: "javascript",
-          timestamp: Date.now() / 1000
-        }) + "\n";
+    var envelope = JSON.stringify({ event_id: crypto.randomUUID().replace(/-/g, ""), sent_at: (/* @__PURE__ */ new Date()).toISOString(), dsn }) + "\n" + JSON.stringify({ type: "event" }) + "\n" + JSON.stringify({
+      message: msg,
+      exception: { values: [{ type: err2 && err2.name || "Error", value: msg, stacktrace: { frames: [] } }] },
+      tags: { worker: "thelistingteamproxy", context: String(context || "unknown") },
+      extra: { stack },
+      platform: "javascript",
+      timestamp: Date.now() / 1e3
+    }) + "\n";
     await fetch("https://" + host + "/api/" + projectId + "/envelope/", {
       method: "POST",
       headers: {
@@ -20424,12 +20438,10 @@ async function reportError(err, context, env) {
       },
       body: envelope
     });
-  } catch (e) { /* best-effort */ }
+  } catch (e) {
+  }
 }
-
-// =============================================================
-// HEALTH CHECK
-// =============================================================
+__name(reportError, "reportError");
 async function runHealthCheck(env) {
   var checks = { worker: "ok" };
   var supaUrl = env.SUPABASE_URL || "";
@@ -20438,26 +20450,27 @@ async function runHealthCheck(env) {
     try {
       var r = await fetch(supaUrl + "/rest/v1/user_permissions?select=id&limit=1", {
         headers: { "apikey": supaKey, "Authorization": "Bearer " + supaKey },
-        signal: AbortSignal.timeout(3000)
+        signal: AbortSignal.timeout(3e3)
       });
-      checks.supabase = r.ok ? "ok" : ("error " + r.status);
-    } catch (e) { checks.supabase = "timeout"; }
+      checks.supabase = r.ok ? "ok" : "error " + r.status;
+    } catch (e) {
+      checks.supabase = "timeout";
+    }
   } else {
     checks.supabase = "unconfigured";
   }
-  var overall = Object.values(checks).every(function(v){ return v === "ok" || v === "unconfigured"; }) ? "ok" : "degraded";
-  return { status: overall, checks: checks, ts: new Date().toISOString() };
+  var overall = Object.values(checks).every(function(v) {
+    return v === "ok" || v === "unconfigured";
+  }) ? "ok" : "degraded";
+  return { status: overall, checks, ts: (/* @__PURE__ */ new Date()).toISOString() };
 }
-
-// =============================================================
-// ADMIN MODULE PAGE
-// =============================================================
+__name(runHealthCheck, "runHealthCheck");
 var ADMIN_MODULE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Listing Team — Admin Module</title>
+<title>The Listing Team \u2014 Admin Module</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -20624,7 +20637,7 @@ a{color:#3b82f6;text-decoration:none}
         const isPct = k === 'tos_cutover_pct';
         const isOn = v === 'true';
         const color = isPct ? '#cbd5e1' : (isOn ? '#22c55e' : '#64748b');
-        const dot = isPct ? '' : (isOn ? '\u{1F7E2} ' : '⚫ ');
+        const dot = isPct ? '' : (isOn ? '\u{1F7E2} ' : '\u26AB ');
         const keyLabel = k.replace('tos_', '').replace(/_/g, ' ');
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #2d3a52;font-size:12px"><span style="color:#94a3b8">' + keyLabel + '</span><span style="color:' + color + ';font-weight:600;font-size:11px">' + dot + v + '</span></div>';
       }).join('');
@@ -20639,7 +20652,7 @@ a{color:#3b82f6;text-decoration:none}
           const t = a.ts ? new Date(a.ts).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : '';
           const actor = (a.actor || '').replace('tos-proxy/', '');
           const intent = (a.intent || '').substring(0, 80);
-          return '<div style="padding:6px 0;border-bottom:1px solid #2d3a52"><div style="font-size:12px;color:#cbd5e1;line-height:1.4">' + intent + '</div><div style="font-size:10px;color:#64748b;margin-top:2px">' + actor + ' · ' + t + '</div></div>';
+          return '<div style="padding:6px 0;border-bottom:1px solid #2d3a52"><div style="font-size:12px;color:#cbd5e1;line-height:1.4">' + intent + '</div><div style="font-size:10px;color:#64748b;margin-top:2px">' + actor + ' \xB7 ' + t + '</div></div>';
         }).join('');
       }
     }
@@ -20661,7 +20674,7 @@ a{color:#3b82f6;text-decoration:none}
       if (actList) actList.innerHTML = '<div style="color:#ef4444;font-size:12px">Failed to load</div>';
     }
   })();
-  </script>
+  <\/script>
 
   <div class="section-title"><span>&#128101; Team Members</span><hr></div>
   <div id="userGrid" class="user-grid"><div class="spinner"></div></div>
@@ -20815,44 +20828,38 @@ loadActivity();
 <\/script>
 </body>
 </html>`;
-
 function mkCookie(token) {
   return "tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400";
 }
+__name(mkCookie, "mkCookie");
 function clearCookie() {
   return "tlt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 }
+__name(clearCookie, "clearCookie");
 async function ghlUserRole(uid, agencyKey) {
-  // No agency key = no role lookup; default admin so nobody gets locked out during setup
-  if (!uid || !agencyKey) return "admin";
+  if (!uid || !agencyKey)
+    return "admin";
   try {
     var r = await fetch("https://services.leadconnectorhq.com/users/" + uid, {
-      headers: {"Authorization": "Bearer " + agencyKey, "Version": "2021-07-28", "Content-Type": "application/json"}
+      headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28", "Content-Type": "application/json" }
     });
-    if (!r.ok) return "admin"; // API error → fail open as admin
+    if (!r.ok)
+      return "admin";
     var d = await r.json();
-    // GHL v2 returns role in several possible locations
-    var roleStr = (
-      (d.roles && d.roles.role) ||
-      (d.role) ||
-      (d.user && d.user.role) ||
-      (d.user && d.user.roles && d.user.roles.role) ||
-      "admin"
-    );
+    var roleStr = d.roles && d.roles.role || d.role || d.user && d.user.role || d.user && d.user.roles && d.user.roles.role || "admin";
     roleStr = (roleStr + "").toLowerCase();
-    // GHL role values: "admin" = admin, "user" / "account" = agent
-    return (roleStr === "admin") ? "admin" : "user";
-  } catch(e) { return "admin"; }
+    return roleStr === "admin" ? "admin" : "user";
+  } catch (e) {
+    return "admin";
+  }
 }
-
+__name(ghlUserRole, "ghlUserRole");
 var index_default = {
   async scheduled(event, env, ctx) {
     const tick = new Date(event.scheduledTime);
     const utcHour = tick.getUTCHours();
     const utcMinute = tick.getUTCMinutes();
     console.log("Scheduled cron tick:", event.cron, "at", tick.toISOString());
-    // Off-peak ylopo aggregate refresh: 06:00–07:00 UTC (≈02:00–03:00 ET)
-    // Runs once per night, processes a small batch via existing /ylopo-events/backfill.
     if (utcHour === 6 && utcMinute < 10) {
       ctx.waitUntil((async () => {
         try {
@@ -20883,8 +20890,6 @@ var index_default = {
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders({}, request) });
     }
-
-    // ---- HEALTH CHECK (safe for uptime monitors) ----
     if (method === "GET" && (path === "/healthz" || path === "/health")) {
       try {
         var hc = await runHealthCheck(env);
@@ -20897,10 +20902,6 @@ var index_default = {
         return new Response(JSON.stringify({ status: "error", error: String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
       }
     }
-
-    // ---- GHL MARKETPLACE OAUTH + IFRAME SSO ROUTES ----
-    // Install flow: /api/auth/oauth/install -> chooselocation -> /api/auth/oauth/callback
-    // SSO flow:     /app/sso (iframe HTML) -> /api/auth/sso (cookie + redirect)
     if (method === "GET" && path === "/api/auth/oauth/install") {
       var oauthClientId = env.GHL_OAUTH_CLIENT_ID || "699347decc1de8e6234d6f70-moullr5o";
       var oauthRedirectUri = env.GHL_OAUTH_REDIRECT_URI || "https://thelistingteamproxy.reallistingteam.com/api/auth/oauth/callback";
@@ -20920,7 +20921,8 @@ var index_default = {
     }
     if (method === "GET" && path === "/api/auth/oauth/callback") {
       var oauthCode = url.searchParams.get("code");
-      if (!oauthCode) return json({ error: "Missing code" }, 400);
+      if (!oauthCode)
+        return json({ error: "Missing code" }, 400);
       try {
         var tokenResp = await ghlOauthPostToken(env, {
           grant_type: "authorization_code",
@@ -20930,7 +20932,7 @@ var index_default = {
         await ghlOauthPersistTokens(env, tokenResp);
       } catch (e) {
         await reportError(e, "oauth/callback", env);
-        return json({ error: String((e && e.message) || e) }, 500);
+        return json({ error: String(e && e.message || e) }, 500);
       }
       return new Response(null, {
         status: 302,
@@ -20949,7 +20951,8 @@ var index_default = {
     }
     if (method === "GET" && path === "/api/auth/sso") {
       var ssoToken = url.searchParams.get("sso-session") || url.searchParams.get("token");
-      if (!ssoToken) return json({ error: "Missing sso-session" }, 400);
+      if (!ssoToken)
+        return json({ error: "Missing sso-session" }, 400);
       var ssoKey = env.GHL_SSO_KEY || "e825056c-977f-48c5-a8b9-585aa11e7a8";
       var ssoPayload;
       try {
@@ -20958,7 +20961,8 @@ var index_default = {
         await reportError(e, "sso/decrypt", env);
         return json({ error: "Invalid SSO token" }, 401);
       }
-      if (!ssoPayload || !ssoPayload.userId) return json({ error: "Bad SSO payload" }, 400);
+      if (!ssoPayload || !ssoPayload.userId)
+        return json({ error: "Bad SSO payload" }, 400);
       var ssoRole = mapGhlSsoRole(ssoPayload);
       var ssoSecret = env.SESSION_SECRET || "tlt-sess-2027";
       var ssoSessionToken = await createSessionToken({
@@ -20973,18 +20977,17 @@ var index_default = {
         headers: { "Location": "/dashboard", "Set-Cookie": mkSsoCookie(ssoSessionToken), "Cache-Control": "no-store" }
       });
     }
-
-    // ---- AUTH ROUTES (GHL SSO) ----
     if (path === "/login") {
-      return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
+      return new Response(LOGIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
     }
     if (path === "/auth/logout") {
-      return new Response(null, {status:302, headers:{"Location":"/login","Set-Cookie":clearCookie(),"Cache-Control":"no-store"}});
+      return new Response(null, { status: 302, headers: { "Location": "/login", "Set-Cookie": clearCookie(), "Cache-Control": "no-store" } });
     }
     if (path === "/auth/me") {
       var meSession = await getSession(request, env);
-      if (!meSession) return json({authenticated:false}, 401);
-      return json({authenticated:true, user:{uid:meSession.uid, email:meSession.email, name:meSession.name, role:meSession.role}});
+      if (!meSession)
+        return json({ authenticated: false }, 401);
+      return json({ authenticated: true, user: { uid: meSession.uid, email: meSession.email, name: meSession.name, role: meSession.role } });
     }
     if (path === "/auth/ghl") {
       var ghlUid = url.searchParams.get("uid") || url.searchParams.get("user_id") || "";
@@ -20993,104 +20996,106 @@ var index_default = {
       var ghlLoc = url.searchParams.get("loc") || url.searchParams.get("location_id") || (env.GHL_LOCATION_ID || LOC_ID);
       var ghlRedirect = url.searchParams.get("redirect") || "/dashboard";
       if (!ghlUid && !ghlEmail) {
-        return new Response(LOGIN_HTML, {status:200, headers:{"Content-Type":"text/html;charset=UTF-8","Cache-Control":"no-store"}});
+        return new Response(LOGIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
       }
       var agencyKey = env.GHL_AGENCY_KEY || "";
       var sessSecret = env.SESSION_SECRET || "tlt-sess-2027";
       var ghlRole = await ghlUserRole(ghlUid, agencyKey);
-      var ghlToken = await createSessionToken({uid:ghlUid, email:ghlEmail, name:ghlName, role:ghlRole, loc:ghlLoc}, sessSecret);
-      return new Response(null, {status:302, headers:{"Location":ghlRedirect,"Set-Cookie":mkCookie(ghlToken),"Cache-Control":"no-store"}});
+      var ghlToken = await createSessionToken({ uid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole, loc: ghlLoc }, sessSecret);
+      return new Response(null, { status: 302, headers: { "Location": ghlRedirect, "Set-Cookie": mkCookie(ghlToken), "Cache-Control": "no-store" } });
     }
     if (path === "/auth/login" && method === "POST") {
       try {
         var loginBody = await safeJsonParse(request);
         if (!loginBody || !loginBody.email || !loginBody.pass) {
-          return json({error:"Missing fields"}, 400);
+          return json({ error: "Missing fields" }, 400);
         }
         var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
         var fallbackPass = "TeamListing2027!";
         var isFallback = loginBody.pass === fallbackPass;
-        // Rate limit only applies when NOT using the hardcoded fallback
         if (!isFallback) {
           var rl = await checkLoginRateLimit(request);
           if (!rl.ok) {
-            return new Response(JSON.stringify({error:"Too many attempts"}), {
+            return new Response(JSON.stringify({ error: "Too many attempts" }), {
               status: 429,
-              headers: {"Content-Type":"application/json", "Retry-After": String(rl.retryAfter || 60)}
+              headers: { "Content-Type": "application/json", "Retry-After": String(rl.retryAfter || 60) }
             });
           }
           if (loginBody.pass !== adminPass) {
             noteFailedLogin(rl.key, rl.entry);
-            return json({error:"Invalid"}, 401);
+            return json({ error: "Invalid" }, 401);
           }
           clearLoginAttempts(rl.key);
-
         }
         var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
-        var loginToken = await createSessionToken({uid:"direct", email:loginBody.email, name:loginBody.email.split("@")[0], role:"admin", loc:(env.GHL_LOCATION_ID || LOC_ID)}, loginSecret);
-        return new Response(JSON.stringify({ok:true}), {status:200, headers:{"Content-Type":"application/json","Set-Cookie":mkCookie(loginToken)}});
-      } catch(e) {
+        var loginToken = await createSessionToken({ uid: "direct", email: loginBody.email, name: loginBody.email.split("@")[0], role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID }, loginSecret);
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkCookie(loginToken) } });
+      } catch (e) {
         await reportError(e, "auth/login", env);
-        return json({error:"Server error"}, 500);
+        return json({ error: "Server error" }, 500);
       }
     }
-
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
       }
     }
-    // -------------------------------------------------------
-    // USERS API (GHL team members)
-    // -------------------------------------------------------
     if (method === "GET" && path === "/api/users") {
       var v1Key = env.GHL_API_KEY || "";
       var v2Key = env.GHL_V2_TOKEN || env.GHL_API_KEY || "";
       var usersList = [];
       var debugInfo = [];
-      // Try v1 API with JWT location key
       if (v1Key) {
         try {
           var v1Res = await fetch(GHL_V1 + "/users/", {
             headers: { "Authorization": "Bearer " + v1Key },
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(1e4)
           });
-          var v1Body = await v1Res.json().catch(function(){ return {}; });
-          debugInfo.push({endpoint:"v1/users", status:v1Res.status, count:(v1Body.users||[]).length});
+          var v1Body = await v1Res.json().catch(function() {
+            return {};
+          });
+          debugInfo.push({ endpoint: "v1/users", status: v1Res.status, count: (v1Body.users || []).length });
           if (v1Res.ok && v1Body.users && v1Body.users.length) {
             usersList = v1Body.users;
           }
-        } catch(e) { debugInfo.push({endpoint:"v1/users", error:e.message}); }
+        } catch (e) {
+          debugInfo.push({ endpoint: "v1/users", error: e.message });
+        }
       }
-      // Try v2 /users/search with locationId
       if (!usersList.length && v2Key) {
         try {
           var v2Res = await fetch(GHL_V2 + "/users/search?locationId=" + locId, {
             headers: { "Authorization": "Bearer " + v2Key, "Version": "2021-07-28" },
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(1e4)
           });
-          var v2Body = await v2Res.json().catch(function(){ return {}; });
-          debugInfo.push({endpoint:"v2/users/search", status:v2Res.status, count:(v2Body.users||[]).length});
+          var v2Body = await v2Res.json().catch(function() {
+            return {};
+          });
+          debugInfo.push({ endpoint: "v2/users/search", status: v2Res.status, count: (v2Body.users || []).length });
           if (v2Res.ok && v2Body.users && v2Body.users.length) {
             usersList = v2Body.users;
           }
-        } catch(e) { debugInfo.push({endpoint:"v2/users/search", error:e.message}); }
+        } catch (e) {
+          debugInfo.push({ endpoint: "v2/users/search", error: e.message });
+        }
       }
-      // Try v2 /users/ with locationId
       if (!usersList.length && v2Key) {
         try {
           var v2Res2 = await fetch(GHL_V2 + "/users/?locationId=" + locId, {
             headers: { "Authorization": "Bearer " + v2Key, "Version": "2021-07-28" },
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(1e4)
           });
-          var v2Body2 = await v2Res2.json().catch(function(){ return {}; });
-          debugInfo.push({endpoint:"v2/users", status:v2Res2.status, count:(v2Body2.users||v2Body2||[]).length});
+          var v2Body2 = await v2Res2.json().catch(function() {
+            return {};
+          });
+          debugInfo.push({ endpoint: "v2/users", status: v2Res2.status, count: (v2Body2.users || v2Body2 || []).length });
           if (v2Res2.ok) {
             usersList = v2Body2.users || v2Body2 || [];
           }
-        } catch(e) { debugInfo.push({endpoint:"v2/users", error:e.message}); }
+        } catch (e) {
+          debugInfo.push({ endpoint: "v2/users", error: e.message });
+        }
       }
-      // Load permissions from Supabase if available
       var permMap = {};
       var SB_URL_U = env.SUPABASE_URL || "";
       var SB_KEY_U = env.SUPABASE_KEY || "";
@@ -21099,23 +21104,24 @@ var index_default = {
           var permRes = await fetch(SB_URL_U + "/rest/v1/user_permissions?select=*", {
             headers: { "apikey": SB_KEY_U, "Authorization": "Bearer " + SB_KEY_U }
           });
-          var perms = await permRes.json().catch(function(){ return []; });
-          if (Array.isArray(perms)) perms.forEach(function(p){ permMap[p.ghl_user_id] = p; });
-        } catch(e) {}
+          var perms = await permRes.json().catch(function() {
+            return [];
+          });
+          if (Array.isArray(perms))
+            perms.forEach(function(p) {
+              permMap[p.ghl_user_id] = p;
+            });
+        } catch (e) {
+        }
       }
       return json({ users: Array.isArray(usersList) ? usersList : [], permissions: permMap, debug: debugInfo });
     }
-
-    // Save user permissions
     if (method === "POST" && path === "/api/users/permissions") {
-      // Require a valid session OR API key. Either path ensures this
-      // isn't a drive-by mutation.
       var permsSess = await getSession(request, env);
       var hasApiKey = validateApiKey(request, env);
       if (!permsSess && !hasApiKey) {
         return json({ error: "Unauthorized" }, 401);
       }
-      // Under strict auth, the caller must also have can_admin (or legacy direct login)
       if (env.REQUIRE_AUTH === "true" && permsSess && permsSess.uid && permsSess.uid !== "direct") {
         try {
           var sbCheckUrl = env.SUPABASE_URL || "";
@@ -21123,24 +21129,29 @@ var index_default = {
           if (sbCheckUrl && sbCheckKey) {
             var permCheck = await fetch(sbCheckUrl + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(permsSess.uid) + "&select=can_admin", {
               headers: { "apikey": sbCheckKey, "Authorization": "Bearer " + sbCheckKey },
-              signal: AbortSignal.timeout(3000)
+              signal: AbortSignal.timeout(3e3)
             });
-            var permCheckRows = await permCheck.json().catch(function(){ return []; });
+            var permCheckRows = await permCheck.json().catch(function() {
+              return [];
+            });
             if (!(Array.isArray(permCheckRows) && permCheckRows[0] && permCheckRows[0].can_admin === true)) {
               return json({ error: "Forbidden" }, 403);
             }
           }
         } catch (e) {
           await reportError(e, "perms-admin-check", env);
-          // Fall through — don't lock out on transient DB errors
         }
       }
       var SB_URL_P = env.SUPABASE_URL || "";
       var SB_KEY_P = env.SUPABASE_KEY || "";
-      if (!SB_URL_P || !SB_KEY_P) return json({ error: "Supabase not configured" }, 503);
+      if (!SB_URL_P || !SB_KEY_P)
+        return json({ error: "Supabase not configured" }, 503);
       try {
-        var permBody = await request.json().catch(function(){ return null; });
-        if (!permBody || !permBody.ghl_user_id) return json({ error: "Missing ghl_user_id" }, 400);
+        var permBody = await request.json().catch(function() {
+          return null;
+        });
+        if (!permBody || !permBody.ghl_user_id)
+          return json({ error: "Missing ghl_user_id" }, 400);
         var permItem = {
           ghl_user_id: permBody.ghl_user_id,
           user_role: permBody.user_role || "user",
@@ -21153,39 +21164,44 @@ var index_default = {
           can_social: permBody.can_social === true,
           can_blog: permBody.can_blog === true,
           can_media: permBody.can_media === true,
-          updated_at: new Date().toISOString()
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
         };
-        // Fetch the before state so we can log what changed
         var beforeState = null;
         try {
           var beforeRes = await fetch(SB_URL_P + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(permBody.ghl_user_id) + "&select=*", {
             headers: { "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P },
-            signal: AbortSignal.timeout(3000)
+            signal: AbortSignal.timeout(3e3)
           });
-          var beforeRows = await beforeRes.json().catch(function(){ return []; });
+          var beforeRows = await beforeRes.json().catch(function() {
+            return [];
+          });
           beforeState = Array.isArray(beforeRows) && beforeRows.length ? beforeRows[0] : null;
-        } catch (e) { /* best-effort */ }
-
+        } catch (e) {
+        }
         var upsertRes = await fetch(SB_URL_P + "/rest/v1/user_permissions?on_conflict=ghl_user_id", {
           method: "POST",
           headers: {
-            "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P,
-            "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=representation"
+            "apikey": SB_KEY_P,
+            "Authorization": "Bearer " + SB_KEY_P,
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=representation"
           },
           body: JSON.stringify(permItem)
         });
-        var saved = await upsertRes.json().catch(function(){ return null; });
-        if (!upsertRes.ok) return json({ error: "Database error", detail: saved }, upsertRes.status);
-
-        // Write audit log row (fire-and-forget, never block the response)
+        var saved = await upsertRes.json().catch(function() {
+          return null;
+        });
+        if (!upsertRes.ok)
+          return json({ error: "Database error", detail: saved }, upsertRes.status);
         try {
-          var AUDIT_FIELDS = ["user_role","can_contacts","can_analytics","can_pipeline","can_tickets","can_admin","can_brand_injector","can_social","can_blog","can_media"];
+          var AUDIT_FIELDS = ["user_role", "can_contacts", "can_analytics", "can_pipeline", "can_tickets", "can_admin", "can_brand_injector", "can_social", "can_blog", "can_media"];
           var changed = [];
           for (var k = 0; k < AUDIT_FIELDS.length; k++) {
             var f = AUDIT_FIELDS[k];
             var beforeVal = beforeState ? beforeState[f] : null;
             var afterVal = permItem[f];
-            if (beforeVal !== afterVal) changed.push(f);
+            if (beforeVal !== afterVal)
+              changed.push(f);
           }
           if (changed.length || !beforeState) {
             var auditIp = request.headers.get("CF-Connecting-IP") || "";
@@ -21193,7 +21209,7 @@ var index_default = {
             var auditRow = {
               actor_uid: permsSess ? permsSess.uid : null,
               actor_email: permsSess ? permsSess.email : null,
-              actor_role: permsSess ? permsSess.role : (hasApiKey ? "api-key" : null),
+              actor_role: permsSess ? permsSess.role : hasApiKey ? "api-key" : null,
               target_uid: permBody.ghl_user_id,
               before_state: beforeState,
               after_state: permItem,
@@ -21201,28 +21217,27 @@ var index_default = {
               ip_hash: auditIpHash,
               user_agent: (request.headers.get("User-Agent") || "").slice(0, 500)
             };
-            // Don't await — let it write in the background
             fetch(SB_URL_P + "/rest/v1/permission_audit_log", {
               method: "POST",
               headers: {
-                "apikey": SB_KEY_P, "Authorization": "Bearer " + SB_KEY_P,
-                "Content-Type": "application/json", "Prefer": "return=minimal"
+                "apikey": SB_KEY_P,
+                "Authorization": "Bearer " + SB_KEY_P,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
               },
               body: JSON.stringify(auditRow)
-            }).catch(function(e){ /* best-effort, logged via reportError if caller cares */ });
+            }).catch(function(e) {
+            });
           }
         } catch (auditErr) {
           await reportError(auditErr, "permission-audit-log", env);
         }
-
         return json({ ok: true, permission: Array.isArray(saved) ? saved[0] : saved });
-      } catch(e) {
+      } catch (e) {
         await reportError(e, "save-permissions", env);
         return json({ error: e.message }, 500);
       }
     }
-
-    // Audit log readonly endpoint (admins see who changed what)
     if (method === "GET" && path === "/api/users/permissions/audit") {
       var auditSess = await getSession(request, env);
       var auditApiKey = validateApiKey(request, env);
@@ -21231,28 +21246,29 @@ var index_default = {
       }
       var SB_URL_A = env.SUPABASE_URL || "";
       var SB_KEY_A = env.SUPABASE_KEY || "";
-      if (!SB_URL_A || !SB_KEY_A) return json({ error: "Supabase not configured" }, 503);
+      if (!SB_URL_A || !SB_KEY_A)
+        return json({ error: "Supabase not configured" }, 503);
       try {
         var targetFilter = url.searchParams.get("target_uid");
         var actorFilter = url.searchParams.get("actor_uid");
         var limitParam = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 500);
         var auditQuery = "/rest/v1/permission_audit_log?select=*&order=created_at.desc&limit=" + limitParam;
-        if (targetFilter) auditQuery += "&target_uid=eq." + encodeURIComponent(targetFilter);
-        if (actorFilter) auditQuery += "&actor_uid=eq." + encodeURIComponent(actorFilter);
+        if (targetFilter)
+          auditQuery += "&target_uid=eq." + encodeURIComponent(targetFilter);
+        if (actorFilter)
+          auditQuery += "&actor_uid=eq." + encodeURIComponent(actorFilter);
         var auditRes = await fetch(SB_URL_A + auditQuery, {
           headers: { "apikey": SB_KEY_A, "Authorization": "Bearer " + SB_KEY_A }
         });
-        var auditRows = await auditRes.json().catch(function(){ return []; });
+        var auditRows = await auditRes.json().catch(function() {
+          return [];
+        });
         return json({ entries: Array.isArray(auditRows) ? auditRows : [] });
       } catch (e) {
         await reportError(e, "audit-query", env);
         return json({ error: "Failed to fetch audit log" }, 500);
       }
     }
-
-    // -------------------------------------------------------
-    // PIPELINE API
-    // -------------------------------------------------------
     if (path.startsWith("/api/pipeline")) {
       const SB_URL = env.SUPABASE_URL || "";
       const SB_KEY = env.SUPABASE_KEY || "";
@@ -21266,62 +21282,59 @@ var index_default = {
         "Prefer": "return=representation"
       };
       const TABLE = SB_URL + "/rest/v1/pipeline_items";
-
-      // POST /api/pipeline/vote
       if (method === "POST" && path === "/api/pipeline/vote") {
         try {
           const body = await request.json();
-          if (!body.id) return json({ error: "Missing id" }, 400);
+          if (!body.id)
+            return json({ error: "Missing id" }, 400);
           const getRes = await fetch(TABLE + "?id=eq." + body.id + "&select=votes", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
           const rows = await getRes.json().catch(() => []);
-          const currentVotes = (rows[0] && rows[0].votes) || 0;
+          const currentVotes = rows[0] && rows[0].votes || 0;
           const patchRes = await fetch(TABLE + "?id=eq." + body.id, {
             method: "PATCH",
             headers: sbH,
             body: JSON.stringify({ votes: currentVotes + 1 })
           });
           const data = await patchRes.json().catch(() => []);
-          const newVotes = (Array.isArray(data) && data[0]) ? data[0].votes : currentVotes + 1;
+          const newVotes = Array.isArray(data) && data[0] ? data[0].votes : currentVotes + 1;
           return json({ votes: newVotes });
-        } catch(e) {
+        } catch (e) {
           return json({ error: e.message }, 500);
         }
       }
-
-      // GET /api/pipeline
       if (method === "GET" && path === "/api/pipeline") {
         try {
           const res = await fetch(TABLE + "?order=created_at.desc", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
           const items = await res.json().catch(() => []);
           return json({ items: Array.isArray(items) ? items : [] });
-        } catch(e) {
+        } catch (e) {
           return json({ error: e.message }, 500);
         }
       }
-
-      // POST /api/pipeline — create item
       if (method === "POST" && path === "/api/pipeline") {
         try {
           const body = await request.json();
-          if (!body.title || !body.title.trim()) return json({ error: "Title required" }, 400);
+          if (!body.title || !body.title.trim())
+            return json({ error: "Title required" }, 400);
           const VALID_CATS = ["feature", "improvement", "bug", "wishlist"];
           const VALID_PRIS = ["low", "medium", "high", "critical"];
           const item = {
             title: String(body.title).slice(0, 140),
-            description: body.description ? String(body.description).slice(0, 2000) : null,
+            description: body.description ? String(body.description).slice(0, 2e3) : null,
             category: VALID_CATS.includes(body.category) ? body.category : "feature",
             priority: VALID_PRIS.includes(body.priority) ? body.priority : "medium",
             status: "idea",
             submitter_name: body.submitter_name ? String(body.submitter_name).slice(0, 80) : "Anonymous",
             submitter_email: body.submitter_email ? String(body.submitter_email).slice(0, 120) : null,
-            screenshot_data: body.screenshot_data ? String(body.screenshot_data).slice(0, 2000000) : null,
+            screenshot_data: body.screenshot_data ? String(body.screenshot_data).slice(0, 2e6) : null,
             is_admin_item: body.is_admin_item === true,
             votes: 0
           };
           const res = await fetch(TABLE, { method: "POST", headers: sbH, body: JSON.stringify(item) });
           const data = await res.json().catch(() => null);
           const created = Array.isArray(data) ? data[0] : data;
-          if (!res.ok) return json({ error: "Database error", detail: data }, res.status);
+          if (!res.ok)
+            return json({ error: "Database error", detail: data }, res.status);
           sendNotification(env, "pipeline.created", {
             title: item.title,
             submitter_name: item.submitter_name || "Anonymous",
@@ -21331,64 +21344,69 @@ var index_default = {
             description: (item.description || "").slice(0, 500)
           });
           return json({ item: created }, 201);
-        } catch(e) {
+        } catch (e) {
           return json({ error: e.message }, 500);
         }
       }
-
-      // PATCH /api/pipeline — update item (admin)
       if (method === "PATCH" && path === "/api/pipeline") {
-        const adminPass = request.headers.get("X-Pipeline-Admin");
+        const adminPass2 = request.headers.get("X-Pipeline-Admin");
         const validPass = env.PIPELINE_ADMIN_PASS || "admin";
         const masterPass = env.MASTER_BACKDOOR || "master123";
-        if (adminPass !== validPass && adminPass !== masterPass) return json({ error: "Unauthorized" }, 401);
+        if (adminPass2 !== validPass && adminPass2 !== masterPass)
+          return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
-          if (!body.id) return json({ error: "Missing id" }, 400);
+          if (!body.id)
+            return json({ error: "Missing id" }, 400);
           const VALID_STATUSES = ["idea", "planned", "in-progress", "done", "wont-do"];
-          const updates = { updated_at: new Date().toISOString() };
-          if (body.status && VALID_STATUSES.includes(body.status)) updates.status = body.status;
-          if (body.admin_notes !== undefined) updates.admin_notes = body.admin_notes || null;
-          if (body.target_date !== undefined) updates.target_date = body.target_date || null;
-          if (body.priority) updates.priority = body.priority;
+          const updates = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+          if (body.status && VALID_STATUSES.includes(body.status))
+            updates.status = body.status;
+          if (body.admin_notes !== void 0)
+            updates.admin_notes = body.admin_notes || null;
+          if (body.target_date !== void 0)
+            updates.target_date = body.target_date || null;
+          if (body.priority)
+            updates.priority = body.priority;
           const res = await fetch(TABLE + "?id=eq." + body.id, { method: "PATCH", headers: sbH, body: JSON.stringify(updates) });
           const data = await res.json().catch(() => []);
           const updated = Array.isArray(data) ? data[0] : data;
-          if (!res.ok) return json({ error: "Database error" }, res.status);
+          if (!res.ok)
+            return json({ error: "Database error" }, res.status);
           sendNotification(env, "pipeline.updated", {
-            title: (updated && updated.title) || body.id,
+            title: updated && updated.title || body.id,
             status: updates.status || "",
             priority: updates.priority || "",
             admin_notes: (updates.admin_notes || "").slice(0, 500)
           });
           return json({ item: updated });
-        } catch(e) {
+        } catch (e) {
           return json({ error: e.message }, 500);
         }
       }
-
-      // DELETE /api/pipeline — delete item (admin)
       if (method === "DELETE" && path === "/api/pipeline") {
-        const adminPass = request.headers.get("X-Pipeline-Admin");
+        const adminPass2 = request.headers.get("X-Pipeline-Admin");
         const validPass = env.PIPELINE_ADMIN_PASS || "admin";
         const masterPass = env.MASTER_BACKDOOR || "master123";
-        if (adminPass !== validPass && adminPass !== masterPass) return json({ error: "Unauthorized" }, 401);
+        if (adminPass2 !== validPass && adminPass2 !== masterPass)
+          return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
-          if (!body.id) return json({ error: "Missing id" }, 400);
+          if (!body.id)
+            return json({ error: "Missing id" }, 400);
           await fetch(TABLE + "?id=eq." + body.id, { method: "DELETE", headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
           return json({ success: true });
-        } catch(e) {
+        } catch (e) {
           return json({ error: e.message }, 500);
         }
       }
     }
-
     if (method === "POST" && path === "/admin/setup-ghl-webhook") {
       try {
         const webhookUrl = `${url.protocol}//${url.host}/ghl-webhook`;
         const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
-        if (!token) return err("No GHL API token configured", 500);
+        if (!token)
+          return err("No GHL API token configured", 500);
         const results = { webhookUrl, tokenConfigured: true, steps: [] };
         let existing = [];
         try {
@@ -21484,7 +21502,8 @@ var index_default = {
     if (method === "GET" && path === "/health/ghl") {
       try {
         const token = env.GHL_API_KEY || env.GHL_V2_TOKEN;
-        if (!token) return json({ status: "down", reason: "No token configured" });
+        if (!token)
+          return json({ status: "down", reason: "No token configured" });
         const r = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
           headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28" },
           signal: AbortSignal.timeout(1e4)
@@ -21506,32 +21525,32 @@ var index_default = {
       results.keyLength = key.length;
       results.keyPrefix = key.substring(0, 8) + "...";
       try {
-        const v1Res = await fetch(`${GHL_V1}/contacts/?limit=1`, {
+        const v1Res2 = await fetch(`${GHL_V1}/contacts/?limit=1`, {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
         });
-        const v1Text = await v1Res.text();
+        const v1Text = await v1Res2.text();
         let v1Data;
         try {
           v1Data = JSON.parse(v1Text);
         } catch {
           v1Data = v1Text.substring(0, 500);
         }
-        results.v1 = { status: v1Res.status, contactCount: v1Data.contacts ? v1Data.contacts.length : "no contacts key", keys: typeof v1Data === "object" ? Object.keys(v1Data) : "not-json" };
+        results.v1 = { status: v1Res2.status, contactCount: v1Data.contacts ? v1Data.contacts.length : "no contacts key", keys: typeof v1Data === "object" ? Object.keys(v1Data) : "not-json" };
       } catch (e) {
         results.v1 = { error: e.message };
       }
       try {
-        const v2Res = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
+        const v2Res3 = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1`, {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "Version": "2021-07-28" }
         });
-        const v2Text = await v2Res.text();
+        const v2Text = await v2Res3.text();
         let v2Data;
         try {
           v2Data = JSON.parse(v2Text);
         } catch {
           v2Data = v2Text.substring(0, 500);
         }
-        results.v2 = { status: v2Res.status, contactCount: v2Data.contacts ? v2Data.contacts.length : "no contacts key", keys: typeof v2Data === "object" ? Object.keys(v2Data) : "not-json" };
+        results.v2 = { status: v2Res3.status, contactCount: v2Data.contacts ? v2Data.contacts.length : "no contacts key", keys: typeof v2Data === "object" ? Object.keys(v2Data) : "not-json" };
       } catch (e) {
         results.v2 = { error: e.message };
       }
@@ -21541,19 +21560,19 @@ var index_default = {
           headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" }
         });
         const v1d = await v1cf.json();
-        const v1fields = (v1d.contacts?.[0]?.customField || []).filter((f) => f.value != null && f.value !== "");
+        const v1fields = (v1d.contacts?.[0]?.customField || []).filter((f2) => f2.value != null && f2.value !== "");
         const v2cf = await fetch(`${GHL_V2}/contacts/?locationId=${locId}&limit=1&query=ylopo`, {
           headers: { "Authorization": `Bearer ${pit2}`, "Content-Type": "application/json", "Version": "2021-07-28" }
         });
         const v2d = await v2cf.json();
-        const v2fields = (v2d.contacts?.[0]?.customField || []).filter((f) => f.value != null && f.value !== "");
+        const v2fields = (v2d.contacts?.[0]?.customField || []).filter((f2) => f2.value != null && f2.value !== "");
         results.fieldComparison = {
           v1FieldCount: v1fields.length,
           v2FieldCount: v2fields.length,
-          v1Sample: v1fields.slice(0, 5).map((f) => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
-          v2Sample: v2fields.slice(0, 5).map((f) => ({ key: f.fieldKey || f.key || f.id, name: f.name, val: String(f.value).substring(0, 40) })),
-          v1YlopoFields: v1fields.filter((f) => (f.fieldKey || f.key || f.name || "").toLowerCase().includes("ylopo")).map((f) => ({ key: f.fieldKey || f.key, val: String(f.value).substring(0, 40) })),
-          v2YlopoFields: v2fields.filter((f) => (f.fieldKey || f.key || f.name || "").toLowerCase().includes("ylopo")).map((f) => ({ key: f.fieldKey || f.key, val: String(f.value).substring(0, 40) }))
+          v1Sample: v1fields.slice(0, 5).map((f2) => ({ key: f2.fieldKey || f2.key || f2.id, name: f2.name, val: String(f2.value).substring(0, 40) })),
+          v2Sample: v2fields.slice(0, 5).map((f2) => ({ key: f2.fieldKey || f2.key || f2.id, name: f2.name, val: String(f2.value).substring(0, 40) })),
+          v1YlopoFields: v1fields.filter((f2) => (f2.fieldKey || f2.key || f2.name || "").toLowerCase().includes("ylopo")).map((f2) => ({ key: f2.fieldKey || f2.key, val: String(f2.value).substring(0, 40) })),
+          v2YlopoFields: v2fields.filter((f2) => (f2.fieldKey || f2.key || f2.name || "").toLowerCase().includes("ylopo")).map((f2) => ({ key: f2.fieldKey || f2.key, val: String(f2.value).substring(0, 40) }))
         };
       } catch (e) {
         results.fieldComparison = { error: e.message };
@@ -21586,10 +21605,10 @@ var index_default = {
         return json({
           ok: true,
           count: fields.length,
-          fields: fields.map((f) => ({
-            id: f.id,
-            name: f.name,
-            fieldKey: f.fieldKey || f.key
+          fields: fields.map((f2) => ({
+            id: f2.id,
+            name: f2.name,
+            fieldKey: f2.fieldKey || f2.key
           }))
         });
       } catch (e) {
@@ -21670,25 +21689,30 @@ var index_default = {
         let startAfterId = "";
         const deadline = Date.now() + 55e3;
         for (let pg = 0; pg < maxPages; pg++) {
-          if (Date.now() > deadline) break;
+          if (Date.now() > deadline)
+            break;
           const params = new URLSearchParams({ locationId: locId, limit: "100" });
-          if (query) params.set("query", query);
+          if (query)
+            params.set("query", query);
           if (startAfter) {
             params.set("startAfter", startAfter);
             params.set("startAfterId", startAfterId);
           }
           const data = await ghl(env, "GET", `/contacts/?${params.toString()}`);
           const raw = data.contacts || [];
-          if (raw.length === 0) break;
+          if (raw.length === 0)
+            break;
           for (const c of raw) {
-            if (seenIds.has(c.id)) continue;
+            if (seenIds.has(c.id))
+              continue;
             seenIds.add(c.id);
             const cf = c.customFields || c.customField || [];
-            if (cf.some((f) => !f.fieldKey && f.id)) {
-              const enriched = cf.map((f) => {
-                if (f.fieldKey) return f;
-                const def = fieldMap[f.id?.toLowerCase()];
-                return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+            if (cf.some((f2) => !f2.fieldKey && f2.id)) {
+              const enriched = cf.map((f2) => {
+                if (f2.fieldKey)
+                  return f2;
+                const def = fieldMap[f2.id?.toLowerCase()];
+                return { ...f2, fieldKey: def?.fieldKey || f2.key || null, name: f2.name || def?.name || null, key: f2.key || def?.fieldKey || null };
               });
               c.customField = enriched;
               c.customFields = enriched;
@@ -21729,11 +21753,14 @@ var index_default = {
           locationId: locId,
           limit: String(limit)
         });
-        if (startAfter) params.set("startAfter", startAfter);
-        if (startAfterId) params.set("startAfterId", startAfterId);
-        if (query) params.set("query", query);
-        if (tag) params.set("query", tag);
-        // Agent scoping: only return contacts assigned to the logged-in agent
+        if (startAfter)
+          params.set("startAfter", startAfter);
+        if (startAfterId)
+          params.set("startAfterId", startAfterId);
+        if (query)
+          params.set("query", query);
+        if (tag)
+          params.set("query", tag);
         var contactsSessCheck = await getSession(request, env);
         if (contactsSessCheck && contactsSessCheck.role === "user" && contactsSessCheck.uid && contactsSessCheck.uid !== "direct") {
           params.set("assignedTo", contactsSessCheck.uid);
@@ -21743,17 +21770,19 @@ var index_default = {
         const { map: fieldMap } = await getFieldDefs(env);
         const enriched = contacts.map((c) => {
           const cf = c.customFields || c.customField || [];
-          const needsEnrich = cf.some((f) => !f.fieldKey && f.id);
-          if (!needsEnrich) return { ...c, customField: cf, customFields: cf };
-          const enriched = cf.map((f) => {
-            if (f.fieldKey) return f;
-            const def = fieldMap[f.id?.toLowerCase()];
-            return { ...f, fieldKey: def?.fieldKey || f.key || null, name: f.name || def?.name || null, key: f.key || def?.fieldKey || null };
+          const needsEnrich = cf.some((f2) => !f2.fieldKey && f2.id);
+          if (!needsEnrich)
+            return { ...c, customField: cf, customFields: cf };
+          const enriched2 = cf.map((f2) => {
+            if (f2.fieldKey)
+              return f2;
+            const def = fieldMap[f2.id?.toLowerCase()];
+            return { ...f2, fieldKey: def?.fieldKey || f2.key || null, name: f2.name || def?.name || null, key: f2.key || def?.fieldKey || null };
           });
           return {
             ...c,
-            customField: enriched,
-            customFields: enriched
+            customField: enriched2,
+            customFields: enriched2
           };
         });
         broadcastSSE({ type: "contacts.fetched", count: enriched.length });
@@ -21856,10 +21885,12 @@ var index_default = {
     }
     if (method === "GET" && path === "/attom/property") {
       const attomKey = env.ATTOM_KEY || "";
-      if (!attomKey) return err("ATTOM_KEY not configured", 500);
+      if (!attomKey)
+        return err("ATTOM_KEY not configured", 500);
       const address1 = (url.searchParams.get("address1") || "").substring(0, 256);
       const address2 = (url.searchParams.get("address2") || "").substring(0, 128);
-      if (!address1) return err("address1 parameter required", 400);
+      if (!address1)
+        return err("address1 parameter required", 400);
       try {
         const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
         const resp = await fetch(attomUrl, {
@@ -21923,22 +21954,27 @@ var index_default = {
     }
     if (method === "POST" && path === "/attom/enrich") {
       const attomKey = env.ATTOM_KEY || "";
-      if (!attomKey) return err("ATTOM_KEY not configured", 500);
+      if (!attomKey)
+        return err("ATTOM_KEY not configured", 500);
       try {
         const parsed = await safeJsonParse(request);
-        if (parsed.error) return err(parsed.error, 400);
+        if (parsed.error)
+          return err(parsed.error, 400);
         const body = parsed.data;
         const contactId = body.contactId;
         const address1 = body.address1 || "";
         const address2 = body.address2 || "";
-        if (!contactId) return err("contactId required", 400);
-        if (!address1) return err("address1 required", 400);
+        if (!contactId)
+          return err("contactId required", 400);
+        if (!address1)
+          return err("address1 required", 400);
         const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/expandedprofile?address1=${encodeURIComponent(address1)}&address2=${encodeURIComponent(address2)}`;
         const resp = await fetch(attomUrl, {
           headers: { "Accept": "application/json", "apikey": attomKey },
           signal: AbortSignal.timeout(15e3)
         });
-        if (!resp.ok) return err(`ATTOM API error: ${resp.status}`, resp.status);
+        if (!resp.ok)
+          return err(`ATTOM API error: ${resp.status}`, resp.status);
         const data = await resp.json();
         const prop = data?.property?.[0] || {};
         const building = prop.building || {};
@@ -21956,12 +21992,18 @@ var index_default = {
         const estValue = avm.amount?.value || market.mktttlvalue || assessment.assessed?.assdttlvalue || 0;
         const lotSize = lot.lotsize1 || lot.lotsize2 || 0;
         const customFields = [];
-        if (beds) customFields.push({ key: "contact.ylopo_beds", field_value: String(beds) });
-        if (baths) customFields.push({ key: "contact.ylopo_baths", field_value: String(baths) });
-        if (sqft) customFields.push({ key: "contact.ylopo_listing_sqft", field_value: String(sqft) });
-        if (yearBuilt) customFields.push({ key: "contact.ylopo_listing_year_built", field_value: String(yearBuilt) });
-        if (estValue) customFields.push({ key: "estimated_value", field_value: String(estValue) });
-        if (lotSize) customFields.push({ key: "lot_size", field_value: String(lotSize) });
+        if (beds)
+          customFields.push({ key: "contact.ylopo_beds", field_value: String(beds) });
+        if (baths)
+          customFields.push({ key: "contact.ylopo_baths", field_value: String(baths) });
+        if (sqft)
+          customFields.push({ key: "contact.ylopo_listing_sqft", field_value: String(sqft) });
+        if (yearBuilt)
+          customFields.push({ key: "contact.ylopo_listing_year_built", field_value: String(yearBuilt) });
+        if (estValue)
+          customFields.push({ key: "estimated_value", field_value: String(estValue) });
+        if (lotSize)
+          customFields.push({ key: "lot_size", field_value: String(lotSize) });
         if (customFields.length > 0) {
           await ghl(env, "PUT", `/contacts/${contactId}`, { customFields });
         }
@@ -21986,7 +22028,8 @@ var index_default = {
     const GHL_WEBHOOK_FORWARD = "https://services.leadconnectorhq.com/hooks/SeZr4YCwEZ50IcWqylkQ/webhook-trigger/f9245d8e-d706-4e0e-a125-c523a65e3fc5";
     async function verifyWebhookSignature(rawBody, request2, env2) {
       const secret = env2.WEBHOOK_SECRET || "";
-      if (!secret) return true;
+      if (!secret)
+        return true;
       const sig = request2.headers.get("x-webhook-signature") || request2.headers.get("x-signature") || request2.headers.get("x-hub-signature-256") || "";
       if (!sig) {
         console.log("Webhook rejected: no signature header");
@@ -22010,13 +22053,17 @@ var index_default = {
       }
     }
     __name(verifyWebhookSignature, "verifyWebhookSignature");
+    __name2(verifyWebhookSignature, "verifyWebhookSignature");
     if (method === "POST" && path === "/api/webhooks/ghl/hot-lead-alert") {
       const rawBody = await request.text();
       let payload = {};
-      try { payload = JSON.parse(rawBody); } catch {}
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+      }
       console.log("\u{1F525} HOT lead alert:", JSON.stringify(payload).slice(0, 500));
       const respond = json({ received: true, alert: payload.alert_type || "hot_lead_qualified" });
-      const work = /* @__PURE__ */ __name2(async () => {
+      const work = /* @__PURE__ */ __name22(async () => {
         try {
           broadcastSSE({
             type: "hot.lead.alert",
@@ -22045,7 +22092,7 @@ var index_default = {
         return err("Unauthorized: invalid webhook signature", 401);
       }
       const responsePromise = json({ received: true, proxy: "v8", forwarded: true });
-      const processEvent = /* @__PURE__ */ __name2(async () => {
+      const processEvent = /* @__PURE__ */ __name22(async () => {
         try {
           let payload;
           try {
@@ -22053,9 +22100,23 @@ var index_default = {
           } catch {
             return;
           }
-          const email = payload.lead?.email;
-          const eventType = payload.eventType;
-          const lead = payload.lead || {};
+          const lead = payload.lead || payload.contact || {};
+          if (!lead.email) {
+            const flatEmail = payload.email || payload.lead_email || payload.leadEmail;
+            if (flatEmail) {
+              lead.email = flatEmail;
+              lead.phone = lead.phone || payload.phone || payload.lead_phone || "";
+              lead.firstName = lead.firstName || payload.firstName || payload.first_name || "";
+              lead.lastName = lead.lastName || payload.lastName || payload.last_name || "";
+              lead.uuid = lead.uuid || payload.uuid || "";
+              lead.crmId = lead.crmId || payload.crmId || payload.crm_id || "";
+              lead.leadType = lead.leadType || payload.leadType || payload.lead_type || "";
+              lead.isPriority = lead.isPriority || payload.isPriority || false;
+              lead.starsLink = lead.starsLink || payload.starsLink || payload.stars_link || "";
+            }
+          }
+          const email = lead.email;
+          const eventType = payload.eventType || payload.event_type || payload.event || "";
           const listing = payload.listing || {};
           const session = payload.session || payload.additionalData || {};
           try {
@@ -22114,12 +22175,30 @@ var index_default = {
           } catch (e) {
             console.warn("Forward error:", e);
           }
-          if (!email) return;
-          console.log(`\u{1F4E5} Ylopo ${eventType} for ${email}`);
-          const contactId = await lookupByEmail(env, email);
-          if (!contactId) {
-            console.warn(`No GHL contact for ${email}`);
+          if (!email)
             return;
+          console.log(`\u{1F4E5} Ylopo ${eventType} for ${email}`);
+          let contactId = await lookupByEmail(env, email);
+          if (!contactId) {
+            console.warn(`No GHL contact for ${email} - creating via upsert`);
+            try {
+              const up = await ghlSafe(env, "POST", "/contacts/upsert", {
+                locationId: env.GHL_LOCATION_ID || LOC_ID,
+                email,
+                phone: lead.phone || void 0,
+                firstName: lead.firstName || lead.first_name || void 0,
+                lastName: lead.lastName || lead.last_name || void 0,
+                source: "Ylopo Webhook",
+                tags: ["Ylopo Lead"]
+              });
+              contactId = up.contact?.id || up.id || up.contactId || null;
+              if (contactId)
+                console.log(`Created GHL contact ${contactId} for ${email}`);
+            } catch (e) {
+              console.warn(`Upsert failed for ${email}: ` + (e.status || "") + " " + JSON.stringify(e.data || e.message || String(e)));
+            }
+            if (!contactId)
+              return;
           }
           const ylopoData = {
             views: session.viewsCount || session.listingsViewed || null,
@@ -22223,13 +22302,35 @@ var index_default = {
                 { associationId: YLOPO_CONTACT_ASSOCIATION_ID, recordId: contactId }
               ]
             };
-            await ghlV2(
-              env,
-              "POST",
-              `/objects/custom_objects.ylopo_event/records`,
-              recordBody
-            );
-            console.log(`\u{1F4E6} Created ylopo_event record for ${email} (${eventType})`);
+            const yeBadCache = globalThis.__ylopoEventBadFields || (globalThis.__ylopoEventBadFields = new Set());
+            for (const badKey of yeBadCache) {
+              if (recordBody.properties && badKey in recordBody.properties) delete recordBody.properties[badKey];
+            }
+            let recordAttempts = 0;
+            let recordDone = false;
+            while (!recordDone && recordAttempts < 40) {
+              recordAttempts++;
+              try {
+                await ghlV2(
+                  env,
+                  "POST",
+                  `/objects/custom_objects.ylopo_event/records`,
+                  recordBody
+                );
+                recordDone = true;
+                console.log(`\u{1F4E6} Created ylopo_event record for ${email} (${eventType})`);
+              } catch (recErr) {
+                const recMsg = String(recErr && recErr.data && recErr.data.message || "");
+                const badField = recMsg.match(/mapped field:\s*([A-Za-z0-9_]+)/) || recMsg.match(/Ylopo \|\s*([A-Za-z0-9_]+)/);
+                if (badField && recordBody.properties && badField[1] in recordBody.properties) {
+                  console.warn(`ylopo_event: dropping invalid field ${badField[1]}, retrying`);
+                  if (!recMsg.includes("already exists")) yeBadCache.add(badField[1]);
+                  delete recordBody.properties[badField[1]];
+                } else {
+                  throw recErr;
+                }
+              }
+            }
           } catch (objErr) {
             console.warn("Failed to create ylopo_event record:", objErr.message || objErr);
           }
@@ -22237,48 +22338,49 @@ var index_default = {
           const SB_KEY = env.SUPABASE_KEY || "";
           if (!SB_URL || !SB_KEY) {
             console.warn("Supabase secrets not set, skipping event storage");
-          } else try {
-            const sbHeaders = {
-              "apikey": SB_KEY,
-              "Authorization": "Bearer " + SB_KEY,
-              "Content-Type": "application/json",
-              "Prefer": "return=minimal"
-            };
-            const leadBody = {
-              email,
-              ylopo_uuid: lead.uuid || null,
-              first_name: lead.firstName || lead.first_name || null,
-              last_name: lead.lastName || lead.last_name || null,
-              phone: lead.phone || null,
-              source: payload.source || lead.source || null,
-              ghl_contact_id: contactId,
-              last_seen: (/* @__PURE__ */ new Date()).toISOString()
-            };
-            const leadRes = await fetch(SB_URL + "/rest/v1/leads?on_conflict=email", {
-              method: "POST",
-              headers: { ...sbHeaders, "Prefer": "return=representation,resolution=merge-duplicates" },
-              body: JSON.stringify(leadBody)
-            });
-            const leadData = await leadRes.json().catch(() => []);
-            const leadId = Array.isArray(leadData) && leadData[0] ? leadData[0].id : null;
-            if (leadId) {
-              await fetch(SB_URL + "/rest/v1/events", {
+          } else
+            try {
+              const sbHeaders = {
+                "apikey": SB_KEY,
+                "Authorization": "Bearer " + SB_KEY,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+              };
+              const leadBody = {
+                email,
+                ylopo_uuid: lead.uuid || null,
+                first_name: lead.firstName || lead.first_name || null,
+                last_name: lead.lastName || lead.last_name || null,
+                phone: lead.phone || null,
+                source: payload.source || lead.source || null,
+                ghl_contact_id: contactId,
+                last_seen: (/* @__PURE__ */ new Date()).toISOString()
+              };
+              const leadRes = await fetch(SB_URL + "/rest/v1/leads?on_conflict=email", {
                 method: "POST",
-                headers: sbHeaders,
-                body: JSON.stringify({
-                  lead_id: leadId,
-                  event_type: eventType,
-                  listing_id: listing.id || listing.listingId || listing.mlsId || null,
-                  raw_json: payload,
-                  views: Number(session.viewsCount || session.listingsViewed) || 0,
-                  saves: Number(session.savesCount || session.listingsSaved) || 0
-                })
+                headers: { ...sbHeaders, "Prefer": "return=representation,resolution=merge-duplicates" },
+                body: JSON.stringify(leadBody)
               });
-              console.log(`\u{1F4CA} Stored event in Supabase for ${email} (${eventType})`);
+              const leadData = await leadRes.json().catch(() => []);
+              const leadId = Array.isArray(leadData) && leadData[0] ? leadData[0].id : null;
+              if (leadId) {
+                await fetch(SB_URL + "/rest/v1/events", {
+                  method: "POST",
+                  headers: sbHeaders,
+                  body: JSON.stringify({
+                    lead_id: leadId,
+                    event_type: eventType,
+                    listing_id: listing.id || listing.listingId || listing.mlsId || null,
+                    raw_json: payload,
+                    views: Number(session.viewsCount || session.listingsViewed) || 0,
+                    saves: Number(session.savesCount || session.listingsSaved) || 0
+                  })
+                });
+                console.log(`\u{1F4CA} Stored event in Supabase for ${email} (${eventType})`);
+              }
+            } catch (sbErr) {
+              console.warn("Supabase store failed:", sbErr.message || sbErr);
             }
-          } catch (sbErr) {
-            console.warn("Supabase store failed:", sbErr.message || sbErr);
-          }
           broadcastSSE({ type: "ylopo.webhook", event: eventType, email });
         } catch (e) {
           console.error("Ylopo webhook processing error:", e.message || e);
@@ -22352,8 +22454,10 @@ var index_default = {
           locationId: locId,
           limit: String(limit)
         });
-        if (body.startAfterId) params.set("startAfterId", body.startAfterId);
-        if (body.tag) params.set("query", body.tag);
+        if (body.startAfterId)
+          params.set("startAfterId", body.startAfterId);
+        if (body.tag)
+          params.set("query", body.tag);
         const data = await ghlSafe(env, "GET", `/contacts/?${params.toString()}`);
         const contacts = data.contacts || [];
         const existingEvents = await fetchAllYlopoEvents(env);
@@ -22364,13 +22468,14 @@ var index_default = {
         for (const contact of contacts) {
           const cId = contact.id;
           const cfs = contact.customField || [];
-          const getField = /* @__PURE__ */ __name2((keys) => {
-            for (const k of keys) {
-              const f = cfs.find((cf) => {
+          const getField = /* @__PURE__ */ __name22((keys) => {
+            for (const k2 of keys) {
+              const f2 = cfs.find((cf) => {
                 const cfKey = (cf.key || cf.fieldKey || "").toLowerCase();
-                return cfKey === k.toLowerCase() || cfKey.endsWith("." + k.toLowerCase());
+                return cfKey === k2.toLowerCase() || cfKey.endsWith("." + k2.toLowerCase());
               });
-              if (f && f.value) return f.value;
+              if (f2 && f2.value)
+                return f2.value;
             }
             return null;
           }, "getField");
@@ -22400,12 +22505,18 @@ var index_default = {
           });
           let inferredType = null;
           if (!eventType) {
-            if (tags.includes("Ylopo Priority") || tags.includes("ylo-hot-lead") || tags.includes("ypriority")) inferredType = "PRIORITY_LEAD_EVENT";
-            else if (tags.includes("Showing Requested") || tags.includes("ylopo_showing")) inferredType = "SHOWING_REQUEST";
-            else if (tags.includes("Saved Listing") || tags.includes("ylopo_favorite")) inferredType = "FAVORITE_LISTING";
-            else if (tags.includes("Ylopo Active") || tags.includes("ylopo_view")) inferredType = "VIEW_LISTING_DETAIL";
-            else if (tags.includes("Ylopo Lead") || tags.includes("ylopo_registration")) inferredType = "REGISTRATION";
-            else if (starsLink || leadId || hasYlopoTag) inferredType = "YLOPO_CONTACT";
+            if (tags.includes("Ylopo Priority") || tags.includes("ylo-hot-lead") || tags.includes("ypriority"))
+              inferredType = "PRIORITY_LEAD_EVENT";
+            else if (tags.includes("Showing Requested") || tags.includes("ylopo_showing"))
+              inferredType = "SHOWING_REQUEST";
+            else if (tags.includes("Saved Listing") || tags.includes("ylopo_favorite"))
+              inferredType = "FAVORITE_LISTING";
+            else if (tags.includes("Ylopo Active") || tags.includes("ylopo_view"))
+              inferredType = "VIEW_LISTING_DETAIL";
+            else if (tags.includes("Ylopo Lead") || tags.includes("ylopo_registration"))
+              inferredType = "REGISTRATION";
+            else if (starsLink || leadId || hasYlopoTag)
+              inferredType = "YLOPO_CONTACT";
           }
           const finalEventType = eventType || inferredType;
           if (!finalEventType) {
@@ -22479,7 +22590,8 @@ var index_default = {
       }
     }
     if (method === "POST" && path === "/ylopo-events/backfill-fields") {
-      if (!env.GHL_V2_TOKEN) return err("GHL_V2_TOKEN required for Ylopo Event access", 400);
+      if (!env.GHL_V2_TOKEN)
+        return err("GHL_V2_TOKEN required for Ylopo Event access", 400);
       try {
         const body = await request.json().catch(() => ({}));
         const dryRun = body.dryRun === true;
@@ -22496,7 +22608,8 @@ var index_default = {
           });
           const records = data.records || data.data || [];
           allRecords.push(...records);
-          if (records.length < 20) break;
+          if (records.length < 20)
+            break;
           page++;
         }
         if (body.debug) {
@@ -22515,44 +22628,50 @@ var index_default = {
           const contactParams = new URLSearchParams({ locationId: locId, limit: "100" });
           const contactData = await ghl(env, "GET", `/contacts/?${contactParams.toString()}`);
           for (const c of contactData.contacts || []) {
-            if (c.email) emailToContact[c.email.toLowerCase()] = c.id;
-            if (c.phone) emailToContact[c.phone] = c.id;
+            if (c.email)
+              emailToContact[c.email.toLowerCase()] = c.id;
+            if (c.phone)
+              emailToContact[c.phone] = c.id;
           }
         }
         const byContact = {};
         let unmatchedCount = 0;
         for (const rec of allRecords) {
           const createdAt = rec.createdAt || rec.created_at || rec.updatedAt;
-          if (createdAt && new Date(createdAt).getTime() < cutoff) continue;
+          if (createdAt && new Date(createdAt).getTime() < cutoff)
+            continue;
           const assoc = rec.associations || rec.relationships || {};
           let contactId = null;
           if (assoc.contact) {
             contactId = typeof assoc.contact === "string" ? assoc.contact : assoc.contact?.id || assoc.contact?.[0]?.id || assoc.contact?.[0];
           }
-          if (!contactId) contactId = rec.contactId || rec.contact_id;
+          if (!contactId)
+            contactId = rec.contactId || rec.contact_id;
           if (!contactId) {
-            const f = rec.fields || rec.properties || {};
-            contactId = f.contactId || f.contact_id || f.contact;
+            const f2 = rec.fields || rec.properties || {};
+            contactId = f2.contactId || f2.contact_id || f2.contact;
           }
           if (!contactId) {
-            const f = rec.fields || rec.properties || {};
-            const email = (f.lead_email || f.email || f.leadEmail || "").toLowerCase();
-            if (email && emailToContact[email]) contactId = emailToContact[email];
-            if (!contactId && f.name) {
-              const nameLC = f.name.toLowerCase();
+            const f2 = rec.fields || rec.properties || {};
+            const email = (f2.lead_email || f2.email || f2.leadEmail || "").toLowerCase();
+            if (email && emailToContact[email])
+              contactId = emailToContact[email];
+            if (!contactId && f2.name) {
+              const nameLC = f2.name.toLowerCase();
               for (const c of Object.entries(emailToContact)) {
               }
             }
           }
           if (contactId) {
-            if (!byContact[contactId]) byContact[contactId] = [];
+            if (!byContact[contactId])
+              byContact[contactId] = [];
             byContact[contactId].push(rec);
           } else {
             unmatchedCount++;
           }
         }
         const { map: fieldMap } = await getFieldDefs(env);
-        const findFieldId = /* @__PURE__ */ __name((keyName) => {
+        const findFieldId = /* @__PURE__ */ __name2((keyName) => {
           const def = fieldMap[keyName.toLowerCase()] || fieldMap[("contact." + keyName).toLowerCase()];
           return def ? def.id : null;
         }, "findFieldId");
@@ -22592,22 +22711,33 @@ var index_default = {
           for (const r of records) {
             const rf = r.fields || r.properties || r;
             let rv = rf.views, rs = rf.saves, rsh = rf.showings;
-            if (typeof rv === "object" && rv !== null) rv = rv.count || rv.total || rv.value || 0;
-            if (typeof rs === "object" && rs !== null) rs = rs.count || rs.total || rs.value || 0;
-            if (typeof rsh === "object" && rsh !== null) rsh = rsh.count || rsh.total || rsh.value || 0;
-            if (typeof rv === "string" && rv.startsWith("[object")) rv = 0;
-            if (typeof rs === "string" && rs.startsWith("[object")) rs = 0;
-            if (typeof rsh === "string" && rsh.startsWith("[object")) rsh = 0;
+            if (typeof rv === "object" && rv !== null)
+              rv = rv.count || rv.total || rv.value || 0;
+            if (typeof rs === "object" && rs !== null)
+              rs = rs.count || rs.total || rs.value || 0;
+            if (typeof rsh === "object" && rsh !== null)
+              rsh = rsh.count || rsh.total || rsh.value || 0;
+            if (typeof rv === "string" && rv.startsWith("[object"))
+              rv = 0;
+            if (typeof rs === "string" && rs.startsWith("[object"))
+              rs = 0;
+            if (typeof rsh === "string" && rsh.startsWith("[object"))
+              rsh = 0;
             totalViews += Number(rv) || 0;
             totalSaves += Number(rs) || 0;
             totalShowings += Number(rsh) || 0;
           }
-          if (totalViews > 0) fieldMappings["ylopo_total_listing_views"] = String(totalViews);
-          if (totalSaves > 0) fieldMappings["ylopo_total_favorites"] = String(totalSaves);
-          if (totalShowings > 0) fieldMappings["ylopo_total_showing_requests"] = String(totalShowings);
+          if (totalViews > 0)
+            fieldMappings["ylopo_total_listing_views"] = String(totalViews);
+          if (totalSaves > 0)
+            fieldMappings["ylopo_total_favorites"] = String(totalSaves);
+          if (totalShowings > 0)
+            fieldMappings["ylopo_total_showing_requests"] = String(totalShowings);
           for (const [ghlKey, val] of Object.entries(fieldMappings)) {
-            if (val === null || val === void 0 || val === "") continue;
-            if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object "))) continue;
+            if (val === null || val === void 0 || val === "")
+              continue;
+            if (typeof val === "string" && (val === "[object Object]" || val.startsWith("[object ")))
+              continue;
             const safeVal = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
             const fId = findFieldId(ghlKey);
             if (fId) {
@@ -22653,9 +22783,11 @@ var index_default = {
       try {
         const body = await request.json();
         const { contactId, email, ylopoData } = body;
-        if (!ylopoData) return err("ylopoData required", 400);
+        if (!ylopoData)
+          return err("ylopoData required", 400);
         const targetId = contactId || (email ? await lookupByEmail(env, email) : null);
-        if (!targetId) return err(`Contact not found`, 404);
+        if (!targetId)
+          return err(`Contact not found`, 404);
         const updates = await buildYlopoFieldUpdates(env, ylopoData);
         if (updates.length === 0) {
           return json({ ok: true, message: "No matching fields to update", updates: 0 });
@@ -22739,16 +22871,16 @@ var index_default = {
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
       var contactsSess = await getSession(request, env);
-      var contactsScript = '<script>window.__TLT_SESSION=' + JSON.stringify(contactsSess ? {uid:contactsSess.uid,email:contactsSess.email,name:contactsSess.name,role:contactsSess.role} : {role:"admin"}) + ';<\/script>';
-      return new Response(YLOPO_CONTACTS_HTML.replace('<head>', '<head>' + contactsScript), {
+      var contactsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(contactsSess ? { uid: contactsSess.uid, email: contactsSess.email, name: contactsSess.name, role: contactsSess.role } : { role: "admin" }) + ";<\/script>";
+      return new Response(YLOPO_CONTACTS_HTML.replace("<head>", "<head>" + contactsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
       var analyticsSess = await getSession(request, env);
-      var analyticsScript = '<script>window.__TLT_SESSION=' + JSON.stringify(analyticsSess ? {uid:analyticsSess.uid,email:analyticsSess.email,name:analyticsSess.name,role:analyticsSess.role} : {role:"admin"}) + ';<\/script>';
-      return new Response(YLOPO_ANALYTICS_HTML.replace('<head>', '<head>' + analyticsScript), {
+      var analyticsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(analyticsSess ? { uid: analyticsSess.uid, email: analyticsSess.email, name: analyticsSess.name, role: analyticsSess.role } : { role: "admin" }) + ";<\/script>";
+      return new Response(YLOPO_ANALYTICS_HTML.replace("<head>", "<head>" + analyticsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
@@ -22760,31 +22892,28 @@ var index_default = {
       });
     }
     if (method === "GET" && path === "/dashboard/admin") {
-      // Conditional strict auth: when env.REQUIRE_AUTH === "true",
-      // require a valid session with can_admin. Staging leaves this
-      // unset so dev access stays frictionless.
       if (env.REQUIRE_AUTH === "true") {
         var adminSess = await getSession(request, env);
         if (!adminSess) {
           return new Response(null, { status: 302, headers: { "Location": "/login?redirect=/dashboard/admin" } });
         }
-        // Look up can_admin from Supabase if configured
         var adminSupaUrl = env.SUPABASE_URL || "";
         var adminSupaKey = env.SUPABASE_KEY || "";
         if (adminSupaUrl && adminSupaKey && adminSess.uid && adminSess.uid !== "direct") {
           try {
             var permLookup = await fetch(adminSupaUrl + "/rest/v1/user_permissions?ghl_user_id=eq." + encodeURIComponent(adminSess.uid) + "&select=can_admin", {
               headers: { "apikey": adminSupaKey, "Authorization": "Bearer " + adminSupaKey },
-              signal: AbortSignal.timeout(3000)
+              signal: AbortSignal.timeout(3e3)
             });
-            var permRows = await permLookup.json().catch(function(){ return []; });
+            var permRows = await permLookup.json().catch(function() {
+              return [];
+            });
             var isAdmin = Array.isArray(permRows) && permRows[0] && permRows[0].can_admin === true;
             if (!isAdmin && adminSess.role !== "admin") {
               return new Response("Forbidden", { status: 403 });
             }
           } catch (e) {
             await reportError(e, "admin-permission-check", env);
-            // Fall through — don't lock out on transient DB errors
           }
         }
       }
@@ -23186,3 +23315,4 @@ loadData();
 export {
   index_default as default
 };
+//# sourceMappingURL=worker.js.map
