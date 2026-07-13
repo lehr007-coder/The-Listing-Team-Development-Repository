@@ -7483,6 +7483,7 @@ function renderTable() {
   }
 
   tbody.innerHTML = page.map(function(l) {
+    var rowYlopoUrl = RAW_CONTACTS[l.id] ? buildYlopoStarsUrl(RAW_CONTACTS[l.id]) : '';
     var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
     var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var badgeHtml = l.badge ? '<span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
@@ -7529,6 +7530,7 @@ function renderTable() {
           (l.email ? '<a href="mailto:' + esc(l.email) + '" class="btn btn-sm" title="Email">Email</a>' : '') +
           (l.phone ? '<a href="tel:' + esc(l.phone) + '" class="btn btn-sm" title="Call">Call</a>' : '') +
           '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + l.id + '" target="_blank" class="btn btn-sm" title="Open in GHL">GHL</a>' +
+          (rowYlopoUrl ? '<a href="' + esc(rowYlopoUrl) + '" target="_blank" class="btn btn-sm" title="Open in Ylopo Stars" onclick="event.stopPropagation()">Ylopo</a>' : '') +
           '<button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" title="Delete Contact" onclick="deleteContact(\\'' + l.id + '\\',\\'' + l.name.replace(/'/g,"\\'").replace(/\\\\/g,'\\\\\\\\') + '\\')">\u{1F5D1}\uFE0F</button>' +
         '</div>' +
       '</td>' +
@@ -9501,6 +9503,7 @@ function findDuplicates() {
         '</div>' +
         '<div style="display:flex;gap:6px">' +
           '<a href="https://app.gohighlevel.com/v2/location/SeZr4YCwEZ50IcWqylkQ/contacts/detail/' + id + '" target="_blank" class="btn btn-sm">GHL</a>' +
+          (function(){ var r = RAW_CONTACTS[id]; var yu = r ? buildYlopoStarsUrl(r) : ''; return yu ? '<a href="' + esc(yu) + '" target="_blank" class="btn btn-sm" title="Open in Ylopo Stars">Ylopo</a>' : ''; })() +
         '</div>' +
       '</div>';
     });
