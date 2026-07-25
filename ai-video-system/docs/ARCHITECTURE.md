@@ -63,7 +63,8 @@ ai-video-system/
 │   ├── social.js           POST /v1/social/publish
 │   ├── analytics.js        GET  /v1/analytics/{open,click}, POST /event
 │   ├── hosted.js           GET  /v/:jobId
-│   └── media.js            GET  /media/{v|p}/<key>
+│   ├── media.js            GET  /media/{v|p}/<key>
+│   └── liveavatar.js       POST /v1/liveavatar/session[/:id/end], GET /widget.js (off by default)
 ├── lib/
 │   ├── util.js             json / cors / auth / hmac / ids
 │   ├── ghl.js              read intelligence + write owned CFs + send msgs
@@ -77,7 +78,9 @@ ai-video-system/
 │   ├── delivery.js         SMS/email/conversation orchestration
 │   ├── social.js           per-platform dispatch via webhook
 │   ├── tracking.js         engagement → scoring_log + GHL CFs
-│   └── queue-consumer.js   post-render: R2 + Stream + delivery branch
+│   ├── queue-consumer.js   post-render: R2 + Stream + delivery branch
+│   ├── liveavatar.js       session-token mint + property/contact context builder
+│   └── liveavatar-widget.js  templated browser widget JS (LiveKit via SDK)
 ├── agents/
 │   ├── heygen-script-agent.md
 │   ├── fcpxml-video-director-agent.md
@@ -85,7 +88,8 @@ ai-video-system/
 │   └── social-content-agent.md
 └── migrations/
     ├── 001_video_jobs.sql
-    └── 002_ghl_custom_fields.md
+    ├── 002_ghl_custom_fields.md
+    └── 003_liveavatar_sessions.sql
 ```
 
 ## 4. Isolation guarantees (defence-in-depth)
@@ -100,6 +104,7 @@ ai-video-system/
 | Personal videos vs social   | `runDelivery()` refuses `distribution=social`; `runSocialDistribution()` refuses `distribution!=social`. |
 | Lead scoring                | Sidecar appends rows to `scoring_log` with `source='ai_video'`. It never updates pre-existing rows. |
 | Custom-field collisions     | `migrations/002` includes a pre-flight script to detect existing keys before creating. |
+| LiveAvatar (separate product) | Own KV kill-switch key, own Supabase table, own daily rate-limit namespace, own env vars/secret — never shares state with the HEYGEN/FCPXML pipelines. `LIVEAVATAR_ENABLED="false"` by default; see `docs/LIVEAVATAR.md`. |
 
 ## 5. Domain plan
 

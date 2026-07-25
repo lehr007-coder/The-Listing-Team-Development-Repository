@@ -22,6 +22,18 @@ WEEKLY_REPORT_CONTACT_IDS = ""
 # Cloudflare Stream customer code (same account as prod)
 CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
 
+# ── LiveAvatar (real-time conversational avatar — separate product/key
+# from the HEYGEN_* pre-rendered pipeline above). OFF by default: the
+# "Talk live" button never renders and /v1/liveavatar/session 503s until
+# this is "true" AND the LIVEAVATAR_API_KEY secret is set. See
+# docs/LIVEAVATAR.md for the full go-live checklist before flipping this.
+LIVEAVATAR_ENABLED = "false"
+LIVEAVATAR_MODE = "FULL"
+LIVEAVATAR_MAX_SESSION_SECONDS = "300"
+LIVEAVATAR_DAILY_SESSION_LIMIT = "10"
+LIVEAVATAR_PER_CONTACT_DAILY_LIMIT = "3"
+# LIVEAVATAR_DEFAULT_AVATAR_ID — set once an avatar is created at app.liveavatar.com
+
 # ── HeyGen branded templates per video_type — same IDs work in both envs
 HEYGEN_TEMPLATE_SELLER_VALUATION     = "a518d5823c0347a5b7ea2739fd0b7d73"
 HEYGEN_TEMPLATE_FSBO_OUTREACH        = "ce1a75dfa84b4840a3d695bfa958e774"
