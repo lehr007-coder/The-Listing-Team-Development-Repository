@@ -68283,6 +68283,7 @@ async function computeTaskProgress(client, env2, transactionId) {
   const tp = txnWrap.record?.properties ?? {};
   const side = String(tp[TRANSACTION_FIELDS.side] ?? "Both");
   const txnName = String(tp[TRANSACTION_FIELDS.name] ?? transactionId);
+  const stage = String(tp[TRANSACTION_FIELDS.stage] ?? "");
   const clRes = await client.request(
     "POST",
     `/objects/${OBJECT_KEYS.changeLogEntry}/records/search`,
@@ -68350,6 +68351,7 @@ async function computeTaskProgress(client, env2, transactionId) {
     transactionId,
     transactionName: txnName,
     side,
+    stage,
     progress: { completed, total, percent: total > 0 ? Math.round(completed / total * 100) : 0 },
     byPhase,
     tasks
@@ -69004,6 +69006,10 @@ async function bulkUpdateTransactionStage(req, env2, newStage, op) {
     try {
       if (op === "close" && !body.force) {
         const progress = await computeTaskProgress(client, env2, id);
+        if (progress.ok && TERMINAL_STAGES.has(progress.stage)) {
+          results.push({ id, ok: true, skipped: true, reason: `already closed (stage="${progress.stage}")` });
+          continue;
+        }
         if (progress.ok && progress.progress.total > 0 && progress.progress.percent < 100) {
           const incomplete = progress.tasks.filter((t2) => !t2.complete).map((t2) => t2.label);
           results.push({
@@ -78896,6 +78902,9 @@ function renderDealsDashboardHtml(_env, url) {
       // Compute warnings client-side from transaction + linked deadlines.
       function warningsFor(t, allDeadlines) {
         var warnings = [];
+        // Closed/cancelled/archived deals are done \u2014 a past closing date or
+        // an unscored risk band isn't actionable anymore, so don't warn about it.
+        if (t.terminal) return warnings;
         var today = new Date(); today.setHours(0,0,0,0);
 
         if (t.riskBand === 'RED') warnings.push({ level: 'red', icon: '\u{1F534}', text: 'RED risk band \u2014 top factors: ' + (t.riskTopFactors || 'n/a') });
