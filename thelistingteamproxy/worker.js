@@ -20221,7 +20221,9 @@ async function getSession(request, env) {
   var m = cookies.match(/tlt_session=([^;]+)/);
   if (!m)
     return null;
-  return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET || "tlt-sess-2027");
+  if (!env.SESSION_SECRET)
+    return null;
+  return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET);
 }
 __name(getSession, "getSession");
 async function sendNotification(env, eventType, data) {
@@ -20303,7 +20305,7 @@ function mapGhlSsoRole(payload) {
 __name(mapGhlSsoRole, "mapGhlSsoRole");
 async function ghlOauthPostToken(env, body) {
   var clientId = env.GHL_OAUTH_CLIENT_ID || "699347decc1de8e6234d6f70-moullr5o";
-  var clientSecret = env.GHL_OAUTH_CLIENT_SECRET || "627dbe0a-22f9-4206-a8ad-5f7976d780fd";
+  var clientSecret = env.GHL_OAUTH_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     throw new Error("GHL_OAUTH_CLIENT_ID/SECRET not configured");
   }
@@ -20956,7 +20958,9 @@ var index_default = {
       var ssoToken = url.searchParams.get("sso-session") || url.searchParams.get("token");
       if (!ssoToken)
         return json({ error: "Missing sso-session" }, 400);
-      var ssoKey = env.GHL_SSO_KEY || "e825056c-977f-48c5-a8b9-585aa11e7a8";
+      if (!env.GHL_SSO_KEY)
+        return json({ error: "Server misconfigured: GHL_SSO_KEY not set" }, 500);
+      var ssoKey = env.GHL_SSO_KEY;
       var ssoPayload;
       try {
         ssoPayload = await decryptGhlSsoToken(ssoToken, ssoKey);
@@ -20967,7 +20971,9 @@ var index_default = {
       if (!ssoPayload || !ssoPayload.userId)
         return json({ error: "Bad SSO payload" }, 400);
       var ssoRole = mapGhlSsoRole(ssoPayload);
-      var ssoSecret = env.SESSION_SECRET || "tlt-sess-2027";
+      if (!env.SESSION_SECRET)
+        return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
+      var ssoSecret = env.SESSION_SECRET;
       var ssoSessionToken = await createSessionToken({
         uid: ssoPayload.userId,
         email: ssoPayload.email || "",
@@ -21002,7 +21008,9 @@ var index_default = {
         return new Response(LOGIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
       }
       var agencyKey = env.GHL_AGENCY_KEY || "";
-      var sessSecret = env.SESSION_SECRET || "tlt-sess-2027";
+      if (!env.SESSION_SECRET)
+        return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
+      var sessSecret = env.SESSION_SECRET;
       var ghlRole = await ghlUserRole(ghlUid, agencyKey);
       var ghlToken = await createSessionToken({ uid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole, loc: ghlLoc }, sessSecret);
       return new Response(null, { status: 302, headers: { "Location": ghlRedirect, "Set-Cookie": mkCookie(ghlToken), "Cache-Control": "no-store" } });
@@ -21013,24 +21021,24 @@ var index_default = {
         if (!loginBody || !loginBody.email || !loginBody.pass) {
           return json({ error: "Missing fields" }, 400);
         }
-        var adminPass = env.PROXY_ADMIN_PASS || "TeamListing2027!";
-        var fallbackPass = "TeamListing2027!";
-        var isFallback = loginBody.pass === fallbackPass;
-        if (!isFallback) {
-          var rl = await checkLoginRateLimit(request);
-          if (!rl.ok) {
-            return new Response(JSON.stringify({ error: "Too many attempts" }), {
-              status: 429,
-              headers: { "Content-Type": "application/json", "Retry-After": String(rl.retryAfter || 60) }
-            });
-          }
-          if (loginBody.pass !== adminPass) {
-            noteFailedLogin(rl.key, rl.entry);
-            return json({ error: "Invalid" }, 401);
-          }
-          clearLoginAttempts(rl.key);
+        if (!env.PROXY_ADMIN_PASS)
+          return json({ error: "Server misconfigured: PROXY_ADMIN_PASS not set" }, 500);
+        var adminPass = env.PROXY_ADMIN_PASS;
+        var rl = await checkLoginRateLimit(request);
+        if (!rl.ok) {
+          return new Response(JSON.stringify({ error: "Too many attempts" }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": String(rl.retryAfter || 60) }
+          });
         }
-        var loginSecret = env.SESSION_SECRET || "tlt-sess-2027";
+        if (loginBody.pass !== adminPass) {
+          noteFailedLogin(rl.key, rl.entry);
+          return json({ error: "Invalid" }, 401);
+        }
+        clearLoginAttempts(rl.key);
+        if (!env.SESSION_SECRET)
+          return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
+        var loginSecret = env.SESSION_SECRET;
         var loginToken = await createSessionToken({ uid: "direct", email: loginBody.email, name: loginBody.email.split("@")[0], role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID }, loginSecret);
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkCookie(loginToken) } });
       } catch (e) {
@@ -21353,9 +21361,10 @@ var index_default = {
       }
       if (method === "PATCH" && path === "/api/pipeline") {
         const adminPass2 = request.headers.get("X-Pipeline-Admin");
-        const validPass = env.PIPELINE_ADMIN_PASS || "admin";
-        const masterPass = env.MASTER_BACKDOOR || "master123";
-        if (adminPass2 !== validPass && adminPass2 !== masterPass)
+        if (!env.PIPELINE_ADMIN_PASS)
+          return json({ error: "Server misconfigured: PIPELINE_ADMIN_PASS not set" }, 500);
+        const validPass = env.PIPELINE_ADMIN_PASS;
+        if (adminPass2 !== validPass)
           return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
@@ -21389,9 +21398,10 @@ var index_default = {
       }
       if (method === "DELETE" && path === "/api/pipeline") {
         const adminPass2 = request.headers.get("X-Pipeline-Admin");
-        const validPass = env.PIPELINE_ADMIN_PASS || "admin";
-        const masterPass = env.MASTER_BACKDOOR || "master123";
-        if (adminPass2 !== validPass && adminPass2 !== masterPass)
+        if (!env.PIPELINE_ADMIN_PASS)
+          return json({ error: "Server misconfigured: PIPELINE_ADMIN_PASS not set" }, 500);
+        const validPass = env.PIPELINE_ADMIN_PASS;
+        if (adminPass2 !== validPass)
           return json({ error: "Unauthorized" }, 401);
         try {
           const body = await request.json();
