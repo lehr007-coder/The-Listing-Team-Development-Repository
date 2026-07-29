@@ -1302,7 +1302,15 @@ var init_field_keys = __esm({
       "Inspection Response (Seller)",
       "Repair Negotiation Deadline"
     ];
-    TERMINAL_STAGES = /* @__PURE__ */ new Set(["Closed", "Cancelled"]);
+    TERMINAL_STAGES = {
+      // Case-insensitive + covers the stage strings actually written by the
+      // close/archive/merge write paths ("closed", "Closed - Lost", "archived"),
+      // not just the exact "Closed"/"Cancelled" literals.
+      has(stage) {
+        const s = String(stage ?? "").trim().toLowerCase();
+        return s === "closed" || s === "cancelled" || s === "archived" || s.indexOf("closed -") === 0 || s.indexOf("closed-") === 0;
+      }
+    };
     RISK_BANDS = {
       GREEN: { min: 0, max: 39 },
       YELLOW: { min: 40, max: 69 },
@@ -68266,6 +68274,90 @@ async function handleAdminTaskTemplates(req, _env) {
   });
 }
 __name(handleAdminTaskTemplates, "handleAdminTaskTemplates");
+async function computeTaskProgress(client, env2, transactionId) {
+  const locationId = getLocationId(env2);
+  const txnRes = await client.request("GET", `/objects/${OBJECT_KEYS.transaction}/records/${encodeURIComponent(transactionId)}`, void 0, void 0, VERSION_OBJECTS10);
+  if (!txnRes.ok)
+    return { ok: false, notFound: true, error: `transaction not found: ${txnRes.status}` };
+  const txnWrap = txnRes.json;
+  const tp = txnWrap.record?.properties ?? {};
+  const side = String(tp[TRANSACTION_FIELDS.side] ?? "Both");
+  const txnName = String(tp[TRANSACTION_FIELDS.name] ?? transactionId);
+  const stage = String(tp[TRANSACTION_FIELDS.stage] ?? "");
+  const clRes = await client.request(
+    "POST",
+    `/objects/${OBJECT_KEYS.changeLogEntry}/records/search`,
+    void 0,
+    { locationId, page: 1, pageLimit: 200, query: "" },
+    VERSION_OBJECTS10
+  );
+  const allCl = clRes.json.records ?? [];
+  const completions = /* @__PURE__ */ new Map();
+  const uncompletions = /* @__PURE__ */ new Map();
+  for (const e2 of allCl) {
+    const actor = String(e2.properties[CHANGE_LOG_FIELDS.actor] ?? "");
+    if (!actor.startsWith("tos-proxy/task"))
+      continue;
+    const targetAfter = String(e2.properties[CHANGE_LOG_FIELDS.targetAfter] ?? "");
+    if (targetAfter !== transactionId)
+      continue;
+    const intent = String(e2.properties[CHANGE_LOG_FIELDS.intent] ?? "");
+    const match = intent.match(/taskKey=([^\s;]+)/);
+    if (!match)
+      continue;
+    const taskKey = match[1];
+    const occurredAt = String(e2.properties[CHANGE_LOG_FIELDS.occurredAt] ?? "");
+    const isComplete = intent.includes("op=complete");
+    const isUncomplete = intent.includes("op=uncomplete");
+    if (isComplete) {
+      const existing = completions.get(taskKey);
+      if (!existing || occurredAt > existing)
+        completions.set(taskKey, occurredAt);
+    } else if (isUncomplete) {
+      const existing = uncompletions.get(taskKey);
+      if (!existing || occurredAt > existing)
+        uncompletions.set(taskKey, occurredAt);
+    }
+  }
+  const templates = getTasksForSide(side);
+  const tasks = templates.map((t2) => {
+    const completedAt = completions.get(t2.key);
+    const uncompletedAt = uncompletions.get(t2.key);
+    const isComplete = !!completedAt && (!uncompletedAt || completedAt > uncompletedAt);
+    return {
+      key: t2.key,
+      label: t2.label,
+      phase: t2.phase,
+      side: t2.side,
+      description: t2.description ?? "",
+      complete: isComplete,
+      completedAt: isComplete ? completedAt : void 0,
+      fireOnComplete: t2.fireOnComplete
+    };
+  });
+  const completed = tasks.filter((t2) => t2.complete).length;
+  const total = tasks.length;
+  const byPhase = {};
+  for (const t2 of tasks) {
+    const k2 = `phase_${t2.phase}`;
+    if (!byPhase[k2])
+      byPhase[k2] = { total: 0, done: 0 };
+    byPhase[k2].total++;
+    if (t2.complete)
+      byPhase[k2].done++;
+  }
+  return {
+    ok: true,
+    transactionId,
+    transactionName: txnName,
+    side,
+    stage,
+    progress: { completed, total, percent: total > 0 ? Math.round(completed / total * 100) : 0 },
+    byPhase,
+    tasks
+  };
+}
+__name(computeTaskProgress, "computeTaskProgress");
 async function handleAdminTasks(req, env2) {
   if (req.method === "OPTIONS")
     return new Response(null, { status: 204, headers: CORS_HEADERS3 });
@@ -68276,86 +68368,11 @@ async function handleAdminTasks(req, env2) {
   if (!transactionId)
     return cors3({ ok: false, error: "transactionId required" }, 400);
   const client = new GhlClient(env2);
-  const locationId = getLocationId(env2);
   try {
-    const txnRes = await client.request("GET", `/objects/${OBJECT_KEYS.transaction}/records/${encodeURIComponent(transactionId)}`, void 0, void 0, VERSION_OBJECTS10);
-    if (!txnRes.ok)
-      return cors3({ ok: false, error: `transaction not found: ${txnRes.status}` }, 404);
-    const txnWrap = txnRes.json;
-    const tp = txnWrap.record?.properties ?? {};
-    const side = String(tp[TRANSACTION_FIELDS.side] ?? "Both");
-    const txnName = String(tp[TRANSACTION_FIELDS.name] ?? transactionId);
-    const clRes = await client.request(
-      "POST",
-      `/objects/${OBJECT_KEYS.changeLogEntry}/records/search`,
-      void 0,
-      { locationId, page: 1, pageLimit: 200, query: "" },
-      VERSION_OBJECTS10
-    );
-    const allCl = clRes.json.records ?? [];
-    const completions = /* @__PURE__ */ new Map();
-    const uncompletions = /* @__PURE__ */ new Map();
-    for (const e2 of allCl) {
-      const actor = String(e2.properties[CHANGE_LOG_FIELDS.actor] ?? "");
-      if (!actor.startsWith("tos-proxy/task"))
-        continue;
-      const targetAfter = String(e2.properties[CHANGE_LOG_FIELDS.targetAfter] ?? "");
-      if (targetAfter !== transactionId)
-        continue;
-      const intent = String(e2.properties[CHANGE_LOG_FIELDS.intent] ?? "");
-      const match = intent.match(/taskKey=([^\s;]+)/);
-      if (!match)
-        continue;
-      const taskKey = match[1];
-      const occurredAt = String(e2.properties[CHANGE_LOG_FIELDS.occurredAt] ?? "");
-      const isComplete = intent.includes("op=complete");
-      const isUncomplete = intent.includes("op=uncomplete");
-      if (isComplete) {
-        const existing = completions.get(taskKey);
-        if (!existing || occurredAt > existing)
-          completions.set(taskKey, occurredAt);
-      } else if (isUncomplete) {
-        const existing = uncompletions.get(taskKey);
-        if (!existing || occurredAt > existing)
-          uncompletions.set(taskKey, occurredAt);
-      }
-    }
-    const templates = getTasksForSide(side);
-    const tasks = templates.map((t2) => {
-      const completedAt = completions.get(t2.key);
-      const uncompletedAt = uncompletions.get(t2.key);
-      const isComplete = !!completedAt && (!uncompletedAt || completedAt > uncompletedAt);
-      return {
-        key: t2.key,
-        label: t2.label,
-        phase: t2.phase,
-        side: t2.side,
-        description: t2.description ?? "",
-        complete: isComplete,
-        completedAt: isComplete ? completedAt : void 0,
-        fireOnComplete: t2.fireOnComplete
-      };
-    });
-    const completed = tasks.filter((t2) => t2.complete).length;
-    const total = tasks.length;
-    const byPhase = {};
-    for (const t2 of tasks) {
-      const k2 = `phase_${t2.phase}`;
-      if (!byPhase[k2])
-        byPhase[k2] = { total: 0, done: 0 };
-      byPhase[k2].total++;
-      if (t2.complete)
-        byPhase[k2].done++;
-    }
-    return cors3({
-      ok: true,
-      transactionId,
-      transactionName: txnName,
-      side,
-      progress: { completed, total, percent: total > 0 ? Math.round(completed / total * 100) : 0 },
-      byPhase,
-      tasks
-    });
+    const result = await computeTaskProgress(client, env2, transactionId);
+    if (!result.ok)
+      return cors3(result, result.notFound ? 404 : 500);
+    return cors3(result);
   } catch (err) {
     return cors3({ ok: false, error: String(err).slice(0, 300) }, 500);
   }
@@ -68987,6 +69004,22 @@ async function bulkUpdateTransactionStage(req, env2, newStage, op) {
   const results = [];
   for (const id of body.ids) {
     try {
+      if (op === "close" && !body.force) {
+        const progress = await computeTaskProgress(client, env2, id);
+        if (progress.ok && TERMINAL_STAGES.has(progress.stage)) {
+          results.push({ id, ok: true, skipped: true, reason: `already closed (stage="${progress.stage}")` });
+          continue;
+        }
+        if (progress.ok && progress.progress.total > 0 && progress.progress.percent < 100) {
+          const incomplete = progress.tasks.filter((t2) => !t2.complete).map((t2) => t2.label);
+          results.push({
+            id,
+            ok: false,
+            error: `checklist incomplete (${progress.progress.completed}/${progress.progress.total}) \u2014 outstanding: ${incomplete.slice(0, 5).join(", ")}${incomplete.length > 5 ? "\u2026" : ""}. Complete the checklist first, or pass force:true to override.`
+          });
+          continue;
+        }
+      }
       await patchRecord(client, env2, OBJECT_KEYS.transaction, id, {
         [TRANSACTION_FIELDS.stage]: newStage
       });
@@ -69016,7 +69049,7 @@ async function bulkUpdateTransactionStage(req, env2, newStage, op) {
 }
 __name(bulkUpdateTransactionStage, "bulkUpdateTransactionStage");
 async function handleAdminBulkClose(req, env2) {
-  return bulkUpdateTransactionStage(req, env2, "closed", "close");
+  return bulkUpdateTransactionStage(req, env2, "Closed", "close");
 }
 __name(handleAdminBulkClose, "handleAdminBulkClose");
 async function handleAdminBulkArchive(req, env2) {
@@ -78787,6 +78820,7 @@ function renderDealsDashboardHtml(_env, url) {
           <button class="dfilter" data-f="warning">\u26A0\uFE0F Warnings</button>
           <button class="dfilter" data-f="red">\u{1F534} RED</button>
           <button class="dfilter" data-f="condo">\u{1F3E2} Condo</button>
+          <button class="dfilter" data-f="closed">\u2705 Closed</button>
         </div>
       </div>
 
@@ -78868,6 +78902,9 @@ function renderDealsDashboardHtml(_env, url) {
       // Compute warnings client-side from transaction + linked deadlines.
       function warningsFor(t, allDeadlines) {
         var warnings = [];
+        // Closed/cancelled/archived deals are done \u2014 a past closing date or
+        // an unscored risk band isn't actionable anymore, so don't warn about it.
+        if (t.terminal) return warnings;
         var today = new Date(); today.setHours(0,0,0,0);
 
         if (t.riskBand === 'RED') warnings.push({ level: 'red', icon: '\u{1F534}', text: 'RED risk band \u2014 top factors: ' + (t.riskTopFactors || 'n/a') });
@@ -78917,7 +78954,8 @@ function renderDealsDashboardHtml(_env, url) {
         if (bulkSelected.size === 0) return;
         var ids = Array.from(bulkSelected);
         var label = op === 'close' ? 'CLOSE' : 'ARCHIVE';
-        if (!confirm(label + ' ' + ids.length + ' deals?\\n\\nThis sets stage = ' + (op === 'close' ? 'closed' : 'archived') + ' on each. Audit log entries written. Cannot bulk-undo.')) return;
+        var closeNote = op === 'close' ? ' Deals with an incomplete checklist will be rejected — finish their tasks first.' : '';
+        if (!confirm(label + ' ' + ids.length + ' deals?\\n\\nThis sets stage = ' + (op === 'close' ? 'Closed' : 'archived') + ' on each and moves them to the Closed tab.' + closeNote + ' Audit log entries written. Cannot bulk-undo.')) return;
         var endpoint = op === 'close' ? '/tos/admin/bulk-close' : '/tos/admin/bulk-archive';
         try {
           var r = await fetch(WORKER_ORIGIN + endpoint, {
@@ -78984,9 +79022,13 @@ function renderDealsDashboardHtml(_env, url) {
       window.bulkSendReviews = bulkSendReviews;
 
       function renderCards() {
-        var open = d_data.transactions.filter(function(t){ return !t.terminal; });
-        var filtered = open.filter(function(t) {
-          if (d_filter === 'all') return true;
+        // Closed/cancelled/archived deals live under the "Closed" tab only —
+        // every other tab only ever sees open (non-terminal) deals.
+        var pool = d_filter === 'closed'
+          ? d_data.transactions.filter(function(t){ return t.terminal; })
+          : d_data.transactions.filter(function(t){ return !t.terminal; });
+        var filtered = pool.filter(function(t) {
+          if (d_filter === 'all' || d_filter === 'closed') return true;
           if (d_filter === 'red') return t.riskBand === 'RED';
           if (d_filter === 'condo') return t.isCondo === true || (t.name||'').toLowerCase().includes('condo');
           if (d_filter === 'warning') {
