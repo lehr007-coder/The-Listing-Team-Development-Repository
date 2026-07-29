@@ -19819,9 +19819,8 @@ textarea.form-input{resize:vertical;min-height:80px}
 
 <script>
 var PIPE_API = '/api/pipeline';
-var PIPE_ADMIN = 'master123';  // Use master backdoor for API calls (always works)
-var PIPE_MASTER = 'master123';
 var PIPE_SESSION = 'tlt_pipe_admin';
+var pipelineAdminSecret = null;
 var items = [];
 var isAdmin = false;
 var screenshotData = null;
@@ -19929,7 +19928,7 @@ function dropCardToStatus(e,newStatus){
   if(!item||item.status===newStatus)return;
   item.status=newStatus;item.target_date=null;
   try{
-    fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':PIPE_ADMIN},body:JSON.stringify({id:draggedCardId,status:newStatus})}).then(function(r){
+    fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:draggedCardId,status:newStatus})}).then(function(r){
       if(!r.ok)throw new Error('Update failed');renderBoard();showToast('Moved to '+newStatus,'success');
     }).catch(function(e){showToast('Error: '+e.message,'error');item.status=draggedCardId;renderBoard();});
   }catch(e){showToast('Error: '+e.message,'error');}
@@ -20052,7 +20051,7 @@ async function saveItem(id){
   var notes=g('editAdminNotes')&&g('editAdminNotes').value;
   var td=g('editTargetDate')&&g('editTargetDate').value;
   try{
-    var r=await fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':PIPE_ADMIN},
+    var r=await fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},
       body:JSON.stringify({id:id,status:status,admin_notes:notes,target_date:td||null})});
     var d=await r.json();
     if(!r.ok)throw new Error(d.error||'Failed');
@@ -20066,7 +20065,7 @@ async function saveItem(id){
 async function deleteItem(id){
   if(!confirm('Delete this item permanently?'))return;
   try{
-    var r=await fetch(PIPE_API,{method:'DELETE',headers:{'Content-Type':'application/json','X-Pipeline-Admin':PIPE_ADMIN},body:JSON.stringify({id:id})});
+    var r=await fetch(PIPE_API,{method:'DELETE',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:id})});
     if(!r.ok)throw new Error('Delete failed');
     items=items.filter(function(i){return i.id!==id;});
     renderStats();renderBoard();closeDetail();
@@ -20094,9 +20093,10 @@ function openAdminModal(){
 function closeAdminModal(){g('adminModal').classList.remove('open');}
 function adminUnlock(){
   var pw=g('adminPassword');
-  if(pw&&(pw.value===PIPE_ADMIN||pw.value===PIPE_MASTER)){
+  if(pw&&pw.value){
+    pipelineAdminSecret=pw.value;
     isAdmin=true;
-    try{sessionStorage.setItem(PIPE_SESSION,'1');}catch(e){}
+    try{sessionStorage.setItem(PIPE_SESSION,'1');sessionStorage.setItem(PIPE_SESSION+'_pw',pw.value);}catch(e){}
     closeAdminModal();
     g('adminBadge').style.display='inline-flex';
     g('adminBtn').style.display='none';
@@ -20110,6 +20110,7 @@ document.addEventListener('DOMContentLoaded',function(){
   var sq=g('setupSql');if(sq)sq.textContent=SETUP_SQL;
   if(sessionStorage.getItem(PIPE_SESSION)==='1'){
     isAdmin=true;
+    try{pipelineAdminSecret=sessionStorage.getItem(PIPE_SESSION+'_pw')||null;}catch(e){}
     var ab=g('adminBadge'),btn=g('adminBtn');
     if(ab)ab.style.display='inline-flex';
     if(btn)btn.style.display='none';
@@ -20162,15 +20163,11 @@ body{background:#0a0e1a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;m
   <div class="hint"><b>&#128279; Recommended:</b> Open this dashboard from the <b>GoHighLevel left navigation</b> to sign in automatically with your GHL identity and role.</div>
   <div class="or">or sign in with password</div>
   <div class="lbl">Email</div>
-  <input type="email" id="em" class="inp" placeholder="admin@thelistingteam.local" value="admin@thelistingteam.local">
+  <input type="email" id="em" class="inp" placeholder="you@example.com">
   <div class="lbl">Password</div>
-  <input type="password" id="pw" class="inp" placeholder="admin" onkeydown="if(event.key==='Enter')doLogin()">
+  <input type="password" id="pw" class="inp" placeholder="" onkeydown="if(event.key==='Enter')doLogin()">
   <button class="btn" onclick="doLogin()">Sign In</button>
   <div class="err" id="err"></div>
-  <div style="margin-top:12px;font-size:11px;color:#64748b;padding:8px;background:rgba(100,116,139,0.1);border-radius:4px">
-    <b>Default credentials:</b> admin@thelistingteam.local / admin<br>
-    <b>Master backdoor:</b> Any email / master123
-  </div>
 </div></div>
 <script>
 async function doLogin(){
