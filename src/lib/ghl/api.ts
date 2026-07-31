@@ -70,7 +70,7 @@ export async function listContactsPaged(
     if (batch.length < pageLimit) break;
     const last = batch[batch.length - 1] as GhlContact & { dateAdded?: number };
     startAfterId = last.id;
-    startAfter = last.dateAdded;
+    startAfter = last.dateAdded ? new Date(last.dateAdded).getTime() : undefined;
   }
   return out;
 }
