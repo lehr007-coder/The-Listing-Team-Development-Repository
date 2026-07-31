@@ -21,6 +21,7 @@ type SyncState = {
   location_id: string;
   phase: "contacts" | "opportunities" | "done";
   contact_cursor: { startAfterId?: string; startAfter?: number } | null;
+  opp_cursor: { startAfterId?: string; startAfter?: number } | null;
   opp_page: number;
   contacts_total: number | null;
   opps_total: number | null;
@@ -49,7 +50,7 @@ async function loadState(locationId: string): Promise<SyncState> {
   if (data) return data as SyncState;
   const fresh: Partial<SyncState> = { location_id: locationId, phase: "contacts", opp_page: 1 };
   await db.from("sync_state").upsert(fresh, { onConflict: "location_id" });
-  return { ...(fresh as SyncState), contact_cursor: null, contacts_synced: 0, opps_synced: 0, contacts_total: null, opps_total: null, pass_started_at: null, completed_at: null, last_error: null };
+  return { ...(fresh as SyncState), contact_cursor: null, opp_cursor: null, contacts_synced: 0, opps_synced: 0, contacts_total: null, opps_total: null, pass_started_at: null, completed_at: null, last_error: null };
 }
 
 async function saveState(patch: Partial<SyncState> & { location_id: string }) {
@@ -157,12 +158,13 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
     }
     state.phase = "contacts";
     state.contact_cursor = null;
+    state.opp_cursor = null;
     state.opp_page = 1;
     state.contacts_synced = 0;
     state.opps_synced = 0;
     state.pass_started_at = new Date().toISOString();
     await saveState({
-      location_id: locationId, phase: "contacts", contact_cursor: null, opp_page: 1,
+      location_id: locationId, phase: "contacts", contact_cursor: null, opp_cursor: null, opp_page: 1,
       contacts_synced: 0, opps_synced: 0, pass_started_at: state.pass_started_at, completed_at: null, last_error: null,
     });
   }
@@ -186,6 +188,7 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
         pages++;
         if (batch.length < PAGE) {
           state.phase = "opportunities";
+          state.opp_cursor = null;
           state.opp_page = 1;
         } else {
           const last = batch[batch.length - 1];
@@ -196,13 +199,18 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
         }
         await saveState({
           location_id: locationId, phase: state.phase, contact_cursor: state.contact_cursor,
-          contacts_synced: state.contacts_synced, contacts_total: state.contacts_total, opp_page: state.opp_page,
+          contacts_synced: state.contacts_synced, contacts_total: state.contacts_total,
+          opp_cursor: state.opp_cursor, opp_page: state.opp_page,
           last_error: null,
         });
       } else if (state.phase === "opportunities") {
-        const params = new URLSearchParams({
-          location_id: locationId, limit: String(PAGE), page: String(state.opp_page),
-        });
+        // GHL caps page-number pagination at page 100 (SEARCH_USE_START_AFTER_
+        // PAGINATION beyond 10k results); the response meta hands back the
+        // startAfter/startAfterId cursor for the next request, so use that.
+        const params = new URLSearchParams({ location_id: locationId, limit: String(PAGE) });
+        const ocur = state.opp_cursor ?? {};
+        if (ocur.startAfterId) params.set("startAfterId", ocur.startAfterId);
+        if (ocur.startAfter) params.set("startAfter", String(ocur.startAfter));
         const data = await ghlFetch(locationId, `/opportunities/search?${params.toString()}`);
         const batch: GhlOpportunity[] = data.opportunities ?? [];
         if (data.meta?.total != null) state.opps_total = data.meta.total;
@@ -212,11 +220,15 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
         if (batch.length < PAGE) {
           state.phase = "done";
           state.completed_at = new Date().toISOString();
+        } else if (data.meta?.startAfterId) {
+          state.opp_cursor = { startAfterId: data.meta.startAfterId, startAfter: data.meta.startAfter };
         } else {
-          state.opp_page += 1;
+          // No cursor in the response and a full page — cannot advance safely.
+          state.phase = "done";
+          state.completed_at = new Date().toISOString();
         }
         await saveState({
-          location_id: locationId, phase: state.phase, opp_page: state.opp_page,
+          location_id: locationId, phase: state.phase, opp_cursor: state.opp_cursor,
           opps_synced: state.opps_synced, opps_total: state.opps_total,
           completed_at: state.completed_at, last_error: null,
         });
