@@ -8,32 +8,28 @@ export default async function DashboardPage() {
   // Agents: scope analytics to contacts assigned to them.
   // Admins: still scope to *their own* assignments on this page so the
   // "personal dashboard" view is consistent regardless of role.
-  const { data: assigned } = await db
-    .from("contact_assignments")
-    .select("contact_id")
-    .eq("user_id", session.userId);
-  const ids = (assigned ?? []).map((a) => a.contact_id);
-
-  let totals = { count: 0, value: 0, won: 0 };
-  if (ids.length) {
-    const { data: rows } = await db
-      .from("contacts")
-      .select("status, value_cents")
-      .in("id", ids);
-    for (const r of rows ?? []) {
-      totals.count += 1;
-      totals.value += r.value_cents ?? 0;
-      if (r.status === "won") totals.won += 1;
-    }
-  }
+  //
+  // Aggregate in SQL: with 100k+ contacts synced, fetching assignment
+  // rows and re-querying with .in() blows past PostgREST's 1000-row cap
+  // and URL limits, silently rendering zeros.
+  const { data, error } = await db.rpc("user_dashboard_totals", {
+    p_user_id: session.userId,
+  });
+  if (error) console.error("[dashboard] totals rpc failed:", error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  const totals = {
+    count: Number(row?.contact_count ?? 0),
+    won: Number(row?.won_count ?? 0),
+    value: Number(row?.value_cents_sum ?? 0),
+  };
 
   return (
     <div>
       <h1 className="text-2xl font-semibold">My Dashboard</h1>
       <p className="mt-1 text-sm text-slate-500">Showing only your assigned contacts.</p>
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <Stat label="My contacts" value={totals.count.toString()} />
-        <Stat label="Won" value={totals.won.toString()} />
+        <Stat label="My contacts" value={totals.count.toLocaleString()} />
+        <Stat label="Won" value={totals.won.toLocaleString()} />
         <Stat label="Pipeline value" value={`$${(totals.value / 100).toLocaleString()}`} />
       </div>
     </div>
