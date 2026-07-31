@@ -74,3 +74,35 @@ export async function listContactsPaged(
   }
   return out;
 }
+
+export type GhlOpportunity = {
+  id: string;
+  name?: string;
+  status: string; // "open" | "won" | "lost" | "abandoned"
+  monetaryValue?: number; // dollars
+  contactId?: string;
+  contact?: { id?: string };
+};
+
+// Page through /opportunities/search for a location. Requires the
+// opportunities.readonly scope. GHL caps limit at 100 per page and
+// supports simple page-number pagination on this endpoint.
+export async function listOpportunitiesPaged(
+  locationId: string,
+  pageLimit = 100,
+  maxPages = 50,
+): Promise<GhlOpportunity[]> {
+  const out: GhlOpportunity[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const params = new URLSearchParams({
+      location_id: locationId,
+      limit: String(pageLimit),
+      page: String(page),
+    });
+    const data = await ghlFetch(locationId, `/opportunities/search?${params.toString()}`);
+    const batch: GhlOpportunity[] = data.opportunities ?? [];
+    out.push(...batch);
+    if (batch.length < pageLimit) break;
+  }
+  return out;
+}

@@ -8,6 +8,7 @@ export const GHL_SCOPES = [
   "contacts.write",
   "locations.readonly",
   "users.readonly",
+  "opportunities.readonly",
 ].join(" ");
 
 export function authorizeUrl() {

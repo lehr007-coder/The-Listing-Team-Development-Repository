@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { listContactsPaged } from "@/lib/ghl/api";
+import { listContactsPaged, listOpportunitiesPaged, GhlOpportunity } from "@/lib/ghl/api";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -52,6 +52,35 @@ export async function POST(req: NextRequest) {
     const db = supabaseAdmin();
     const ghlContacts = await listContactsPaged(locationId);
 
+    // Pull opportunities and fold them into per-contact status + pipeline
+    // value. Tokens minted before the opportunities.readonly scope was
+    // added will 401 here — treat that as "no opportunity data" rather
+    // than failing the whole contact sync.
+    let opportunities: GhlOpportunity[] = [];
+    let oppsSynced = true;
+    try {
+      opportunities = await listOpportunitiesPaged(locationId);
+    } catch (err) {
+      oppsSynced = false;
+      console.warn("[sync/contacts] opportunities skipped:", err instanceof Error ? err.message : err);
+    }
+    // status: "won" if any won opp, else the first non-won opp status.
+    // value_cents: sum of open + won opportunity values (lost/abandoned
+    // don't count toward pipeline).
+    const oppByContact = new Map<string, { status: string | null; value_cents: number }>();
+    for (const o of opportunities) {
+      const cid = o.contactId ?? o.contact?.id;
+      if (!cid) continue;
+      const agg = oppByContact.get(cid) ?? { status: null, value_cents: 0 };
+      const s = (o.status || "").toLowerCase();
+      if (s === "won") agg.status = "won";
+      else if (agg.status !== "won" && s) agg.status = s;
+      if (s === "open" || s === "won") {
+        agg.value_cents += Math.round((o.monetaryValue ?? 0) * 100);
+      }
+      oppByContact.set(cid, agg);
+    }
+
     // 1. Upsert contacts (chunked: PostgREST rejects oversized payloads).
     const contactRows = ghlContacts.map((c) => ({
       ghl_contact_id: c.id,
@@ -59,8 +88,8 @@ export async function POST(req: NextRequest) {
       name: (c.contactName ?? [c.firstName, c.lastName].filter(Boolean).join(" ")) || null,
       email: c.email ?? null,
       phone: c.phone ?? null,
-      status: null,
-      value_cents: 0,
+      status: oppByContact.get(c.id)?.status ?? null,
+      value_cents: oppByContact.get(c.id)?.value_cents ?? 0,
     }));
     for (const batch of chunks(contactRows, CHUNK)) {
       const { error } = await db.from("contacts").upsert(batch, { onConflict: "ghl_contact_id" });
@@ -127,6 +156,8 @@ export async function POST(req: NextRequest) {
       locationId,
       contacts: ghlContacts.length,
       assignments: assignments.length,
+      opportunities: opportunities.length,
+      opportunitiesSynced: oppsSynced,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
