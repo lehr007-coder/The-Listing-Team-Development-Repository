@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
-import { supabaseAdmin } from "@/lib/supabase/server";
-import { listContactsPaged, listOpportunitiesPaged, GhlOpportunity } from "@/lib/ghl/api";
+import { runSyncSlice } from "@/lib/ghl/syncWorker";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const CHUNK = 500;
-
-function chunks<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
-// Admin-only: pull contacts for the caller's location from GHL and
-// upsert them into our DB, rebuilding assignments from GHL's `assignedTo`.
+// Admin-only: advance the incremental GHL sync for the caller's location.
+// The same worker powers the background cron; this button just runs one
+// slice on demand and reports overall progress.
 export async function POST(req: NextRequest) {
   // CSRF guard: this is a cookie-authenticated, state-changing POST.
   // Browsers always attach Origin on a cross-origin POST, so reject any
@@ -49,115 +41,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = supabaseAdmin();
-    const ghlContacts = await listContactsPaged(locationId);
-
-    // Pull opportunities and fold them into per-contact status + pipeline
-    // value. Tokens minted before the opportunities.readonly scope was
-    // added will 401 here — treat that as "no opportunity data" rather
-    // than failing the whole contact sync.
-    let opportunities: GhlOpportunity[] = [];
-    let oppsSynced = true;
-    try {
-      opportunities = await listOpportunitiesPaged(locationId);
-    } catch (err) {
-      oppsSynced = false;
-      console.warn("[sync/contacts] opportunities skipped:", err instanceof Error ? err.message : err);
-    }
-    // status: "won" if any won opp, else the first non-won opp status.
-    // value_cents: sum of open + won opportunity values (lost/abandoned
-    // don't count toward pipeline).
-    const oppByContact = new Map<string, { status: string | null; value_cents: number }>();
-    for (const o of opportunities) {
-      const cid = o.contactId ?? o.contact?.id;
-      if (!cid) continue;
-      const agg = oppByContact.get(cid) ?? { status: null, value_cents: 0 };
-      const s = (o.status || "").toLowerCase();
-      if (s === "won") agg.status = "won";
-      else if (agg.status !== "won" && s) agg.status = s;
-      if (s === "open" || s === "won") {
-        agg.value_cents += Math.round((o.monetaryValue ?? 0) * 100);
-      }
-      oppByContact.set(cid, agg);
-    }
-
-    // 1. Upsert contacts (chunked: PostgREST rejects oversized payloads).
-    const contactRows = ghlContacts.map((c) => ({
-      ghl_contact_id: c.id,
-      ghl_location_id: locationId,
-      name: (c.contactName ?? [c.firstName, c.lastName].filter(Boolean).join(" ")) || null,
-      email: c.email ?? null,
-      phone: c.phone ?? null,
-      status: oppByContact.get(c.id)?.status ?? null,
-      value_cents: oppByContact.get(c.id)?.value_cents ?? 0,
-    }));
-    for (const batch of chunks(contactRows, CHUNK)) {
-      const { error } = await db.from("contacts").upsert(batch, { onConflict: "ghl_contact_id" });
-      if (error) throw new Error(`contacts upsert failed: ${error.message}`);
-    }
-
-    // 2. Map GHL user ids -> our user ids. Auto-create stub rows for any
-    //    GHL user we haven't seen yet so contacts can still be assigned.
-    const ghlUserIds = [...new Set(ghlContacts.map((c) => c.assignedTo).filter(Boolean) as string[])];
-    if (ghlUserIds.length) {
-      const { error } = await db
-        .from("users")
-        .upsert(
-          ghlUserIds.map((id) => ({
-            ghl_user_id: id,
-            ghl_location_id: locationId,
-            email: `${id}@ghl.placeholder`,
-            role: "agent" as const,
-          })),
-          { onConflict: "ghl_user_id", ignoreDuplicates: true },
-        );
-      if (error) throw new Error(`users upsert failed: ${error.message}`);
-    }
-    const userByGhl = new Map<string, string>();
-    for (const batch of chunks(ghlUserIds, CHUNK)) {
-      const { data, error } = await db.from("users").select("id, ghl_user_id").in("ghl_user_id", batch);
-      if (error) throw new Error(`users select failed: ${error.message}`);
-      for (const u of data ?? []) userByGhl.set(u.ghl_user_id as string, u.id as string);
-    }
-
-    // Resolve DB ids for the synced contacts. Chunked .in() instead of one
-    // .eq(location) select: PostgREST caps un-ranged selects at 1000 rows,
-    // which silently truncated the map and dropped assignments.
-    const contactByGhl = new Map<string, string>();
-    const ghlContactIds = ghlContacts.map((c) => c.id);
-    for (const batch of chunks(ghlContactIds, CHUNK)) {
-      const { data, error } = await db
-        .from("contacts")
-        .select("id, ghl_contact_id")
-        .in("ghl_contact_id", batch);
-      if (error) throw new Error(`contacts select failed: ${error.message}`);
-      for (const c of data ?? []) contactByGhl.set(c.ghl_contact_id as string, c.id as string);
-    }
-
-    // 3. Rebuild assignments for the synced contacts.
-    const assignments = ghlContacts
-      .filter((c) => c.assignedTo && userByGhl.has(c.assignedTo!) && contactByGhl.has(c.id))
-      .map((c) => ({
-        user_id: userByGhl.get(c.assignedTo!)!,
-        contact_id: contactByGhl.get(c.id)!,
-      }));
-
-    const contactIds = ghlContacts.map((c) => contactByGhl.get(c.id)).filter(Boolean) as string[];
-    for (const batch of chunks(contactIds, CHUNK)) {
-      const { error } = await db.from("contact_assignments").delete().in("contact_id", batch);
-      if (error) throw new Error(`assignments delete failed: ${error.message}`);
-    }
-    for (const batch of chunks(assignments, CHUNK)) {
-      const { error } = await db.from("contact_assignments").insert(batch);
-      if (error) throw new Error(`assignments insert failed: ${error.message}`);
-    }
-
+    const r = await runSyncSlice(locationId, 40_000);
     return NextResponse.json({
       locationId,
-      contacts: ghlContacts.length,
-      assignments: assignments.length,
-      opportunities: opportunities.length,
-      opportunitiesSynced: oppsSynced,
+      phase: r.phase,
+      contacts: r.contactsSynced,
+      contactsTotal: r.contactsTotal,
+      opportunities: r.oppsSynced,
+      opportunitiesTotal: r.oppsTotal,
+      passCompleted: r.passCompleted,
+      note: r.skipped ?? (r.passCompleted
+        ? "Full pass complete."
+        : "Partial pass — the background sync keeps going automatically."),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
