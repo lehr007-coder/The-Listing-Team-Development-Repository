@@ -1,0 +1,26 @@
+name: Deploy Listing Team AI Gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'listing-team-ai-gateway/**'
+      - '.github/workflows/deploy-listing-team-ai-gateway.yml'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  deploy:
+    name: Deploy listing-team-ai-gateway
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy gateway
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: listing-team-ai-gateway
+          command: deploy --config wrangler.toml
