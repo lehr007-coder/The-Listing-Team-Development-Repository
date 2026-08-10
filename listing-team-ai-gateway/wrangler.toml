@@ -6,12 +6,15 @@ workers_dev = true
 [vars]
 GATEWAY_VERSION = "0.1.0"
 
-# Configure these after deployment with real worker URLs.
-IDX_BRIDGE_BASE_URL = ""
+# Confirmed deployed upstream Workers.
+IDX_BRIDGE_BASE_URL = "https://idx-mcp-bridge.lehr007.workers.dev"
+LEAD_SCORER_BASE_URL = "https://voice-ai-lead-scorer.lehr007.workers.dev"
+
+# These upstream repositories exist but are not currently deployed in this
+# Cloudflare account. Leave them blank so /health reports them unconfigured.
 PROPERTY_DATA_BASE_URL = ""
 MORTGAGE_BASE_URL = ""
 RETURNING_CALLER_BASE_URL = ""
-LEAD_SCORER_BASE_URL = ""
 CALL_QUALITY_BASE_URL = ""
 
 # Secrets (never commit values):
