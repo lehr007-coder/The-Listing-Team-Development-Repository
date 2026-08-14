@@ -6837,6 +6837,7 @@ function processRawContacts(allRaw) {
     };
   });
   updateScoreTrends(ALL_LEADS);
+  try { recordScoreSnapshot(); } catch (e) { console.warn('score snapshot skipped:', e); }
   updateStats();
   applyFilters();
 }
@@ -11000,26 +11001,26 @@ function addSparklinesToTable() {
 // -------------------------------------------------------
 // LEAD SCORE HISTORY TRACKING
 // -------------------------------------------------------
-var SCORE_HISTORY_KEY = 'score_history';
+var SCORE_DAILY_KEY = 'ylopo_score_daily';
 function recordScoreSnapshot() {
-  var history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY)) || {};
+  var history = JSON.parse(localStorage.getItem(SCORE_DAILY_KEY)) || {};
   var today = new Date().toISOString().split('T')[0];
   ALL_LEADS.forEach(function(lead) {
-    if (!history[lead.id]) history[lead.id] = [];
+    if (!Array.isArray(history[lead.id])) history[lead.id] = [];
     var last = history[lead.id][history[lead.id].length - 1];
     if (!last || last.date !== today) {
       history[lead.id].push({ date: today, score: lead.score });
       if (history[lead.id].length > 90) history[lead.id].shift();
     }
   });
-  localStorage.setItem(SCORE_HISTORY_KEY, JSON.stringify(history));
+  localStorage.setItem(SCORE_DAILY_KEY, JSON.stringify(history));
 }
 
 function showScoreHistory(leadId) {
   var lead = ALL_LEADS.find(function(l) { return l.id === leadId; });
   if (!lead) return;
-  var history = JSON.parse(localStorage.getItem(SCORE_HISTORY_KEY)) || {};
-  var data = history[leadId] || [{ date: new Date().toISOString().split('T')[0], score: lead.score }];
+  var history = JSON.parse(localStorage.getItem(SCORE_DAILY_KEY)) || {};
+  var data = Array.isArray(history[leadId]) && history[leadId].length ? history[leadId] : [{ date: new Date().toISOString().split('T')[0], score: lead.score }];
 
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -11474,7 +11475,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initTypeahead();
   initKeyboardShortcuts();
   loadColorSettings();
-  loadGHLTeam().then(function() { loadData().then(function() { recordScoreSnapshot(); }); });
+  loadGHLTeam().then(function() { loadData(); });
 });
 (function(){var h=window.location.hostname;if(h.includes('staging')||h.includes('workers.dev')){var b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;font-family:sans-serif;font-size:14px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;padding:8px 16px;animation:flashBg 1s ease-in-out infinite';b.textContent='\\u26A0 STAGING ENVIRONMENT \\u26A0';document.body.prepend(b);var s=document.createElement('style');s.textContent='@keyframes flashBg{0%,100%{background:#ef4444}50%{background:#b91c1c}} body{padding-top:38px!important}';document.head.appendChild(s)}})();
 <\/script>
