@@ -71,6 +71,37 @@ async function safeJsonParse(request, maxBytes) {
 __name(safeJsonParse, "safeJsonParse");
 __name2(safeJsonParse, "safeJsonParse");
 __name22(err, "err");
+// ---------------------------------------------------------------------------
+// Which Transaction OS this dashboard talks to.
+//
+// The TOS proxy URL used to be hardcoded as tos-proxy.lehr007.workers.dev in
+// five places across two HTML blobs. That was wrong twice over after
+// 2026-08-13: production moved to its own custom domain, and staging became a
+// genuinely separate environment pointed at the demo GHL sub-account. A single
+// hardcoded host meant the STAGING dashboard read PRODUCTION's numbers — the
+// one thing a staging dashboard must never do.
+//
+// The HTML now carries a __TOS_BASE__ placeholder, substituted per request from
+// TOS_BASE_URL in the wrangler config. The default is production, because an
+// unconfigured deploy showing real numbers is safer than one silently showing
+// demo data as if it were real.
+// ---------------------------------------------------------------------------
+function tosBase(env) {
+  return (env && env.TOS_BASE_URL) || "https://tos.reallistingteam.com";
+}
+
+/** Environment label shown in the dashboard header. */
+function tosEnvLabel(env) {
+  return (env && env.DASHBOARD_ENV) || "PRODUCTION";
+}
+
+/** Substitute deploy-specific values into a static HTML blob. */
+function renderDashboard(html, env) {
+  return html
+    .replaceAll("__TOS_BASE__", tosBase(env))
+    .replaceAll("__DASHBOARD_ENV__", tosEnvLabel(env));
+}
+
 var ADMIN_HUB_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -168,6 +199,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div class="header-badge"><span class="dot"></span> Systems Online</div>
     <h1>The Listing Team<br>Command Center</h1>
     <p>Centralized hub for all dashboards, tools, and admin modules powering your real estate operations.</p>
+    <!-- Which environment this dashboard is reading. Two dashboards now exist
+         and they are visually identical; without this you cannot tell whether a
+         number in front of you is a real deal or demo data. -->
+    <div id="env-banner" style="margin-top:14px;display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">
+      <span id="env-name">__DASHBOARD_ENV__</span>
+      <span style="opacity:.6;font-weight:500;text-transform:none;letter-spacing:0;">reading __TOS_BASE__</span>
+    </div>
+    <script>
+      (function () {
+        var el = document.getElementById('env-banner');
+        var isProd = (document.getElementById('env-name').textContent || '').trim() === 'PRODUCTION';
+        el.style.background = isProd ? 'rgba(34,197,94,.12)' : 'rgba(245,158,11,.15)';
+        el.style.color = isProd ? '#4ade80' : '#fbbf24';
+        el.style.border = '1px solid ' + (isProd ? 'rgba(34,197,94,.35)' : 'rgba(245,158,11,.45)');
+      })();
+    </script>
   </header>
 
   <div class="section">
@@ -314,7 +361,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Brand \xB7 Templates \xB7 Settings</div>
         </div>
       </a>
-      <a id="link-tos-admin-main" href="https://tos-proxy.lehr007.workers.dev/tos/admin" target="_blank" class="card green">
+      <a id="link-tos-admin-main" href="__TOS_BASE__/tos/admin" target="_blank" class="card green">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F4DD}</div>
         <div class="card-body">
@@ -332,7 +379,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <script>
       (async () => {
         try {
-          const r = await fetch('https://tos-proxy.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+          const r = await fetch('__TOS_BASE__/tos/admin/stats', { cache: 'no-store' });
           if (!r.ok) throw new Error('HTTP ' + r.status);
           const d = await r.json();
           const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -20606,12 +20653,12 @@ a{color:#3b82f6;text-decoration:none}
 
   <!-- CTA + link card -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">
-    <a id="link-tos-admin" href="https://tos-proxy.lehr007.workers.dev/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #22c55e;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#16a34a';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#22c55e';this.style.transform='translateY(0)'">
+    <a id="link-tos-admin" href="__TOS_BASE__/tos/admin" target="_blank" style="display:flex;gap:14px;align-items:flex-start;padding:18px;background:#1a2236;border:1px solid #22c55e;border-radius:12px;text-decoration:none;color:#f1f5f9;transition:border-color .15s,transform .15s" onmouseover="this.style.borderColor='#16a34a';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='#22c55e';this.style.transform='translateY(0)'">
       <div style="font-size:28px;line-height:1">&#128640;</div>
       <div style="min-width:0">
         <div style="font-weight:600;font-size:15px;margin-bottom:4px;color:#f1f5f9">Open Full TOS HTML Admin</div>
         <div style="font-size:13px;color:#94a3b8;line-height:1.5">Goes to the live HTML control panel we built &mdash; deeper navigation into GHL workflows, kill-switch toggles, every TOS custom-object record list, documentation. The data above is a live summary; this is the full operator interface.</div>
-        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">https://tos-proxy.lehr007.workers.dev/tos/admin &rarr;</div>
+        <div style="font-size:11px;color:#22c55e;margin-top:8px;letter-spacing:.05em;text-transform:uppercase;font-weight:600">__TOS_BASE__/tos/admin &rarr;</div>
       </div>
     </a>
   </div>
@@ -20665,7 +20712,7 @@ a{color:#3b82f6;text-decoration:none}
   (async () => {
     if (document.getElementById('tos-mini-stats')) return; // main dashboard fetcher will populate
     try {
-      const r = await fetch('https://tos-proxy.lehr007.workers.dev/tos/admin/stats', { cache: 'no-store' });
+      const r = await fetch('__TOS_BASE__/tos/admin/stats', { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       window.__populateTosAdminModule(d);
@@ -22862,7 +22909,7 @@ var index_default = {
       }
     }
     if (method === "GET" && (path === "/" || path === "/dashboard")) {
-      return new Response(ADMIN_HUB_HTML, {
+      return new Response(renderDashboard(ADMIN_HUB_HTML, env), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
@@ -22927,7 +22974,7 @@ var index_default = {
           }
         }
       }
-      return new Response(ADMIN_MODULE_HTML, {
+      return new Response(renderDashboard(ADMIN_MODULE_HTML, env), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com;" }
       });

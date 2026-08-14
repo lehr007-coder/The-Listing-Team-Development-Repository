@@ -9,3 +9,10 @@ compatibility_date = "2024-01-01"
 routes = [
   { pattern = "thelistingteamproxy.reallistingteam.com", custom_domain = true }
 ]
+
+[vars]
+# Which Transaction OS this dashboard reads. Production TOS moved to its own
+# custom domain on 2026-08-13; the dashboard used to hardcode the workers.dev
+# host in five places. See tosBase() in worker.js.
+TOS_BASE_URL = "https://tos.reallistingteam.com"
+DASHBOARD_ENV = "PRODUCTION"

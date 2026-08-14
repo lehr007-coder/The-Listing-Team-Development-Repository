@@ -4,3 +4,19 @@ compatibility_date = "2024-01-01"
 
 # Enable workers.dev route so the staging subdomain stays reachable.
 workers_dev = true
+
+# Custom domain for staging, same mechanism as production: wrangler provisions
+# the DNS record and the edge certificate together. A bare CNAME to
+# thelistingteamproxy-staging.lehr007.workers.dev would resolve but have no
+# certificate for this hostname and fail the TLS handshake.
+routes = [
+  { pattern = "stagingproxy.reallistingteam.com", custom_domain = true }
+]
+
+[vars]
+# CRITICAL: staging must read the STAGING Transaction OS, which is bound to the
+# demo GHL sub-account. Before this was configurable the dashboard hardcoded the
+# production host, so the staging dashboard displayed PRODUCTION's live deals —
+# exactly what a staging environment exists to prevent.
+TOS_BASE_URL = "https://tos-proxy-staging.lehr007.workers.dev"
+DASHBOARD_ENV = "STAGING"
