@@ -2617,61 +2617,136 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #161b27;
-    --card: #1e2535;
-    --card-border: #2a3348;
-    --accent: #f97316;
-    --accent-soft: rgba(249,115,22,0.12);
-    --accent2: #6366f1;
-    --accent2-soft: rgba(99,102,241,0.12);
-    --green: #22c55e;
-    --green-soft: rgba(34,197,94,0.12);
-    --yellow: #eab308;
-    --yellow-soft: rgba(234,179,8,0.12);
-    --red: #ef4444;
-    --red-soft: rgba(239,68,68,0.12);
-    --blue: #3b82f6;
-    --blue-soft: rgba(59,130,246,0.12);
-    --text: #e2e8f0;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --radius-xs: 4px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
-    --transition: 0.2s ease;
-    --header-bg: linear-gradient(135deg, #0D3B4F 0%, #1E7A9C 50%, #4A6B7C 100%);
-    --brand-primary: #0D3B4F;
-    --brand-secondary: #1E7A9C;
-    --brand-accent: #5DADE2;
-    --brand-surface: #F0F8FB;
-    --brand-chip: #DCF2F8;
-  }
-  /* Light theme overrides */
-  body.light-mode {
-    --bg: #f1f5f9;
-    --surface: #ffffff;
-    --card: #ffffff;
-    --card-border: #e2e8f0;
-    --text: #1e293b;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --shadow: 0 4px 24px rgba(0,0,0,0.08);
-    --header-bg: linear-gradient(135deg, #0D3B4F 0%, #1E7A9C 50%, #4A6B7C 100%);
-  }
-  body.light-mode .topbar { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
-  body.light-mode .score-bar { background: #e2e8f0; }
-  body.light-mode .btn { border-color: #cbd5e1; color: #475569; }
-  body.light-mode .btn:hover { background: #e2e8f0; }
-  body.light-mode .filter-btn { border-color: #cbd5e1; color: #475569; }
-  body.light-mode .filter-btn.active { border-color: var(--brand-accent); }
-  body.light-mode input, body.light-mode select { background: #fff; border-color: #cbd5e1; color: #1e293b; }
-  body.light-mode .page-btn { border-color: #cbd5e1; color: #475569; }
-  body.light-mode .page-btn.active { background: var(--brand-accent); color: #fff; border-color: var(--brand-accent); }
+  /* ==========================================================================
+     THE LISTING TEAM - YLOPO CONTACTS
+     Design system v2 (2026-08-14)
+     Layer 1 primitives -> Layer 2 semantic -> Layer 3 component
+     Brand: #0D3B4F deep teal / #1E7A9C mid teal / #5DADE2 sky
+     ========================================================================== */
 
-  /* Badge colors \u2014 all driven by CSS vars for live customization */
+  /* ---------- LAYER 1: PRIMITIVES ---------- */
+  :root {
+    /* Brand ramp derived from the three brand colors */
+    --c-brand-950:#062230;
+    --c-brand-900:#0D3B4F;
+    --c-brand-800:#12506B;
+    --c-brand-700:#166485;
+    --c-brand-600:#1E7A9C;
+    --c-brand-500:#2E93B5;
+    --c-brand-400:#5DADE2;
+    --c-brand-300:#8CC6EB;
+    --c-brand-200:#BCDFF4;
+    --c-brand-100:#DCF2F8;
+    --c-brand-50:#F0F8FB;
+
+    /* Cool neutrals tuned to the brand hue */
+    --c-n-0:#FFFFFF;
+    --c-n-50:#F6F9FB;
+    --c-n-100:#EFF3F7;
+    --c-n-200:#E3EAF0;
+    --c-n-300:#CDD9E3;
+    --c-n-400:#9CAFBE;
+    --c-n-500:#7C93A3;
+    --c-n-600:#5A7284;
+    --c-n-700:#3E5666;
+    --c-n-800:#22364A;
+    --c-n-900:#132330;
+    --c-n-950:#0A1119;
+
+    /* Scales */
+    --sp-1:4px;  --sp-2:8px;  --sp-3:12px; --sp-4:16px;
+    --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+
+    --fs-2xs:10px; --fs-xs:11px;  --fs-sm:12px; --fs-base:13px;
+    --fs-md:14px;  --fs-lg:16px;  --fs-xl:20px; --fs-2xl:27px; --fs-3xl:34px;
+
+    --radius-xs:6px; --radius-sm:10px; --radius:14px; --radius-lg:18px; --radius-pill:999px;
+    --transition:0.18s cubic-bezier(0.4,0,0.2,1);
+    --sidenav-w:248px;
+    --staging-top:0px;
+
+    --font-sans:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --font-num:'DM Sans',ui-monospace,sans-serif;
+  }
+
+  /* ---------- LAYER 2: SEMANTIC - DARK (:root default, kept so the
+       existing light-mode toggle keeps its original meaning) ---------- */
+  :root {
+    --bg:#0A1119;
+    --surface:#101A24;
+    --surface-2:#16222E;
+    --card:#14202C;
+    --card-bg:#14202C;
+    --card-border:#223444;
+    --border:#223444;
+    --card-hover:#192836;
+    --text:#E8EFF4;
+    --text-secondary:#9FB3C2;
+    --text-muted:#6E8494;
+    --muted:#6E8494;
+    --overlay:rgba(6,17,25,0.72);
+
+    --green:#34D399; --green-soft:rgba(52,211,153,0.14);
+    --red:#F87171;   --red-soft:rgba(248,113,113,0.14);
+    --yellow:#FBBF24;--yellow-soft:rgba(251,191,36,0.14);
+    --blue:#60A5FA;  --blue-soft:rgba(96,165,250,0.14);
+    --accent:#FB923C;--accent-soft:rgba(251,146,60,0.14);
+    --accent2:#818CF8;--accent2-soft:rgba(129,140,248,0.14);
+
+    --brand-primary:#5DADE2;
+    --brand-secondary:#8CC6EB;
+    --brand-accent:#5DADE2;
+    --brand-surface:#132836;
+    --brand-chip:#16344A;
+    --brand-ink:#0A1119;
+    --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
+
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
+    --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
+    --shadow:0 8px 26px rgba(0,0,0,0.42);
+    --shadow-lg:0 18px 48px rgba(0,0,0,0.55);
+  }
+
+  /* ---------- LAYER 2: SEMANTIC - LIGHT (default on this page) ---------- */
+  body.light-mode {
+    --bg:#F1F5F8;
+    --surface:#FFFFFF;
+    --surface-2:#F6F9FB;
+    --card:#FFFFFF;
+    --card-bg:#FFFFFF;
+    --card-border:#E3EAF0;
+    --border:#E3EAF0;
+    --card-hover:#F6F9FB;
+    --text:#10222E;
+    --text-secondary:#4E6879;
+    --text-muted:#7C93A3;
+    --muted:#7C93A3;
+    --overlay:rgba(16,34,46,0.42);
+
+    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);
+    --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);
+    --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);
+    --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);
+    --accent:#D9550B;--accent-soft:rgba(217,85,11,0.10);
+    --accent2:#4F46E5;--accent2-soft:rgba(79,70,229,0.10);
+
+    --brand-primary:#0D3B4F;
+    --brand-secondary:#1E7A9C;
+    --brand-accent:#1E7A9C;
+    --brand-surface:#F0F8FB;
+    --brand-chip:#DCF2F8;
+    --brand-ink:#FFFFFF;
+    --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
+
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
+    --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
+    --shadow:0 6px 20px rgba(16,34,46,0.09);
+    --shadow-lg:0 18px 44px rgba(16,34,46,0.16);
+  }
+
+  /* ---------- Badge palette - customizable at runtime, theme independent ---------- */
   :root {
     --src-ylopo-bg:rgba(234,179,8,0.15);       --src-ylopo-color:#eab308;
     --src-myplus-bg:rgba(139,92,246,0.15);     --src-myplus-color:#8b5cf6;
@@ -2693,556 +2768,576 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --beh-showing-bg:rgba(219,39,119,0.15);    --beh-showing-color:#db2777;
     --beh-stale-bg:rgba(220,38,38,0.15);       --beh-stale-color:#dc2626;
   }
-  .source-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
-  .source-ylopo { background:var(--src-ylopo-bg); color:var(--src-ylopo-color); }
-  .source-myplusleads,.source-myleads,.source-plusleads { background:var(--src-myplus-bg); color:var(--src-myplus-color); }
-  .source-zillow { background:var(--src-zillow-bg); color:var(--src-zillow-color); }
-  .source-realtor { background:var(--src-realtor-bg); color:var(--src-realtor-color); }
-  .source-homes { background:var(--src-homes-bg); color:var(--src-homes-color); }
-  .source-default { background:var(--src-default-bg); color:var(--src-default-color); }
 
-  /* Color customizer panel */
-  .color-panel-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center}
-  .color-panel-overlay.open{display:flex}
-  .color-panel{background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:16px;padding:28px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto}
-  .color-panel h3{font-size:16px;font-weight:700;margin-bottom:20px;color:var(--text,#f1f5f9);display:flex;align-items:center;gap:8px}
-  .color-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;margin-bottom:12px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04)}
-  .color-row label{font-size:13px;font-weight:600;color:var(--text,#f1f5f9)}
-  .color-row input[type=color]{width:36px;height:28px;border:none;border-radius:6px;cursor:pointer;padding:2px;background:transparent}
-  .color-row .preview{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:4px;letter-spacing:.03em;min-width:60px;text-align:center}
-  .color-panel-btns{display:flex;gap:8px;margin-top:20px}
-  .color-panel-btns button{flex:1;padding:9px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none}
-  .cp-save{background:#3b82f6;color:#fff}
-  .cp-reset{background:rgba(100,116,139,0.2);color:var(--text,#f1f5f9)}
-  .cp-close{background:rgba(239,68,68,0.15);color:#ef4444}
-  .cp-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#334155);padding-bottom:8px}
-  .cp-tab{flex:1;padding:6px 4px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted,#64748b);transition:all 0.15s}
-  .cp-tab.active{background:rgba(59,130,246,0.2);color:#3b82f6}
-  .cp-section{display:none}.cp-section.active{display:block}
-  .cp-add-row{display:flex;gap:6px;align-items:center;margin-top:8px;padding:8px;border:1px dashed var(--border,#334155);border-radius:8px}
-  .cp-add-row input[type=text]{flex:1;padding:5px 8px;border:1px solid var(--border,#334155);border-radius:6px;background:var(--surface,#161b27);color:var(--text,#f1f5f9);font-size:12px}
-  .cp-add-btn{padding:5px 10px;border:none;border-radius:6px;background:#3b82f6;color:#fff;font-size:11px;font-weight:700;cursor:pointer}
-  .cp-del-btn{background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
-  .cp-lock{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 0}
-  .cp-lock input{width:200px;padding:8px 12px;border:1px solid var(--border,#334155);border-radius:8px;background:var(--surface,#161b27);color:var(--text,#f1f5f9);font-size:14px;text-align:center}
-  .cp-lock button{padding:8px 20px;border:none;border-radius:8px;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+  /* ==========================================================================
+     BASE
+     ========================================================================== */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    font-size:var(--fs-md);
+    line-height:1.55;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  a{color:var(--brand-accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1,h2,h3,h4{line-height:1.25;letter-spacing:-0.01em}
+  ::selection{background:var(--brand-chip);color:var(--brand-primary)}
+  :focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--radius-xs)}
 
-  /* Contact type badge colors */
-  .type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
-  .type-seller { background:var(--type-seller-bg); color:var(--type-seller-color); border:1px solid rgba(34,197,94,0.3); }
-  .type-buyer { background:var(--type-buyer-bg); color:var(--type-buyer-color); }
-  .type-default { background:var(--type-def-bg); color:var(--type-def-color); }
+  /* Scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:var(--radius-pill);border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-muted);background-clip:padding-box}
 
-  /* Card GHL/Ylopo links */
-  .card-link-ghl,.card-link-ylopo { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none; transition:all 0.15s; }
-  .card-link-ghl { background:rgba(59,130,246,0.12); color:#3b82f6; }
-  .card-link-ghl:hover { background:#3b82f6; color:#fff; text-decoration:none; }
-  .card-link-ylopo { background:rgba(234,179,8,0.12); color:#eab308; }
-  .card-link-ylopo:hover { background:#eab308; color:#000; text-decoration:none; }
+  /* ==========================================================================
+     APP SHELL
+     ========================================================================== */
+  .app-shell{display:flex;align-items:flex-start;min-height:100vh}
+  .app-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .app-content{padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-5);flex:1}
 
-  /* Theme toggle button */
-  .theme-toggle { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; font-family:inherit; }
-  .theme-toggle:hover { background:rgba(255,255,255,0.25); }
+  /* ---------- Side navigation ---------- */
+  .sidenav{
+    width:var(--sidenav-w);flex:0 0 var(--sidenav-w);
+    background:var(--header-bg);
+    color:#fff;
+    position:sticky;top:var(--staging-top);
+    height:100vh;
+    display:flex;flex-direction:column;
+    padding:var(--sp-5) var(--sp-4) var(--sp-4);
+    gap:var(--sp-5);
+    overflow-y:auto;overflow-x:hidden;
+    z-index:120;
+    box-shadow:inset -1px 0 0 rgba(255,255,255,0.08);
+  }
+  .sidenav-brand{display:flex;align-items:center;gap:var(--sp-3);padding-bottom:var(--sp-4);border-bottom:1px solid rgba(255,255,255,0.14)}
+  .sidenav-brand img{height:38px;width:38px;object-fit:contain;flex-shrink:0;border-radius:var(--radius-xs);background:rgba(255,255,255,0.92);padding:3px}
+  .sidenav-brand-text{min-width:0;overflow:hidden}
+  .sidenav-brand-name{font-size:var(--fs-base);font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sidenav-brand-sub{font-size:var(--fs-2xs);color:rgba(255,255,255,0.62);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-top:2px}
+  .sidenav-group{display:flex;flex-direction:column;gap:2px}
+  .sidenav-label{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.44);padding:0 var(--sp-3) var(--sp-2)}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:9px var(--sp-3);
+    border:1px solid transparent;border-radius:var(--radius-sm);
+    background:transparent;color:rgba(255,255,255,0.78);
+    font-family:var(--font-sans);font-size:var(--fs-base);font-weight:600;
+    text-align:left;text-decoration:none;cursor:pointer;
+    transition:var(--transition);position:relative;
+  }
+  .nav-item .nav-ico{font-size:var(--fs-md);width:18px;text-align:center;flex-shrink:0}
+  .nav-item:hover{background:rgba(255,255,255,0.10);color:#fff;text-decoration:none}
+  .nav-item.active{background:rgba(255,255,255,0.16);color:#fff;border-color:rgba(255,255,255,0.22);font-weight:700;box-shadow:var(--shadow-xs)}
+  .nav-item.active:before{content:"";position:absolute;left:-16px;top:50%;transform:translateY(-50%);width:3px;height:20px;border-radius:0 3px 3px 0;background:var(--c-brand-300)}
+  .sidenav-foot{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid rgba(255,255,255,0.14);display:flex;flex-direction:column;gap:6px}
+  .env-chip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 10px;border-radius:var(--radius-pill);background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#fff}
+  .env-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,0.25)}
+  .sidenav-meta{font-size:var(--fs-2xs);color:rgba(255,255,255,0.55);line-height:1.6;word-break:break-word}
+  .sidenav-toggle{display:none}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    min-height: 100vh;
+  /* ==========================================================================
+     TOP BAR
+     ========================================================================== */
+  .topbar{
+    position:sticky;top:var(--staging-top);z-index:100;
+    background:var(--surface);
+    border-bottom:1px solid var(--card-border);
+    padding:var(--sp-3) var(--sp-6);
+    display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);
+    box-shadow:var(--shadow-xs);
   }
-  a { color: var(--brand-accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  .topbar-left{display:flex;align-items:center;gap:var(--sp-3);min-width:0}
+  .topbar-logo{
+    width:36px;height:36px;background:var(--brand-chip);border-radius:var(--radius-sm);
+    display:flex;align-items:center;justify-content:center;
+    font-size:var(--fs-lg);font-weight:800;color:var(--brand-primary);flex-shrink:0;
+    border:1px solid var(--card-border);
+  }
+  .topbar-title{font-size:var(--fs-lg);font-weight:800;color:var(--text);letter-spacing:-0.015em;display:flex;align-items:center;gap:8px}
+  .topbar-subtitle{font-size:var(--fs-sm);color:var(--text-muted);font-weight:500}
+  .topbar-right{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;justify-content:flex-end}
+  .topbar-sep{width:1px;height:22px;background:var(--card-border);flex-shrink:0}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);flex-shrink:0;animation:livePulse 2.4s ease-in-out infinite}
+  @keyframes livePulse{0%,100%{opacity:1}50%{opacity:0.45}}
 
-  /* \u2500\u2500 Top Bar \u2500\u2500 */
-  .topbar {
-    background: var(--header-bg);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding: 14px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 16px rgba(13,59,79,0.4);
+  /* ==========================================================================
+     CONTROLS
+     ========================================================================== */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    padding:8px 14px;
+    border:1px solid var(--card-border);border-radius:var(--radius-sm);
+    background:var(--surface);color:var(--text);
+    font-family:var(--font-sans);font-size:var(--fs-base);font-weight:600;
+    line-height:1.2;cursor:pointer;white-space:nowrap;
+    transition:var(--transition);box-shadow:var(--shadow-xs);
   }
-  .topbar-left { display: flex; align-items: center; gap: 12px; }
-  .topbar-logo {
-    width: 36px; height: 36px;
-    background: rgba(93,173,226,0.25);
-    border-radius: var(--radius-sm);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 800; color: #fff;
-    flex-shrink: 0;
-    border: 1px solid rgba(93,173,226,0.4);
-  }
-  .topbar-title { font-size: 18px; font-weight: 700; color: #fff; }
-  .topbar-subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
-  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; overflow: visible; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: var(--radius-sm);
-    background: rgba(255,255,255,0.1);
-    color: #fff;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: 'DM Sans', sans-serif;
-  }
-  .btn:hover { background: rgba(93,173,226,0.2); border-color: rgba(93,173,226,0.5); }
-  .btn-primary { background: var(--brand-accent); border-color: var(--brand-accent); color: #fff; }
-  .btn-primary:hover { background: #4a9fd4; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn:hover{background:var(--card-hover);border-color:var(--c-brand-300);color:var(--text)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{box-shadow:var(--focus-ring)}
+  .btn-primary{background:var(--brand-secondary);border-color:var(--brand-secondary);color:#fff}
+  .btn-primary:hover{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+  .btn-sm{padding:6px 11px;font-size:var(--fs-sm)}
+  .btn-ghost{background:transparent;box-shadow:none;border-color:transparent;color:var(--text-secondary)}
+  .btn-ghost:hover{background:var(--card-hover);border-color:var(--card-border)}
+  .btn-icon{padding:7px 9px;font-size:var(--fs-md)}
 
-  /* \u2500\u2500 Stats Row \u2500\u2500 */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    padding: 20px 24px 0;
+  .theme-toggle{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--surface);border:1px solid var(--card-border);color:var(--text-secondary);
+    border-radius:var(--radius-sm);padding:6px 11px;
+    font-family:var(--font-sans);font-size:var(--fs-sm);font-weight:600;cursor:pointer;
+    transition:var(--transition);box-shadow:var(--shadow-xs);
   }
-  .stat-card {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    padding: 16px;
-  }
-  .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-  .stat-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
-  .stat-value.flash-green, .flash-green { color: #00ff55 !important; animation: pulseGreen 1.5s ease-in-out infinite; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; }
-  @keyframes pulseGreen { 0%,100% { color: #00ff55 !important; text-shadow: 0 0 12px #00ff5588, 0 0 24px #00ff5544; } 50% { color: #44ff88 !important; text-shadow: 0 0 20px #00ff55cc, 0 0 40px #00ff5566; } }
+  .theme-toggle:hover{background:var(--card-hover);border-color:var(--c-brand-300);color:var(--text)}
 
-  /* -- Mobile-Optimized View -- */
-  body.mobile-mode .toolbar { flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
-  body.mobile-mode .toolbar .btn { font-size: 11px; padding: 5px 8px; }
-  body.mobile-mode .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px; }
-  body.mobile-mode .stat-card { padding: 10px; }
-  body.mobile-mode .stat-value { font-size: 20px; }
-  body.mobile-mode .stat-label { font-size: 10px; }
-  body.mobile-mode .filters-bar { flex-direction: column; padding: 8px 12px; gap: 6px; }
-  body.mobile-mode .filters-bar .filter-tab { font-size: 11px; padding: 5px 10px; }
-  body.mobile-mode .filters-bar > div { width: 100% !important; min-width: 0 !important; }
-  body.mobile-mode .view-toggle { display: none; }
-  body.mobile-mode .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  body.mobile-mode #leadsTable th:nth-child(n+6), body.mobile-mode #leadsTable td:nth-child(n+6) { display: none; }
-  body.mobile-mode .cards-grid { grid-template-columns: 1fr !important; }
-  body.mobile-mode .lead-card { padding: 12px; }
-  body.mobile-mode .accordion { padding: 12px; }
-  body.mobile-mode .acc-links { flex-direction: column; gap: 4px; }
-  .bulk-bar { display: none; align-items: center; gap: 8px; padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--card-border); flex-wrap: wrap; }
-  .bulk-bar.visible { display: flex; }
-  body.mobile-mode .bulk-bar { flex-wrap: wrap; gap: 4px; padding: 8px; }
-  body.mobile-mode .bulk-action { font-size: 10px; padding: 4px 8px; }
-  body.mobile-mode .source-pie-wrap, body.mobile-mode .conversion-mini-wrap { flex-direction: column; }
-  body.mobile-mode #smartListsPanel { flex-direction: column; }
-  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-  .stat-sub.positive { color: #1E7A9C; }
+  input,select,textarea{font-family:var(--font-sans)}
+  .field,.filter-search,.filter-select{
+    padding:8px 12px;background:var(--surface);
+    border:1px solid var(--card-border);border-radius:var(--radius-sm);
+    color:var(--text);font-size:var(--fs-base);font-weight:500;
+    outline:none;transition:var(--transition);font-family:var(--font-sans);
+  }
+  .field:hover,.filter-search:hover,.filter-select:hover{border-color:var(--c-brand-300)}
+  .field:focus,.filter-search:focus,.filter-select:focus{border-color:var(--brand-accent);box-shadow:var(--focus-ring)}
+  .filter-search::placeholder{color:var(--text-muted)}
+  .filter-select{cursor:pointer;font-weight:600;-webkit-appearance:none;appearance:none;padding-right:30px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%237C93A3'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center}
+  .select-onbrand{
+    padding:7px 11px;border:1px solid var(--card-border);border-radius:var(--radius-sm);
+    background:var(--surface);color:var(--text);font-family:var(--font-sans);
+    font-size:var(--fs-sm);font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none;
+    padding-right:28px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%237C93A3'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    box-shadow:var(--shadow-xs);transition:var(--transition)}
+  .select-onbrand:hover{border-color:var(--c-brand-300)}
+  input[type=checkbox]{accent-color:var(--brand-secondary);width:15px;height:15px;cursor:pointer}
 
-  /* \u2500\u2500 Toolbar Dropdown Menus \u2500\u2500 */
-  .toolbar-dropdown { position: relative; display: inline-block; }
-  .toolbar-dropdown-btn { cursor: pointer; }
-  .toolbar-dropdown-content {
-    display: none; position: absolute; top: 100%; left: 0; z-index: 1000;
-    background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4); min-width: 200px; padding: 6px 0;
-    margin-top: 4px;
+  /* Dropdown menus */
+  .toolbar-dropdown{position:relative;display:inline-block}
+  .toolbar-dropdown-btn{cursor:pointer}
+  .toolbar-dropdown-content{
+    display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:1000;
+    background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);min-width:232px;padding:6px;
   }
-  .toolbar-dropdown.open .toolbar-dropdown-content { display: block; }
-  .toolbar-dropdown-content button {
-    display: block; width: 100%; text-align: left; padding: 8px 16px;
-    border: none; background: none; color: var(--text); font-size: 12px;
-    font-family: inherit; cursor: pointer; white-space: nowrap;
+  .toolbar-dropdown.open .toolbar-dropdown-content{display:block;animation:menuIn 0.14s ease-out}
+  @keyframes menuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .toolbar-dropdown-content button{
+    display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+    padding:8px 10px;border:none;background:none;color:var(--text);
+    font-size:var(--fs-sm);font-weight:600;font-family:var(--font-sans);
+    cursor:pointer;white-space:nowrap;border-radius:var(--radius-xs);transition:var(--transition);
   }
-  .toolbar-dropdown-content button:hover { background: var(--brand-primary); color: #fff; border-radius: 4px; }
+  .toolbar-dropdown-content button:hover{background:var(--brand-chip);color:var(--brand-primary)}
 
-  /* \u2500\u2500 Filters Bar \u2500\u2500 */
-  .filters-bar {
-    padding: 16px 24px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
+  /* ==========================================================================
+     KPI CARDS
+     ========================================================================== */
+  .stats-row{display:grid;gap:var(--sp-3)}
+  .kpi-primary{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .kpi-secondary{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .stat-card{
+    position:relative;overflow:hidden;
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--radius);padding:var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-5);
+    box-shadow:var(--shadow-sm);transition:var(--transition);
   }
-  .filter-tab {
-    padding: 7px 14px;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    background: var(--card);
-    color: var(--text-secondary);
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: 'DM Sans', sans-serif;
-  }
-  .filter-tab:hover { color: var(--text); border-color: var(--brand-accent); }
-  .filter-tab.active { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
-  .filter-search {
-    flex: 1; min-width: 200px;
-    padding: 8px 14px;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: 13px;
-    outline: none;
-    transition: var(--transition);
-    font-family: 'DM Sans', sans-serif;
-  }
-  .filter-search:focus { border-color: var(--brand-accent); }
-  .filter-search::placeholder { color: var(--text-muted); }
+  .stat-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--kpi-accent,var(--card-border));transition:var(--transition)}
+  .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--c-brand-300)}
+  .stat-card.is-clickable{cursor:pointer}
+  .stat-label{font-size:var(--fs-xs);color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .stat-value{font-size:var(--fs-2xl);font-weight:800;color:var(--text);line-height:1.05;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+  .stat-sub{font-size:var(--fs-xs);color:var(--text-muted);margin-top:5px;font-weight:500}
+  .stat-sub.positive{color:var(--brand-secondary);font-weight:700}
+  .kpi-secondary .stat-card{padding:var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-4)}
+  .kpi-secondary .stat-card:before{width:0}
+  .kpi-secondary .stat-value{font-size:var(--fs-xl)}
+  .stat-value.flash-green,.flash-green{color:var(--green) !important;animation:pulseGreen 2s ease-in-out infinite;text-shadow:none}
+  @keyframes pulseGreen{0%,100%{opacity:1}50%{opacity:0.62}}
 
-  /* \u2500\u2500 Table \u2500\u2500 */
-  .table-wrap {
-    padding: 0 24px 24px;
-    overflow-x: auto;
+  /* ==========================================================================
+     PANELS
+     ========================================================================== */
+  .panel{
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--radius);padding:var(--sp-5);box-shadow:var(--shadow-sm);
   }
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    background: var(--surface);
-    border-bottom: 1px solid var(--card-border);
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-    cursor: pointer;
-    user-select: none;
-  }
-  thead th:hover { color: var(--text); }
-  tbody tr { border-bottom: 1px solid rgba(42,51,72,0.5); transition: background var(--transition); }
-  tbody tr:hover { background: rgba(30,37,53,0.6); }
-  tbody td { padding: 10px 12px; vertical-align: middle; }
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-bottom:var(--sp-4)}
+  .panel-title{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-secondary);display:flex;align-items:center;gap:7px}
+  .panel-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)}
+  #contactsViewPanel>*+*,#sourceViewPanel>*+*,#geoViewPanel>*+*,#buyerViewPanel>*+*,#sellerViewPanel>*+*{margin-top:var(--sp-4)}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap}
+  .section-title{font-size:var(--fs-lg);font-weight:800;color:var(--text);letter-spacing:-0.015em}
+  .section-desc{font-size:var(--fs-sm);color:var(--text-muted)}
 
-  /* score bar */
-  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
-  .score-bar {
-    flex: 1; height: 6px;
-    background: var(--card-border);
-    border-radius: 3px;
-    overflow: hidden;
-    min-width: 60px;
+  /* ==========================================================================
+     FILTER BAR
+     ========================================================================== */
+  .filters-bar{
+    display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center;
+    padding:var(--sp-3);background:var(--card);
+    border:1px solid var(--card-border);border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
   }
-  .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
-  .score-num { font-size: 12px; font-weight: 700; color: var(--text); min-width: 28px; text-align: right; }
+  .filter-cluster{display:inline-flex;align-items:center;gap:2px;padding:3px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-sm)}
+  .filter-tab{
+    padding:6px 13px;border:1px solid transparent;border-radius:var(--radius-xs);
+    background:transparent;color:var(--text-secondary);
+    font-size:var(--fs-base);font-weight:600;cursor:pointer;
+    transition:var(--transition);font-family:var(--font-sans);white-space:nowrap;
+  }
+  .filter-tab:hover{color:var(--text);background:var(--card)}
+  .filter-tab.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff;box-shadow:var(--shadow-xs)}
+  .filter-search{flex:1;min-width:220px}
+  .filter-spacer{flex:1}
+  .view-toggle{display:inline-flex;padding:3px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-sm);gap:2px}
+  .view-toggle-btn{
+    padding:5px 13px;font-size:var(--fs-sm);font-weight:700;
+    background:transparent;color:var(--text-secondary);border:none;border-radius:var(--radius-xs);
+    cursor:pointer;transition:var(--transition);font-family:var(--font-sans);
+  }
+  .view-toggle-btn:hover:not(.active){color:var(--text);background:var(--card)}
+  .view-toggle-btn.active{background:var(--brand-primary);color:#fff;box-shadow:var(--shadow-xs)}
+  #smartListsPanel{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  #smartListsPanel:not(:empty){padding:var(--sp-3);background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);flex-direction:column;align-items:stretch}
+
+  /* Search affordances */
+  .search-wrap{flex:1;min-width:240px;position:relative;display:flex}
+  .search-actions{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;gap:2px}
+  .search-actions button{background:none;border:none;cursor:pointer;font-size:var(--fs-md);padding:3px 5px;color:var(--text-muted);border-radius:var(--radius-xs);transition:var(--transition)}
+  .search-actions button:hover{color:var(--brand-accent);background:var(--brand-chip)}
+  #presetMenu{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+
+  /* ==========================================================================
+     BULK BAR
+     ========================================================================== */
+  .bulk-bar{
+    display:none;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+    padding:var(--sp-3) var(--sp-4);
+    background:var(--brand-chip);border:1px solid var(--c-brand-200);
+    border-radius:var(--radius);box-shadow:var(--shadow-sm);
+  }
+  .bulk-bar.visible{display:flex;animation:menuIn 0.16s ease-out}
+  .bulk-count{font-size:var(--fs-base);font-weight:800;color:var(--brand-primary);margin-right:var(--sp-2);white-space:nowrap}
+  .bulk-action{
+    padding:5px 11px;border:1px solid var(--card-border);border-radius:var(--radius-xs);
+    background:var(--surface);color:var(--text);
+    font-family:var(--font-sans);font-size:var(--fs-sm);font-weight:600;
+    cursor:pointer;transition:var(--transition);white-space:nowrap;
+  }
+  .bulk-action:hover{border-color:var(--brand-accent);color:var(--brand-accent)}
+  .bulk-close{margin-left:auto;background:none;border:none;color:var(--brand-primary);font-size:var(--fs-md);cursor:pointer;padding:4px 8px;border-radius:var(--radius-xs);font-weight:700}
+  .bulk-close:hover{background:rgba(255,255,255,0.6)}
+
+  /* ==========================================================================
+     TABLE
+     ========================================================================== */
+  .table-wrap{
+    background:var(--card);border:1px solid var(--card-border);
+    border-radius:var(--radius);overflow:auto;box-shadow:var(--shadow-sm);
+    max-width:100%;
+  }
+  table{width:100%;border-collapse:collapse}
+  thead th{
+    position:sticky;top:0;z-index:5;
+    background:var(--surface-2);
+    border-bottom:1px solid var(--card-border);
+    padding:11px var(--sp-3);text-align:left;
+    font-size:var(--fs-xs);font-weight:800;color:var(--text-secondary);
+    text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;
+    cursor:pointer;user-select:none;transition:var(--transition);
+  }
+  thead th:hover{color:var(--brand-accent)}
+  thead th:first-child{padding-left:var(--sp-4)}
+  thead th:last-child{padding-right:var(--sp-4)}
+  tbody tr{border-bottom:1px solid var(--card-border);transition:background var(--transition)}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--card-hover)}
+  tbody td{padding:11px var(--sp-3);vertical-align:middle;font-size:var(--fs-base)}
+  tbody td:first-child{padding-left:var(--sp-4)}
+  tbody td:last-child{padding-right:var(--sp-4)}
+  .table-wrap table{min-width:1180px}
+  /* The actions cell is a flex-wrap:wrap row of 5 buttons emitted by the app JS.
+     Left to wrap it stacked one-per-line and blew row height out to ~150px.
+     The table already scrolls horizontally, so keep the buttons on one line. */
+  #leadsTable td:last-child,#leadsTable th:last-child{white-space:nowrap}
+  #leadsTable td:last-child>div{flex-wrap:nowrap !important;gap:4px}
+  #leadsTable td:last-child .btn{padding:5px 9px;font-size:var(--fs-sm)}
+
+  /* score */
+  .score-bar-wrap{display:flex;align-items:center;gap:var(--sp-2)}
+  .score-bar{flex:1;height:6px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-pill);overflow:hidden;min-width:56px}
+  .score-bar-fill{height:100%;border-radius:var(--radius-pill);transition:width 0.5s cubic-bezier(0.4,0,0.2,1)}
+  .score-num{font-size:var(--fs-base);font-weight:800;color:var(--text);min-width:26px;text-align:right;font-variant-numeric:tabular-nums}
 
   /* badges */
-  .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-size: 11px; font-weight: 700;
-    white-space: nowrap;
+  .badge{
+    display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+    border-radius:var(--radius-pill);font-size:var(--fs-xs);font-weight:800;
+    white-space:nowrap;letter-spacing:0.02em;
   }
-  .badge-hot { background: var(--stat-hot-bg); color: var(--stat-hot-color); }
-  .badge-warm { background: var(--stat-warm-bg); color: var(--stat-warm-color); }
-  .badge-cold { background: var(--stat-cold-bg); color: var(--stat-cold-color); }
-  .badge-new { background: var(--stat-new-bg); color: var(--stat-new-color); }
-  .badge-ylopo { background: var(--accent-soft); color: var(--accent); }
-  .badge-showing { background: var(--beh-showing-bg); color: var(--beh-showing-color); }
+  .badge-hot{background:var(--stat-hot-bg);color:var(--stat-hot-color)}
+  .badge-warm{background:var(--stat-warm-bg);color:var(--stat-warm-color)}
+  .badge-cold{background:var(--stat-cold-bg);color:var(--stat-cold-color)}
+  .badge-new{background:var(--stat-new-bg);color:var(--stat-new-color)}
+  .badge-ylopo{background:var(--accent-soft);color:var(--accent)}
+  .badge-showing{background:var(--beh-showing-bg);color:var(--beh-showing-color)}
+  .source-badge{display:inline-block;padding:3px 9px;border-radius:var(--radius-xs);font-size:var(--fs-2xs);font-weight:800;text-transform:uppercase;letter-spacing:0.05em}
+  .source-ylopo{background:var(--src-ylopo-bg);color:var(--src-ylopo-color)}
+  .source-myplusleads,.source-myleads,.source-plusleads{background:var(--src-myplus-bg);color:var(--src-myplus-color)}
+  .source-zillow{background:var(--src-zillow-bg);color:var(--src-zillow-color)}
+  .source-realtor{background:var(--src-realtor-bg);color:var(--src-realtor-color)}
+  .source-homes{background:var(--src-homes-bg);color:var(--src-homes-color)}
+  .source-default{background:var(--src-default-bg);color:var(--src-default-color)}
+  .type-badge{display:inline-block;padding:3px 9px;border-radius:var(--radius-xs);font-size:var(--fs-2xs);font-weight:800;text-transform:uppercase;letter-spacing:0.05em}
+  .type-seller{background:var(--type-seller-bg);color:var(--type-seller-color)}
+  .type-buyer{background:var(--type-buyer-bg);color:var(--type-buyer-color)}
+  .type-default{background:var(--type-def-bg);color:var(--type-def-color)}
 
-  /* matrix mini */
-  .matrix-mini { display: flex; gap: 6px; flex-wrap: wrap; }
-  .mm { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
-  .mm span { font-weight: 700; color: var(--text); }
+  .matrix-mini{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+  .mm{font-size:var(--fs-xs);color:var(--text-secondary);white-space:nowrap}
+  .mm span{font-weight:800;color:var(--text)}
 
-  /* expand arrow */
-  .expand-arrow {
-    display: inline-block;
-    width: 20px; height: 20px;
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center; line-height: 20px;
-    font-size: 10px;
-    transition: transform var(--transition);
-    user-select: none;
+  .expand-arrow{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;background:var(--surface-2);
+    border:1px solid var(--card-border);border-radius:var(--radius-xs);
+    cursor:pointer;font-size:var(--fs-2xs);color:var(--text-secondary);
+    transition:var(--transition);user-select:none;
   }
-  .expand-arrow.open { transform: rotate(90deg); background: var(--brand-chip); color: var(--brand-primary); }
-  tr.detail-row td { padding: 0; }
-  tr.detail-row { display: none; }
-  tr.detail-row.open { display: table-row; }
+  .expand-arrow:hover{border-color:var(--brand-accent);color:var(--brand-accent)}
+  .expand-arrow.open{transform:rotate(90deg);background:var(--brand-chip);color:var(--brand-primary);border-color:var(--c-brand-200)}
+  tr.detail-row td{padding:0}
+  tr.detail-row{display:none}
+  tr.detail-row.open{display:table-row}
 
-  /* \u2500\u2500 Accordion \u2500\u2500 */
-  .accordion {
-    background: linear-gradient(135deg, rgba(30,37,53,0.95), rgba(22,27,39,0.95));
-    border-left: 3px solid var(--brand-accent);
-    padding: 20px 24px;
-  }
-  .acc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-  .acc-section {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    padding: 16px;
-  }
-  .acc-section-title {
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--text-secondary);
-    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
-  }
-  .acc-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
-  .acc-row:last-child { margin-bottom: 0; }
-  .acc-label { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
-  .acc-value { font-size: 12px; color: var(--text); font-weight: 600; text-align: right; word-break: break-word; max-width: 200px; }
+  /* Row action links */
+  .card-link-ghl,.card-link-ylopo{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:var(--radius-xs);font-size:var(--fs-xs);font-weight:700;text-decoration:none;transition:var(--transition);border:1px solid transparent}
+  .card-link-ghl{background:var(--blue-soft);color:var(--blue)}
+  .card-link-ghl:hover{background:var(--blue);color:#fff;text-decoration:none}
+  .card-link-ylopo{background:var(--yellow-soft);color:var(--yellow)}
+  .card-link-ylopo:hover{background:var(--yellow);color:#fff;text-decoration:none}
 
-  /* property preferences grid */
-  .prop-grid { display: grid; gap: 10px; margin-bottom: 12px; }
-  .prop-item {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    padding: 10px;
-    text-align: center;
+  /* ==========================================================================
+     ACCORDION / DETAIL
+     ========================================================================== */
+  .accordion{background:var(--surface-2);border-left:3px solid var(--brand-accent);padding:var(--sp-5) var(--sp-6)}
+  .acc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--sp-4)}
+  .acc-section{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:var(--sp-4);box-shadow:var(--shadow-xs)}
+  .acc-section-title{font-size:var(--fs-xs);font-weight:800;text-transform:uppercase;letter-spacing:0.09em;color:var(--text-secondary);margin-bottom:var(--sp-3);display:flex;align-items:center;gap:6px;padding-bottom:var(--sp-2);border-bottom:1px solid var(--card-border)}
+  .acc-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;gap:var(--sp-2)}
+  .acc-row:last-child{margin-bottom:0}
+  .acc-label{font-size:var(--fs-sm);color:var(--text-secondary);flex-shrink:0}
+  .acc-value{font-size:var(--fs-sm);color:var(--text);font-weight:700;text-align:right;word-break:break-word;max-width:200px}
+  .acc-links{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-3)}
+  .acc-link{
+    display:inline-flex;align-items:center;gap:5px;padding:6px 12px;
+    border:1px solid var(--card-border);border-radius:var(--radius-sm);
+    background:var(--card);color:var(--text);font-size:var(--fs-sm);font-weight:600;
+    cursor:pointer;transition:var(--transition);text-decoration:none;
   }
-  .pi-icon { font-size: 18px; margin-bottom: 4px; }
-  .pi-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .pi-value { font-size: 13px; font-weight: 700; color: var(--text); margin-top: 2px; }
+  .acc-link:hover{border-color:var(--brand-accent);color:var(--brand-accent);text-decoration:none;background:var(--brand-chip)}
 
-  /* score breakdown */
-  .score-breakdown { display: flex; flex-direction: column; gap: 6px; }
-  .sb-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .sb-label { width: 90px; color: var(--text-secondary); flex-shrink: 0; }
-  .sb-bar { flex: 1; height: 5px; background: var(--card-border); border-radius: 3px; overflow: hidden; }
-  .sb-fill { height: 100%; border-radius: 3px; }
-  .sb-val { width: 30px; text-align: right; font-weight: 700; }
+  .prop-grid{display:grid;gap:var(--sp-3);margin-bottom:var(--sp-3)}
+  .prop-item{background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:var(--sp-3);text-align:center}
+  .pi-icon{font-size:var(--fs-xl);margin-bottom:4px}
+  .pi-label{font-size:var(--fs-2xs);color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:700}
+  .pi-value{font-size:var(--fs-base);font-weight:800;color:var(--text);margin-top:2px}
 
-  /* tags */
-  .tags-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
-  .tag {
-    display: inline-block;
-    padding: 2px 8px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--card-border);
-    border-radius: 20px;
-    font-size: 11px; color: var(--text-secondary);
-  }
+  .score-breakdown{display:flex;flex-direction:column;gap:7px}
+  .sb-row{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-sm)}
+  .sb-label{width:90px;color:var(--text-secondary);flex-shrink:0}
+  .sb-bar{flex:1;height:5px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-pill);overflow:hidden}
+  .sb-fill{height:100%;border-radius:var(--radius-pill)}
+  .sb-val{width:30px;text-align:right;font-weight:800}
 
-  /* links */
-  .acc-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .acc-link {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 12px;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 12px; font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    text-decoration: none;
-  }
-  .acc-link:hover { border-color: var(--brand-accent); color: var(--brand-accent); text-decoration: none; }
+  .tags-wrap{display:flex;flex-wrap:wrap;gap:5px}
+  .tag{display:inline-block;padding:3px 9px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-pill);font-size:var(--fs-xs);color:var(--text-secondary);font-weight:600}
 
-  /* Pagination */
-  .pagination {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; padding: 16px 24px; flex-wrap: wrap;
-  }
-  .page-btn {
-    min-width: 32px; height: 32px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-xs);
-    background: var(--card);
-    color: var(--text-secondary);
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    padding: 0 8px;
-    font-family: 'DM Sans', sans-serif;
-  }
-  .page-btn:hover { border-color: var(--brand-accent); color: var(--text); }
-  .page-btn.active { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
-  .page-btn:disabled { opacity: 0.4; cursor: default; }
+  /* ==========================================================================
+     CARD VIEW
+     ========================================================================== */
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--sp-4)}
+  .contact-card{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);padding:var(--sp-5);box-shadow:var(--shadow-sm);transition:var(--transition)}
+  .contact-card:hover{border-color:var(--brand-accent);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .contact-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);margin-bottom:var(--sp-3)}
+  .contact-card-name{font-size:var(--fs-lg);font-weight:800;color:var(--text);margin-bottom:2px;letter-spacing:-0.015em}
+  .contact-card-email{font-size:var(--fs-xs);color:var(--text-muted);word-break:break-all}
+  .contact-card-phone{font-size:var(--fs-xs);color:var(--text-secondary)}
+  .contact-card-score{display:flex;align-items:center;gap:var(--sp-2);margin:var(--sp-3) 0}
+  .contact-card-activity{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin:var(--sp-3) 0}
+  .contact-card-meta{display:flex;justify-content:space-between;align-items:center;font-size:var(--fs-xs);color:var(--text-muted);margin-top:var(--sp-3);padding-top:var(--sp-3);border-top:1px solid var(--card-border)}
 
-  /* Toast */
-  #toast-container {
-    position: fixed; bottom: 24px; right: 24px;
-    display: flex; flex-direction: column; gap: 8px;
-    z-index: 9999;
+  /* ==========================================================================
+     PAGINATION
+     ========================================================================== */
+  .pagination{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);flex-wrap:wrap;padding:var(--sp-2) 2px}
+  .page-btn{
+    min-width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--card-border);border-radius:var(--radius-xs);
+    background:var(--card);color:var(--text-secondary);
+    font-size:var(--fs-base);font-weight:700;cursor:pointer;
+    transition:var(--transition);padding:0 9px;font-family:var(--font-sans);
   }
-  .toast {
-    padding: 12px 20px;
-    border-radius: var(--radius-sm);
-    font-size: 13px; font-weight: 600;
-    box-shadow: var(--shadow);
-    animation: slideIn 0.3s ease;
-    max-width: 360px;
-  }
-  .toast-info { background: var(--card); border: 1px solid var(--brand-accent); color: var(--text); }
-  .toast-success { background: var(--green-soft); border: 1px solid var(--green); color: var(--green); }
-  .toast-error { background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
-  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .page-btn:hover:not(:disabled){border-color:var(--brand-accent);color:var(--brand-accent);background:var(--brand-chip)}
+  .page-btn.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+  .page-btn:disabled{opacity:0.4;cursor:default}
 
-  /* Loading */
-  .loading-overlay {
-    position: fixed; inset: 0;
-    background: rgba(15,17,23,0.85);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 500;
-    flex-direction: column; gap: 16px;
-  }
-  .spinner {
-    width: 48px; height: 48px;
-    border: 4px solid var(--card-border);
-    border-top-color: var(--brand-accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text { color: var(--text-secondary); font-size: 14px; }
+  /* ==========================================================================
+     FEEDBACK - toast, loading, modal
+     ========================================================================== */
+  #toast-container{position:fixed;bottom:var(--sp-6);right:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-2);z-index:9999}
+  .toast{padding:12px 18px;border-radius:var(--radius-sm);font-size:var(--fs-base);font-weight:600;box-shadow:var(--shadow-lg);animation:slideIn 0.28s cubic-bezier(0.4,0,0.2,1);max-width:360px;border:1px solid var(--card-border);background:var(--surface);color:var(--text)}
+  .toast-info{border-color:var(--brand-accent)}
+  .toast-success{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+  .toast-error{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+  @keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}
 
-  /* Modal (diagnostics) */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 200;
-    display: none; align-items: center; justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    max-width: 90vw; max-height: 80vh;
-    overflow: auto; padding: 24px;
-    min-width: 320px;
-  }
-  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-  .modal-close { float: right; cursor: pointer; color: var(--text-secondary); font-size: 20px; line-height: 1; }
-  .diag-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .diag-table th, .diag-table td { padding: 6px 10px; border: 1px solid var(--card-border); text-align: left; }
-  .diag-table th { background: var(--card); font-weight: 700; color: var(--text-secondary); }
-  .diag-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .loading-overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:500;flex-direction:column;gap:var(--sp-4)}
+  .spinner{width:44px;height:44px;border:3px solid var(--card-border);border-top-color:var(--brand-accent);border-radius:50%;animation:spin 0.8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{color:var(--text);font-size:var(--fs-md);font-weight:600}
 
-  /* Hidden sink */
-  .hidden { display: none !important; }
-  .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+  .modal-overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;padding:var(--sp-4)}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius-lg);max-width:90vw;max-height:82vh;overflow:auto;padding:var(--sp-6);min-width:320px;box-shadow:var(--shadow-lg)}
+  .modal-title{font-size:var(--fs-lg);font-weight:800;margin-bottom:var(--sp-4);letter-spacing:-0.015em}
+  .modal-close{float:right;cursor:pointer;color:var(--text-muted);font-size:var(--fs-xl);line-height:1;transition:var(--transition)}
+  .modal-close:hover{color:var(--red)}
+  .diag-table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+  .diag-table th,.diag-table td{padding:7px 10px;border:1px solid var(--card-border);text-align:left}
+  .diag-table th{background:var(--surface-2);font-weight:800;color:var(--text-secondary)}
+  .diag-table tr:nth-child(even) td{background:var(--surface-2)}
 
-  /* Toggle */
-  .toggle { position:relative; display:inline-block; width:34px; height:18px; }
-  .toggle input { opacity:0; width:0; height:0; }
-  .slider { position:absolute; cursor:pointer; inset:0; background:var(--card-border); border-radius:18px; transition:var(--transition); }
-  .slider:before { position:absolute; content:""; height:12px; width:12px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:var(--transition); }
-  .toggle input:checked+.slider { background: var(--brand-accent); }
-  .toggle input:checked+.slider:before { transform: translateX(16px); }
+  /* ==========================================================================
+     COLOR CUSTOMIZER PANEL
+     ========================================================================== */
+  .color-panel-overlay{display:none;position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(3px);z-index:9999;align-items:center;justify-content:center;padding:var(--sp-4)}
+  .color-panel-overlay.open{display:flex}
+  .color-panel{background:var(--surface);border:1px solid var(--card-border);border-radius:var(--radius-lg);padding:var(--sp-6);width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+  .color-panel h3{font-size:var(--fs-lg);font-weight:800;margin-bottom:var(--sp-5);color:var(--text);display:flex;align-items:center;gap:var(--sp-2)}
+  .color-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-2);padding:9px 11px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--card-border)}
+  .color-row label{font-size:var(--fs-base);font-weight:700;color:var(--text)}
+  .color-row input[type=color]{width:36px;height:28px;border:1px solid var(--card-border);border-radius:var(--radius-xs);cursor:pointer;padding:2px;background:var(--surface)}
+  .color-row .preview{font-size:var(--fs-2xs);font-weight:800;text-transform:uppercase;padding:3px 9px;border-radius:var(--radius-xs);letter-spacing:0.05em;min-width:64px;text-align:center}
+  .color-panel-btns{display:flex;gap:var(--sp-2);margin-top:var(--sp-5)}
+  .color-panel-btns button{flex:1;padding:10px;border-radius:var(--radius-sm);font-size:var(--fs-base);font-weight:700;cursor:pointer;border:1px solid transparent;font-family:var(--font-sans);transition:var(--transition)}
+  .cp-save{background:var(--brand-secondary);color:#fff}
+  .cp-save:hover{background:var(--brand-primary)}
+  .cp-reset{background:var(--surface-2);color:var(--text);border-color:var(--card-border)}
+  .cp-close{background:var(--red-soft);color:var(--red)}
+  .cp-tabs{display:flex;gap:2px;margin-bottom:var(--sp-4);padding:3px;background:var(--surface-2);border:1px solid var(--card-border);border-radius:var(--radius-sm)}
+  .cp-tab{flex:1;padding:7px 4px;border:none;border-radius:var(--radius-xs);font-size:var(--fs-xs);font-weight:800;cursor:pointer;background:transparent;color:var(--text-muted);transition:var(--transition);font-family:var(--font-sans)}
+  .cp-tab:hover{color:var(--text)}
+  .cp-tab.active{background:var(--brand-primary);color:#fff}
+  .cp-section{display:none}
+  .cp-section.active{display:block}
+  .cp-add-row{display:flex;gap:6px;align-items:center;margin-top:var(--sp-2);padding:var(--sp-2);border:1px dashed var(--card-border);border-radius:var(--radius-sm)}
+  .cp-add-row input[type=text]{flex:1;padding:6px 9px;border:1px solid var(--card-border);border-radius:var(--radius-xs);background:var(--surface);color:var(--text);font-size:var(--fs-sm)}
+  .cp-add-btn{padding:6px 11px;border:none;border-radius:var(--radius-xs);background:var(--brand-secondary);color:#fff;font-size:var(--fs-xs);font-weight:800;cursor:pointer;font-family:var(--font-sans)}
+  .cp-del-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:var(--fs-md);padding:0 4px;line-height:1}
+  .cp-lock{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3);padding:var(--sp-5) 0}
+  .cp-lock input{width:220px;padding:9px 12px;border:1px solid var(--card-border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:var(--fs-md);text-align:center}
+  .cp-lock button{padding:9px 22px;border:none;border-radius:var(--radius-sm);background:var(--brand-secondary);color:#fff;font-size:var(--fs-base);font-weight:700;cursor:pointer;font-family:var(--font-sans)}
 
-  /* \u2500\u2500 Card View \u2500\u2500 */
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-    padding: 0 24px 24px;
+  /* ==========================================================================
+     UTILITIES
+     ========================================================================== */
+  .hidden{display:none !important}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .toggle{position:relative;display:inline-block;width:36px;height:20px}
+  .toggle input{opacity:0;width:0;height:0}
+  .slider{position:absolute;cursor:pointer;inset:0;background:var(--card-border);border-radius:var(--radius-pill);transition:var(--transition)}
+  .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:var(--transition);box-shadow:var(--shadow-xs)}
+  .toggle input:checked+.slider{background:var(--brand-secondary)}
+  .toggle input:checked+.slider:before{transform:translateX(16px)}
+  .empty-state{text-align:center;padding:var(--sp-10) var(--sp-6);color:var(--text-muted);font-size:var(--fs-md)}
+
+  /* ==========================================================================
+     RESPONSIVE
+     ========================================================================== */
+  @media (max-width:1280px){
+    .kpi-primary{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .kpi-secondary{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
-  .contact-card {
-    background: var(--card);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius);
-    padding: 20px;
-    transition: border-color var(--transition), box-shadow var(--transition);
+  @media (max-width:1080px){
+    .app-shell{flex-direction:column;align-items:stretch}
+    .app-main{width:100%;max-width:100vw;overflow-x:hidden}
+    .topbar{position:static}
+    .topbar-right{justify-content:flex-start}
+    .sidenav{
+      width:100%;flex:none;height:auto;max-width:100vw;position:sticky;top:var(--staging-top);
+      flex-direction:row;align-items:center;gap:var(--sp-3);
+      padding:var(--sp-3) var(--sp-4);overflow-x:auto;overflow-y:hidden;
+    }
+    .sidenav-brand{padding-bottom:0;border-bottom:none;border-right:1px solid rgba(255,255,255,0.14);padding-right:var(--sp-4);flex-shrink:0}
+    .sidenav-label{display:none}
+    .sidenav-group{flex-direction:row;gap:4px;flex-shrink:0}
+    .nav-item{white-space:nowrap;padding:7px 11px}
+    .nav-item.active:before{display:none}
+    .sidenav-foot{margin-top:0;padding-top:0;border-top:none;border-left:1px solid rgba(255,255,255,0.14);padding-left:var(--sp-4);flex-shrink:0}
+    .sidenav-meta{display:none}
+    .panel-grid-2{grid-template-columns:1fr}
+    .topbar{flex-wrap:wrap;gap:var(--sp-2)}
   }
-  .contact-card:hover {
-    border-color: var(--brand-accent);
-    box-shadow: 0 4px 20px rgba(93,173,226,0.15);
-  }
-  .contact-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-  }
-  .contact-card-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-  .contact-card-email {
-    font-size: 11px;
-    color: var(--text-muted);
-    word-break: break-all;
-  }
-  .contact-card-phone {
-    font-size: 11px;
-    color: var(--text-secondary);
-  }
-  .contact-card-score {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 12px 0;
-  }
-  .contact-card-activity {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin: 10px 0;
-  }
-  .contact-card-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--card-border);
-  }
-  .view-toggle {
-    display: inline-flex;
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-  .view-toggle-btn {
-    padding: 6px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--card);
-    color: var(--text-secondary);
-    border: none;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: 'DM Sans', sans-serif;
-  }
-  .view-toggle-btn.active {
-    background: var(--brand-primary);
-    color: #fff;
-  }
-  .view-toggle-btn:hover:not(.active) {
-    color: var(--text);
+  @media (max-width:768px){
+    .app-content{padding:var(--sp-4);gap:var(--sp-4)}
+    .topbar{padding:var(--sp-3) var(--sp-4)}
+    .kpi-primary,.kpi-secondary{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-2)}
+    .stat-value{font-size:var(--fs-xl)}
+    .cards-grid{grid-template-columns:1fr}
+    .acc-grid{grid-template-columns:1fr}
+    .accordion{padding:var(--sp-4)}
+    .filters-bar{padding:var(--sp-2)}
+    .filter-search{min-width:140px}
+    .topbar-subtitle{display:none}
+    .topbar-sep{display:none}
+    .topbar-right{gap:6px}
   }
 
-  /* Responsive */
-  @media (max-width: 768px) {
-    .topbar { padding: 12px 16px; }
-    .stats-row { padding: 12px 16px 0; }
-    .filters-bar { padding: 12px 16px; }
-    .table-wrap { padding: 0 16px 16px; }
-    .cards-grid { padding: 0 16px 16px; grid-template-columns: 1fr; }
-    .acc-grid { grid-template-columns: 1fr; }
+  /* ---------- Compact / mobile-mode toggle (existing feature) ---------- */
+  body.mobile-mode .app-content{padding:var(--sp-3);gap:var(--sp-3)}
+  body.mobile-mode .toolbar{flex-wrap:wrap;padding:var(--sp-2) var(--sp-3);gap:6px}
+  body.mobile-mode .toolbar .btn{font-size:var(--fs-xs);padding:5px 8px}
+  body.mobile-mode .stats-row{grid-template-columns:1fr 1fr;gap:var(--sp-2)}
+  body.mobile-mode .stat-card{padding:var(--sp-3)}
+  body.mobile-mode .stat-value{font-size:var(--fs-xl)}
+  body.mobile-mode .stat-label{font-size:var(--fs-2xs)}
+  body.mobile-mode .filters-bar{flex-direction:column;align-items:stretch;gap:6px}
+  body.mobile-mode .filters-bar .filter-tab{font-size:var(--fs-xs);padding:5px 10px}
+  body.mobile-mode .search-wrap{width:100%;min-width:0}
+  body.mobile-mode .view-toggle{display:none}
+  body.mobile-mode .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  body.mobile-mode .table-wrap table{min-width:0}
+  body.mobile-mode #leadsTable th:nth-child(n+6),body.mobile-mode #leadsTable td:nth-child(n+6){display:none}
+  body.mobile-mode .cards-grid{grid-template-columns:1fr !important}
+  body.mobile-mode .lead-card{padding:var(--sp-3)}
+  body.mobile-mode .accordion{padding:var(--sp-3)}
+  body.mobile-mode .acc-links{flex-direction:column;gap:4px}
+  body.mobile-mode .bulk-bar{flex-wrap:wrap;gap:4px;padding:var(--sp-2)}
+  body.mobile-mode .bulk-action{font-size:var(--fs-2xs);padding:4px 8px}
+  body.mobile-mode .source-pie-wrap,body.mobile-mode .conversion-mini-wrap{flex-direction:column}
+  body.mobile-mode #smartListsPanel{flex-direction:column}
+
+  @media print{
+    .sidenav,.topbar-right,.filters-bar,.pagination,.bulk-bar{display:none !important}
+    .app-content{padding:0}
+    .panel,.stat-card,.table-wrap{box-shadow:none;border-color:#ccc}
   }
 </style>
 </head>
-<body>
-
-<!-- Navigation -->
-<div style="display:flex;gap:8px;padding:10px 16px;background:#0d1017;flex-wrap:wrap">
-  <a href="/dashboard" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(59,130,246,0.3);color:#60a5fa;background:rgba(59,130,246,0.1)">\u{1F3E0} Hub</a>
-  <a href="/dashboard/priority-leads" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;background:rgba(239,68,68,0.1)">\u{1F525} Priority</a>
-  <a href="/dashboard/ylopo-analytics" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(168,85,247,0.3);color:#c084fc;background:rgba(168,85,247,0.1)">\u{1F4CA} Analytics</a>
-  <a href="/dashboard/ylopo-contacts#source" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(234,179,8,0.3);color:#eab308;background:rgba(234,179,8,0.1)">\u{1F4C8} Sources</a>
-  <a href="/dashboard/site-matrix" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;border:1px solid rgba(6,182,212,0.3);color:#22d3ee;background:rgba(6,182,212,0.1)">\u{1F30D} Matrix</a>
-</div>
+<body class="light-mode">
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -3255,13 +3350,13 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 
 <!-- COLOR PANEL MODAL -->
 <div class="color-panel-overlay" id="colorPanelOverlay" onclick="if(event.target===this)closeColorPanel()">
-  <div class="color-panel" style="width:460px">
+  <div class="color-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
       <h3 style="margin:0">&#127912; Badge Color Customizer</h3>
-      <button onclick="closeColorPanel()" style="background:none;border:none;color:var(--text-muted,#64748b);font-size:18px;cursor:pointer;line-height:1">&#10005;</button>
+      <button onclick="closeColorPanel()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1">&#10005;</button>
     </div>
     <div id="cpLock" class="cp-lock">
-      <p style="margin:0;font-size:13px;color:var(--text-muted,#64748b)">&#128274; Admin access required</p>
+      <p style="margin:0;font-size:13px;color:var(--text-muted)">&#128274; Admin access required</p>
       <input type="password" id="cpPassword" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')cpUnlock()">
       <button onclick="cpUnlock()">Unlock</button>
     </div>
@@ -3311,7 +3406,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
         <div class="color-row"><label>Showing</label><input type="color" id="cp-beh-showing-bg" oninput="cpPrev('beh-showing')"><input type="color" id="cp-beh-showing-color" oninput="cpPrev('beh-showing')"><span class="preview" id="cp-beh-showing-preview">SHOWING</span></div>
         <div class="color-row"><label>Stale</label><input type="color" id="cp-beh-stale-bg" oninput="cpPrev('beh-stale')"><input type="color" id="cp-beh-stale-color" oninput="cpPrev('beh-stale')"><span class="preview" id="cp-beh-stale-preview">STALE</span></div>
       </div>
-      <p style="font-size:11px;color:var(--text-muted,#64748b);margin:10px 0 4px">Left = background color &nbsp;|&nbsp; Right = text color</p>
+      <p style="font-size:11px;color:var(--text-muted);margin:10px 0 4px">Left = background color &nbsp;|&nbsp; Right = text color</p>
       <div class="color-panel-btns">
         <button class="cp-save" onclick="saveColorSettings()">Save All</button>
         <button class="cp-reset" onclick="resetColorSettings()">Reset Defaults</button>
@@ -3330,337 +3425,426 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   </div>
 </div>
 
-<!-- Top Bar -->
-<div class="topbar">
-  <div class="topbar-left">
-    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px">
-    <div>
-      <div class="topbar-title">The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:400">Ylopo Contacts</sup></div>
-      <div class="topbar-subtitle" id="subtitleText">Ylopo + GHL Contact Dashboard</div>
-    </div>
-    <div style="display:flex;gap:6px;margin-left:16px">
-      <a href="/dashboard/ylopo-contacts" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.3);color:#fff;background:rgba(255,255,255,0.15)">Contacts</a>
-      <a href="/dashboard/site-matrix" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)">Analytics</a>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" selected style="color:#111">30 Days</option>
-      <option value="60" style="color:#111">60 Days</option>
-      <option value="90" style="color:#111">90 Days</option>
-      <option value="180" style="color:#111">6 Months</option>
-      <option value="365" style="color:#111">1 Year</option>
-      <option value="0" style="color:#111">All Time</option>
-    </select>
-    <button class="btn btn-sm btn-primary" onclick="loadData()">Refresh</button>
-    <button class="btn btn-sm" onclick="generateAIInsights()" style="color:#00ff55;font-weight:700">&#129302; AI Insights</button>
-    <button class="btn btn-sm" onclick="toggleActivityPanel()" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
-    <button class="btn btn-sm" onclick="showDailyDigest()">&#128240; Digest</button>
+<!-- ============================== APP SHELL ============================== -->
+<div class="app-shell">
 
-    <div class="toolbar-dropdown">
-      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128200; Analytics &#9662;</button>
-      <div class="toolbar-dropdown-content">
-        <button onclick="showPerformanceAnalytics()">&#128202; Agent Leaderboard</button>
-        <button onclick="showTeamDashboard()">&#128101; Team Dashboard</button>
-        <button onclick="showMarketHeatmap()">&#128506; Market Heatmap</button>
-        <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
-        <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
-        <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
-        <button onclick="showPipelineKanban()">&#128203; Pipeline Kanban</button>
-        <button onclick="showActivityCalendar()">&#128197; Activity Calendar</button>
-        <button onclick="showSourceROI()">&#128176; Source ROI</button>
-        <button onclick="showDataQuality()">&#128202; Data Quality</button>
+  <!-- --------- Side navigation --------- -->
+  <aside class="sidenav">
+    <div class="sidenav-brand">
+      <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team">
+      <div class="sidenav-brand-text">
+        <div class="sidenav-brand-name">The Listing Team</div>
+        <div class="sidenav-brand-sub">Ylopo Contacts</div>
       </div>
     </div>
 
-    <div class="toolbar-dropdown">
-      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
-      <div class="toolbar-dropdown-content">
-        <button onclick="openColorPanel()">&#127912; Customize Badge Colors</button>
-        <button onclick="openSettingsPanel()">&#9881; Settings</button>
-        <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
-        <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
-        <button onclick="createFollowUpSequence()">&#9200; Follow-up Sequences</button>
-        <button onclick="createCustomWebhook()">&#128276; Custom Triggers</button>
-        <button onclick="enableNotifications()">&#128276; Notifications</button>
-        <button onclick="checkIntegrationHealth()">&#128313; Health Check</button>
-        <button onclick="showAutoTagRules()">&#127991; Auto-Tag Rules</button>
-        <button onclick="showDiagnostics()">&#128295; Diagnostics</button>
+    <nav class="sidenav-group" aria-label="Contact views">
+      <div class="sidenav-label">Views</div>
+      <button class="nav-item active" id="viewTabContacts" onclick="switchContactsView('contacts')"><span class="nav-ico">&#128203;</span> Contacts</button>
+      <button class="nav-item" id="viewTabSource" onclick="switchContactsView('source')"><span class="nav-ico">&#128200;</span> Source Performance</button>
+      <button class="nav-item" id="viewTabGeo" onclick="switchContactsView('geo')"><span class="nav-ico">&#127758;</span> Geography</button>
+      <button class="nav-item" id="viewTabBuyer" onclick="switchContactsView('buyer')"><span class="nav-ico">&#128269;</span> Buyer Intel</button>
+      <button class="nav-item" id="viewTabSeller" onclick="switchContactsView('seller')"><span class="nav-ico">&#127968;</span> Seller Intel</button>
+    </nav>
+
+    <nav class="sidenav-group" aria-label="Other dashboards">
+      <div class="sidenav-label">Dashboards</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-ico">&#127968;</span> Hub</a>
+      <a class="nav-item" href="/dashboard/priority-leads"><span class="nav-ico">&#128293;</span> Priority Leads</a>
+      <a class="nav-item" href="/dashboard/ylopo-analytics"><span class="nav-ico">&#128202;</span> Analytics</a>
+      <a class="nav-item" href="/dashboard/site-matrix"><span class="nav-ico">&#127760;</span> Site Matrix</a>
+    </nav>
+
+    <div class="sidenav-foot">
+      <span class="env-chip"><span class="env-dot"></span> Live</span>
+      <div class="sidenav-meta"><span id="lastLoaded"></span></div>
+      <div class="sidenav-meta"><span id="refreshCountdown"></span></div>
+    </div>
+  </aside>
+
+  <!-- --------- Main column --------- -->
+  <div class="app-main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="topbar-title"><span class="live-dot" title="Live data"></span> Ylopo Contacts</div>
+          <div class="topbar-subtitle" id="subtitleText">Ylopo + GHL Contact Dashboard</div>
+        </div>
       </div>
-    </div>
+      <div class="topbar-right">
+        <select class="select-onbrand" title="Date Range" aria-label="Date range" onchange="LOAD_DAYS=Number(this.value);loadData()">
+          <option value="30" selected>Last 30 days</option>
+          <option value="60">Last 60 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="180">Last 6 months</option>
+          <option value="365">Last year</option>
+          <option value="0">All time</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="loadData()">&#8635; Refresh</button>
+        <button class="btn btn-sm" onclick="generateAIInsights()" title="AI Insights">&#129302; AI Insights</button>
+        <button class="btn btn-sm btn-icon" onclick="toggleActivityPanel()" title="Activity" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
+        <button class="btn btn-sm btn-icon" onclick="showDailyDigest()" title="Daily digest">&#128240;</button>
 
-    <div class="toolbar-dropdown">
-      <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
-      <div class="toolbar-dropdown-content">
-        <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
-        <button onclick="compareSelectedContacts()">&#9878; Compare Selected</button>
-        <button onclick="generateDailyDigestEmail()">&#128231; Digest Email</button>
-        <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
-        <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#111;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px">0</span></button>
-        <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
-        <button onclick="bulkEnrichAllMissing()">&#127968; Bulk Enrich All Missing</button>
-        <button onclick="exportAllCSV()">&#128196; Export CSV</button>
-        <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
-        <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
+        <span class="topbar-sep"></span>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128200; Analytics &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="showPerformanceAnalytics()">&#128202; Agent Leaderboard</button>
+            <button onclick="showTeamDashboard()">&#128101; Team Dashboard</button>
+            <button onclick="showMarketHeatmap()">&#128506; Market Heatmap</button>
+            <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
+            <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
+            <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
+            <button onclick="showPipelineKanban()">&#128203; Pipeline Kanban</button>
+            <button onclick="showActivityCalendar()">&#128197; Activity Calendar</button>
+            <button onclick="showSourceROI()">&#128176; Source ROI</button>
+            <button onclick="showDataQuality()">&#128202; Data Quality</button>
+          </div>
+        </div>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="openColorPanel()">&#127912; Customize Badge Colors</button>
+            <button onclick="openSettingsPanel()">&#9881; Settings</button>
+            <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
+            <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
+            <button onclick="createFollowUpSequence()">&#9200; Follow-up Sequences</button>
+            <button onclick="createCustomWebhook()">&#128276; Custom Triggers</button>
+            <button onclick="enableNotifications()">&#128276; Notifications</button>
+            <button onclick="checkIntegrationHealth()">&#128313; Health Check</button>
+            <button onclick="showAutoTagRules()">&#127991; Auto-Tag Rules</button>
+            <button onclick="showDiagnostics()">&#128295; Diagnostics</button>
+          </div>
+        </div>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
+            <button onclick="compareSelectedContacts()">&#9878; Compare Selected</button>
+            <button onclick="generateDailyDigestEmail()">&#128231; Digest Email</button>
+            <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
+            <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#fff;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;margin-left:4px">0</span></button>
+            <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+            <button onclick="bulkEnrichAllMissing()">&#127968; Bulk Enrich All Missing</button>
+            <button onclick="exportAllCSV()">&#128196; Export CSV</button>
+            <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
+            <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
+          </div>
+        </div>
+
+        <span class="topbar-sep"></span>
+        <button class="btn btn-sm btn-icon" onclick="toggleMobileView()" title="Toggle compact view">&#128241;</button>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790; Dark</button>
       </div>
-    </div>
+    </header>
 
-    <button class="btn btn-sm" onclick="toggleMobileView()">&#128241;</button>
-    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">\u263C Light</button>
-    <span id="lastLoaded" style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap"></span>
-    <span id="refreshCountdown" style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap"></span>
-  </div>
-</div>
+    <!-- Content -->
+    <main class="app-content">
 
-<!-- Stats Row -->
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-label">Total Contacts</div>
-    <div class="stat-value flash-green" id="statTotal">&mdash;</div>
-    <div class="stat-sub">in GHL</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Hot Leads</div>
-    <div class="stat-value flash-green" id="statHot">&mdash;</div>
-    <div class="stat-sub">score &ge; 75</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Warm Leads</div>
-    <div class="stat-value" id="statWarm" style="color:var(--brand-accent)">&mdash;</div>
-    <div class="stat-sub">score 40&ndash;74</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Cold Leads</div>
-    <div class="stat-value" id="statCold" style="color:var(--brand-secondary)">&mdash;</div>
-    <div class="stat-sub">score &lt; 40</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Showing Requests</div>
-    <div class="stat-value" id="statShowings" style="color:var(--accent2)">&mdash;</div>
-    <div class="stat-sub">this period</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">New This Week</div>
-    <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
-    <div class="stat-sub">last 7 days</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-label">Score Trends</div>
-    <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
-    <div class="stat-sub">since last visit</div>
-  </div>
-  <div class="stat-card" style="cursor:pointer" onclick="setFilter('stale',this)">
-    <div class="stat-label">Needs Follow-up</div>
-    <div class="stat-value" id="statStale" style="color:var(--accent,#f97316)">&mdash;</div>
-    <div class="stat-sub">no activity &gt; 7 days</div>
-  </div>
-</div>
+      <!-- Primary KPIs -->
+      <div class="stats-row kpi-primary">
+        <div class="stat-card" style="--kpi-accent:var(--brand-secondary)">
+          <div class="stat-label">Total Contacts</div>
+          <div class="stat-value flash-green" id="statTotal">&mdash;</div>
+          <div class="stat-sub">in GoHighLevel</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-hot-color)">
+          <div class="stat-label">Hot Leads</div>
+          <div class="stat-value flash-green" id="statHot">&mdash;</div>
+          <div class="stat-sub">score &ge; 75</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-warm-color)">
+          <div class="stat-label">Warm Leads</div>
+          <div class="stat-value" id="statWarm">&mdash;</div>
+          <div class="stat-sub">score 40&ndash;74</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-cold-color)">
+          <div class="stat-label">Cold Leads</div>
+          <div class="stat-value" id="statCold">&mdash;</div>
+          <div class="stat-sub">score &lt; 40</div>
+        </div>
+      </div>
 
-<!-- Source Pie Chart + Conversion Mini -->
-<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Lead Sources</div>
-    <div id="sourcePieChart" style="display:flex;align-items:center;gap:16px"></div>
-  </div>
-  <div style="flex:1;min-width:280px;background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-secondary);margin-bottom:8px">Conversion Funnel</div>
-    <div id="conversionMini" style="display:flex;flex-direction:column;gap:6px"></div>
-  </div>
-</div>
+      <!-- Secondary KPIs -->
+      <div class="stats-row kpi-secondary">
+        <div class="stat-card">
+          <div class="stat-label">Showing Requests</div>
+          <div class="stat-value" id="statShowings" style="color:var(--accent2)">&mdash;</div>
+          <div class="stat-sub">this period</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">New This Week</div>
+          <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
+          <div class="stat-sub">last 7 days</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Score Trends</div>
+          <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
+          <div class="stat-sub">since last visit</div>
+        </div>
+        <div class="stat-card is-clickable" onclick="setFilter('stale',document.getElementById('filterStale'))" title="Filter to leads needing follow-up">
+          <div class="stat-label">Needs Follow-up</div>
+          <div class="stat-value" id="statStale" style="color:var(--accent)">&mdash;</div>
+          <div class="stat-sub">no activity &gt; 7 days</div>
+        </div>
+      </div>
 
-<!-- View Tabs -->
-<div style="display:flex;gap:8px;margin-bottom:16px;padding:0 4px;flex-wrap:wrap">
-  <button class="filter-tab active" id="viewTabContacts" onclick="switchContactsView('contacts')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128203; Contacts</button>
-  <button class="filter-tab" id="viewTabSource" onclick="switchContactsView('source')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128200; Source Performance</button>
-  <button class="filter-tab" id="viewTabGeo" onclick="switchContactsView('geo')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127758; Geography</button>
-  <button class="filter-tab" id="viewTabBuyer" onclick="switchContactsView('buyer')" style="font-size:13px;font-weight:700;padding:10px 20px">&#128269; Buyer Intel</button>
-  <button class="filter-tab" id="viewTabSeller" onclick="switchContactsView('seller')" style="font-size:13px;font-weight:700;padding:10px 20px">&#127968; Seller Intel</button>
-</div>
+      <!-- Charts -->
+      <div class="panel-grid-2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; Lead Sources</div></div>
+          <div id="sourcePieChart" style="display:flex;align-items:center;gap:16px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128200; Conversion Funnel</div></div>
+          <div id="conversionMini" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
 
-<!-- Contacts View -->
-<div id="contactsViewPanel">
+      <!-- =========== CONTACTS VIEW =========== -->
+      <div id="contactsViewPanel">
 
-<!-- Filters Bar -->
-<div class="filters-bar">
-  <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
-  <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
-  <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
-  <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
-  <button class="filter-tab" onclick="setFilter('new',this)">New</button>
-  <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
-  <button class="filter-tab" onclick="setFilter('stale',this)" style="color:var(--accent,#f97316)">&#9888; Needs Follow-up</button>
-  <select class="filter-tab" id="sourceFilter" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;cursor:pointer;-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 8px center">
-    <option value="all">All Sources</option>
-    <option value="ylopo">Ylopo Leads</option>
-    <option value="fub">FUB Leads</option>
-    <option value="zillow">Zillow</option>
-    <option value="realtor">Realtor.com</option>
-  </select>
-  <div style="flex:1;min-width:200px;position:relative">
-    <input type="text" class="filter-search" id="searchInput" placeholder="Search... (try score:>80 source:ylopo tag:hot stale:true age:<7)" oninput="CURRENT_PAGE=1;applyFilters()" style="padding-right:70px">
-    <div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;gap:4px">
-      <button onclick="saveSearchPreset()" title="Save current search" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)">&#128190;</button>
-      <button onclick="togglePresetMenu()" title="Saved searches" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;color:var(--text-secondary)" id="presetBtn">&#9733;</button>
-    </div>
-    <div id="presetMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--card-border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);min-width:260px;max-height:300px;overflow-y:auto;z-index:500"></div>
-  </div>
-  <select class="filter-tab" id="sortSelect" onchange="CURRENT_PAGE=1;applyFilters()" style="padding:8px 14px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);cursor:pointer">
-    <option value="score_desc">Score Down</option>
-    <option value="score_asc">Score Up</option>
-    <option value="name_asc">Name A-Z</option>
-    <option value="name_desc">Name Z-A</option>
-    <option value="date_desc">Newest</option>
-    <option value="date_asc">Oldest</option>
-  </select>
-  <div class="view-toggle" id="viewToggle">
-    <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
-    <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
-  </div>
-  <button class="btn btn-sm" onclick="saveSmartList()" style="font-size:11px;padding:5px 10px;white-space:nowrap">&#128190; Save List</button>
-</div>
-<div id="smartListsPanel" style="padding:4px 24px;display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+        <div class="filters-bar">
+          <div class="filter-cluster">
+            <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+            <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
+            <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
+            <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
+            <button class="filter-tab" onclick="setFilter('new',this)">New</button>
+            <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+            <button class="filter-tab" id="filterStale" onclick="setFilter('stale',this)" style="color:var(--accent)">&#9888; Follow-up</button>
+          </div>
 
-<!-- Bulk Actions Bar -->
-<div class="bulk-bar" id="bulkBar">
-  <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
-  <button class="bulk-action" onclick="bulkTag()">&#127991;&#65039; Add Tag</button>
-  <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
-  <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
-  <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
-  <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
-  <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
-  <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
-  <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
-  <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:700">&#127968; Enrich Selected</button>
-  <button class="bulk-action" onclick="tagFiltered()" style="color:var(--brand-secondary)">&#127991; Tag Filtered</button>
-  <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
-</div>
+          <select class="filter-select" id="sourceFilter" aria-label="Filter by source" onchange="CURRENT_PAGE=1;applyFilters()">
+            <option value="all">All Sources</option>
+            <option value="ylopo">Ylopo Leads</option>
+            <option value="fub">FUB Leads</option>
+            <option value="zillow">Zillow</option>
+            <option value="realtor">Realtor.com</option>
+          </select>
 
-<!-- Table View -->
-<div class="table-wrap" id="tableView">
-  <table id="leadsTable">
-    <thead>
-      <tr>
-        <th style="width:20px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-        <th style="width:28px"></th>
-        <th>Contact</th>
-        <th>Status</th>
-        <th>Score</th>
-        <th>Activity</th>
-        <th style="width:90px">Trend</th>
-        <th>Location</th>
-        <th>Type</th>
-        <th>Source</th>
-        <th>Added</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="leadsBody">
-      <tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:40px">Loading...</td></tr>
-    </tbody>
-  </table>
-</div>
+          <div class="search-wrap">
+            <input type="text" class="filter-search" id="searchInput" placeholder="Search name, email, phone or use score:&gt;80 source:ylopo tag:hot stale:true age:&lt;7" oninput="CURRENT_PAGE=1;applyFilters()" style="padding-right:64px">
+            <div class="search-actions">
+              <button onclick="saveSearchPreset()" title="Save current search">&#128190;</button>
+              <button onclick="togglePresetMenu()" title="Saved searches" id="presetBtn">&#9733;</button>
+            </div>
+            <div id="presetMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;min-width:270px;max-height:300px;overflow-y:auto;z-index:500"></div>
+          </div>
 
-<!-- Card View -->
-<div class="cards-grid" id="cardsView" style="display:none"></div>
+          <select class="filter-select" id="sortSelect" aria-label="Sort contacts" onchange="CURRENT_PAGE=1;applyFilters()">
+            <option value="score_desc">Score: high to low</option>
+            <option value="score_asc">Score: low to high</option>
+            <option value="name_asc">Name A&ndash;Z</option>
+            <option value="name_desc">Name Z&ndash;A</option>
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+          </select>
 
-<!-- Pagination -->
-<div class="pagination" id="paginationEl"></div>
+          <div class="view-toggle" id="viewToggle">
+            <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
+            <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
+          </div>
 
-</div><!-- /contactsViewPanel -->
+          <button class="btn btn-sm" onclick="saveSmartList()">&#128190; Save List</button>
+        </div>
 
-<!-- Source Performance Panel -->
-<div id="sourceViewPanel" style="display:none">
-  <div id="srcKPIs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px"></div>
-  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
-    <h3 style="margin:0 0 16px 0;font-size:16px;color:var(--text)">&#128202; Source Breakdown</h3>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="border-bottom:2px solid var(--card-border);text-align:left">
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer" onclick="sortSrcTbl('name')">Source</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('count')">Leads</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('hot')">Hot</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('warm')">Warm</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('cold')">Cold</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('avgScore')">Avg Score</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);cursor:pointer;text-align:center" onclick="sortSrcTbl('showings')">Showings</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Quality</th>
-          <th style="padding:10px 12px;font-weight:700;color:var(--text);text-align:center">Volume</th>
-        </tr></thead>
-        <tbody id="srcTblBody"></tbody>
-      </table>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127919; Lead Distribution</h3>
-      <div id="srcDistBars" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128293; Hot Lead Rate</h3>
-      <div id="srcHotBars" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127968; Buyer vs Seller</h3>
-      <div id="srcTypeBars" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128197; New This Week</h3>
-      <div id="srcRecentBars" style="display:flex;flex-direction:column;gap:8px"></div>
-    </div>
-  </div>
-</div>
+        <div id="smartListsPanel"></div>
 
-<!-- Geography View -->
-<div id="geoViewPanel" style="display:none">
-  <div id="geoKPIs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127963; Top Cities</h3>
-      <div id="geoCityBars" style="display:flex;flex-direction:column;gap:6px"></div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">
-      <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#127758; Top States</h3>
-      <div id="geoStateBars" style="display:flex;flex-direction:column;gap:6px"></div>
-    </div>
-  </div>
-  <div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">
-    <h3 style="margin:0 0 12px 0;font-size:16px;color:var(--text)">&#128202; City Breakdown Table</h3>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="border-bottom:2px solid var(--card-border)">
-          <th style="padding:10px 12px;text-align:left;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('name')">City</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('count')">Leads</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('avgScore')">Avg Score</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('hot')">Hot</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text);cursor:pointer" onclick="sortGeoTbl('showings')">Showings</th>
-          <th style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">Quality</th>
-        </tr></thead>
-        <tbody id="geoTblBody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
+        <!-- Bulk Actions Bar -->
+        <div class="bulk-bar" id="bulkBar">
+          <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+          <button class="bulk-action" onclick="bulkTag()">&#127991;&#65039; Add Tag</button>
+          <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
+          <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
+          <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+          <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
+          <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
+          <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
+          <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
+          <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:800">&#127968; Enrich Selected</button>
+          <button class="bulk-action" onclick="tagFiltered()" style="color:var(--brand-secondary)">&#127991; Tag Filtered</button>
+          <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
+        </div>
 
-<!-- Buyer Intelligence View -->
-<div id="buyerViewPanel" style="display:none">
-  <div id="buyerTabContent" style="padding:4px 0">
-    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading buyer intelligence...</div>
-  </div>
-</div>
+        <!-- Table View -->
+        <div class="table-wrap" id="tableView">
+          <table id="leadsTable">
+            <thead>
+              <tr>
+                <th style="width:20px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" aria-label="Select all"></th>
+                <th style="width:28px"></th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Score</th>
+                <th>Activity</th>
+                <th style="width:90px">Trend</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Added</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leadsBody">
+              <tr><td colspan="12" class="empty-state">Loading contacts...</td></tr>
+            </tbody>
+          </table>
+        </div>
 
-<!-- Seller Intelligence View -->
-<div id="sellerViewPanel" style="display:none">
-  <div id="sellerTabContent" style="padding:4px 0">
-    <div style="text-align:center;padding:60px;color:var(--text-muted)">Loading seller intelligence...</div>
-  </div>
-</div>
+        <!-- Card View -->
+        <div class="cards-grid" id="cardsView" style="display:none"></div>
 
-<!-- Hidden sinks (legacy IDX fields \u2014 kept for compatibility) -->
+        <!-- Pagination -->
+        <div class="pagination" id="paginationEl"></div>
+
+      </div><!-- /contactsViewPanel -->
+
+      <!-- =========== SOURCE PERFORMANCE =========== -->
+      <div id="sourceViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Source Performance</div>
+            <div class="section-desc">Which lead sources actually produce hot leads and showings.</div>
+          </div>
+        </div>
+        <div id="srcKPIs" class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"></div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; Source Breakdown</div></div>
+          <div class="table-wrap" style="box-shadow:none">
+            <table style="min-width:820px">
+              <thead><tr>
+                <th onclick="sortSrcTbl('name')">Source</th>
+                <th style="text-align:center" onclick="sortSrcTbl('count')">Leads</th>
+                <th style="text-align:center" onclick="sortSrcTbl('hot')">Hot</th>
+                <th style="text-align:center" onclick="sortSrcTbl('warm')">Warm</th>
+                <th style="text-align:center" onclick="sortSrcTbl('cold')">Cold</th>
+                <th style="text-align:center" onclick="sortSrcTbl('avgScore')">Avg Score</th>
+                <th style="text-align:center" onclick="sortSrcTbl('showings')">Showings</th>
+                <th style="text-align:center;cursor:default">Quality</th>
+                <th style="text-align:center;cursor:default">Volume</th>
+              </tr></thead>
+              <tbody id="srcTblBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127919; Lead Distribution</div></div>
+            <div id="srcDistBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#128293; Hot Lead Rate</div></div>
+            <div id="srcHotBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127968; Buyer vs Seller</div></div>
+            <div id="srcTypeBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#128197; New This Week</div></div>
+            <div id="srcRecentBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========== GEOGRAPHY =========== -->
+      <div id="geoViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Geography</div>
+            <div class="section-desc">Where your lead volume and lead quality actually live.</div>
+          </div>
+        </div>
+        <div id="geoKPIs" class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"></div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127963; Top Cities</div></div>
+            <div id="geoCityBars" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127758; Top States</div></div>
+            <div id="geoStateBars" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; City Breakdown</div></div>
+          <div class="table-wrap" style="box-shadow:none">
+            <table style="min-width:640px">
+              <thead><tr>
+                <th onclick="sortGeoTbl('name')">City</th>
+                <th style="text-align:center" onclick="sortGeoTbl('count')">Leads</th>
+                <th style="text-align:center" onclick="sortGeoTbl('avgScore')">Avg Score</th>
+                <th style="text-align:center" onclick="sortGeoTbl('hot')">Hot</th>
+                <th style="text-align:center" onclick="sortGeoTbl('showings')">Showings</th>
+                <th style="text-align:center;cursor:default">Quality</th>
+              </tr></thead>
+              <tbody id="geoTblBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========== BUYER INTEL =========== -->
+      <div id="buyerViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Buyer Intelligence</div>
+            <div class="section-desc">Search behavior, price bands and property preferences across buyer leads.</div>
+          </div>
+        </div>
+        <div id="buyerTabContent">
+          <div class="empty-state">Loading buyer intelligence...</div>
+        </div>
+      </div>
+
+      <!-- =========== SELLER INTEL =========== -->
+      <div id="sellerViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Seller Intelligence</div>
+            <div class="section-desc">Home-value seekers, equity signals and listing-appointment opportunities.</div>
+          </div>
+        </div>
+        <div id="sellerTabContent">
+          <div class="empty-state">Loading seller intelligence...</div>
+        </div>
+      </div>
+
+    </main>
+  </div><!-- /app-main -->
+</div><!-- /app-shell -->
+
+<!-- Hidden sinks (legacy IDX fields - kept for compatibility) -->
 <input id="listingsInput" value="" class="hidden" aria-hidden="true">
 <canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
+
+<script>
+/* Theme bootstrap: this page ships light-first. Honour a saved dark choice. */
+(function(){
+  try {
+    if (localStorage.getItem('tlt-contacts-theme') === 'dark') {
+      document.body.classList.remove('light-mode');
+      var b = document.getElementById('themeToggle');
+      if (b) b.innerHTML = '&#9788; Light';
+    }
+  } catch(e) {}
+  /* Reserve room for the staging banner so sticky chrome does not slide under it. */
+  try {
+    var h = window.location.hostname;
+    if (h.indexOf('staging') !== -1 || h.indexOf('workers.dev') !== -1) {
+      document.documentElement.style.setProperty('--staging-top', '38px');
+    }
+  } catch(e) {}
+})();
+<\/script>
 
 <script>
 'use strict';
@@ -3832,7 +4016,7 @@ function renderSrcTblBody() {
     return '<tr style="border-bottom:1px solid var(--card-border)">' +
       '<td style="padding:10px 12px"><span style="display:inline-block;padding:3px 10px;border-radius:6px;font-weight:700;font-size:11px;text-transform:uppercase;background:' + c.bg + ';color:' + c.fg + '">' + esc(d.name) + '</span></td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--text)">' + d.count + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:#00ff55">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;font-weight:700;color:var(--green)">' + d.hot + '</td>' +
       '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.warm + '</td>' +
       '<td style="padding:10px 12px;text-align:center;color:var(--brand-secondary)">' + d.cold + '</td>' +
       '<td style="padding:10px 12px;text-align:center"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + qc + '22;color:' + qc + '">' + d.avgScore + '</span></td>' +
@@ -3929,7 +4113,7 @@ function renderGeoView() {
     '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
     '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
     '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:#00ff55">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
+    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:var(--green)">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
 
   // City bars
   var cityTop = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 12);
@@ -3971,7 +4155,7 @@ function renderGeoTbl() {
       '<td style="padding:10px 12px;font-weight:600;color:var(--text)">' + esc(d.name) + '</td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.count + '</td>' +
       '<td style="padding:10px 12px;text-align:center;font-weight:700">' + d.avgScore + '</td>' +
-      '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + d.hot + '</td>' +
+      '<td style="padding:10px 12px;text-align:center;color:var(--green);font-weight:700">' + d.hot + '</td>' +
       '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + d.showings + '</td>' +
       '<td style="padding:10px 12px;text-align:center"><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:' + qc + ';background:' + qc + '20">' + ql + '</span></td>' +
     '</tr>';
@@ -4175,7 +4359,7 @@ function renderBuyerTab() {
     { val: totalSaves, label: 'Total Saves', color: 'var(--green)' },
     { val: totalShowings, label: 'Showings', color: 'var(--brand-accent)' },
     { val: avgReadiness, label: 'Avg Readiness', color: 'var(--brand-accent)' },
-    { val: highReady, label: 'Hot Buyers', color: '#00ff55', flash: true },
+    { val: highReady, label: 'Hot Buyers', color: 'var(--green)', flash: true },
     { val: avgSaveRate + '%', label: 'Avg Save Rate', color: 'var(--brand-secondary)' }
   ];
   kpis.forEach(function(k) {
@@ -4846,7 +5030,7 @@ function renderSellerTab() {
     { val: tagCounts.highEquity, label: 'High Equity', color: 'var(--brand-secondary)' },
     { val: tagCounts.freeAndClear, label: 'Free & Clear', color: 'var(--brand-accent)' },
     { val: avgMotivation, label: 'Avg Motivation', color: 'var(--brand-accent)' },
-    { val: highMotivation, label: 'High Motivation', color: '#00ff55', flash: true },
+    { val: highMotivation, label: 'High Motivation', color: 'var(--green)', flash: true },
     { val: calcAvgResponseTime(sellers), label: 'Avg Response', color: 'var(--brand-secondary)' }
   ];
   kpis.forEach(function(k) {
@@ -6539,7 +6723,7 @@ function showScoreBreakdown(id) {
   popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   popup.onclick = function(e) { if (e.target === popup) popup.remove(); };
 
-  var scoreColor = b.total >= 75 ? '#00ff55' : b.total >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+  var scoreColor = b.total >= 75 ? 'var(--green)' : b.total >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
 
   var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
     '<div style="padding:20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">' +
@@ -7351,7 +7535,7 @@ function renderConversionMini() {
   var stages = [
     { label: 'Total Leads', val: total, color: 'var(--brand-secondary)' },
     { label: 'Contacted', val: contacted, color: 'var(--brand-accent)' },
-    { label: 'Hot', val: hot, color: '#00ff55' },
+    { label: 'Hot', val: hot, color: 'var(--green)' },
     { label: 'Showing/Active', val: showing, color: '#f59e0b' },
     { label: 'Pipeline', val: pipeline, color: '#22c55e' }
   ];
@@ -7532,7 +7716,7 @@ function renderTable() {
 
   tbody.innerHTML = page.map(function(l) {
     var rowYlopoUrl = RAW_CONTACTS[l.id] ? buildYlopoStarsUrl(RAW_CONTACTS[l.id]) : '';
-    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreColor = l.score >= 75 ? 'var(--green)' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
     var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var badgeHtml = l.badge ? '<span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
@@ -7654,7 +7838,7 @@ function renderCards() {
   }
 
   container.innerHTML = page.map(function(l) {
-    var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+    var scoreColor = l.score >= 75 ? 'var(--green)' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
     var scoreFlash = l.score >= 75 ? ' flash-green' : '';
     var statusHtml = '<span class="badge badge-' + l.status + '">' + l.status.charAt(0).toUpperCase()+l.status.slice(1) + '</span>';
     var badgeHtml = l.badge ? ' <span class="badge badge-' + l.badge + '">' + badgeLabel(l.badge) + '</span>' : '';
@@ -7862,7 +8046,7 @@ function buildAccordion(lead) {
   var ext = getExtendedData(raw);
   var m   = lead.matrix;
 
-  var scoreColor = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+  var scoreColor = lead.score >= 75 ? 'var(--green)' : lead.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
 
   var ylopoUrl = '';
   if (ext.ylopoStarsLink) {
@@ -7935,7 +8119,7 @@ function buildAccordion(lead) {
         if (sqftStr)      rows.push('<div class="prop-item"><div class="pi-label">Sq Ft</div><div class="pi-value">' + sqftStr + '</div></div>');
         var money = [];
         if (priceStr)    money.push('<div class="prop-item"><div class="pi-label">Price / Value</div><div class="pi-value" style="color:var(--brand-accent);font-weight:700">' + priceStr + '</div></div>');
-        if (equityStr)   money.push('<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:#00ff55;font-weight:700">' + equityStr + '</div></div>');
+        if (equityStr)   money.push('<div class="prop-item"><div class="pi-label">Equity</div><div class="pi-value" style="color:var(--green);font-weight:700">' + equityStr + '</div></div>');
         if (mortgageStr) money.push('<div class="prop-item"><div class="pi-label">Mortgage</div><div class="pi-value">' + mortgageStr + '</div></div>');
         var metaBits = [];
         if (ext.yearBuilt)  metaBits.push('<span>Built: <strong>' + esc(ext.yearBuilt) + '</strong></span>');
@@ -9753,7 +9937,7 @@ function showTeamDashboard() {
     html += '<tr style="border-bottom:1px solid var(--card-border)">';
     html += '<td style="padding:10px 12px;font-weight:700">' + esc(name) + '</td>';
     html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.assigned + '</td>';
-    html += '<td style="padding:10px 12px;text-align:center;color:#00ff55;font-weight:700">' + ts.hot + '</td>';
+    html += '<td style="padding:10px 12px;text-align:center;color:var(--green);font-weight:700">' + ts.hot + '</td>';
     html += '<td style="padding:10px 12px;text-align:center;color:var(--brand-accent)">' + ts.warm + '</td>';
     html += '<td style="padding:10px 12px;text-align:center;font-weight:600">' + ts.avgScore + '</td>';
     html += '<td style="padding:10px 12px;text-align:center">' + ts.contacted + '</td>';
@@ -9805,7 +9989,7 @@ function showMarketHeatmap() {
     html += '<div style="background:var(--surface,var(--bg));border-radius:10px;padding:12px;border-left:4px solid ' + heatColor + '">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:13px">' + esc(city) + '</span><span style="font-size:18px;font-weight:800;color:' + heatColor + '">' + d.total + '</span></div>';
     html += '<div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text-secondary)">';
-    html += '<span style="color:#00ff55">&#9632; ' + d.hot + ' hot</span>';
+    html += '<span style="color:var(--green)">&#9632; ' + d.hot + ' hot</span>';
     html += '<span style="color:var(--brand-accent)">&#9632; ' + d.warm + ' warm</span>';
     if (d.sellers) html += '<span>&#127968; ' + d.sellers + ' sellers</span>';
     html += '</div>';
@@ -10209,7 +10393,7 @@ function checkIntegrationHealth() {
         var statusEl = document.getElementById('status-' + api.name);
         if (statusEl) {
           statusEl.textContent = status === 'ok' ? '\u2713 Healthy' : '\u2717 Down';
-          statusEl.style.color = status === 'ok' ? '#00ff55' : '#ef4444';
+          statusEl.style.color = status === 'ok' ? 'var(--green)' : '#ef4444';
         }
       })
       .catch(function(e) {
@@ -10375,7 +10559,7 @@ function showPerformanceAnalytics() {
     html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">';
     html += '<div>Leads: ' + stats.total + ' | Hot: ' + stats.hot + ' | Conversions: ' + stats.conversions + '</div>';
     html += '<div>Avg Score: ' + stats.avgScore + ' | Contact Rate: ' + stats.contactRate + '%</div>';
-    html += '<div style="font-weight:700;color:#00ff55;margin-top:8px">Conv. Rate: ' + stats.conversionRate + '%</div>';
+    html += '<div style="font-weight:700;color:var(--green);margin-top:8px">Conv. Rate: ' + stats.conversionRate + '%</div>';
     html += '</div>';
     html += '</div>';
   });
@@ -10618,7 +10802,7 @@ function showMarketBenchmarks() {
     var isWinning = b.value >= b.industry;
     html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:12px;padding:16px">';
     html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">' + b.label + '</div>';
-    html += '<div style="font-size:24px;font-weight:800;color:' + (isWinning ? '#00ff55' : '#ef4444') + ';margin-bottom:8px">' + b.value + b.unit + '</div>';
+    html += '<div style="font-size:24px;font-weight:800;color:' + (isWinning ? 'var(--green)' : '#ef4444') + ';margin-bottom:8px">' + b.value + b.unit + '</div>';
     html += '<div style="font-size:11px;color:var(--text-secondary)">Industry avg: ' + b.industry + b.unit + ' ' + (isWinning ? '\u2713' : '\u2191') + '</div>';
     html += '</div>';
   });
@@ -10739,7 +10923,7 @@ function showPipelineKanban() {
     { key: 'new', label: 'New Leads', color: 'var(--brand-secondary)' },
     { key: 'contacted', label: 'Contacted', color: 'var(--brand-accent)' },
     { key: 'showing', label: 'Showing', color: '#f59e0b' },
-    { key: 'hot', label: 'Hot / Offer', color: '#00ff55' },
+    { key: 'hot', label: 'Hot / Offer', color: 'var(--green)' },
     { key: 'pipeline', label: 'Pipeline', color: '#8b5cf6' }
   ];
 
@@ -10777,7 +10961,7 @@ function showPipelineKanban() {
     html += '</div>';
     html += '<div style="flex:1;overflow-y:auto;max-height:60vh;padding:8px">';
     leads.slice(0, 20).forEach(function(l) {
-      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
+      var scoreColor = l.score >= 75 ? 'var(--green)' : l.score >= 40 ? 'var(--brand-accent)' : 'var(--brand-secondary)';
       html += '<div onclick="focusLead(&#39;' + l.id + '&#39;)" style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:transform 0.1s" onmouseover="this.style.transform=&#39;scale(1.02)&#39;" onmouseout="this.style.transform=&#39;scale(1)&#39;">';
       html += '<div style="font-weight:600;font-size:12px;color:var(--text);margin-bottom:4px">' + esc(l.name) + '</div>';
       html += '<div style="display:flex;justify-content:space-between;font-size:11px">';
@@ -10821,7 +11005,7 @@ function initTypeahead() {
 
     var html = '';
     matches.forEach(function(l) {
-      var scoreColor = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888';
+      var scoreColor = l.score >= 75 ? 'var(--green)' : l.score >= 40 ? 'var(--brand-accent)' : '#888';
       html += '<div onclick="focusLead(&#39;' + l.id + '&#39;);document.getElementById(&#39;typeaheadDropdown&#39;).style.display=&#39;none&#39;" style="padding:10px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--card-border)" onmouseover="this.style.background=&#39;var(--brand-primary)&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
       html += '<div><div style="font-weight:600;font-size:12px;color:var(--text)">' + esc(l.name) + '</div>';
       html += '<div style="font-size:11px;color:var(--text-secondary)">' + esc(l.email || l.phone || '') + '</div></div>';
@@ -10858,7 +11042,7 @@ function compareSelectedContacts() {
 
   var fields = [
     { label: 'Name', fn: function(l) { return esc(l.name); } },
-    { label: 'Score', fn: function(l) { var c = l.score >= 75 ? '#00ff55' : l.score >= 40 ? 'var(--brand-accent)' : '#888'; return '<span style="font-weight:800;font-size:18px;color:' + c + '">' + l.score + '</span>'; } },
+    { label: 'Score', fn: function(l) { var c = l.score >= 75 ? 'var(--green)' : l.score >= 40 ? 'var(--brand-accent)' : '#888'; return '<span style="font-weight:800;font-size:18px;color:' + c + '">' + l.score + '</span>'; } },
     { label: 'Status', fn: function(l) { return l.status; } },
     { label: 'Email', fn: function(l) { return esc(l.email || 'N/A'); } },
     { label: 'Phone', fn: function(l) { return esc(l.phone || 'N/A'); } },
@@ -10993,7 +11177,7 @@ function addSparklinesToTable() {
     for (var w = 0; w < 8; w++) {
       data.push(Math.max(0, base + Math.round((Math.random() - 0.5) * base * 0.6)));
     }
-    var color = lead.score >= 75 ? '#00ff55' : lead.score >= 40 ? '#5DADE2' : '#888';
+    var color = lead.score >= 75 ? 'var(--green)' : lead.score >= 40 ? '#5DADE2' : '#888';
     renderSparkline(sparkId, data, color);
   });
 }
@@ -11039,14 +11223,14 @@ function showScoreHistory(leadId) {
 
   var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;padding:24px">';
   html += '<h2 style="margin:0 0 16px;color:var(--text)">Score History: ' + esc(lead.name) + '</h2>';
-  html += '<div style="font-size:36px;font-weight:800;color:#00ff55;margin-bottom:16px">' + lead.score + ' <span style="font-size:14px;color:var(--text-secondary)">current</span></div>';
+  html += '<div style="font-size:36px;font-weight:800;color:var(--green);margin-bottom:16px">' + lead.score + ' <span style="font-size:14px;color:var(--text-secondary)">current</span></div>';
   html += '<svg width="' + chartWidth + '" height="' + (chartHeight + 30) + '" style="width:100%;display:block">';
-  html += '<polygon points="' + fillPoints + '" fill="rgba(0,255,85,0.1)"/>';
-  html += '<polyline points="' + points + '" fill="none" stroke="#00ff55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  html += '<polygon points="' + fillPoints + '" fill="var(--green-soft)"/>';
+  html += '<polyline points="' + points + '" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
   data.forEach(function(d, i) {
     var x = Math.round(i * stepX);
     var y = Math.round(chartHeight - (d.score / maxScore * chartHeight));
-    html += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="#00ff55"/>';
+    html += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="var(--green)"/>';
     if (i === 0 || i === data.length - 1 || i % Math.ceil(data.length / 6) === 0) {
       html += '<text x="' + x + '" y="' + (chartHeight + 18) + '" fill="var(--text-secondary)" font-size="9" text-anchor="middle">' + d.date.slice(5) + '</text>';
     }
@@ -11265,15 +11449,15 @@ function showSourceROI() {
 
   sources.forEach(function(s, i) {
     var grade = s.pipelineRate >= 10 ? 'A' : s.hotRate >= 30 ? 'B' : s.avgScore >= 40 ? 'C' : 'D';
-    var gradeColor = grade === 'A' ? '#00ff55' : grade === 'B' ? 'var(--brand-accent)' : grade === 'C' ? '#f59e0b' : '#ef4444';
+    var gradeColor = grade === 'A' ? 'var(--green)' : grade === 'B' ? 'var(--brand-accent)' : grade === 'C' ? '#f59e0b' : '#ef4444';
     var bg = i % 2 === 0 ? 'var(--surface,var(--bg))' : 'transparent';
     html += '<tr style="background:' + bg + '">';
     html += '<td style="padding:8px;font-weight:600;color:var(--text)">' + esc(s.name) + '</td>';
     html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.total + '</td>';
     html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.avgScore + '</td>';
-    html += '<td style="padding:8px;text-align:center;color:' + (s.hotRate >= 30 ? '#00ff55' : 'var(--text)') + '">' + s.hotRate + '%</td>';
+    html += '<td style="padding:8px;text-align:center;color:' + (s.hotRate >= 30 ? 'var(--green)' : 'var(--text)') + '">' + s.hotRate + '%</td>';
     html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.contactRate + '%</td>';
-    html += '<td style="padding:8px;text-align:center;color:' + (s.pipelineRate >= 10 ? '#00ff55' : 'var(--text)') + ';font-weight:700">' + s.pipelineRate + '%</td>';
+    html += '<td style="padding:8px;text-align:center;color:' + (s.pipelineRate >= 10 ? 'var(--green)' : 'var(--text)') + ';font-weight:700">' + s.pipelineRate + '%</td>';
     html += '<td style="padding:8px;text-align:center;color:var(--text)">' + s.showings + '</td>';
     html += '<td style="padding:8px;text-align:center"><span style="font-weight:800;font-size:16px;color:' + gradeColor + '">' + grade + '</span></td>';
     html += '</tr>';
@@ -11317,7 +11501,7 @@ function showDataQuality() {
   var html = '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;padding:24px">';
   html += '<h2 style="margin:0 0 20px;color:var(--text)">Data Quality Report</h2>';
 
-  var qColor = avgQuality >= 80 ? '#00ff55' : avgQuality >= 60 ? '#f59e0b' : '#ef4444';
+  var qColor = avgQuality >= 80 ? 'var(--green)' : avgQuality >= 60 ? '#f59e0b' : '#ef4444';
   html += '<div style="text-align:center;margin-bottom:24px">';
   html += '<div style="font-size:56px;font-weight:800;color:' + qColor + '">' + avgQuality + '%</div>';
   html += '<div style="font-size:13px;color:var(--text-secondary)">Average Data Quality</div>';
@@ -11328,7 +11512,7 @@ function showDataQuality() {
   var good = qualityData.filter(function(d) { return d.quality >= 50 && d.quality < 80; }).length;
   var poor = poorLeads.length;
 
-  html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#00ff55">' + excellent + '</div><div style="font-size:11px;color:var(--text-secondary)">Excellent (80%+)</div></div>';
+  html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:var(--green)">' + excellent + '</div><div style="font-size:11px;color:var(--text-secondary)">Excellent (80%+)</div></div>';
   html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#f59e0b">' + good + '</div><div style="font-size:11px;color:var(--text-secondary)">Good (50-79%)</div></div>';
   html += '<div style="text-align:center;padding:12px;background:var(--surface,var(--bg));border-radius:8px"><div style="font-size:20px;font-weight:800;color:#ef4444">' + poor + '</div><div style="font-size:11px;color:var(--text-secondary)">Poor (&lt;50%)</div></div>';
   html += '</div>';
