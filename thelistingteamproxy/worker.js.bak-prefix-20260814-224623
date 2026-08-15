@@ -4251,7 +4251,7 @@ function renderBuyerTab() {
   ];
   kpis.forEach(function(k) {
     var flashCls = k.flash ? ' flash-green' : '';
-    html += '<div class="stat-card" style="text-align:center">' +
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
       '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
       '<div style="font-size:11px;color:var(--text-secondary);margin-top:4px">' + k.label + '</div></div>';
   });
@@ -4273,20 +4273,20 @@ function renderBuyerTab() {
   }).length;
   var freshRate = buyers.length ? Math.round(freshByrs / buyers.length * 100) : 0;
   var healthScore = Math.min(100, Math.round(contactRate * 0.2 + hotRate * 0.3 + activityRate * 0.25 + avgReadiness * 0.15 + freshRate * 0.1));
-  var healthColor = healthScore >= 70 ? 'var(--green)' : healthScore >= 45 ? 'var(--yellow)' : 'var(--red)';
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
   var healthLabel = healthScore >= 70 ? 'Strong' : healthScore >= 45 ? 'Moderate' : 'Weak';
 
   html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
 
   // Health gauge
-  html += '<div class="panel" style="text-align:center">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128681; Buyer Pipeline Health</h4>';
   html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
   html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
   var circumference = 2 * Math.PI * 50;
   var dashOffset = circumference - (healthScore / 100) * circumference;
   html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
-  html += '<circle cx="60" cy="60" r="50" fill="none" style="stroke:' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
   html += '</svg>';
   html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
   html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
@@ -4300,7 +4300,7 @@ function renderBuyerTab() {
   html += '</div></div>';
 
   // AI Insights Panel
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; Buyer AI Insights</h4>';
 
   // Predictive patterns - which source/price/bed combos have highest readiness
@@ -4406,7 +4406,7 @@ function renderBuyerTab() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
   // Best times
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Buyers</h4>';
   html += '<div style="text-align:center;margin-bottom:12px">';
   html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
@@ -4423,7 +4423,7 @@ function renderBuyerTab() {
   html += '</div></div>';
 
   // Buyer segments
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Segments</h4>';
   var byerSegs = [
     { label: 'First-Time Buyers', desc: 'No price range history', count: buyers.filter(function(b) { return !b.maxPrice || b.maxPrice === 0; }).length, color: '#3b82f6', action: 'Educate on market' },
@@ -4444,7 +4444,7 @@ function renderBuyerTab() {
   html += '</div>';
 
   // Conversion funnel
-  html += '<div class="panel" style="margin-bottom:20px">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
   html += '<h4 style="margin:0;font-size:14px">&#128200; Buyer Conversion Funnel</h4>';
   html += '<button onclick="showBuyerFunnelDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
@@ -4479,7 +4479,7 @@ function renderBuyerTab() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
   // Readiness distribution
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Buyer Readiness Distribution</h4>';
   var rdBuckets = [
     { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
@@ -4504,7 +4504,7 @@ function renderBuyerTab() {
   html += '</div>';
 
   // Price range distribution
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Price Range Interest</h4>';
   var priceBuckets = [
     { label: '$1M+', min: 1000000, max: Infinity, color: '#a855f7' },
@@ -4541,7 +4541,7 @@ function renderBuyerTab() {
   // ---- Hottest Buyers Pipeline ----
   var hotBuyers = buyers.filter(function(b) { return b.readiness >= 40; }).sort(function(a, b) { return b.readiness - a.readiness; }).slice(0, 12);
   if (hotBuyers.length) {
-    html += '<div class="panel" style="margin-bottom:20px">';
+    html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
     html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Hottest Buyers <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(highest readiness)</span></h4>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
     hotBuyers.forEach(function(b) {
@@ -4577,7 +4577,7 @@ function renderBuyerTab() {
   }
 
   // ---- Full Buyer Table ----
-  html += '<div class="panel" style="padding:0;overflow:hidden">';
+  html += '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
   html += '<h4 style="margin:0;font-size:14px">&#128209; All Buyer Leads (' + buyers.length + ')</h4>';
   html += '<button onclick="exportBuyerCSV()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:12px;cursor:pointer">&#128196; Export CSV</button>';
@@ -4922,7 +4922,7 @@ function renderSellerTab() {
   ];
   kpis.forEach(function(k) {
     var flashCls = k.flash ? ' flash-green' : '';
-    html += '<div class="stat-card" style="text-align:center">' +
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center">' +
       '<div class="' + flashCls + '" style="font-size:24px;font-weight:800;color:' + k.color + '">' + k.val + '</div>' +
       '<div style="font-size:11px;color:var(--text-secondary,var(--muted));margin-top:4px">' + k.label + '</div></div>';
   });
@@ -4943,20 +4943,20 @@ function renderSellerTab() {
   var freshPct = sellers.length ? Math.round(freshLeads / sellers.length * 100) : 0;
   // Portfolio Health = weighted combo
   var healthScore = Math.min(100, Math.round(contactRate * 0.25 + hotPct * 0.3 + freshPct * 0.25 + avgMot * 0.2));
-  var healthColor = healthScore >= 70 ? 'var(--green)' : healthScore >= 45 ? 'var(--yellow)' : 'var(--red)';
+  var healthColor = healthScore >= 70 ? '#22c55e' : healthScore >= 45 ? '#f59e0b' : '#ef4444';
   var healthLabel = healthScore >= 70 ? 'Healthy' : healthScore >= 45 ? 'Needs Attention' : 'Critical';
 
   html += '<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:20px">';
 
   // Health gauge
-  html += '<div class="panel" style="text-align:center">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#129504; Portfolio Health</h4>';
   html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
   html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
   var circumference = 2 * Math.PI * 50;
   var dashOffset = circumference - (healthScore / 100) * circumference;
   html += '<circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface,var(--bg))" stroke-width="10"/>';
-  html += '<circle cx="60" cy="60" r="50" fill="none" style="stroke:' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
+  html += '<circle cx="60" cy="60" r="50" fill="none" stroke="' + healthColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + dashOffset + '" stroke-linecap="round"/>';
   html += '</svg>';
   html += '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">';
   html += '<span style="font-size:32px;font-weight:800;color:' + healthColor + '">' + healthScore + '</span>';
@@ -4970,7 +4970,7 @@ function renderSellerTab() {
   html += '</div></div>';
 
   // AI Insights Panel \u2014 Predictive scoring + recommended actions + alerts
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128161; AI Insights</h4>';
 
   // Predictive patterns \u2014 find which tag combos correlate with highest motivation
@@ -5080,7 +5080,7 @@ function renderSellerTab() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
   // Best time to call
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128337; Best Time to Reach Leads</h4>';
   html += '<div style="text-align:center;margin-bottom:12px">';
   html += '<div style="font-size:28px;font-weight:800;color:var(--green)">' + dayNames[bestDay] + '</div>';
@@ -5098,7 +5098,7 @@ function renderSellerTab() {
   html += '</div></div>';
 
   // Lead Nurture Suggestions
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128231; Nurture Sequence Suggestions</h4>';
   var nurtureSegs = [
     { label: 'Immediate Call', desc: 'Motivation 70+ with phone', count: sellers.filter(function(s) { return s.motivation >= 70 && s.phone; }).length, color: '#ef4444', action: 'Call within 24hrs' },
@@ -5119,7 +5119,7 @@ function renderSellerTab() {
   html += '</div>';
 
   // ---- Win/Loss Tracker ----
-  html += '<div class="panel" style="margin-bottom:20px">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
   html += '<h4 style="margin:0;font-size:14px">&#128200; Pipeline Conversion Funnel</h4>';
   html += '<button onclick="showWinLossDetail()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--card-border);background:var(--surface,var(--bg));color:var(--text);font-size:11px;cursor:pointer">View Details</button>';
@@ -5154,7 +5154,7 @@ function renderSellerTab() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
   // Motivation bar chart
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Motivation Distribution</h4>';
   var motBuckets = [
     { label: '80-100 &#128293;', min: 80, max: 100, color: '#ef4444' },
@@ -5179,7 +5179,7 @@ function renderSellerTab() {
   html += '</div>';
 
   // Seller categories breakdown
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127968; Seller Categories</h4>';
   var catBars = [
     { label: 'Expired', count: tagCounts.expired, color: '#ef4444' },
@@ -5209,7 +5209,7 @@ function renderSellerTab() {
   // ---- Priority Pipeline ----
   var hotSellers = sellers.filter(function(s) { return s.motivation >= 40; }).sort(function(a, b) { return b.motivation - a.motivation; }).slice(0, 12);
   if (hotSellers.length) {
-    html += '<div class="panel" style="margin-bottom:20px">';
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
     html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Priority Seller Pipeline <span style="font-weight:400;color:var(--text-secondary,var(--muted));font-size:12px">(top motivation)</span></h4>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
     hotSellers.forEach(function(s) {
@@ -5263,7 +5263,7 @@ function renderSellerTab() {
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
 
   // Aging chart
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#9200; Lead Aging (by last update)</h4>';
   ageBuckets.forEach(function(b) {
     var pct = Math.round(b.leads.length / maxAgeBucket * 100);
@@ -5297,7 +5297,7 @@ function renderSellerTab() {
   ];
   segments.forEach(function(seg) { seg.count = sellers.filter(seg.filter).length; });
 
-  html += '<div class="panel">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127919; Actionable Segments</h4>';
   html += '<div style="display:flex;flex-direction:column;gap:8px">';
   segments.filter(function(seg) { return seg.count > 0; }).forEach(function(seg) {
@@ -5348,7 +5348,7 @@ function renderSellerTab() {
   if (staleLeads.length) suggestions.push({ icon: '&#128164;', label: 'Stale leads (90+ days no activity)', count: staleLeads.length, action: 'Wake-Up Campaign', color: '#6b7280', tag: 'wake-up', ids: staleLeads.map(function(s) { return s.id; }) });
 
   if (suggestions.length) {
-    html += '<div class="panel" style="margin-bottom:20px">';
+    html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
     html += '<h4 style="margin:0 0 12px;font-size:14px">&#9889; Workflow Suggestions</h4>';
     html += '<div style="display:flex;flex-direction:column;gap:8px">';
     suggestions.forEach(function(sg) {
@@ -5386,7 +5386,7 @@ function renderSellerTab() {
     }
   });
 
-  html += '<div class="panel" style="margin-bottom:20px">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
   html += '<h4 style="margin:0 0 14px;font-size:14px">&#128203; Seller Pipeline</h4>';
   html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">';
   pipeStages.forEach(function(stage) {
@@ -5439,7 +5439,7 @@ function renderSellerTab() {
   weeks.reverse();
   var maxWeekVal = Math.max.apply(null, weeks.map(function(w) { return Math.max(w.added, w.updated); }).concat([1]));
 
-  html += '<div class="panel" style="margin-bottom:20px">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:20px">';
   html += '<h4 style="margin:0 0 14px;font-size:14px">&#128200; Weekly Activity Trends</h4>';
   html += '<div style="display:flex;gap:4px;margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:2px"></span><span style="font-size:11px;color:var(--text-secondary)">New Leads</span>';
   html += '<span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:2px;margin-left:12px"></span><span style="font-size:11px;color:var(--text-secondary)">Updated</span></div>';
@@ -5459,7 +5459,7 @@ function renderSellerTab() {
   html += '</div></div>';
 
   // ---- Full Seller Table ----
-  html += '<div class="panel" style="padding:0;overflow:hidden">';
+  html += '<div style="background:var(--card-bg,var(--card));border:1px solid var(--card-border);border-radius:12px;overflow:hidden">';
   html += '<div style="padding:16px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center">';
   html += '<h4 style="margin:0;font-size:14px">&#128209; All Seller Leads (' + sellers.length + ')</h4>';
   html += '<div style="display:flex;gap:8px">';
@@ -12700,9 +12700,9 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     <button class="hdr-btn" title="Print / PDF Report" onclick="printReport()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
     </button>
-    <!-- Smart Lists button removed 2026-08-15: the smartPanel / smartListItems / smartNameInput
-         markup was never ported to the Analytics page, so this button threw
-         "Cannot read properties of null (reading 'classList')" and opened nothing. -->
+    <button class="hdr-btn" title="Smart Lists" onclick="toggleSmartLists()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+    </button>
     <button class="hdr-btn" id="darkToggleBtn" title="Toggle Dark Mode" onclick="toggleDark()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
     </button>
@@ -14396,22 +14396,11 @@ async function loadData(forceRefresh) {
     ptext.textContent = 'Loading all contacts (server-side)...';
     fill.style.width = '30%';
 
-    // BULK_PAGES was 20, which silently truncated the load at 2,000 contacts while GHL
-    // held ~3,000 — and the dropped 1,000 were the OLDEST, so Total/Stale/Going-Cold and
-    // every source total were understated. 50 pages = 5,000 headroom. Verified 2026-08-15.
-    const BULK_PAGES = 50;
-    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=\${BULK_PAGES}&t=\${Date.now()}\`, { cache: "no-store" });
+    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=20&t=\${Date.now()}\`, { cache: "no-store" });
     if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
     fill.style.width = '80%';
     const data = await res.json();
     const allRaw = data.contacts || [];
-
-    // If the server filled the entire request, pagination was not exhausted — we may be
-    // truncating again. Fail loudly rather than quietly reporting a wrong total.
-    if (data.meta && Number(data.meta.pages) >= BULK_PAGES) {
-      console.warn('[analytics] Contact load may be truncated: server returned the full ' + BULK_PAGES + '-page request (' + allRaw.length + ' contacts). Raise BULK_PAGES.');
-      try { toast('Contact load may be truncated (' + allRaw.length + ' loaded) — raise BULK_PAGES', 'error'); } catch (e) {}
-    }
 
     fill.style.width = '100%';
     ptext.textContent = \`\u2705 \${allRaw.length} contacts loaded\`;
@@ -16030,11 +16019,7 @@ function getSmartLists() {
 }
 
 function toggleSmartLists() {
-  // Defensive: the smartPanel markup does not exist on this page. Kept null-safe so any
-  // future caller degrades quietly instead of throwing. See header comment 2026-08-15.
-  const panel = el('smartPanel');
-  if (!panel) { console.warn('[analytics] Smart Lists panel is not present on this page.'); return; }
-  panel.classList.toggle('open');
+  el('smartPanel').classList.toggle('open');
   renderSmartLists();
 }
 
@@ -17177,11 +17162,8 @@ function renderAttributionFunnel(leads) {
     const count = s.leads.length;
     const pct = total > 0 ? Math.round(count / total * 100) : 0;
     const barWidth = total > 0 ? Math.max(8, Math.round(count / total * 100)) : 8;
-    // Guard against a zero-count previous stage: Math.max(prev,1) used to turn 0 -> 8 into
-    // "-700% drop-off". A drop-off is undefined when nothing entered the prior stage.
-    const prevCount = i > 0 ? stages[i-1].leads.length : 0;
-    const dropoff = (i > 0 && prevCount > 0) ? Math.max(0, Math.round((1 - count / prevCount) * 100)) : null;
-    return \`\${i > 0 ? \`<div class="fb-arrow">\u2193 \${dropoff === null ? '—' : dropoff + '% drop-off'}</div>\` : ''}
+    const dropoff = i > 0 ? Math.round((1 - count / Math.max(stages[i-1].leads.length, 1)) * 100) : 0;
+    return \`\${i > 0 ? \`<div class="fb-arrow">\u2193 \${dropoff}% drop-off</div>\` : ''}
     <div class="funnel-bar-row" onclick="openFunnelDrillDown('\${s.label}','\${s.color}')" title="Click to see \${count} contacts">
       <div class="fb-label">\${s.icon} \${s.label}</div>
       <div class="fb-bar-wrap">
