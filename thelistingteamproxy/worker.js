@@ -167,7 +167,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
     --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
@@ -202,7 +202,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
     --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
@@ -949,7 +949,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
     --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
@@ -984,7 +984,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
     --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
@@ -2588,7 +2588,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --brand-ink:#0A1119;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
 
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
     --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
     --shadow:0 8px 26px rgba(0,0,0,0.42);
@@ -2626,7 +2626,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --brand-ink:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
 
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
     --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
     --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
     --shadow:0 6px 20px rgba(16,34,46,0.09);
@@ -2708,9 +2708,9 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   .sidenav-brand img{height:38px;width:38px;object-fit:contain;flex-shrink:0;border-radius:var(--radius-xs);background:rgba(255,255,255,0.92);padding:3px}
   .sidenav-brand-text{min-width:0;overflow:hidden}
   .sidenav-brand-name{font-size:var(--fs-base);font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sidenav-brand-sub{font-size:var(--fs-2xs);color:rgba(255,255,255,0.62);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-top:2px}
+  .sidenav-brand-sub{font-size:var(--fs-2xs);color:rgba(255,255,255,0.70);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-top:2px}
   .sidenav-group{display:flex;flex-direction:column;gap:2px}
-  .sidenav-label{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.44);padding:0 var(--sp-3) var(--sp-2)}
+  .sidenav-label{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.70);padding:0 var(--sp-3) var(--sp-2)}
   .nav-item{
     display:flex;align-items:center;gap:10px;width:100%;
     padding:9px var(--sp-3);
@@ -2722,12 +2722,12 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
   .nav-item .nav-ico{font-size:var(--fs-md);width:18px;text-align:center;flex-shrink:0}
   .nav-item:hover{background:rgba(255,255,255,0.10);color:#fff;text-decoration:none}
-  .nav-item.active{background:rgba(255,255,255,0.16);color:#fff;border-color:rgba(255,255,255,0.22);font-weight:700;box-shadow:var(--shadow-xs)}
+  .nav-item.active{background:rgba(255,255,255,0.16);color:#fff;border-color:rgba(255,255,255,0.70);font-weight:700;box-shadow:var(--shadow-xs)}
   .nav-item.active:before{content:"";position:absolute;left:-16px;top:50%;transform:translateY(-50%);width:3px;height:20px;border-radius:0 3px 3px 0;background:var(--c-brand-300)}
   .sidenav-foot{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid rgba(255,255,255,0.14);display:flex;flex-direction:column;gap:6px}
   .env-chip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 10px;border-radius:var(--radius-pill);background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#fff}
   .env-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,0.25)}
-  .sidenav-meta{font-size:var(--fs-2xs);color:rgba(255,255,255,0.55);line-height:1.6;word-break:break-word}
+  .sidenav-meta{font-size:var(--fs-2xs);color:rgba(255,255,255,0.70);line-height:1.6;word-break:break-word}
   .sidenav-toggle{display:none}
 
   /* ==========================================================================
@@ -11616,7 +11616,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
     --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
@@ -11651,7 +11651,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
     --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
@@ -12465,9 +12465,9 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 /* ===== V4: SUB-ACCOUNT SWITCHER ===== */
 .acct-switcher{display:flex;align-items:center;gap:8px;margin-left:auto}
 .acct-select{padding:6px 12px;border:2px solid rgba(255,255,255,0.2);border-radius:var(--radius-sm);background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);-webkit-appearance:none;appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
-.acct-select:hover{border-color:rgba(255,255,255,0.4)}
+.acct-select:hover{border-color:rgba(255,255,255,0.70)}
 .acct-select option{background:var(--card);color:var(--text)}
-.acct-label{font-size:11px;color:rgba(255,255,255,0.6);font-weight:500}
+.acct-label{font-size:11px;color:rgba(255,255,255,0.70);font-weight:500}
 
 /* ===== V4: COHORT ANALYSIS ===== */
 .cohort-table{width:100%;border-collapse:collapse;font-size:11px}
@@ -12554,7 +12554,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .briefing-panel{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:24px;overflow:hidden;transition:all 0.3s}
 .briefing-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;background:linear-gradient(135deg,var(--brand-primary) 0%,var(--brand-secondary) 100%);color:var(--brand-ink)}
 .briefing-header h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
-.briefing-toggle{background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:18px;transition:transform 0.3s}
+.briefing-toggle{background:none;border:none;color:var(--brand-ink);cursor:pointer;font-size:18px;transition:transform 0.3s}
 .briefing-toggle.collapsed{transform:rotate(-90deg)}
 .briefing-body{padding:0;max-height:600px;overflow:hidden;transition:max-height 0.4s ease,padding 0.3s}
 .briefing-body.collapsed{max-height:0;padding:0}
@@ -12657,7 +12657,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
   border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);
 }
 .page-nav a:hover { background:rgba(255,255,255,0.15);color:#fff; }
-.page-nav a.active { background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.4); }
+.page-nav a.active { background:rgba(255,255,255,0.2);color:#fff;border-color:rgba(255,255,255,0.70); }
 
 </style>
 </head>
@@ -12667,7 +12667,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 <!-- HEADER -->
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px"><h1>The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:400">Ylopo Analytics</sup></h1>
+    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px"><h1>The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.70);font-weight:400">Ylopo Analytics</sup></h1>
     <span id="liveIndicator" style="font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center"><span class="live-dot disconnected" id="liveDot"></span> <span id="liveText">Polling</span></span>
     <div class="acct-switcher">
       <span class="acct-label">Account:</span>
@@ -12717,7 +12717,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <option value="365" style="color:var(--text)">1 Year</option>
       <option value="0" style="color:var(--text)">All Time</option>
     </select>
-    <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600">60d</span>
+    <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.70);font-weight:600">60d</span>
     <button class="hdr-btn" title="Refresh Data" onclick="loadData()" style="font-size:16px;background:rgba(34,197,94,0.2)">\u{1F504}</button>
     <button class="hdr-btn" title="Field Diagnostics" onclick="showDiagnostics()" style="font-size:16px">\u{1F52C}</button>
     <button class="hdr-btn" title="Notifications" onclick="toggleNotifPanel()" style="position:relative">
@@ -19924,7 +19924,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
     --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
@@ -19959,7 +19959,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
-    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#10485F 45%,#12506B 100%);
 
     --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
     --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
@@ -20039,12 +20039,12 @@ var PIPELINE_HTML = `<!DOCTYPE html>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
 a{color:var(--blue);text-decoration:none}
-.hbar{background:linear-gradient(135deg,var(--bg),var(--blue),var(--blue));padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
+.hbar{background:linear-gradient(135deg,#0f2137,#16305a,#1a3f7d);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
 .hbar-logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
-.hbar-logo span{color:var(--blue)}
+.hbar-logo span{color:#BFDBFE}
 .hnav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
-.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);transition:all .15s}
-.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.70);transition:all .15s}
+.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.70)}
 .hbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .hbtn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
 .hbtn:hover{background:rgba(255,255,255,0.15)}
@@ -20933,12 +20933,12 @@ var ADMIN_MODULE_HTML = `<!DOCTYPE html>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f172a;color:#f1f5f9;font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.5;min-height:100vh}
 a{color:#3b82f6;text-decoration:none}
-.hbar{background:linear-gradient(135deg,#0f2137,#1a3a6b,#1e4d9e);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
+.hbar{background:linear-gradient(135deg,#0f2137,#16305a,#1a3f7d);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 16px rgba(0,0,0,0.5)}
 .hbar-logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
-.hbar-logo span{color:#60a5fa}
+.hbar-logo span{color:#BFDBFE}
 .hnav{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
-.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.6);transition:all .15s}
-.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.3)}
+.hnav a{padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.70);transition:all .15s}
+.hnav a:hover,.hnav a.active{color:#fff;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.70)}
 .main{padding:24px;max-width:1200px;margin:0 auto}
 .page-hdr{margin-bottom:28px}
 .page-hdr h1{font-size:24px;font-weight:800;letter-spacing:-0.02em;margin-bottom:4px}
@@ -23484,7 +23484,7 @@ a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
 .header-bar h1{color:#fff;font-size:18px;font-weight:800;letter-spacing:-0.02em}
 .header-nav{display:flex;gap:6px;margin-left:16px}
 .header-nav a{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7)}
-.header-nav a.active{border-color:rgba(255,255,255,0.5);color:#fff;background:rgba(255,255,255,0.15)}
+.header-nav a.active{border-color:rgba(255,255,255,0.70);color:#fff;background:rgba(255,255,255,0.15)}
 .header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .hbtn{padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
 .hbtn:hover{background:rgba(255,255,255,0.2)}
