@@ -12833,6 +12833,36 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     <div class="stat-card"><div class="stat-label">Engagement Score</div><div class="stat-value" id="mEngagement">\u2014</div><div class="stat-sub positive" id="subEngagement"><span>loading...</span></div></div>
   </div>
 
+  <!-- DATABASE-WIDE \u2014 counts from /contacts/summary, covering every contact in GHL.
+       Hidden until the fetch succeeds. Kept visually separate from the recent-slice
+       panels on purpose: the two scopes must never be read as the same thing. -->
+  <div class="analytics-section" id="dbWideSection" style="display:none">
+    <h2><span class="emoji">\u{1F5C4}\uFE0F</span> Database-wide
+      <span style="font-size:11px;font-weight:500;color:var(--text-secondary);margin-left:10px" id="dbWideStamp"></span>
+    </h2>
+    <div style="font-size:12px;line-height:1.5;color:var(--text-secondary);background:var(--bg);border-left:3px solid var(--blue,#3b82f6);border-radius:6px;padding:10px 12px;margin-bottom:14px">
+      Every other panel on this page is computed from the most recent
+      <strong id="dbWideSliceN">\u2014</strong> contacts \u2014 all this page can load.
+      <strong>The numbers in this section cover all <span id="dbWideTotalInline">\u2014</span> contacts in GoHighLevel.</strong>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value" id="dbwTotal">\u2014</div><div class="stat-sub" style="font-size:10px;opacity:.75">entire database</div></div>
+      <div class="stat-card"><div class="stat-label">New Today</div><div class="stat-value" id="dbwToday">\u2014</div><div class="stat-sub" style="font-size:10px;opacity:.75">all sources</div></div>
+      <div class="stat-card"><div class="stat-label">New (7d)</div><div class="stat-value" id="dbw7d">\u2014</div><div class="stat-sub" style="font-size:10px;opacity:.75">all sources</div></div>
+      <div class="stat-card"><div class="stat-label">New (30d)</div><div class="stat-value" id="dbw30d">\u2014</div><div class="stat-sub" style="font-size:10px;opacity:.75">all sources</div></div>
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>\u{1F4E1} Source Breakdown <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">all contacts</span></h3>
+        <div id="dbWideSourceWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>\u{1F3F7}\uFE0F Tag Breakdown <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">all contacts</span></h3>
+        <div id="dbWideTagWrap"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- CHARTS -->
   <div class="charts-row">
     <div class="chart-card"><h3>Lead Status Distribution</h3><div class="chart-wrap"><canvas id="donutChart"></canvas></div></div>
@@ -14406,6 +14436,8 @@ async function loadData(forceRefresh) {
     // not the database. Warn whenever we come back at the ceiling.
     const SERVER_PAGE_CAP = 30;
     DB_TOTAL = (data.meta && Number.isFinite(Number(data.meta.dbTotal))) ? Number(data.meta.dbTotal) : null;
+    // Non-blocking: the summary is tiny and fast, but nothing here waits on it.
+    try { setTimeout(loadDbWideSummary, 0); } catch (e) {}
     if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
       console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
       try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
@@ -16592,6 +16624,60 @@ function clearNotifications() {
 /* Real contact count in GHL, from /contacts/bulk meta.dbTotal. The page can only load
    a capped recent slice, so this is what "total" actually means. Null if unavailable. */
 var DB_TOTAL = null;
+
+/* Database-wide counts from /contacts/summary. The page itself can only load a capped
+   recent slice, so these are the only numbers here that describe the whole database.
+   Fire-and-forget: any failure leaves the section hidden and the page unchanged. */
+function renderDbWideRows(obj, wrapId, total) {
+  var wrap = el(wrapId);
+  if (!wrap) return;
+  var rows = Object.keys(obj || {}).map(function(k) { return [k, obj[k]]; })
+    .filter(function(r) { return typeof r[1] === 'number'; })
+    .sort(function(a, b) { return b[1] - a[1]; });
+  if (!rows.length) { wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:12px">No data</div>'; return; }
+  var max = rows[0][1] || 1;
+  wrap.innerHTML = rows.map(function(r) {
+    var pct = total ? (r[1] / total * 100) : 0;
+    var barW = Math.max(2, Math.round(r[1] / max * 100));
+    return '<div style="display:flex;align-items:center;gap:10px;font-size:12px;padding:5px 2px">' +
+      '<span style="width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">' + r[0] + '</span>' +
+      '<div style="flex:1;height:6px;border-radius:3px;background:var(--card-border);overflow:hidden">' +
+        '<div style="height:100%;width:' + barW + '%;background:var(--blue,#3b82f6);border-radius:3px"></div></div>' +
+      '<span style="width:64px;text-align:right;font-weight:700">' + r[1].toLocaleString() + '</span>' +
+      '<span style="width:46px;text-align:right;color:var(--text-secondary)">' + pct.toFixed(1) + '%</span>' +
+    '</div>';
+  }).join('');
+}
+
+function loadDbWideSummary() {
+  var url = PROXY_URL + '/contacts/summary?t=' + Date.now();
+  fetch(url, { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(s) {
+      if (!s || typeof s.total !== 'number') throw new Error('unexpected payload');
+      var set = function(id, v) { if (el(id)) el(id).textContent = v; };
+      set('dbwTotal', s.total.toLocaleString());
+      set('dbWideTotalInline', s.total.toLocaleString());
+      var nc = s.newContacts || {};
+      set('dbwToday', nc.today != null ? nc.today.toLocaleString() : '\u2014');
+      set('dbw7d', nc.last7d != null ? nc.last7d.toLocaleString() : '\u2014');
+      set('dbw30d', nc.last30d != null ? nc.last30d.toLocaleString() : '\u2014');
+      set('dbWideSliceN', (ALL_LEADS ? ALL_LEADS.length : 0).toLocaleString());
+      if (s.generatedAt) set('dbWideStamp', 'as of ' + new Date(s.generatedAt).toLocaleTimeString());
+
+      var bySource = Object.assign({}, s.bySource || {});
+      // Sources outside the probed list. Showing it keeps the breakdown honest -
+      // without it the bars imply they add up to the total, and they do not.
+      if (typeof s.sourceOther === 'number' && s.sourceOther > 0) bySource['(other / unlisted sources)'] = s.sourceOther;
+      renderDbWideRows(bySource, 'dbWideSourceWrap', s.total);
+      renderDbWideRows(s.byTag, 'dbWideTagWrap', s.total);
+
+      if (el('dbWideSection')) el('dbWideSection').style.display = '';
+    })
+    .catch(function(e) {
+      console.warn('[analytics] database-wide summary unavailable:', e && e.message);
+    });
+}
 
 /* =============================== AGENT PERFORMANCE =============================== */
 // GHL Team Members \u2014 fetched live from GHL API, GHL is the source of truth
