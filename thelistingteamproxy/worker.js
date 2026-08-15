@@ -12701,7 +12701,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
     </button>
     <!-- Smart Lists button removed 2026-08-15: the smartPanel / smartListItems / smartNameInput
-         markup was never ported to the Analytics page, so this button threw
+         markup exists nowhere in worker.js, so this button threw
          "Cannot read properties of null (reading 'classList')" and opened nothing. -->
     <button class="hdr-btn" id="darkToggleBtn" title="Toggle Dark Mode" onclick="toggleDark()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -12844,7 +12844,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 
   <!-- STAT CARDS -->
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-value" id="mTotal">\u2014</div><div class="stat-sub positive" id="subToday"><span>loading...</span></div></div>
+    <div class="stat-card"><div class="stat-label" id="mTotalLabel" title="This page loads the most recent contacts only \u2014 the server caps the load. It is not the whole database.">Recent Leads</div><div class="stat-value" id="mTotal">\u2014</div><div class="stat-sub positive" id="subToday"><span>loading...</span></div><div class="stat-sub" id="mTotalScope" style="font-size:10px;opacity:.75"></div></div>
     <div class="stat-card"><div class="stat-label">New Leads (7d)</div><div class="stat-value" id="mNew7d">\u2014</div><div class="stat-sub hot" id="subHot"><span>\u{1F525} loading...</span></div></div>
     <div class="stat-card"><div class="stat-label">\u26A0\uFE0F Stale Leads</div><div class="stat-value" id="mResponseTime">\u2014</div><div class="stat-sub info" id="subResponse"><span>loading...</span></div></div>
     <div class="stat-card"><div class="stat-label">Engagement Score</div><div class="stat-value" id="mEngagement">\u2014</div><div class="stat-sub positive" id="subEngagement"><span>loading...</span></div></div>
@@ -14249,6 +14249,15 @@ function updateStats(leads) {
   const engPct=total>0?Math.round(engaged/total*100):0;
 
   if(el('mTotal')) el('mTotal').textContent=total;
+  // Say plainly what this number covers. Without this the capped slice reads as the total.
+  if(el('mTotalScope')) {
+    el('mTotalScope').textContent = (DB_TOTAL && DB_TOTAL > total)
+      ? \`loaded \u00B7 \${DB_TOTAL.toLocaleString()} in database\`
+      : '';
+  }
+  if(el('mTotalLabel')) {
+    el('mTotalLabel').textContent = (DB_TOTAL && DB_TOTAL > total) ? 'Recent Leads' : 'Total Leads';
+  }
   if(el('mNew7d')) el('mNew7d').textContent=new7d;
   if(el('mResponseTime')) el('mResponseTime').textContent = staleCount>0?staleCount:'0';
   if(el('mEngagement')) el('mEngagement').textContent=avgScore;
@@ -14397,7 +14406,7 @@ async function loadData(forceRefresh) {
     fill.style.width = '30%';
 
     // BULK_PAGES was 20, which silently truncated the load at 2,000 contacts while GHL
-    // held ~3,000 — and the dropped 1,000 were the OLDEST, so Total/Stale/Going-Cold and
+    // held ~3,000 - and the dropped 1,000 were the OLDEST, so Total/Stale/Going-Cold and
     // every source total were understated. 50 pages = 5,000 headroom. Verified 2026-08-15.
     const BULK_PAGES = 50;
     const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=\${BULK_PAGES}&t=\${Date.now()}\`, { cache: "no-store" });
@@ -14406,11 +14415,17 @@ async function loadData(forceRefresh) {
     const data = await res.json();
     const allRaw = data.contacts || [];
 
-    // If the server filled the entire request, pagination was not exhausted — we may be
+    // If the server filled the entire request, pagination was not exhausted - we may be
     // truncating again. Fail loudly rather than quietly reporting a wrong total.
-    if (data.meta && Number(data.meta.pages) >= BULK_PAGES) {
-      console.warn('[analytics] Contact load may be truncated: server returned the full ' + BULK_PAGES + '-page request (' + allRaw.length + ' contacts). Raise BULK_PAGES.');
-      try { toast('Contact load may be truncated (' + allRaw.length + ' loaded) — raise BULK_PAGES', 'error'); } catch (e) {}
+    // The worker's /contacts/bulk handler clamps to 30 pages (Math.min(pages, 30)) and also
+    // bails at a 55s deadline, so the ceiling is 3,000 regardless of what we ask for. GHL
+    // actually holds ~128,000 contacts in this location, so this page shows a RECENT SLICE,
+    // not the database. Warn whenever we come back at the ceiling.
+    const SERVER_PAGE_CAP = 30;
+    DB_TOTAL = (data.meta && Number.isFinite(Number(data.meta.dbTotal))) ? Number(data.meta.dbTotal) : null;
+    if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
+      console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
+      try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
     }
 
     fill.style.width = '100%';
@@ -16590,6 +16605,10 @@ function clearNotifications() {
   renderNotifList();
   el('notifPanel').classList.remove('open');
 }
+
+/* Real contact count in GHL, from /contacts/bulk meta.dbTotal. The page can only load
+   a capped recent slice, so this is what "total" actually means. Null if unavailable. */
+var DB_TOTAL = null;
 
 /* =============================== AGENT PERFORMANCE =============================== */
 // GHL Team Members \u2014 fetched live from GHL API, GHL is the source of truth
@@ -22118,6 +22137,70 @@ var index_default = {
         return err(`Failed to fetch Ylopo events: ${e.message || e.status}`, e.status || 500);
       }
     }
+    // ---------------------------------------------------------------------
+    // GET /contacts/summary - database-wide counts, computed by GHL not by us.
+    //
+    // /contacts/bulk is capped at 30 pages (3,000 contacts) while the location holds
+    // ~128k, so anything derived from it describes a recent slice. This endpoint asks
+    // GHL for a `total` per filter (pageLimit 1) and runs the probes in parallel, so
+    // the numbers cover the WHOLE database for a few KB and a couple of seconds.
+    //
+    // ?sources=a,b,c   override the source list (default: the known feeds)
+    // ?tags=x,y        override the tag list
+    // ---------------------------------------------------------------------
+    if (method === "GET" && path === "/contacts/summary") {
+      try {
+        const isoDaysAgo = (d) => new Date(Date.now() - d * 864e5).toISOString();
+        const countWhere = async (filters) => {
+          const body = { locationId: locId, pageLimit: 1 };
+          if (filters && filters.length) body.filters = filters;
+          const r = await ghl(env, "POST", "/contacts/search", body);
+          return r && typeof r.total === "number" ? r.total : null;
+        };
+        const since = (days) => [{ field: "dateAdded", operator: "range", value: { gte: isoDaysAgo(days) } }];
+
+        const sources = (url.searchParams.get("sources") ||
+          "my +plus leads,Ylopo Webhook,UpNest,Inbound call,Realtor.com,Facebook,Ylopo Seller,Ylopo Sidecar"
+        ).split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+
+        const tags = (url.searchParams.get("tags") ||
+          "ylopo lead,expired,fsbo,myleadsplus,canceled,opt-out"
+        ).split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+
+        // Every probe is independent - fire them together.
+        const [total, new1, new7, new30, new90, sourceCounts, tagCounts] = await Promise.all([
+          countWhere(null),
+          countWhere(since(1)),
+          countWhere(since(7)),
+          countWhere(since(30)),
+          countWhere(since(90)),
+          Promise.all(sources.map(async (s) => [s, await countWhere([{ field: "source", operator: "eq", value: s }])])),
+          Promise.all(tags.map(async (t) => [t, await countWhere([{ field: "tags", operator: "eq", value: t }])]))
+        ]);
+
+        const bySource = {};
+        for (const [k, v] of sourceCounts) if (v != null) bySource[k] = v;
+        const byTag = {};
+        for (const [k, v] of tagCounts) if (v != null) byTag[k] = v;
+
+        const accountedFor = Object.values(bySource).reduce((a, b) => a + b, 0);
+
+        return json({
+          scope: "database-wide",
+          generatedAt: new Date().toISOString(),
+          total,
+          newContacts: { today: new1, last7d: new7, last30d: new30, last90d: new90 },
+          bySource,
+          byTag,
+          // Sources not in the probed list. Non-zero is expected; it is not an error.
+          sourceOther: total != null ? Math.max(0, total - accountedFor) : null,
+          note: "Counts come from GHL contact search totals and cover every contact in the location, unlike /contacts/bulk which is capped at 3,000."
+        });
+      } catch (e) {
+        return json({ error: "summary failed", detail: String(e && e.message || e) }, 500);
+      }
+    }
+
     if (method === "GET" && path === "/contacts/bulk") {
       try {
         const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "20"), 30);
@@ -22182,7 +22265,22 @@ var index_default = {
             break;
           }
         }
-        return json({ contacts: allContacts, meta: { total: allContacts.length, pages: Math.ceil(allContacts.length / 100) } });
+        // The loop above is capped (maxPages <= 30, plus a 55s deadline), so
+        // allContacts.length is a RECENT SLICE, not the database. Report the real
+        // contact count alongside it so the dashboard can label itself honestly.
+        // One cheap search call; never let it fail the request.
+        let dbTotal = null;
+        try {
+          const probe = await ghl(env, "POST", "/contacts/search", { locationId: locId, pageLimit: 1 });
+          if (probe && typeof probe.total === "number") dbTotal = probe.total;
+        } catch (e) {}
+        return json({ contacts: allContacts, meta: {
+          total: allContacts.length,
+          pages: Math.ceil(allContacts.length / 100),
+          dbTotal,
+          serverPageCap: 30,
+          capped: dbTotal != null && allContacts.length < dbTotal
+        } });
       } catch (e) {
         return err(`Bulk fetch error: ${e.message || e.status}`, e.status || 500);
       }
@@ -23578,10 +23676,14 @@ async function loadData(){
   document.getElementById('refreshBtn').disabled=true;
   toast('Loading contacts...','info');
   try{
-    var res=await fetch(PROXY+'/contacts/bulk?pages=20&t='+Date.now());
+    // Was pages=20, which capped this page at 2,000 contacts while GHL held ~3,000.
+    // Same defect as the Analytics page. Fixed 2026-08-15.
+    var IDX_BULK_PAGES=50;
+    var res=await fetch(PROXY+'/contacts/bulk?pages='+IDX_BULK_PAGES+'&t='+Date.now());
     if(!res.ok)throw new Error('HTTP '+res.status);
     var data=await res.json();
     ALL_CONTACTS=data.contacts||data.data||[];
+    if(data.meta&&Number(data.meta.pages)>=IDX_BULK_PAGES){console.warn('[idx] Contact load may be truncated ('+ALL_CONTACTS.length+' loaded). Raise IDX_BULK_PAGES.')}
     processData();
     renderStats();
     renderChart('weekly');
