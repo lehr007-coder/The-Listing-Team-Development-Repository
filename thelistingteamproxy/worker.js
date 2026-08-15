@@ -186,7 +186,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --text-white:#FFFFFF;
     --overlay:rgba(16,34,46,0.42);
 
-    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);  --green-light:#DCFCE7;
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);  --green-light:#DCFCE7;
     --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);    --red-light:#FEE2E2;
     --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);  --amber:#B45309; --amber-light:#FEF3C7;
     --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);   --blue-light:#DBEAFE;
@@ -195,7 +195,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --purple:#6D28D9;--purple-light:#EDE9FE;
     --pink:#BE185D;  --pink-light:#FCE7F3;
     --cyan:#1E7A9C;  --rose:#BE123C;
-    --success:#0F9D58; --warning:#B45309; --error:#D92D20;
+    --success:#0A7C42; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
     --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
@@ -968,7 +968,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --text-white:#FFFFFF;
     --overlay:rgba(16,34,46,0.42);
 
-    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);  --green-light:#DCFCE7;
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);  --green-light:#DCFCE7;
     --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);    --red-light:#FEE2E2;
     --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);  --amber:#B45309; --amber-light:#FEF3C7;
     --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);   --blue-light:#DBEAFE;
@@ -977,7 +977,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --purple:#6D28D9;--purple-light:#EDE9FE;
     --pink:#BE185D;  --pink-light:#FCE7F3;
     --cyan:#1E7A9C;  --rose:#BE123C;
-    --success:#0F9D58; --warning:#B45309; --error:#D92D20;
+    --success:#0A7C42; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
     --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
@@ -2611,7 +2611,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --muted:#7C93A3;
     --overlay:rgba(16,34,46,0.42);
 
-    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);
     --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);
     --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);
     --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);
@@ -11635,7 +11635,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --text-white:#FFFFFF;
     --overlay:rgba(16,34,46,0.42);
 
-    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);  --green-light:#DCFCE7;
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);  --green-light:#DCFCE7;
     --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);    --red-light:#FEE2E2;
     --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);  --amber:#B45309; --amber-light:#FEF3C7;
     --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);   --blue-light:#DBEAFE;
@@ -11644,7 +11644,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --purple:#6D28D9;--purple-light:#EDE9FE;
     --pink:#BE185D;  --pink-light:#FCE7F3;
     --cyan:#1E7A9C;  --rose:#BE123C;
-    --success:#0F9D58; --warning:#B45309; --error:#D92D20;
+    --success:#0A7C42; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
     --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
@@ -19906,7 +19906,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --text-white:#FFFFFF;
     --overlay:rgba(16,34,46,0.42);
 
-    --green:#0F9D58; --green-soft:rgba(15,157,88,0.10);  --green-light:#DCFCE7;
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);  --green-light:#DCFCE7;
     --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);    --red-light:#FEE2E2;
     --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);  --amber:#B45309; --amber-light:#FEF3C7;
     --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);   --blue-light:#DBEAFE;
@@ -19915,7 +19915,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --purple:#6D28D9;--purple-light:#EDE9FE;
     --pink:#BE185D;  --pink-light:#FCE7F3;
     --cyan:#1E7A9C;  --rose:#BE123C;
-    --success:#0F9D58; --warning:#B45309; --error:#D92D20;
+    --success:#0A7C42; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
     --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
