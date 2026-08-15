@@ -3880,10 +3880,10 @@ function renderSrcPerf() {
   var best = SRC_DATA.slice().sort(function(a,b) { return b.avgScore - a.avgScore; })[0];
   var mostShow = SRC_DATA.slice().sort(function(a,b) { return b.showings - a.showings; })[0];
   document.getElementById('srcKPIs').innerHTML =
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + SRC_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Active Sources</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (top ? top.count : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Top: ' + esc(top ? top.name : '') + '</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + (best ? best.avgScore : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Best Avg: ' + esc(best ? best.name : '') + '</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + (mostShow ? mostShow.showings : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Showings: ' + esc(mostShow ? mostShow.name : '') + '</div></div>';
   renderSrcTblBody();
   renderSrcCharts();
 }
@@ -3997,10 +3997,10 @@ function renderGeoView() {
 
   // KPIs
   document.getElementById('geoKPIs').innerHTML =
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
-    '<div style="background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:var(--green)">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-secondary)">' + GEO_DATA.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Cities</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--brand-accent)">' + stateArr.length + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">States</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div style="font-size:28px;font-weight:800;color:var(--green)">' + Math.round(withLoc / ALL_LEADS.length * 100) + '%</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Have Location</div></div>' +
+    '<div class="stat-card" style="text-align:center"><div class="flash-green" style="font-size:28px;font-weight:800;color:var(--green)">' + (hotCity ? hotCity.hot : 0) + '</div><div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Hottest: ' + esc(hotCity ? hotCity.name : '') + '</div></div>';
 
   // City bars
   var cityTop = GEO_DATA.slice().sort(function(a,b) { return b.count - a.count; }).slice(0, 12);
