@@ -1,0 +1,6 @@
+# scratch: transfer artefacts, backups, extracted page copies
+*.b64
+*.tgz
+__pycache__/
+new-body.html
+new.css

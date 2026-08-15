@@ -1,0 +1,169 @@
+
+  /* ==========================================================================
+     THE LISTING TEAM - SHARED DESIGN SYSTEM
+     One source of truth for every dashboard in thelistingteamproxy.
+     Injected at the TOP of each page's <style> block so page rules can still
+     override anything they need to.
+
+     Layer 1 primitives -> Layer 2 semantic -> Layer 3 base elements.
+     Brand: #0D3B4F deep teal / #1E7A9C mid teal / #5DADE2 sky
+     Light is the default. body.light-mode carries light; :root carries dark.
+     ========================================================================== */
+
+  :root {
+    /* ---- Layer 1: primitives ---- */
+    --c-brand-950:#062230; --c-brand-900:#0D3B4F; --c-brand-800:#12506B;
+    --c-brand-700:#166485; --c-brand-600:#1E7A9C; --c-brand-500:#2E93B5;
+    --c-brand-400:#5DADE2; --c-brand-300:#8CC6EB; --c-brand-200:#BCDFF4;
+    --c-brand-100:#DCF2F8; --c-brand-50:#F0F8FB;
+
+    --c-n-0:#FFFFFF;  --c-n-50:#F6F9FB;  --c-n-100:#EFF3F7; --c-n-200:#E3EAF0;
+    --c-n-300:#CDD9E3; --c-n-400:#9CAFBE; --c-n-500:#7C93A3; --c-n-600:#5A7284;
+    --c-n-700:#3E5666; --c-n-800:#22364A; --c-n-900:#132330; --c-n-950:#0A1119;
+
+    --sp-1:4px;  --sp-2:8px;  --sp-3:12px; --sp-4:16px;
+    --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+
+    --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-base:13px;
+    --fs-md:14px;  --fs-lg:16px; --fs-xl:20px; --fs-2xl:27px; --fs-3xl:34px;
+
+    --radius-xs:6px; --radius-sm:10px; --radius:14px; --radius-lg:18px; --radius-pill:999px;
+    --transition:0.18s cubic-bezier(0.4,0,0.2,1);
+    --font-sans:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+
+    /* ---- Layer 2: semantic - DARK ---- */
+    --bg:#0A1119;
+    --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
+    --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
+    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#6E8494; --muted:#6E8494;
+    --text-white:#FFFFFF;
+    --overlay:rgba(6,17,25,0.72);
+
+    --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
+    --red:#F87171;   --red-soft:rgba(248,113,113,0.14);  --red-light:rgba(248,113,113,0.18);
+    --yellow:#FBBF24;--yellow-soft:rgba(251,191,36,0.14);--amber:#FBBF24; --amber-light:rgba(251,191,36,0.18);
+    --blue:#60A5FA;  --blue-soft:rgba(96,165,250,0.14);  --blue-light:rgba(96,165,250,0.18);
+    --accent:#FB923C;--accent-soft:rgba(251,146,60,0.14);--orange:#FB923C; --orange-light:rgba(251,146,60,0.18);
+    --accent2:#818CF8;--accent2-soft:rgba(129,140,248,0.14);
+    --purple:#A78BFA;--purple-light:rgba(167,139,250,0.18);
+    --pink:#F472B6;  --pink-light:rgba(244,114,182,0.18);
+    --cyan:#5DADE2;  --rose:#FB7185;
+    --success:#34D399; --warning:#FBBF24; --error:#F87171;
+
+    --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
+    --primary:#5DADE2; --primary-light:#8CC6EB;
+    --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
+    --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+
+    --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
+    --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
+    --shadow:0 8px 26px rgba(0,0,0,0.42);
+    --shadow-md:0 10px 30px rgba(0,0,0,0.46);
+    --shadow-lg:0 18px 48px rgba(0,0,0,0.55);
+  }
+
+  /* ---- Layer 2: semantic - LIGHT (the default) ---- */
+  body.light-mode {
+    --bg:#F1F5F8;
+    --surface:#FFFFFF;   --surface-2:#F6F9FB;  --surface-hover:#EFF3F7;
+    --card:#FFFFFF;      --card-bg:#FFFFFF;    --card-hover:#F6F9FB;
+    --card-border:#E3EAF0; --border:#E3EAF0;   --border-hover:#CDD9E3;
+    --text:#10222E;      --text-secondary:#4E6879; --text-muted:#7C93A3; --muted:#7C93A3;
+    --text-white:#FFFFFF;
+    --overlay:rgba(16,34,46,0.42);
+
+    --green:#0A7C42; --green-soft:rgba(10,124,66,0.10);  --green-light:#DCFCE7;
+    --red:#D92D20;   --red-soft:rgba(217,45,32,0.10);    --red-light:#FEE2E2;
+    --yellow:#B45309;--yellow-soft:rgba(180,83,9,0.10);  --amber:#B45309; --amber-light:#FEF3C7;
+    --blue:#1D4ED8;  --blue-soft:rgba(29,78,216,0.10);   --blue-light:#DBEAFE;
+    --accent:#D9550B;--accent-soft:rgba(217,85,11,0.10); --orange:#D9550B; --orange-light:#FFEDD5;
+    --accent2:#4F46E5;--accent2-soft:rgba(79,70,229,0.10);
+    --purple:#6D28D9;--purple-light:#EDE9FE;
+    --pink:#BE185D;  --pink-light:#FCE7F3;
+    --cyan:#1E7A9C;  --rose:#BE123C;
+    --success:#0A7C42; --warning:#B45309; --error:#D92D20;
+
+    --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
+    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
+    --primary:#0D3B4F; --primary-light:#1E7A9C;
+    --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
+    --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
+    --header-bg:linear-gradient(165deg,#0D3B4F 0%,#12506B 45%,#1E7A9C 100%);
+
+    --shadow-xs:0 1px 2px rgba(16,34,46,0.06);
+    --shadow-sm:0 1px 3px rgba(16,34,46,0.08),0 1px 2px rgba(16,34,46,0.04);
+    --shadow:0 6px 20px rgba(16,34,46,0.09);
+    --shadow-md:0 10px 26px rgba(16,34,46,0.12);
+    --shadow-lg:0 18px 44px rgba(16,34,46,0.16);
+  }
+
+  /* ---- Legacy theme-class reconciliation ----------------------------------
+     Analytics already shipped a dark mode on 'body.dark' (key v5_dark_mode) and
+     Priority Leads references 'dark-mode'. Those controls must keep working, so
+     if either class is present it wins over light-mode rather than becoming a
+     dead switch. The shared toggle keeps all three in sync. */
+  body.light-mode.dark, body.light-mode.dark-mode {
+    --bg:#0A1119;
+    --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
+    --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
+    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#6E8494; --muted:#6E8494;
+    --overlay:rgba(6,17,25,0.72);
+    --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
+    --red:#F87171;   --red-soft:rgba(248,113,113,0.14);  --red-light:rgba(248,113,113,0.18);
+    --yellow:#FBBF24;--yellow-soft:rgba(251,191,36,0.14);--amber:#FBBF24; --amber-light:rgba(251,191,36,0.18);
+    --blue:#60A5FA;  --blue-soft:rgba(96,165,250,0.14);  --blue-light:rgba(96,165,250,0.18);
+    --accent:#FB923C;--accent-soft:rgba(251,146,60,0.14);--orange:#FB923C; --orange-light:rgba(251,146,60,0.18);
+    --accent2:#818CF8;--accent2-soft:rgba(129,140,248,0.14);
+    --purple:#A78BFA;--purple-light:rgba(167,139,250,0.18);
+    --pink:#F472B6;  --pink-light:rgba(244,114,182,0.18);
+    --cyan:#5DADE2;  --rose:#FB7185;
+    --success:#34D399; --warning:#FBBF24; --error:#F87171;
+    --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
+    --primary:#5DADE2; --primary-light:#8CC6EB;
+    --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
+    --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
+    --shadow-sm:0 2px 6px rgba(0,0,0,0.34);
+    --shadow:0 8px 26px rgba(0,0,0,0.42);
+    --shadow-md:0 10px 30px rgba(0,0,0,0.46);
+    --shadow-lg:0 18px 48px rgba(0,0,0,0.55);
+  }
+
+  /* ==========================================================================
+     Layer 3: base elements - applies to every page without markup changes
+     ========================================================================== */
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    transition:background var(--transition),color var(--transition);
+  }
+  a{color:var(--brand-accent)}
+  h1,h2,h3,h4{letter-spacing:-0.015em}
+  ::selection{background:var(--brand-chip);color:var(--brand-primary)}
+  :focus-visible{outline:none;box-shadow:var(--focus-ring)}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:var(--radius-pill);border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-muted);background-clip:padding-box}
+
+  /* Shared theme toggle - identical on every dashboard */
+  .tlt-theme-toggle{
+    position:fixed; right:18px; bottom:18px; z-index:99998;
+    display:inline-flex; align-items:center; gap:7px;
+    padding:9px 14px;
+    background:var(--surface); color:var(--text-secondary);
+    border:1px solid var(--card-border); border-radius:var(--radius-pill);
+    font-family:var(--font-sans); font-size:var(--fs-sm); font-weight:700;
+    cursor:pointer; box-shadow:var(--shadow); transition:var(--transition);
+  }
+  .tlt-theme-toggle:hover{color:var(--text);border-color:var(--c-brand-300);transform:translateY(-1px)}
+
+  @media print{ .tlt-theme-toggle{display:none !important} }
