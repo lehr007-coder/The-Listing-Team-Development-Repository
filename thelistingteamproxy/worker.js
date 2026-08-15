@@ -11752,7 +11752,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);lin
 .stat-card .stat-label{font-size:13px;color:var(--text-secondary);font-weight:500;margin-bottom:4px}
 .stat-card .stat-value{font-size:32px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:-0.02em}
 .stat-sub{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
-.stat-sub.positive{color:var(--green-dark)}
+.stat-sub.positive{color:var(--green)}
 .stat-sub.hot{color:var(--red)}
 .stat-sub.info{color:var(--blue)}
 
@@ -11868,11 +11868,11 @@ tbody tr.lead-row:hover{background:rgba(34,197,94,0.04)}
 /* Actions */
 .actions-cell{display:flex;gap:6px}
 .act-btn{width:30px;height:30px;border:none;border-radius:var(--radius-xs);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:all 0.2s;font-size:15px}
-.act-btn:hover{background:var(--green-light);color:var(--green-dark)}
+.act-btn:hover{background:var(--green-light);color:var(--green)}
 
 /* Expand arrow */
 .expand-arrow{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--bg);color:var(--text-secondary);font-size:11px;transition:transform 0.3s,background 0.2s;flex-shrink:0;cursor:pointer}
-.expand-arrow.open{transform:rotate(180deg);background:var(--green-light);color:var(--green-dark)}
+.expand-arrow.open{transform:rotate(180deg);background:var(--green-light);color:var(--green)}
 
 /* ===== ACCORDION DETAIL ROW ===== */
 tr.detail-row{display:none}
@@ -11896,7 +11896,7 @@ body.dark tr.detail-row>td{background:var(--surface)}
 .matrix-mini .mm-bar{height:4px;border-radius:2px;margin-top:8px}
 .mm-views .mm-value{color:var(--blue)} .mm-views .mm-bar{background:linear-gradient(90deg,var(--red),var(--orange))}
 .mm-saves .mm-value{color:var(--green)} .mm-saves .mm-bar{background:linear-gradient(90deg,var(--red),var(--orange))}
-.mm-searches .mm-value{color:var(--amber)} .mm-searches .mm-bar{background:linear-gradient(90deg,var(--green),var(--green-dark))}
+.mm-searches .mm-value{color:var(--amber)} .mm-searches .mm-bar{background:linear-gradient(90deg,var(--green),var(--green))}
 .mm-showings .mm-value{color:var(--purple)} .mm-showings .mm-bar{background:linear-gradient(90deg,var(--amber),var(--orange))}
 
 /* Conversion prob */
@@ -12012,7 +12012,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 /* Bulk Actions */
 .bulk-bar{display:none;align-items:center;gap:16px;padding:12px 20px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow)}
 .bulk-bar.visible{display:flex}
-.bulk-count{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--green-dark)}
+.bulk-count{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--green)}
 .bulk-action{padding:6px 14px;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;color:var(--text);border-radius:var(--radius-xs)}
 .bulk-action:hover{background:var(--bg)}
 .bulk-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;font-weight:700}
@@ -12363,7 +12363,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .wb-tag-chip{padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;border:2px solid var(--card-border);cursor:pointer;transition:all 0.15s;background:var(--card);color:var(--text)}
 .wb-tag-chip:hover,.wb-tag-chip.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
 .wb-result{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;margin-top:10px;display:none}
-.wb-result.ok{display:block;background:var(--green-light);color:var(--green-dark)}
+.wb-result.ok{display:block;background:var(--green-light);color:var(--green)}
 .wb-result.err{display:block;background:var(--red-light);color:var(--red)}
 
 /* ===== NOTIFICATION BELL ===== */
@@ -12501,7 +12501,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .match-name{font-size:13px;font-weight:700;color:var(--text)}
 .match-detail{font-size:11px;color:var(--text-secondary);margin-top:2px}
 .match-listings{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.match-listing{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green)}
+.match-listing{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:var(--green-light);color:var(--green);border:1px solid var(--green)}
 
 /* ===== V4: DUPE MERGE MODAL ===== */
 .dupe-merge-pair{display:flex;gap:16px;margin-bottom:16px}
@@ -12514,7 +12514,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 /* ===== V4: SCHEDULING MODAL ===== */
 .sched-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}
 .sched-slot{padding:10px;border-radius:var(--radius-sm);border:2px solid var(--card-border);text-align:center;cursor:pointer;transition:all 0.15s}
-.sched-slot:hover,.sched-slot.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.sched-slot:hover,.sched-slot.selected{border-color:var(--green);background:var(--green-light);color:var(--green)}
 .sched-slot .ss-day{font-size:11px;font-weight:700;text-transform:uppercase}
 .sched-slot .ss-time{font-size:14px;font-weight:800;margin-top:2px}
 
@@ -12599,13 +12599,13 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .fuq-dispositions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
 .fuq-disp{padding:12px 14px;border:2px solid var(--card-border);border-radius:var(--radius-sm);background:var(--card);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all 0.2s}
 .fuq-disp:hover{border-color:var(--blue);background:var(--blue-light)}
-.fuq-disp.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.fuq-disp.selected{border-color:var(--green);background:var(--green-light);color:var(--green)}
 .fuq-note{width:100%;padding:10px 14px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;min-height:60px;background:var(--card);color:var(--text);margin-bottom:16px}
 .fuq-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid var(--card-border)}
 .fuq-nav-btn{padding:10px 20px;border-radius:var(--radius-sm);font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--card-border);background:var(--card);color:var(--text);transition:all 0.2s}
 .fuq-nav-btn:hover{border-color:var(--text)}
 .fuq-nav-btn.primary{background:var(--green);color:var(--brand-ink);border-color:var(--green)}
-.fuq-nav-btn.primary:hover{background:var(--green-dark)}
+.fuq-nav-btn.primary:hover{background:var(--green)}
 .fuq-nav-btn:disabled{opacity:0.4;cursor:not-allowed}
 
 /* =============================== V5: SHOWING OUTCOME TRACKER =============================== */
@@ -12619,7 +12619,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .sot-outcomes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
 .sot-outcome{padding:14px;border:2px solid var(--card-border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;font-weight:600;font-size:13px}
 .sot-outcome:hover{border-color:var(--blue)}
-.sot-outcome.selected{border-color:var(--green);background:var(--green-light);color:var(--green-dark)}
+.sot-outcome.selected{border-color:var(--green);background:var(--green-light);color:var(--green)}
 .sot-note{width:100%;padding:10px 14px;border:1px solid var(--card-border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;min-height:50px;background:var(--card);color:var(--text)}
 .sot-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 
@@ -17122,7 +17122,7 @@ function renderCohortAnalysis(leads) {
   const sorted = Object.entries(cohorts).sort((a,b) => b[0].localeCompare(a[0])).slice(0,6);
 
   function cellColor(pct) {
-    if(pct >= 50) return 'background:var(--green-light);color:var(--green-dark)';
+    if(pct >= 50) return 'background:var(--green-light);color:var(--green)';
     if(pct >= 25) return 'background:var(--amber-light);color:var(--amber)';
     if(pct >= 10) return 'background:var(--blue-light);color:var(--blue)';
     return 'background:var(--bg);color:var(--text-secondary)';
