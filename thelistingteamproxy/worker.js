@@ -12827,7 +12827,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 
   <!-- STAT CARDS -->
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Total Leads</div><div class="stat-value" id="mTotal">\u2014</div><div class="stat-sub positive" id="subToday"><span>loading...</span></div></div>
+    <div class="stat-card"><div class="stat-label" id="mTotalLabel" title="This page loads the most recent contacts only \u2014 the server caps the load. It is not the whole database.">Recent Leads</div><div class="stat-value" id="mTotal">\u2014</div><div class="stat-sub positive" id="subToday"><span>loading...</span></div><div class="stat-sub" id="mTotalScope" style="font-size:10px;opacity:.75"></div></div>
     <div class="stat-card"><div class="stat-label">New Leads (7d)</div><div class="stat-value" id="mNew7d">\u2014</div><div class="stat-sub hot" id="subHot"><span>\u{1F525} loading...</span></div></div>
     <div class="stat-card"><div class="stat-label">\u26A0\uFE0F Stale Leads</div><div class="stat-value" id="mResponseTime">\u2014</div><div class="stat-sub info" id="subResponse"><span>loading...</span></div></div>
     <div class="stat-card"><div class="stat-label">Engagement Score</div><div class="stat-value" id="mEngagement">\u2014</div><div class="stat-sub positive" id="subEngagement"><span>loading...</span></div></div>
@@ -14232,6 +14232,15 @@ function updateStats(leads) {
   const engPct=total>0?Math.round(engaged/total*100):0;
 
   if(el('mTotal')) el('mTotal').textContent=total;
+  // Say plainly what this number covers. Without this the capped slice reads as the total.
+  if(el('mTotalScope')) {
+    el('mTotalScope').textContent = (DB_TOTAL && DB_TOTAL > total)
+      ? \`loaded \u00B7 \${DB_TOTAL.toLocaleString()} in database\`
+      : '';
+  }
+  if(el('mTotalLabel')) {
+    el('mTotalLabel').textContent = (DB_TOTAL && DB_TOTAL > total) ? 'Recent Leads' : 'Total Leads';
+  }
   if(el('mNew7d')) el('mNew7d').textContent=new7d;
   if(el('mResponseTime')) el('mResponseTime').textContent = staleCount>0?staleCount:'0';
   if(el('mEngagement')) el('mEngagement').textContent=avgScore;
@@ -14396,6 +14405,7 @@ async function loadData(forceRefresh) {
     // actually holds ~128,000 contacts in this location, so this page shows a RECENT SLICE,
     // not the database. Warn whenever we come back at the ceiling.
     const SERVER_PAGE_CAP = 30;
+    DB_TOTAL = (data.meta && Number.isFinite(Number(data.meta.dbTotal))) ? Number(data.meta.dbTotal) : null;
     if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
       console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
       try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
@@ -16578,6 +16588,10 @@ function clearNotifications() {
   renderNotifList();
   el('notifPanel').classList.remove('open');
 }
+
+/* Real contact count in GHL, from /contacts/bulk meta.dbTotal. The page can only load
+   a capped recent slice, so this is what "total" actually means. Null if unavailable. */
+var DB_TOTAL = null;
 
 /* =============================== AGENT PERFORMANCE =============================== */
 // GHL Team Members \u2014 fetched live from GHL API, GHL is the source of truth
@@ -22001,7 +22015,22 @@ var index_default = {
             break;
           }
         }
-        return json({ contacts: allContacts, meta: { total: allContacts.length, pages: Math.ceil(allContacts.length / 100) } });
+        // The loop above is capped (maxPages <= 30, plus a 55s deadline), so
+        // allContacts.length is a RECENT SLICE, not the database. Report the real
+        // contact count alongside it so the dashboard can label itself honestly.
+        // One cheap search call; never let it fail the request.
+        let dbTotal = null;
+        try {
+          const probe = await ghl(env, "POST", "/contacts/search", { locationId: locId, pageLimit: 1 });
+          if (probe && typeof probe.total === "number") dbTotal = probe.total;
+        } catch (e) {}
+        return json({ contacts: allContacts, meta: {
+          total: allContacts.length,
+          pages: Math.ceil(allContacts.length / 100),
+          dbTotal,
+          serverPageCap: 30,
+          capped: dbTotal != null && allContacts.length < dbTotal
+        } });
       } catch (e) {
         return err(`Bulk fetch error: ${e.message || e.status}`, e.status || 500);
       }
