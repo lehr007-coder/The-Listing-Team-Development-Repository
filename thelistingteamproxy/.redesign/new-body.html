@@ -1,0 +1,508 @@
+<body class="light-mode">
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading contacts...</div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- COLOR PANEL MODAL -->
+<div class="color-panel-overlay" id="colorPanelOverlay" onclick="if(event.target===this)closeColorPanel()">
+  <div class="color-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <h3 style="margin:0">&#127912; Badge Color Customizer</h3>
+      <button onclick="closeColorPanel()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1">&#10005;</button>
+    </div>
+    <div id="cpLock" class="cp-lock">
+      <p style="margin:0;font-size:13px;color:var(--text-muted)">&#128274; Admin access required</p>
+      <input type="password" id="cpPassword" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')cpUnlock()">
+      <button onclick="cpUnlock()">Unlock</button>
+    </div>
+    <div id="cpBody" style="display:none">
+      <div class="cp-tabs">
+        <button class="cp-tab active" onclick="cpTab('sources',this)">Sources</button>
+        <button class="cp-tab" onclick="cpTab('types',this)">Types</button>
+        <button class="cp-tab" onclick="cpTab('status',this)">Status</button>
+        <button class="cp-tab" onclick="cpTab('behavior',this)">Behavior</button>
+      </div>
+      <div id="cp-sources" class="cp-section active">
+        <div class="color-row"><label>Ylopo</label><input type="color" id="cp-src-ylopo-bg" oninput="cpPrev('src-ylopo')"><input type="color" id="cp-src-ylopo-color" oninput="cpPrev('src-ylopo')"><span class="preview" id="cp-src-ylopo-preview">YLOPO</span></div>
+        <div class="color-row"><label>MyPlusLeads</label><input type="color" id="cp-src-myplus-bg" oninput="cpPrev('src-myplus')"><input type="color" id="cp-src-myplus-color" oninput="cpPrev('src-myplus')"><span class="preview" id="cp-src-myplus-preview">MYPLUS</span></div>
+        <div class="color-row"><label>Zillow</label><input type="color" id="cp-src-zillow-bg" oninput="cpPrev('src-zillow')"><input type="color" id="cp-src-zillow-color" oninput="cpPrev('src-zillow')"><span class="preview" id="cp-src-zillow-preview">ZILLOW</span></div>
+        <div class="color-row"><label>Realtor</label><input type="color" id="cp-src-realtor-bg" oninput="cpPrev('src-realtor')"><input type="color" id="cp-src-realtor-color" oninput="cpPrev('src-realtor')"><span class="preview" id="cp-src-realtor-preview">REALTOR</span></div>
+        <div class="color-row"><label>Homes / HLApps</label><input type="color" id="cp-src-homes-bg" oninput="cpPrev('src-homes')"><input type="color" id="cp-src-homes-color" oninput="cpPrev('src-homes')"><span class="preview" id="cp-src-homes-preview">HOMES</span></div>
+        <div class="color-row"><label>Default / Other</label><input type="color" id="cp-src-def-bg" oninput="cpPrev('src-def')"><input type="color" id="cp-src-def-color" oninput="cpPrev('src-def')"><span class="preview" id="cp-src-def-preview">OTHER</span></div>
+        <div id="cpCustomSources"></div>
+        <div class="cp-add-row">
+          <input type="text" id="cpNewSrcName" placeholder="Source name (e.g. Facebook)">
+          <input type="color" id="cpNewSrcColor" value="#1877f2">
+          <button class="cp-add-btn" onclick="cpAddSource()">+ Add</button>
+        </div>
+      </div>
+      <div id="cp-types" class="cp-section">
+        <div class="color-row"><label>Seller</label><input type="color" id="cp-type-seller-bg" oninput="cpPrev('type-seller')"><input type="color" id="cp-type-seller-color" oninput="cpPrev('type-seller')"><span class="preview" id="cp-type-seller-preview">SELLER</span></div>
+        <div class="color-row"><label>Buyer</label><input type="color" id="cp-type-buyer-bg" oninput="cpPrev('type-buyer')"><input type="color" id="cp-type-buyer-color" oninput="cpPrev('type-buyer')"><span class="preview" id="cp-type-buyer-preview">BUYER</span></div>
+        <div class="color-row"><label>Default</label><input type="color" id="cp-type-def-bg" oninput="cpPrev('type-def')"><input type="color" id="cp-type-def-color" oninput="cpPrev('type-def')"><span class="preview" id="cp-type-def-preview">OTHER</span></div>
+        <div id="cpCustomTypes"></div>
+        <div class="cp-add-row">
+          <input type="text" id="cpNewTypeName" placeholder="Type name (e.g. Lead)">
+          <input type="color" id="cpNewTypeColor" value="#8b5cf6">
+          <button class="cp-add-btn" onclick="cpAddType()">+ Add</button>
+        </div>
+      </div>
+      <div id="cp-status" class="cp-section">
+        <div class="color-row"><label>HOT</label><input type="color" id="cp-stat-hot-bg" oninput="cpPrev('stat-hot')"><input type="color" id="cp-stat-hot-color" oninput="cpPrev('stat-hot')"><span class="preview" id="cp-stat-hot-preview">HOT</span></div>
+        <div class="color-row"><label>Warm</label><input type="color" id="cp-stat-warm-bg" oninput="cpPrev('stat-warm')"><input type="color" id="cp-stat-warm-color" oninput="cpPrev('stat-warm')"><span class="preview" id="cp-stat-warm-preview">WARM</span></div>
+        <div class="color-row"><label>Cold</label><input type="color" id="cp-stat-cold-bg" oninput="cpPrev('stat-cold')"><input type="color" id="cp-stat-cold-color" oninput="cpPrev('stat-cold')"><span class="preview" id="cp-stat-cold-preview">COLD</span></div>
+        <div class="color-row"><label>New</label><input type="color" id="cp-stat-new-bg" oninput="cpPrev('stat-new')"><input type="color" id="cp-stat-new-color" oninput="cpPrev('stat-new')"><span class="preview" id="cp-stat-new-preview">NEW</span></div>
+      </div>
+      <div id="cp-behavior" class="cp-section">
+        <div class="color-row"><label>Visitor</label><input type="color" id="cp-beh-visitor-bg" oninput="cpPrev('beh-visitor')"><input type="color" id="cp-beh-visitor-color" oninput="cpPrev('beh-visitor')"><span class="preview" id="cp-beh-visitor-preview">VISITOR</span></div>
+        <div class="color-row"><label>Searcher</label><input type="color" id="cp-beh-searcher-bg" oninput="cpPrev('beh-searcher')"><input type="color" id="cp-beh-searcher-color" oninput="cpPrev('beh-searcher')"><span class="preview" id="cp-beh-searcher-preview">SEARCHER</span></div>
+        <div class="color-row"><label>Buyer</label><input type="color" id="cp-beh-buyer-bg" oninput="cpPrev('beh-buyer')"><input type="color" id="cp-beh-buyer-color" oninput="cpPrev('beh-buyer')"><span class="preview" id="cp-beh-buyer-preview">BUYER</span></div>
+        <div class="color-row"><label>Seller</label><input type="color" id="cp-beh-seller-bg" oninput="cpPrev('beh-seller')"><input type="color" id="cp-beh-seller-color" oninput="cpPrev('beh-seller')"><span class="preview" id="cp-beh-seller-preview">SELLER</span></div>
+        <div class="color-row"><label>Showing</label><input type="color" id="cp-beh-showing-bg" oninput="cpPrev('beh-showing')"><input type="color" id="cp-beh-showing-color" oninput="cpPrev('beh-showing')"><span class="preview" id="cp-beh-showing-preview">SHOWING</span></div>
+        <div class="color-row"><label>Stale</label><input type="color" id="cp-beh-stale-bg" oninput="cpPrev('beh-stale')"><input type="color" id="cp-beh-stale-color" oninput="cpPrev('beh-stale')"><span class="preview" id="cp-beh-stale-preview">STALE</span></div>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin:10px 0 4px">Left = background color &nbsp;|&nbsp; Right = text color</p>
+      <div class="color-panel-btns">
+        <button class="cp-save" onclick="saveColorSettings()">Save All</button>
+        <button class="cp-reset" onclick="resetColorSettings()">Reset Defaults</button>
+        <button class="cp-close" onclick="closeColorPanel()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Diagnostics Modal -->
+<div class="modal-overlay" id="diagModal">
+  <div class="modal">
+    <span class="modal-close" onclick="document.getElementById('diagModal').classList.remove('open')">&#x2715;</span>
+    <div class="modal-title">Field Diagnostics</div>
+    <div id="diagContent">Loading...</div>
+  </div>
+</div>
+
+<!-- ============================== APP SHELL ============================== -->
+<div class="app-shell">
+
+  <!-- --------- Side navigation --------- -->
+  <aside class="sidenav">
+    <div class="sidenav-brand">
+      <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team">
+      <div class="sidenav-brand-text">
+        <div class="sidenav-brand-name">The Listing Team</div>
+        <div class="sidenav-brand-sub">Ylopo Contacts</div>
+      </div>
+    </div>
+
+    <nav class="sidenav-group" aria-label="Contact views">
+      <div class="sidenav-label">Views</div>
+      <button class="nav-item active" id="viewTabContacts" onclick="switchContactsView('contacts')"><span class="nav-ico">&#128203;</span> Contacts</button>
+      <button class="nav-item" id="viewTabSource" onclick="switchContactsView('source')"><span class="nav-ico">&#128200;</span> Source Performance</button>
+      <button class="nav-item" id="viewTabGeo" onclick="switchContactsView('geo')"><span class="nav-ico">&#127758;</span> Geography</button>
+      <button class="nav-item" id="viewTabBuyer" onclick="switchContactsView('buyer')"><span class="nav-ico">&#128269;</span> Buyer Intel</button>
+      <button class="nav-item" id="viewTabSeller" onclick="switchContactsView('seller')"><span class="nav-ico">&#127968;</span> Seller Intel</button>
+    </nav>
+
+    <nav class="sidenav-group" aria-label="Other dashboards">
+      <div class="sidenav-label">Dashboards</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-ico">&#127968;</span> Hub</a>
+      <a class="nav-item" href="/dashboard/priority-leads"><span class="nav-ico">&#128293;</span> Priority Leads</a>
+      <a class="nav-item" href="/dashboard/ylopo-analytics"><span class="nav-ico">&#128202;</span> Analytics</a>
+      <a class="nav-item" href="/dashboard/site-matrix"><span class="nav-ico">&#127760;</span> Site Matrix</a>
+    </nav>
+
+    <div class="sidenav-foot">
+      <span class="env-chip"><span class="env-dot"></span> Live</span>
+      <div class="sidenav-meta"><span id="lastLoaded"></span></div>
+      <div class="sidenav-meta"><span id="refreshCountdown"></span></div>
+    </div>
+  </aside>
+
+  <!-- --------- Main column --------- -->
+  <div class="app-main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="topbar-title"><span class="live-dot" title="Live data"></span> Ylopo Contacts</div>
+          <div class="topbar-subtitle" id="subtitleText">Ylopo + GHL Contact Dashboard</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <select class="select-onbrand" title="Date Range" aria-label="Date range" onchange="LOAD_DAYS=Number(this.value);loadData()">
+          <option value="30" selected>Last 30 days</option>
+          <option value="60">Last 60 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="180">Last 6 months</option>
+          <option value="365">Last year</option>
+          <option value="0">All time</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="loadData()">&#8635; Refresh</button>
+        <button class="btn btn-sm" onclick="generateAIInsights()" title="AI Insights">&#129302; AI Insights</button>
+        <button class="btn btn-sm btn-icon" onclick="toggleActivityPanel()" title="Activity" style="position:relative" id="actBellBtn">&#128276; <span id="actBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center">0</span></button>
+        <button class="btn btn-sm btn-icon" onclick="showDailyDigest()" title="Daily digest">&#128240;</button>
+
+        <span class="topbar-sep"></span>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128200; Analytics &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="showPerformanceAnalytics()">&#128202; Agent Leaderboard</button>
+            <button onclick="showTeamDashboard()">&#128101; Team Dashboard</button>
+            <button onclick="showMarketHeatmap()">&#128506; Market Heatmap</button>
+            <button onclick="showMarketBenchmarks()">&#128200; Market Benchmarks</button>
+            <button onclick="showABTestDashboard()">&#128202; A/B Tests</button>
+            <button onclick="showAuditTrail()">&#128203; Audit Trail</button>
+            <button onclick="showPipelineKanban()">&#128203; Pipeline Kanban</button>
+            <button onclick="showActivityCalendar()">&#128197; Activity Calendar</button>
+            <button onclick="showSourceROI()">&#128176; Source ROI</button>
+            <button onclick="showDataQuality()">&#128202; Data Quality</button>
+          </div>
+        </div>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#9881; Tools &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="openColorPanel()">&#127912; Customize Badge Colors</button>
+            <button onclick="openSettingsPanel()">&#9881; Settings</button>
+            <button onclick="openScoringWeights()">&#9878; Scoring Weights</button>
+            <button onclick="setupRoutingRules()">&#128177; Lead Routing</button>
+            <button onclick="createFollowUpSequence()">&#9200; Follow-up Sequences</button>
+            <button onclick="createCustomWebhook()">&#128276; Custom Triggers</button>
+            <button onclick="enableNotifications()">&#128276; Notifications</button>
+            <button onclick="checkIntegrationHealth()">&#128313; Health Check</button>
+            <button onclick="showAutoTagRules()">&#127991; Auto-Tag Rules</button>
+            <button onclick="showDiagnostics()">&#128295; Diagnostics</button>
+          </div>
+        </div>
+
+        <div class="toolbar-dropdown">
+          <button class="btn btn-sm toolbar-dropdown-btn" onclick="toggleDropdown(this)">&#128260; Actions &#9662;</button>
+          <div class="toolbar-dropdown-content">
+            <button onclick="showBulkCampaigns()">&#128227; Bulk Campaigns</button>
+            <button onclick="compareSelectedContacts()">&#9878; Compare Selected</button>
+            <button onclick="generateDailyDigestEmail()">&#128231; Digest Email</button>
+            <button onclick="manageSavedFilters()">&#128269; Saved Filters</button>
+            <button onclick="findDuplicates()">&#128279; Find Duplicates <span id="dupBadge" style="display:none;background:var(--yellow);color:#fff;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:7px;align-items:center;justify-content:center;margin-left:4px">0</span></button>
+            <button onclick="findTestContacts()">&#128270; Test Cleanup</button>
+            <button onclick="bulkEnrichAllMissing()">&#127968; Bulk Enrich All Missing</button>
+            <button onclick="exportAllCSV()">&#128196; Export CSV</button>
+            <button onclick="exportLeadsDatabase()">&#11015; Export JSON</button>
+            <button onclick="importLeadsDatabase()">&#11014; Import JSON</button>
+          </div>
+        </div>
+
+        <span class="topbar-sep"></span>
+        <button class="btn btn-sm btn-icon" onclick="toggleMobileView()" title="Toggle compact view">&#128241;</button>
+        <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790; Dark</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="app-content">
+
+      <!-- Primary KPIs -->
+      <div class="stats-row kpi-primary">
+        <div class="stat-card" style="--kpi-accent:var(--brand-secondary)">
+          <div class="stat-label">Total Contacts</div>
+          <div class="stat-value flash-green" id="statTotal">&mdash;</div>
+          <div class="stat-sub">in GoHighLevel</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-hot-color)">
+          <div class="stat-label">Hot Leads</div>
+          <div class="stat-value flash-green" id="statHot">&mdash;</div>
+          <div class="stat-sub">score &ge; 75</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-warm-color)">
+          <div class="stat-label">Warm Leads</div>
+          <div class="stat-value" id="statWarm">&mdash;</div>
+          <div class="stat-sub">score 40&ndash;74</div>
+        </div>
+        <div class="stat-card" style="--kpi-accent:var(--stat-cold-color)">
+          <div class="stat-label">Cold Leads</div>
+          <div class="stat-value" id="statCold">&mdash;</div>
+          <div class="stat-sub">score &lt; 40</div>
+        </div>
+      </div>
+
+      <!-- Secondary KPIs -->
+      <div class="stats-row kpi-secondary">
+        <div class="stat-card">
+          <div class="stat-label">Showing Requests</div>
+          <div class="stat-value" id="statShowings" style="color:var(--accent2)">&mdash;</div>
+          <div class="stat-sub">this period</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">New This Week</div>
+          <div class="stat-value" id="statNew" style="color:var(--green)">&mdash;</div>
+          <div class="stat-sub">last 7 days</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Score Trends</div>
+          <div class="stat-value" id="statTrend" style="font-size:16px">&mdash;</div>
+          <div class="stat-sub">since last visit</div>
+        </div>
+        <div class="stat-card is-clickable" onclick="setFilter('stale',document.getElementById('filterStale'))" title="Filter to leads needing follow-up">
+          <div class="stat-label">Needs Follow-up</div>
+          <div class="stat-value" id="statStale" style="color:var(--accent)">&mdash;</div>
+          <div class="stat-sub">no activity &gt; 7 days</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="panel-grid-2">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; Lead Sources</div></div>
+          <div id="sourcePieChart" style="display:flex;align-items:center;gap:16px"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128200; Conversion Funnel</div></div>
+          <div id="conversionMini" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- =========== CONTACTS VIEW =========== -->
+      <div id="contactsViewPanel">
+
+        <div class="filters-bar">
+          <div class="filter-cluster">
+            <button class="filter-tab active" onclick="setFilter('all',this)">All</button>
+            <button class="filter-tab" onclick="setFilter('hot',this)">Hot</button>
+            <button class="filter-tab" onclick="setFilter('warm',this)">Warm</button>
+            <button class="filter-tab" onclick="setFilter('cold',this)">Cold</button>
+            <button class="filter-tab" onclick="setFilter('new',this)">New</button>
+            <button class="filter-tab" onclick="setFilter('showing',this)">Showing</button>
+            <button class="filter-tab" id="filterStale" onclick="setFilter('stale',this)" style="color:var(--accent)">&#9888; Follow-up</button>
+          </div>
+
+          <select class="filter-select" id="sourceFilter" aria-label="Filter by source" onchange="CURRENT_PAGE=1;applyFilters()">
+            <option value="all">All Sources</option>
+            <option value="ylopo">Ylopo Leads</option>
+            <option value="fub">FUB Leads</option>
+            <option value="zillow">Zillow</option>
+            <option value="realtor">Realtor.com</option>
+          </select>
+
+          <div class="search-wrap">
+            <input type="text" class="filter-search" id="searchInput" placeholder="Search name, email, phone or use score:&gt;80 source:ylopo tag:hot stale:true age:&lt;7" oninput="CURRENT_PAGE=1;applyFilters()" style="padding-right:64px">
+            <div class="search-actions">
+              <button onclick="saveSearchPreset()" title="Save current search">&#128190;</button>
+              <button onclick="togglePresetMenu()" title="Saved searches" id="presetBtn">&#9733;</button>
+            </div>
+            <div id="presetMenu" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;min-width:270px;max-height:300px;overflow-y:auto;z-index:500"></div>
+          </div>
+
+          <select class="filter-select" id="sortSelect" aria-label="Sort contacts" onchange="CURRENT_PAGE=1;applyFilters()">
+            <option value="score_desc">Score: high to low</option>
+            <option value="score_asc">Score: low to high</option>
+            <option value="name_asc">Name A&ndash;Z</option>
+            <option value="name_desc">Name Z&ndash;A</option>
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+          </select>
+
+          <div class="view-toggle" id="viewToggle">
+            <button class="view-toggle-btn active" data-view="table" onclick="setView('table')">Table</button>
+            <button class="view-toggle-btn" data-view="cards" onclick="setView('cards')">Cards</button>
+          </div>
+
+          <button class="btn btn-sm" onclick="saveSmartList()">&#128190; Save List</button>
+        </div>
+
+        <div id="smartListsPanel"></div>
+
+        <!-- Bulk Actions Bar -->
+        <div class="bulk-bar" id="bulkBar">
+          <span class="bulk-count"><span id="bulkCount">0</span> selected</span>
+          <button class="bulk-action" onclick="bulkTag()">&#127991;&#65039; Add Tag</button>
+          <button class="bulk-action" onclick="bulkEmail()">&#128231; Email All</button>
+          <button class="bulk-action" onclick="bulkCopyEmails()">&#128203; Copy Emails</button>
+          <button class="bulk-action" onclick="bulkExport()">&#128196; Export CSV</button>
+          <button class="bulk-action" onclick="compareContacts()">&#9878; Compare</button>
+          <button class="bulk-action" onclick="bulkWorkflow()">&#128260; Workflow</button>
+          <button class="bulk-action" onclick="bulkStatus()">&#128204; Status</button>
+          <button class="bulk-action" onclick="bulkDelete()" style="color:var(--red)">&#128465;&#65039; Delete</button>
+          <button class="bulk-action" onclick="enrichSelected()" style="color:var(--brand-accent);font-weight:800">&#127968; Enrich Selected</button>
+          <button class="bulk-action" onclick="tagFiltered()" style="color:var(--brand-secondary)">&#127991; Tag Filtered</button>
+          <button class="bulk-close" onclick="clearSelection()">&#10005;</button>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-wrap" id="tableView">
+          <table id="leadsTable">
+            <thead>
+              <tr>
+                <th style="width:20px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" aria-label="Select all"></th>
+                <th style="width:28px"></th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Score</th>
+                <th>Activity</th>
+                <th style="width:90px">Trend</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Added</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leadsBody">
+              <tr><td colspan="12" class="empty-state">Loading contacts...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Card View -->
+        <div class="cards-grid" id="cardsView" style="display:none"></div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="paginationEl"></div>
+
+      </div><!-- /contactsViewPanel -->
+
+      <!-- =========== SOURCE PERFORMANCE =========== -->
+      <div id="sourceViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Source Performance</div>
+            <div class="section-desc">Which lead sources actually produce hot leads and showings.</div>
+          </div>
+        </div>
+        <div id="srcKPIs" class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"></div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; Source Breakdown</div></div>
+          <div class="table-wrap" style="box-shadow:none">
+            <table style="min-width:820px">
+              <thead><tr>
+                <th onclick="sortSrcTbl('name')">Source</th>
+                <th style="text-align:center" onclick="sortSrcTbl('count')">Leads</th>
+                <th style="text-align:center" onclick="sortSrcTbl('hot')">Hot</th>
+                <th style="text-align:center" onclick="sortSrcTbl('warm')">Warm</th>
+                <th style="text-align:center" onclick="sortSrcTbl('cold')">Cold</th>
+                <th style="text-align:center" onclick="sortSrcTbl('avgScore')">Avg Score</th>
+                <th style="text-align:center" onclick="sortSrcTbl('showings')">Showings</th>
+                <th style="text-align:center;cursor:default">Quality</th>
+                <th style="text-align:center;cursor:default">Volume</th>
+              </tr></thead>
+              <tbody id="srcTblBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127919; Lead Distribution</div></div>
+            <div id="srcDistBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#128293; Hot Lead Rate</div></div>
+            <div id="srcHotBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127968; Buyer vs Seller</div></div>
+            <div id="srcTypeBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#128197; New This Week</div></div>
+            <div id="srcRecentBars" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========== GEOGRAPHY =========== -->
+      <div id="geoViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Geography</div>
+            <div class="section-desc">Where your lead volume and lead quality actually live.</div>
+          </div>
+        </div>
+        <div id="geoKPIs" class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))"></div>
+        <div class="panel-grid-2">
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127963; Top Cities</div></div>
+            <div id="geoCityBars" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="panel-title">&#127758; Top States</div></div>
+            <div id="geoStateBars" style="display:flex;flex-direction:column;gap:6px"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">&#128202; City Breakdown</div></div>
+          <div class="table-wrap" style="box-shadow:none">
+            <table style="min-width:640px">
+              <thead><tr>
+                <th onclick="sortGeoTbl('name')">City</th>
+                <th style="text-align:center" onclick="sortGeoTbl('count')">Leads</th>
+                <th style="text-align:center" onclick="sortGeoTbl('avgScore')">Avg Score</th>
+                <th style="text-align:center" onclick="sortGeoTbl('hot')">Hot</th>
+                <th style="text-align:center" onclick="sortGeoTbl('showings')">Showings</th>
+                <th style="text-align:center;cursor:default">Quality</th>
+              </tr></thead>
+              <tbody id="geoTblBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========== BUYER INTEL =========== -->
+      <div id="buyerViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Buyer Intelligence</div>
+            <div class="section-desc">Search behavior, price bands and property preferences across buyer leads.</div>
+          </div>
+        </div>
+        <div id="buyerTabContent">
+          <div class="empty-state">Loading buyer intelligence...</div>
+        </div>
+      </div>
+
+      <!-- =========== SELLER INTEL =========== -->
+      <div id="sellerViewPanel" style="display:none">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Seller Intelligence</div>
+            <div class="section-desc">Home-value seekers, equity signals and listing-appointment opportunities.</div>
+          </div>
+        </div>
+        <div id="sellerTabContent">
+          <div class="empty-state">Loading seller intelligence...</div>
+        </div>
+      </div>
+
+    </main>
+  </div><!-- /app-main -->
+</div><!-- /app-shell -->
+
+<!-- Hidden sinks (legacy IDX fields - kept for compatibility) -->
+<input id="listingsInput" value="" class="hidden" aria-hidden="true">
+<canvas id="listingsCanvas" class="hidden" aria-hidden="true"></canvas>
+
+<script>
+/* Theme bootstrap: this page ships light-first. Honour a saved dark choice. */
+(function(){
+  try {
+    if (localStorage.getItem('tlt-contacts-theme') === 'dark') {
+      document.body.classList.remove('light-mode');
+      var b = document.getElementById('themeToggle');
+      if (b) b.innerHTML = '&#9788; Light';
+    }
+  } catch(e) {}
+  /* Reserve room for the staging banner so sticky chrome does not slide under it. */
+  try {
+    var h = window.location.hostname;
+    if (h.indexOf('staging') !== -1 || h.indexOf('workers.dev') !== -1) {
+      document.documentElement.style.setProperty('--staging-top', '38px');
+    }
+  } catch(e) {}
+})();
+</script>
