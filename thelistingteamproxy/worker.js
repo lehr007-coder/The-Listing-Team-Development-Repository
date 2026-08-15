@@ -12683,9 +12683,9 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     <button class="hdr-btn" title="Print / PDF Report" onclick="printReport()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
     </button>
-    <button class="hdr-btn" title="Smart Lists" onclick="toggleSmartLists()">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-    </button>
+    <!-- Smart Lists button removed 2026-08-15: the smartPanel / smartListItems / smartNameInput
+         markup exists nowhere in worker.js, so this button threw
+         "Cannot read properties of null (reading 'classList')" and opened nothing. -->
     <button class="hdr-btn" id="darkToggleBtn" title="Toggle Dark Mode" onclick="toggleDark()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
     </button>
@@ -14379,11 +14379,22 @@ async function loadData(forceRefresh) {
     ptext.textContent = 'Loading all contacts (server-side)...';
     fill.style.width = '30%';
 
-    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=20&t=\${Date.now()}\`, { cache: "no-store" });
+    // BULK_PAGES was 20, which silently truncated the load at 2,000 contacts while GHL
+    // held ~3,000 - and the dropped 1,000 were the OLDEST, so Total/Stale/Going-Cold and
+    // every source total were understated. 50 pages = 5,000 headroom. Verified 2026-08-15.
+    const BULK_PAGES = 50;
+    const res = await fetch(PROXY_URL + \`/contacts/bulk?pages=\${BULK_PAGES}&t=\${Date.now()}\`, { cache: "no-store" });
     if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
     fill.style.width = '80%';
     const data = await res.json();
     const allRaw = data.contacts || [];
+
+    // If the server filled the entire request, pagination was not exhausted - we may be
+    // truncating again. Fail loudly rather than quietly reporting a wrong total.
+    if (data.meta && Number(data.meta.pages) >= BULK_PAGES) {
+      console.warn('[analytics] Contact load may be truncated: server returned the full ' + BULK_PAGES + '-page request (' + allRaw.length + ' contacts). Raise BULK_PAGES.');
+      try { toast('Contact load may be truncated (' + allRaw.length + ' loaded) - raise BULK_PAGES', 'error'); } catch (e) {}
+    }
 
     fill.style.width = '100%';
     ptext.textContent = \`\u2705 \${allRaw.length} contacts loaded\`;
@@ -16002,7 +16013,11 @@ function getSmartLists() {
 }
 
 function toggleSmartLists() {
-  el('smartPanel').classList.toggle('open');
+  // Defensive: the smartPanel markup does not exist on this page. Kept null-safe so any
+  // future caller degrades quietly instead of throwing. See header comment 2026-08-15.
+  const panel = el('smartPanel');
+  if (!panel) { console.warn('[analytics] Smart Lists panel is not present on this page.'); return; }
+  panel.classList.toggle('open');
   renderSmartLists();
 }
 
@@ -17145,8 +17160,11 @@ function renderAttributionFunnel(leads) {
     const count = s.leads.length;
     const pct = total > 0 ? Math.round(count / total * 100) : 0;
     const barWidth = total > 0 ? Math.max(8, Math.round(count / total * 100)) : 8;
-    const dropoff = i > 0 ? Math.round((1 - count / Math.max(stages[i-1].leads.length, 1)) * 100) : 0;
-    return \`\${i > 0 ? \`<div class="fb-arrow">\u2193 \${dropoff}% drop-off</div>\` : ''}
+    // Guard against a zero-count previous stage: Math.max(prev,1) used to turn 0 -> 8 into
+    // "-700% drop-off". A drop-off is undefined when nothing entered the prior stage.
+    const prevCount = i > 0 ? stages[i-1].leads.length : 0;
+    const dropoff = (i > 0 && prevCount > 0) ? Math.max(0, Math.round((1 - count / prevCount) * 100)) : null;
+    return \`\${i > 0 ? \`<div class="fb-arrow">\u2193 \${dropoff === null ? '—' : dropoff + '% drop-off'}</div>\` : ''}
     <div class="funnel-bar-row" onclick="openFunnelDrillDown('\${s.label}','\${s.color}')" title="Click to see \${count} contacts">
       <div class="fb-label">\${s.icon} \${s.label}</div>
       <div class="fb-bar-wrap">
@@ -23374,10 +23392,14 @@ async function loadData(){
   document.getElementById('refreshBtn').disabled=true;
   toast('Loading contacts...','info');
   try{
-    var res=await fetch(PROXY+'/contacts/bulk?pages=20&t='+Date.now());
+    // Was pages=20, which capped this page at 2,000 contacts while GHL held ~3,000.
+    // Same defect as the Analytics page. Fixed 2026-08-15.
+    var IDX_BULK_PAGES=50;
+    var res=await fetch(PROXY+'/contacts/bulk?pages='+IDX_BULK_PAGES+'&t='+Date.now());
     if(!res.ok)throw new Error('HTTP '+res.status);
     var data=await res.json();
     ALL_CONTACTS=data.contacts||data.data||[];
+    if(data.meta&&Number(data.meta.pages)>=IDX_BULK_PAGES){console.warn('[idx] Contact load may be truncated ('+ALL_CONTACTS.length+' loaded). Raise IDX_BULK_PAGES.')}
     processData();
     renderStats();
     renderChart('weekly');
