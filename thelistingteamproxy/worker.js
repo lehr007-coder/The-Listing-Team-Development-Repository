@@ -14391,9 +14391,14 @@ async function loadData(forceRefresh) {
 
     // If the server filled the entire request, pagination was not exhausted - we may be
     // truncating again. Fail loudly rather than quietly reporting a wrong total.
-    if (data.meta && Number(data.meta.pages) >= BULK_PAGES) {
-      console.warn('[analytics] Contact load may be truncated: server returned the full ' + BULK_PAGES + '-page request (' + allRaw.length + ' contacts). Raise BULK_PAGES.');
-      try { toast('Contact load may be truncated (' + allRaw.length + ' loaded) - raise BULK_PAGES', 'error'); } catch (e) {}
+    // The worker's /contacts/bulk handler clamps to 30 pages (Math.min(pages, 30)) and also
+    // bails at a 55s deadline, so the ceiling is 3,000 regardless of what we ask for. GHL
+    // actually holds ~128,000 contacts in this location, so this page shows a RECENT SLICE,
+    // not the database. Warn whenever we come back at the ceiling.
+    const SERVER_PAGE_CAP = 30;
+    if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
+      console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
+      try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
     }
 
     fill.style.width = '100%';
