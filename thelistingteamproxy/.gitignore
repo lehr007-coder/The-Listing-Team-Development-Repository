@@ -2,3 +2,5 @@ worker.js.preui.bak
 .redesign/ui.b64
 .redesign/u.b64
 .redesign/ui.tgz
+worker.js.bak-*
+worker.js.bak-prefix-*
