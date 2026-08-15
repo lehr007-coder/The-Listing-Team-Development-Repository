@@ -163,7 +163,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
 
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
@@ -198,7 +198,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --success:#0F9D58; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
-    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF;
+    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
@@ -234,7 +234,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --cyan:#5DADE2;  --rose:#FB7185;
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
@@ -945,7 +945,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
 
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
@@ -980,7 +980,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --success:#0F9D58; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
-    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF;
+    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
@@ -1016,7 +1016,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --cyan:#5DADE2;  --rose:#FB7185;
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
@@ -1132,7 +1132,7 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
 
 .tab-btn {padding: 1rem 2rem;background: transparent;border: none;border-bottom: 3px solid transparent;font-weight: 600;font-size: 0.95rem;cursor: pointer;color: var(--text-muted);transition: all 0.2s;white-space: nowrap}
 
-.tab-btn.active {color: var(--brand-accent);border-bottom-color: var(--brand-accent);background: rgba(190, 214, 47, 0.05)}
+.tab-btn.active {color: var(--brand-accent);border-bottom-color: var(--brand-accent);background: var(--brand-soft)}
 
 .tab-content {
     display: none;
@@ -1224,7 +1224,7 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
 .table-row {display: grid;grid-template-columns: 220px 260px 110px 100px 80px 100px 100px;gap: 1rem;padding: 1rem 1.5rem;border-bottom: 1px solid var(--border);align-items: center;cursor: pointer;transition: background 0.2s;min-width: 970px}
 
 .table-row:hover {
-    background: rgba(190, 214, 47, 0.05);
+    background: var(--brand-soft);
 }
 
 .lead-name {font-weight: 600;color: var(--text);overflow: hidden;text-overflow: ellipsis;white-space: nowrap}
@@ -1272,11 +1272,11 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
     width: 100%;
 }
 
-.score-high {background: rgba(140, 198, 62, 0.15);color: var(--success)}
+.score-high {background: var(--green-soft);color: var(--success)}
 
-.score-medium {background: rgba(190, 214, 47, 0.15);color: var(--warning)}
+.score-medium {background: var(--yellow-soft);color: var(--warning)}
 
-.score-low {background: rgba(220, 53, 69, 0.15);color: var(--error)}
+.score-low {background: var(--red-soft);color: var(--error)}
 
 .status-badge {
     display: inline-flex;
@@ -1291,13 +1291,13 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
 }
 
 .status-new {
-    background: rgba(59, 130, 246, 0.15);
+    background: var(--blue-soft);
     color: var(--blue);
 }
 
-.status-contacted {background: rgba(190, 214, 47, 0.15);color: var(--warning)}
+.status-contacted {background: var(--yellow-soft);color: var(--warning)}
 
-.status-qualified {background: rgba(140, 198, 62, 0.15);color: var(--success)}
+.status-qualified {background: var(--green-soft);color: var(--success)}
 
 .lead-actions {
     display: flex;
@@ -1368,7 +1368,7 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
 }
 
 .card-metric {
-    background: rgba(190, 214, 47, 0.05);
+    background: var(--brand-soft);
     padding: 0.75rem;
     border-radius: 8px;
     text-align: center;
@@ -1385,7 +1385,7 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
 .card-link:hover {background: var(--brand-secondary)}
 
 /* Details Panel */
-.details-panel {display: none;padding: 2rem;background: rgba(190, 214, 47, 0.03);border-top: 2px solid var(--border);grid-column: 1 / -1}
+.details-panel {display: none;padding: 2rem;background: var(--brand-soft);border-top: 2px solid var(--border);grid-column: 1 / -1}
 
 .details-panel.show {
     display: block;
@@ -1433,11 +1433,11 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
     font-weight: 700;
 }
 
-.badge-excellent {background: rgba(140, 198, 62, 0.2);color: var(--success)}
+.badge-excellent {background: var(--green-soft);color: var(--success)}
 
-.badge-good {background: rgba(190, 214, 47, 0.2);color: var(--warning)}
+.badge-good {background: var(--yellow-soft);color: var(--warning)}
 
-.badge-average {background: rgba(220, 53, 69, 0.2);color: var(--error)}
+.badge-average {background: var(--red-soft);color: var(--error)}
 
 .metrics-grid {
     display: grid;
@@ -1471,7 +1471,7 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: rgba(190, 214, 47, 0.05);
+    background: var(--brand-soft);
     border-radius: 6px;
     font-size: 0.85rem;
 }
@@ -1589,18 +1589,34 @@ body {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helve
         right: 0.5rem;
     }
 }
+
+/* --- Floating cross-dashboard nav ------------------------------------------
+   .external-links is position:fixed, so these pills pass over BOTH the deep
+   teal header and the light page body. They cannot borrow contrast from the
+   backdrop, so each is an opaque surface chip carrying its accent in the
+   label and border rather than in a translucent wash. */
+.external-link{background:var(--surface);color:var(--text-secondary);border:1px solid var(--card-border);box-shadow:var(--shadow-sm)}
+.external-link:hover{background:var(--surface-hover);color:var(--text);border-color:currentColor;box-shadow:var(--shadow);transform:translateY(-2px)}
+.external-link.ext-blue{color:var(--blue)}
+.external-link.ext-green{color:var(--green)}
+.external-link.ext-yellow{color:var(--yellow)}
+.external-link.ext-purple{color:var(--purple)}
+.external-link.ext-cyan{color:var(--cyan)}
+.external-link.ext-blue:hover,.external-link.ext-green:hover,.external-link.ext-yellow:hover,.external-link.ext-purple:hover,.external-link.ext-cyan:hover{color:var(--text)}
+.external-link.ext-brand{background:var(--brand-primary);color:var(--text-white);border-color:transparent}
+.external-link.ext-brand:hover{background:var(--brand-secondary);color:var(--text-white);border-color:transparent}
 </style>
 </head><body class="light-mode">
 
 <!-- External Links -->
 <div class="external-links">
-    <a href="/dashboard" class="external-link" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:var(--blue)">&#127968; Hub</a>
-    <a href="/dashboard/ylopo-contacts" class="external-link" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:var(--green)">&#128203; Contacts</a>
-    <a href="/dashboard/ylopo-contacts#source" class="external-link" style="background:rgba(234,179,8,0.15);border-color:rgba(234,179,8,0.3);color:var(--yellow)">&#128200; Sources</a>
-    <a href="/dashboard/ylopo-analytics" class="external-link" style="background:rgba(168,85,247,0.15);border-color:rgba(168,85,247,0.3);color:var(--purple)">&#128202; Analytics</a>
-    <a href="/dashboard/site-matrix" class="external-link" style="background:rgba(6,182,212,0.15);border-color:rgba(6,182,212,0.3);color:var(--cyan)">&#127760; Matrix</a>
-    <a href="https://app.gohighlevel.com/" target="_blank" class="external-link">&#128279; GHL</a>
-    <a href="https://ylopo.com/" target="_blank" class="external-link">&#127919; Ylopo</a>
+    <a href="/dashboard" class="external-link ext-blue">&#127968; Hub</a>
+    <a href="/dashboard/ylopo-contacts" class="external-link ext-green">&#128203; Contacts</a>
+    <a href="/dashboard/ylopo-contacts#source" class="external-link ext-yellow">&#128200; Sources</a>
+    <a href="/dashboard/ylopo-analytics" class="external-link ext-purple">&#128202; Analytics</a>
+    <a href="/dashboard/site-matrix" class="external-link ext-cyan">&#127760; Matrix</a>
+    <a href="https://app.gohighlevel.com/" target="_blank" class="external-link ext-brand">&#128279; GHL</a>
+    <a href="https://ylopo.com/" target="_blank" class="external-link ext-brand">&#127919; Ylopo</a>
 </div>
 
 <div class="app-container">
@@ -11596,7 +11612,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
 
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
@@ -11631,7 +11647,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --success:#0F9D58; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
-    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF;
+    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
@@ -11667,7 +11683,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --cyan:#5DADE2;  --rose:#FB7185;
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
@@ -19867,7 +19883,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
 
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(93,173,226,0.32);
@@ -19902,7 +19918,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --success:#0F9D58; --warning:#B45309; --error:#D92D20;
 
     --brand-primary:#0D3B4F; --brand-secondary:#1E7A9C; --brand-accent:#1E7A9C;
-    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF;
+    --brand-surface:#F0F8FB; --brand-chip:#DCF2F8; --brand-ink:#FFFFFF; --brand-soft:rgba(30,122,156,0.07);
     --primary:#0D3B4F; --primary-light:#1E7A9C;
     --surface-inverse:#0D3B4F; --text-on-inverse:#FFFFFF;
     --focus-ring:0 0 0 3px rgba(30,122,156,0.22);
@@ -19938,7 +19954,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --cyan:#5DADE2;  --rose:#FB7185;
     --success:#34D399; --warning:#FBBF24; --error:#F87171;
     --brand-primary:#5DADE2; --brand-secondary:#8CC6EB; --brand-accent:#5DADE2;
-    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119;
+    --brand-surface:#132836; --brand-chip:#16344A; --brand-ink:#0A1119; --brand-soft:rgba(93,173,226,0.10);
     --primary:#5DADE2; --primary-light:#8CC6EB;
     --surface-inverse:#08131C; --text-on-inverse:#FFFFFF;
     --shadow-xs:0 1px 2px rgba(0,0,0,0.36);
