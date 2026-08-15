@@ -22060,7 +22060,14 @@ var index_default = {
         const since = (days) => [{ field: "dateAdded", operator: "range", value: { gte: isoDaysAgo(days) } }];
 
         const sources = (url.searchParams.get("sources") ||
-          "my +plus leads,Ylopo Webhook,UpNest,Inbound call,Realtor.com,Facebook,Ylopo Seller,Ylopo Sidecar"
+          // Real top-20 by volume, from a full walk of all 128,668 contacts on 2026-08-15
+          // (1,287 pages, 224 distinct sources found). Covers ~88.7%; the rest lands in
+          // sourceOther. Note the deliberate duplicates - "my +plus leads" vs "my+plusleads"
+          // and the three Ylopo variants are REAL separate values in GHL, not a typo here.
+          "Ylopo Seller,Ylopo Webhook,Sphere,my +plus leads,Cole Realty,Ylopo,my+plusleads," +
+          "Zillow Partner Connect,BT Paid Ad (buyer),Yelp,Matrix,Hard Rock Casino," +
+          "Real Estate Pipeline,Reliance,Realtor.com,Website,LinkedIn,Reverse Look Ups," +
+          "Import,search.reallistingagent.com"
         ).split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
 
         const tags = (url.searchParams.get("tags") ||
