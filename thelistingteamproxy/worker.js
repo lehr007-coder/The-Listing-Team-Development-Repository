@@ -294,7 +294,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .header-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:100px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px}
 .header-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.header h1{font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:12px;background:linear-gradient(135deg,var(--card) 0%,#94a3b8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header h1{font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:12px;background:linear-gradient(135deg,var(--text) 0%,var(--text-secondary) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .header p{font-size:16px;color:var(--text-secondary);max-width:500px;margin:0 auto;line-height:1.6}
 
 /* Section labels */
