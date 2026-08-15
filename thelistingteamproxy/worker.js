@@ -4373,7 +4373,7 @@ function renderBuyerTab() {
   if (lowPriceBuyers > buyers.length * 0.3) byerActions.push({ icon: '&#128181;', text: lowPriceBuyers + ' buyers in budget <$200K \u2014 segment separately', priority: 'medium' });
   if (!byerActions.length) byerActions.push({ icon: '&#9989;', text: 'Buyer pipeline looks healthy! Keep the showings flowing.', priority: 'low' });
   byerActions.forEach(function(a) {
-    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e';
+    var prColor = a.priority === 'high' ? '#ef4444' : a.priority === 'medium' ? '#f59e0b' : '#22c55e'; var prTone = a.priority === 'high' ? 'red' : a.priority === 'medium' ? 'yellow' : 'green'; var prTone = a.priority === 'high' ? 'red' : a.priority === 'medium' ? 'yellow' : 'green';
     html += '<div style="display:flex;align-items:start;gap:6px;margin-bottom:4px;font-size:12px">';
     html += '<span>' + a.icon + '</span>';
     html += '<span style="flex:1">' + a.text + '</span>';
@@ -4545,11 +4545,11 @@ function renderBuyerTab() {
     html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Hottest Buyers <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(highest readiness)</span></h4>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
     hotBuyers.forEach(function(b) {
-      var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : '#eab308';
+      var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : '#eab308'; var rdTone = b.readiness >= 80 ? 'red' : b.readiness >= 60 ? 'yellow' : 'yellow';
       html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
       html += '<strong style="font-size:14px">' + esc(b.name) + '</strong>';
-      html += '<span style="background:' + rdColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + b.readiness + '</span></div>';
+      html += '<span style="background:' + (rdTone === 'muted' ? 'var(--surface-2)' : 'var(--' + rdTone + '-soft)') + ';color:' + (rdTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + rdTone + ')') + ';padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + b.readiness + '</span></div>';
       html += '<div style="display:flex;gap:10px;font-size:12px;color:var(--text-secondary);margin-bottom:6px">';
       html += '<span>&#128065; ' + b.views + ' views</span>';
       html += '<span>&#10084;&#65039; ' + b.saves + ' saves</span>';
@@ -4612,7 +4612,7 @@ function renderBuyerTab() {
   });
 
   sorted.forEach(function(b) {
-    var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : b.readiness >= 40 ? '#eab308' : '#6b7280';
+    var rdColor = b.readiness >= 80 ? '#ef4444' : b.readiness >= 60 ? '#f59e0b' : b.readiness >= 40 ? '#eab308' : '#6b7280'; var rdTone = b.readiness >= 80 ? 'red' : b.readiness >= 60 ? 'yellow' : b.readiness >= 40 ? 'yellow' : 'muted';
     var srColor = b.saveRate >= 30 ? 'var(--green)' : b.saveRate >= 15 ? 'var(--yellow)' : 'var(--text-secondary)';
     html += '<tr style="border-bottom:1px solid var(--card-border);cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + b.id + '\\x22]&#39;).click()" onmouseover="this.style.background=&#39;var(--surface,var(--bg))&#39;" onmouseout="this.style.background=&#39;transparent&#39;">';
     html += '<td style="padding:10px 12px;font-weight:600">' + esc(b.name) + '</td>';
@@ -4622,7 +4622,7 @@ function renderBuyerTab() {
     html += '<td style="padding:10px 12px;color:var(--accent2)">' + b.showings + '</td>';
     html += '<td style="padding:10px 12px;color:' + srColor + ';font-weight:600">' + b.saveRate + '%</td>';
     html += '<td style="padding:10px 12px">' + (b.maxPrice ? fmtK(b.maxPrice) : '&#8212;') + '</td>';
-    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + rdColor + ';color:#fff">' + b.readiness + '</span></td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + (rdTone === 'muted' ? 'var(--surface-2)' : 'var(--' + rdTone + '-soft)') + ';color:' + (rdTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + rdTone + ')') + '">' + b.readiness + '</span></td>';
     html += '<td style="padding:10px 12px;font-weight:600">' + b.score + '</td>';
     html += '</tr>';
   });
@@ -5213,11 +5213,11 @@ function renderSellerTab() {
     html += '<h4 style="margin:0 0 14px;font-size:14px">&#128293; Priority Seller Pipeline <span style="font-weight:400;color:var(--text-secondary,var(--muted));font-size:12px">(top motivation)</span></h4>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">';
     hotSellers.forEach(function(s) {
-      var motColor = s.motivation >= 80 ? '#ef4444' : '#f59e0b';
+      var motColor = s.motivation >= 80 ? '#ef4444' : '#f59e0b'; var motTone = s.motivation >= 80 ? 'red' : 'yellow';
       html += '<div style="background:var(--surface,var(--bg));border:1px solid var(--card-border);border-radius:10px;padding:14px;cursor:pointer" onclick="document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;)&&document.querySelector(&#39;[data-id=\\x22' + s.id + '\\x22]&#39;).click()">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
       html += '<strong style="font-size:14px">' + s.name + '</strong>';
-      html += '<span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></div>';
+      html += '<span style="background:' + (motTone === 'muted' ? 'var(--surface-2)' : 'var(--' + motTone + '-soft)') + ';color:' + (motTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + motTone + ')') + ';padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></div>';
       if (s.propertyAddr) html += '<div style="font-size:12px;color:var(--text-secondary,var(--muted));margin-bottom:4px">&#128205; ' + s.propertyAddr + '</div>';
       html += '<div style="display:flex;gap:12px;font-size:12px;margin-top:6px">';
       if (s.estValue) html += '<span>&#127968; ' + fmtK(s.estValue) + '</span>';
@@ -5505,7 +5505,7 @@ function renderSellerTab() {
   });
 
   sorted.forEach(function(s) {
-    var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280';
+    var motColor = s.motivation >= 80 ? '#ef4444' : s.motivation >= 60 ? '#f59e0b' : s.motivation >= 40 ? '#eab308' : '#6b7280'; var motTone = s.motivation >= 80 ? 'red' : s.motivation >= 60 ? 'yellow' : s.motivation >= 40 ? 'yellow' : 'muted';
     var addrDisplay = s.propertyAddr || '';
     var cityState = [s.city, s.state].filter(Boolean).join(', ');
     var bedBath = '';
@@ -5525,7 +5525,7 @@ function renderSellerTab() {
     html += '<td style="padding:10px 12px">' + (topTags || '&#8212;') + (s.tagCount > 3 ? '<span style="font-size:10px;color:var(--text-secondary)"> +' + (s.tagCount - 3) + '</span>' : '') + '</td>';
     var updFmt = s.dateUpdated ? new Date(s.dateUpdated).toLocaleDateString() : '&#8212;';
     html += '<td style="padding:10px 12px;font-size:12px;white-space:nowrap">' + updFmt + '</td>';
-    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + motColor + ';color:#fff">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 12px"><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;background:' + (motTone === 'muted' ? 'var(--surface-2)' : 'var(--' + motTone + '-soft)') + ';color:' + (motTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + motTone + ')') + '">' + s.motivation + '</span></td>';
     html += '<td style="padding:10px 12px;font-weight:600">' + s.score + '</td>';
     html += '</tr>';
   });
@@ -5639,9 +5639,9 @@ function generateCallList() {
 
   html += '<div style="padding:0">';
   top.forEach(function(s, i) {
-    var prColor = s.callPriority >= 70 ? '#ef4444' : s.callPriority >= 50 ? '#f59e0b' : '#3b82f6';
+    var prColor = s.callPriority >= 70 ? '#ef4444' : s.callPriority >= 50 ? '#f59e0b' : '#3b82f6'; var prTone = s.callPriority >= 70 ? 'red' : s.callPriority >= 50 ? 'yellow' : 'blue';
     html += '<div style="padding:14px 20px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;gap:14px">';
-    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + prColor + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">' + (i + 1) + '</div>';
+    html += '<div style="width:28px;height:28px;border-radius:50%;background:' + (prTone === 'muted' ? 'var(--surface-2)' : 'var(--' + prTone + '-soft)') + ';color:' + (prTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + prTone + ')') + ';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">' + (i + 1) + '</div>';
     html += '<div style="flex:1;min-width:0">';
     html += '<div style="font-weight:700;font-size:14px">' + esc(s.name) + '</div>';
     html += '<div style="display:flex;gap:8px;font-size:12px;color:var(--text-secondary);margin-top:2px">';
@@ -5880,7 +5880,7 @@ function showTagCrossRef() {
     html += '<div style="padding:16px 20px">';
     comboArr.forEach(function(c) {
       var pct = Math.round(c.count / maxCombo * 100);
-      var motColor = c.avgMot >= 60 ? '#ef4444' : c.avgMot >= 40 ? '#f59e0b' : '#3b82f6';
+      var motColor = c.avgMot >= 60 ? '#ef4444' : c.avgMot >= 40 ? '#f59e0b' : '#3b82f6'; var motTone = c.avgMot >= 60 ? 'red' : c.avgMot >= 40 ? 'yellow' : 'blue';
       html += '<div style="margin-bottom:10px">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">';
       html += '<span style="font-size:13px;font-weight:600">' + c.label + '</span>';
@@ -6170,12 +6170,12 @@ function filterSellerSegment(segName) {
   html += '<th style="padding:10px 8px;text-align:left;font-weight:600;font-size:12px">Tags</th>';
   html += '</tr></thead><tbody>';
   filtered.forEach(function(s) {
-    var motColor = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#3b82f6';
+    var motColor = s.motivation >= 60 ? '#ef4444' : s.motivation >= 40 ? '#f59e0b' : '#3b82f6'; var motTone = s.motivation >= 60 ? 'red' : s.motivation >= 40 ? 'yellow' : 'blue';
     html += '<tr style="border-bottom:1px solid var(--card-border)">';
     html += '<td style="padding:10px 12px;font-weight:600">' + esc(s.name) + '</td>';
     html += '<td style="padding:10px 8px">' + (s.phone ? '<a href="tel:' + s.phone + '" style="color:var(--green);text-decoration:none">' + s.phone + '</a>' : '-') + '</td>';
     html += '<td style="padding:10px 8px;font-size:12px">' + (s.email ? esc(s.email) : '-') + '</td>';
-    html += '<td style="padding:10px 8px;text-align:center"><span style="background:' + motColor + ';color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></td>';
+    html += '<td style="padding:10px 8px;text-align:center"><span style="background:' + (motTone === 'muted' ? 'var(--surface-2)' : 'var(--' + motTone + '-soft)') + ';color:' + (motTone === 'muted' ? 'var(--text-secondary)' : 'var(--' + motTone + ')') + ';padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700">' + s.motivation + '</span></td>';
     html += '<td style="padding:10px 8px">';
     (s.tags || []).slice(0, 5).forEach(function(tg) {
       html += '<span style="display:inline-block;font-size:10px;padding:2px 6px;margin:1px;border-radius:4px;background:var(--surface,var(--bg))">' + esc(tg) + '</span>';
