@@ -19937,20 +19937,165 @@ async function fetchAllYlopoEvents(env) {
 __name(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 __name2(fetchAllYlopoEvents, "fetchAllYlopoEvents");
 __name22(fetchAllYlopoEvents, "fetchAllYlopoEvents");
+var YLOPO_EVENT_OBJECT_KEY = "custom_objects.ylopo_event";
+var YLOPO_CONTACT_ASSOC_ID = "6993820513ab7068597962ae";
+async function ylopoAdminDenied(request, env) {
+  try {
+    var sess = await getSession(request, env);
+    if (sess && (sess.uid || sess.email || sess.role === "admin")) return null;
+  } catch (e) {
+  }
+  var given = request.headers.get("x-admin-pass") || "";
+  if (env.PIPELINE_ADMIN_PASS && given === env.PIPELINE_ADMIN_PASS) return null;
+  return err("Unauthorized: admin session or x-admin-pass required.", 401);
+}
+__name(ylopoAdminDenied, "ylopoAdminDenied");
+function ylopoEventContactId(rec) {
+  if (!rec) return null;
+  var rels = rec.relations || rec.relation || null;
+  if (Array.isArray(rels)) {
+    for (var i = 0; i < rels.length; i++) {
+      var r = rels[i];
+      if (r && r.recordId && (r.objectKey === "contact" || r.objectKey === "contacts")) return r.recordId;
+    }
+    for (var j = 0; j < rels.length; j++) {
+      var r2 = rels[j];
+      if (r2 && r2.recordId && r2.associationId === YLOPO_CONTACT_ASSOC_ID) return r2.recordId;
+    }
+  }
+  var associations = rec.associations || rec.relationships || {};
+  if (associations.contact) {
+    var c = associations.contact;
+    if (typeof c === "string") return c;
+    return (c && c.id) || (c && c[0] && c[0].id) || (c && c[0]) || null;
+  }
+  if (rec.contactId || rec.contact_id) return rec.contactId || rec.contact_id;
+  var f = rec.fields || rec.properties || {};
+  return f.contactId || f.contact_id || f.contact || null;
+}
+__name(ylopoEventContactId, "ylopoEventContactId");
+async function scanYlopoEvents(env, opts) {
+  var locId = env.GHL_LOCATION_ID || LOC_ID;
+  var maxPages = (opts && opts.maxPages) || 500;
+  var onRecord = opts && opts.onRecord;
+  var searchAfter = null, pages = 0, scanned = 0, total = null, hitCap = false;
+  while (true) {
+    if (pages >= maxPages) { hitCap = true; break; }
+    var body = { locationId: locId, pageLimit: 100 };
+    if (searchAfter) body.searchAfter = searchAfter; else body.page = 1;
+    var data = await ghlV2(env, "POST", "/objects/" + YLOPO_EVENT_OBJECT_KEY + "/records/search", body);
+    var recs = data.records || data.data || [];
+    if (total === null && typeof data.total === "number") total = data.total;
+    pages++;
+    for (var i = 0; i < recs.length; i++) { scanned++; if (onRecord) onRecord(recs[i]); }
+    if (recs.length < 100) break;
+    var last = recs[recs.length - 1];
+    searchAfter = last && (last.searchAfter || last.sort);
+    if (!searchAfter) break;
+  }
+  return { pages: pages, scanned: scanned, total: total, truncated: hitCap };
+}
+__name(scanYlopoEvents, "scanYlopoEvents");
+function flattenNumeric(obj, prefix, out, depth) {
+  if (!obj || typeof obj !== "object" || depth > 5) return out;
+  for (var k in obj) {
+    var v = obj[k];
+    var key = prefix ? prefix + "." + k : k;
+    if (v === null || v === undefined) continue;
+    if (typeof v === "number") {
+      if (v !== 0) out[key] = Math.max(out[key] || 0, v);
+    } else if (typeof v === "string") {
+      if (v !== "" && /^[0-9]+(\.[0-9]+)?$/.test(v)) {
+        var n = Number(v);
+        if (n !== 0) out[key] = Math.max(out[key] || 0, n);
+      }
+    } else if (Array.isArray(v)) {
+      if (v.length) out[key + "[]len"] = Math.max(out[key + "[]len"] || 0, v.length);
+      for (var i = 0; i < v.length && i < 3; i++) flattenNumeric(v[i], key + "[]", out, depth + 1);
+    } else if (typeof v === "object") {
+      flattenNumeric(v, key, out, depth + 1);
+    }
+  }
+  return out;
+}
+__name(flattenNumeric, "flattenNumeric");
+async function probeYlopoEventSchema(env, maxPages) {
+  var byType = /* @__PURE__ */ Object.create(null);
+  var parseFailures = 0, noRaw = 0;
+  var meta = await scanYlopoEvents(env, {
+    maxPages: maxPages,
+    onRecord: function (rec) {
+      var p = rec.properties || rec.fields || {};
+      var t = String(p.ylopo_event || "UNKNOWN").slice(0, 40);
+      var slot = byType[t];
+      if (!slot) slot = byType[t] = { events: 0, keys: {} };
+      slot.events++;
+      var raw = p.raw_json;
+      if (!raw) { noRaw++; return; }
+      var payload;
+      try { payload = typeof raw === "string" ? JSON.parse(raw) : raw; }
+      catch (e) { parseFailures++; return; }
+      var found = flattenNumeric(payload, "", {}, 0);
+      for (var k in found) {
+        var cur = slot.keys[k];
+        if (!cur) cur = slot.keys[k] = { n: 0, max: 0 };
+        cur.n++;
+        if (found[k] > cur.max) cur.max = found[k];
+      }
+    }
+  });
+  return { meta: meta, byType: byType, parseFailures: parseFailures, noRaw: noRaw };
+}
+__name(probeYlopoEventSchema, "probeYlopoEventSchema");
+async function aggregateYlopoActivity(env, maxPages) {
+  var byContact = /* @__PURE__ */ Object.create(null);
+  var typeHist = /* @__PURE__ */ Object.create(null);
+  var withContact = 0, withoutContact = 0;
+  var meta = await scanYlopoEvents(env, {
+    maxPages: maxPages,
+    onRecord: function (rec) {
+      var p = rec.properties || rec.fields || {};
+      var t = String(p.ylopo_event || "UNKNOWN");
+      typeHist[t] = (typeHist[t] || 0) + 1;
+      var cid = ylopoEventContactId(rec);
+      if (!cid) { withoutContact++; return; }
+      withContact++;
+      var a = byContact[cid];
+      if (!a) {
+        a = byContact[cid] = {
+          events: 0, types: {}, email: "", name: "", uuid: "",
+          firstEventAt: "", lastEventAt: "",
+          sumViews: 0, sumSaves: 0, maxViews: 0, maxSaves: 0,
+          sumSessionSaves: 0, sumShowings: 0, sumVisits: 0, maxVisits: 0
+        };
+      }
+      a.events++;
+      a.types[t] = (a.types[t] || 0) + 1;
+      if (!a.email && p.lead_email) a.email = String(p.lead_email);
+      if (!a.name && p.name) a.name = String(p.name);
+      if (!a.uuid && p.ylopo_uuid) a.uuid = String(p.ylopo_uuid);
+      var at = rec.createdAt || "";
+      if (at && (!a.lastEventAt || at > a.lastEventAt)) a.lastEventAt = at;
+      if (at && (!a.firstEventAt || at < a.firstEventAt)) a.firstEventAt = at;
+      var v = Number(p.views) || 0;
+      var s = Number(p.saves) || 0;
+      a.sumViews += v; a.sumSaves += s;
+      if (v > a.maxViews) a.maxViews = v;
+      if (s > a.maxSaves) a.maxSaves = s;
+      a.sumSessionSaves += Number(p.last_session_listings_saved) || 0;
+      a.sumShowings += Number(p.last_session_showing_requests) || 0;
+      var tv = Number(p.last_session_total_visits) || 0;
+      a.sumVisits += tv;
+      if (tv > a.maxVisits) a.maxVisits = tv;
+    }
+  });
+  return { meta: meta, byContact: byContact, typeHist: typeHist, withContact: withContact, withoutContact: withoutContact };
+}
+__name(aggregateYlopoActivity, "aggregateYlopoActivity");
 function groupEventsByContact(records) {
   const map = {};
   for (const rec of records) {
-    const associations = rec.associations || rec.relationships || {};
-    let contactId = null;
-    if (associations.contact) {
-      contactId = typeof associations.contact === "string" ? associations.contact : associations.contact?.id || associations.contact?.[0]?.id || associations.contact?.[0];
-    }
-    if (!contactId)
-      contactId = rec.contactId || rec.contact_id;
-    if (!contactId) {
-      const fields = rec.fields || rec.properties || {};
-      contactId = fields.contactId || fields.contact_id || fields.contact;
-    }
+    const contactId = ylopoEventContactId(rec);
     if (contactId) {
       if (!map[contactId])
         map[contactId] = [];
@@ -23668,7 +23813,53 @@ var index_default = {
         }
       });
     }
+    if (method === "GET" && path === "/ylopo-events/aggregate") {
+      const aggDenied = await ylopoAdminDenied(request, env);
+      if (aggDenied) return aggDenied;
+      try {
+        const aggMaxPages = Math.min(parseInt(url.searchParams.get("maxPages") || "500", 10) || 500, 900);
+        if (url.searchParams.get("mode") === "schema") {
+          const probe = await probeYlopoEventSchema(env, aggMaxPages);
+          const types = {};
+          for (const t of Object.keys(probe.byType)) {
+            const slot = probe.byType[t];
+            const keys = Object.entries(slot.keys)
+              .sort((a, b) => b[1].n - a[1].n)
+              .slice(0, 30)
+              .map(([k, v]) => `${k} n=${v.n} max=${v.max}`);
+            types[t] = { events: slot.events, numericKeys: keys };
+          }
+          return json({
+            ok: true, mode: "schema",
+            scanned: probe.meta.scanned, pages: probe.meta.pages,
+            totalInGhl: probe.meta.total, truncated: probe.meta.truncated,
+            parseFailures: probe.parseFailures, recordsWithoutRawJson: probe.noRaw,
+            types
+          });
+        }
+        const agg = await aggregateYlopoActivity(env, aggMaxPages);
+        const ids = Object.keys(agg.byContact);
+        const out = {
+          ok: true,
+          scanned: agg.meta.scanned,
+          pages: agg.meta.pages,
+          totalInGhl: agg.meta.total,
+          truncated: agg.meta.truncated,
+          eventsWithContact: agg.withContact,
+          eventsWithoutContact: agg.withoutContact,
+          uniqueContacts: ids.length,
+          eventTypes: agg.typeHist
+        };
+        if (url.searchParams.get("full") === "1") out.byContact = agg.byContact;
+        return json(out);
+      } catch (e) {
+        const detail = e && e.data && typeof e.data === "object" ? JSON.stringify(e.data) : (e && (e.data || e.message));
+        return err(`Ylopo aggregate failed (${(e && e.status) || "?"}): ${detail}`, (e && e.status) || 500);
+      }
+    }
     if (method === "GET" && path === "/ylopo-events") {
+      const evDenied = await ylopoAdminDenied(request, env);
+      if (evDenied) return evDenied;
       try {
         const allEvents = await fetchAllYlopoEvents(env);
         const eventsByContact = groupEventsByContact(allEvents);
