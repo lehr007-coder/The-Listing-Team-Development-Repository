@@ -1,0 +1,76 @@
+name: Contrast scan (staging)
+
+# The rendered counterpart to the static gate in validate.yml. That one runs on
+# every push and needs nothing; this one measures real composited colour on a
+# real page, so it needs a deploy to exist first. Run it after deploying to
+# staging, or on the daily schedule.
+#
+# .redesign/scan.js, grad.js and audit.js used to hardcode a Mac Chrome path,
+# which is why they only ever ran on one laptop. They now read CHROME_PATH and
+# BASE_URL from the environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Base URL to scan'
+        required: false
+        default: 'https://thelistingteamproxy-staging.lehr007.workers.dev'
+  schedule:
+    # 07:00 UTC daily -- before the US business day, after any overnight deploy.
+    - cron: '0 7 * * *'
+
+jobs:
+  scan:
+    name: Measure rendered contrast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install a browser and the puppeteer client
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-save puppeteer-core@23 >/dev/null 2>&1
+          npx --yes @puppeteer/browsers install chrome@stable > /tmp/chrome.txt
+          echo "CHROME_PATH=$(tail -1 /tmp/chrome.txt | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Generic contrast scan
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://thelistingteamproxy-staging.lehr007.workers.dev' }}
+        working-directory: thelistingteamproxy/.redesign
+        run: node scan.js 2>&1 | tee /tmp/scan.log
+
+      - name: Gradient-aware contrast scan
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://thelistingteamproxy-staging.lehr007.workers.dev' }}
+        working-directory: thelistingteamproxy/.redesign
+        run: node grad.js 2>&1 | tee /tmp/grad.log
+
+      - name: Upload the measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contrast-scan
+          path: |
+            /tmp/scan.log
+            /tmp/grad.log
+          retention-days: 30
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo '## Contrast scan'
+            echo '### Generic'
+            echo '```'
+            tail -40 /tmp/scan.log 2>/dev/null || echo '(no output)'
+            echo '```'
+            echo '### Gradient-aware'
+            echo '```'
+            tail -40 /tmp/grad.log 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

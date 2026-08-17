@@ -5565,23 +5565,53 @@ function renderSellerTab() {
   html += '<div class="panel">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#127968; Seller Categories</h4>';
   var catBars = [
-    { label: 'Expired', count: tagCounts.expired, color: '#ef4444' },
-    { label: 'Canceled', count: tagCounts.canceled, color: '#f59e0b' },
-    { label: 'High Equity', count: tagCounts.highEquity, color: '#22c55e' },
-    { label: 'Absentee', count: tagCounts.absentee, color: '#3b82f6' },
-    { label: 'Low Equity', count: tagCounts.lowEquity, color: '#6b7280' },
-    { label: 'Withdrawn', count: tagCounts.withdrawn, color: '#8b5cf6' },
-    { label: 'Out of State', count: tagCounts.outOfState, color: '#06b6d4' },
-    { label: 'Agent Owned', count: tagCounts.agentOwned, color: '#ec4899' },
-    { label: 'Free & Clear', count: tagCounts.freeAndClear, color: '#10b981' },
-    { label: 'Empty Nester', count: tagCounts.emptyNester, color: '#a855f7' },
-    { label: 'FSBO', count: tagCounts.fsbo, color: '#eab308' }
+    { label: 'Expired', count: tagCounts.expired },
+    { label: 'Canceled', count: tagCounts.canceled },
+    { label: 'High Equity', count: tagCounts.highEquity },
+    { label: 'Absentee', count: tagCounts.absentee },
+    { label: 'Low Equity', count: tagCounts.lowEquity },
+    { label: 'Withdrawn', count: tagCounts.withdrawn },
+    { label: 'Out of State', count: tagCounts.outOfState },
+    { label: 'Agent Owned', count: tagCounts.agentOwned },
+    { label: 'Free & Clear', count: tagCounts.freeAndClear },
+    { label: 'Empty Nester', count: tagCounts.emptyNester },
+    { label: 'FSBO', count: tagCounts.fsbo }
   ].filter(function(b) { return b.count > 0; });
+  // SELLER_TAG_SLOTS: eleven categories, eight palette slots. hub/11 forbids
+  // cycling hues and forbids inventing a ninth, so the tail folds into one
+  // "Other" bar on slot 8 -- the spec's own prescribed escape hatch.
+  // Slots 1-7 go to the seven largest; ties break by the category's fixed
+  // position in the array above, never by its rank, so re-filtering the lead
+  // list cannot repaint a bar that is still present.
+  catBars = (function (bars) {
+    if (bars.length <= 8) {
+      return bars.map(function (b, i) {
+        return { label: b.label, count: b.count, color: 'var(--chart-' + (i + 1) + ')' };
+      });
+    }
+    var ranked = bars.slice().sort(function (a, b) { return b.count - a.count; });
+    var keep = ranked.slice(0, 7);
+    var rest = ranked.slice(7);
+    var out = bars.filter(function (b) { return keep.indexOf(b) !== -1; })
+      .map(function (b, i) {
+        return { label: b.label, count: b.count, color: 'var(--chart-' + (i + 1) + ')' };
+      });
+    var restTotal = rest.reduce(function (n, b) { return n + b.count; }, 0);
+    if (restTotal > 0) {
+      out.push({
+        label: 'Other',
+        count: restTotal,
+        color: 'var(--chart-8)',
+        title: rest.map(function (b) { return b.label + ' ' + b.count; }).join(', ')
+      });
+    }
+    return out;
+  })(catBars);
   var maxCatBar = Math.max.apply(null, catBars.map(function(b) { return b.count; }).concat([1]));
   catBars.forEach(function(b) {
     var pct = Math.round(b.count / maxCatBar * 100);
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
-      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap">' + b.label + '</div>' +
+      '<div style="width:90px;font-size:12px;text-align:right;white-space:nowrap"' + (b.title ? ' title="' + esc(b.title) + '"' : '') + '>' + b.label + '</div>' +
       '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
       '<div style="width:' + pct + '%;height:100%;background:' + b.color + ';border-radius:4px;transition:width 0.3s"></div></div>' +
       '<div style="width:40px;font-size:12px;font-weight:600">' + b.count + '</div></div>';
@@ -20177,31 +20207,59 @@ __name2(fetchYlopoEvents, "fetchYlopoEvents");
 __name22(fetchYlopoEvents, "fetchYlopoEvents");
 var _allYlopoEventsCache = null;
 var _allYlopoEventsCachedAt = 0;
+var _allYlopoEventsTruncated = false;
+// 39,584 events measured on production 2026-08-17 = 396 pages at 100/page.
+// 450 leaves headroom while staying well inside the Workers subrequest budget.
+var YLOPO_EVENTS_MAX_PAGES = 450;
+var YLOPO_EVENTS_TTL_MS = 5 * 60 * 1000;
 async function fetchAllYlopoEvents(env) {
   if (!env.GHL_V2_TOKEN)
     return [];
   const now = Date.now();
+  // The cache was previously written on every call and read on none, so each
+  // request re-crawled the whole object. Honour it.
+  if (_allYlopoEventsCache && now - _allYlopoEventsCachedAt < YLOPO_EVENTS_TTL_MS) {
+    return _allYlopoEventsCache;
+  }
   const locId = env.GHL_LOCATION_ID || LOC_ID;
   const allRecords = [];
-  let page = 1;
+  let cursor = null;
+  let pages = 0;
   try {
-    while (page <= 20) {
-      const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, {
-        locationId: locId,
-        page,
-        pageLimit: 100
-      });
+    while (pages < YLOPO_EVENTS_MAX_PAGES) {
+      const body = { locationId: locId, pageLimit: 100 };
+      // Cursor pagination, not page numbers: it stays correct at depth and is
+      // what the records themselves hand back.
+      if (cursor) body.searchAfter = cursor;
+      const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, body);
       const records = data.records || data.data || [];
       allRecords.push(...records);
+      pages++;
       if (records.length < 100)
         break;
-      page++;
+      const next = records[records.length - 1] && records[records.length - 1].searchAfter;
+      if (!next)
+        break;
+      cursor = next;
+    }
+    if (pages >= YLOPO_EVENTS_MAX_PAGES) {
+      // Say so rather than passing a prefix off as the dataset. 39,584 events
+      // existed when the cap was set to 450 pages; if this fires, the volume
+      // grew past it and the cap needs raising deliberately.
+      console.warn(
+        `fetchAllYlopoEvents: hit the ${YLOPO_EVENTS_MAX_PAGES}-page cap at ` +
+        `${allRecords.length} records - result is TRUNCATED`);
+      _allYlopoEventsTruncated = true;
+    } else {
+      _allYlopoEventsTruncated = false;
     }
     _allYlopoEventsCache = allRecords;
     _allYlopoEventsCachedAt = now;
     return allRecords;
   } catch (e) {
     console.error("fetchAllYlopoEvents error:", e.status || e.message);
+    // Never replace a good cache with an empty read.
+    if (_allYlopoEventsCache) return _allYlopoEventsCache;
     return [];
   }
 }
