@@ -3249,6 +3249,44 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
   }
 
 
+
+
+  /* ---------- RESPONSIVE PASS 3 -----------------------------------------
+     Measured at a 390px viewport, not guessed. */
+
+  /* Wide tables scroll inside their own box at EVERY width -- one measured
+     1453px inside a 1032px column on a 1280px desktop. */
+  .table-wrap,.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+
+  @media (max-width:768px){
+    /* The nav was a 1524px horizontal strip in a 390px viewport, so the last
+       tabs -- Seller Intel, Team -- sat off-screen behind a drag most people
+       never discover. Wrap instead of scroll: every tab visible at once. */
+    /* Both axes must be released together: the 1080px block sets
+       overflow-y:hidden, and per the CSS overflow spec, 'visible' on one axis
+       computes to 'auto' when the other is not visible. Setting overflow-x
+       alone therefore did nothing at all -- measured, not assumed.
+       (Apostrophes, not backticks: this lands inside a JS template literal.) */
+    .sidenav{overflow:visible;flex-wrap:wrap;height:auto}
+    /* The same block pins these with flex-shrink:0, which defeats wrapping. */
+    .sidenav-group,.sidenav-brand,.sidenav-foot{flex-shrink:1}
+    .sidenav-group{flex-wrap:wrap;width:100%;max-width:100%;flex-direction:row}
+    /* Shrink to their label so 2-3 tabs share a row; one-per-row pushed
+       all content below the fold. */
+    .sidenav .nav-item{flex:0 1 auto;width:auto;justify-content:flex-start}
+    .sidenav-group{justify-content:flex-start;gap:6px}
+    .sidenav-foot{width:100%;max-width:100%;flex-wrap:wrap;border-left:none;padding-left:0}
+    .sidenav-brand{width:100%;border-right:none;padding-right:0}
+
+    /* Filter cluster measured 476px inside a 358px parent. */
+    .filters-bar,.filter-cluster{flex-wrap:wrap;max-width:100%}
+    .filter-cluster{width:100%}
+    .filter-search{flex:1 1 100%;min-width:0}
+
+    /* Nothing may establish a width the viewport cannot honour. */
+    .app-content,.app-content>*{max-width:100%;min-width:0}
+  }
+
   /* ---------- RESPONSIVE PASS 2 ----------------------------------------
      These grids are class-based, so a media query can reach them -- but none
      ever did, so on a phone they held two columns and crushed their contents.
