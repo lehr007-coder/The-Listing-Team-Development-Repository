@@ -4236,12 +4236,12 @@ function renderBuyerTab() {
   var avgReadiness = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.readiness; }, 0) / buyers.length) : 0;
   var avgSaveRate = buyers.length ? Math.round(buyers.reduce(function(a, b) { return a + b.saveRate; }, 0) / buyers.length) : 0;
 
-  var html = '';
+  var html = activityGapNotice();
 
   // KPI cards
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">';
   var kpis = [
-    { val: buyers.length, label: 'Active Buyers', color: 'var(--brand-secondary)' },
+    { val: buyers.length, label: hasActivityData() ? 'Active Buyers' : 'Buyer-Side Contacts', color: 'var(--brand-secondary)' },
     { val: totalViews.toLocaleString(), label: 'Total Views', color: 'var(--brand-accent)' },
     { val: totalSaves, label: 'Total Saves', color: 'var(--green)' },
     { val: totalShowings, label: 'Showings', color: 'var(--brand-accent)' },
@@ -4280,7 +4280,7 @@ function renderBuyerTab() {
 
   // Health gauge
   html += '<div class="panel" style="text-align:center">';
-  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128681; Buyer Pipeline Health</h4>';
+  html += '<h4 style="margin:0 0 12px;font-size:14px">&#128681; ' + (hasActivityData() ? 'Buyer Pipeline Health' : 'Contact Quality Score') + '</h4>';
   html += '<div style="position:relative;width:120px;height:120px;margin:0 auto">';
   html += '<svg viewBox="0 0 120 120" style="transform:rotate(-90deg)">';
   var circumference = 2 * Math.PI * 50;
@@ -6422,16 +6422,87 @@ function getCFByValuePattern(contact, pattern) {
 // LEAD SCORING
 // -------------------------------------------------------
 
+function getYlopoBlob(c, keys) {
+  // savedPropInfo / savedSearchInfo arrive as JSON strings on a custom field.
+  var raw = getCF(c, keys);
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+function blobNum() {
+  // first finite, non-negative number among the candidates
+  for (var i = 0; i < arguments.length; i++) {
+    var v = Number(arguments[i]);
+    if (isFinite(v) && v >= 0) return v;
+  }
+  return 0;
+}
+
 function getMatrix(c) {
-  var searches = Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches','idx_saved_search_count','saved_searches_count_idxaddons']))||0;
-  if (searches > 10000) searches = 0;
+  // THE FIELDS THIS PAGE ORIGINALLY READ DO NOT EXIST IN THIS LOCATION.
+  // ylopo_total_listing_views / ylopo_total_favorites / etc. were checked
+  // against all 1,500 loaded contacts: zero matches. The real containers are
+  // these two JSON blobs. The legacy flat names are still consulted as a
+  // fallback so nothing regresses if another location does populate them.
+  var prop = getYlopoBlob(c, ['savedpropinfo', 'savedPropInfo', 'contact.savedpropinfo']) || {};
+  var srch = getYlopoBlob(c, ['savedsearchinfo', 'savedSearchInfo', 'contact.savedsearchinfo']) || {};
+  var pt = prop.totals || {}, py = prop.ylopo || {}, pf = prop.fub || {}, pi = prop.idx || {};
+  var st = srch.totals || {}, sy = srch.ylopo || {}, sf = srch.fub || {}, si = srch.idx || {};
+
+  var legacySearches = Number(getCF(c,['ylopo_last_session_searches','ylopo_session_searches','idx_saved_search_count','saved_searches_count_idxaddons']))||0;
+  if (legacySearches > 10000) legacySearches = 0;
+
   return {
-    views:    Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0,
-    saves:    Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0,
-    searches: searches,
-    showings: Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests','ylopo_total_info_requests','ylopo_info_requests']))||0,
-    infoReqs: Number(getCF(c,['ylopo_total_info_requests','ylopo_info_requests','buyer_info_requests']))||0
+    views:    blobNum(pt.viewed_properties, py.viewed_properties, pi.viewed_properties, pf.propertiesViewed, st.page_views, sf.pagesViewed,
+                Number(getCF(c,['ylopo_total_listing_views','ylopo_total_views','ylopo_views','ylopo_session_views','ylopo__buyer_matrix_views','properties_viewed_count','buyer_listing_views','ylopo_last_session_listings_viewed','fub_total_listings_viewed']))||0),
+    saves:    blobNum(pt.saved_properties, py.saved_properties, pi.saved_properties, pf.propertiesSaved,
+                Number(getCF(c,['ylopo_total_favorites','ylopo_total_saves','ylopo_saves','ylopo_session_saves','total_saved_homes','ylopo__buyer_matrix_saves','buyer_favorites','ylopo_last_session_listings_saved','fub_total_listings_saved']))||0),
+    searches: blobNum(st.saved_searches, st.active_searches, sy.saved_searches, si.saved_searches, legacySearches),
+    showings: blobNum(Number(getCF(c,['ylopo_total_showing_requests','ylopo_session_showings','total_showings','ylopo_last_session_showinginfo_requests','buyer_showing_requests','agent_showings_count','fub_total_showing_info_requests']))||0),
+    infoReqs: blobNum(Number(getCF(c,['ylopo_total_info_requests','ylopo_info_requests','buyer_info_requests']))||0)
   };
+}
+
+var ACTIVITY_COVERAGE = null;
+function activityCoverage() {
+  // COVERAGE, not existence. A handful of contacts carrying a single signal
+  // between them is not a working feed, and treating it as one is how the
+  // page came to present structurally-zero metrics as real.
+  if (ACTIVITY_COVERAGE !== null) return ACTIVITY_COVERAGE;
+  var ids = Object.keys(RAW_CONTACTS || {}), withAct = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var m = getMatrix(RAW_CONTACTS[ids[i]]);
+    if (m && (m.views || m.saves || m.searches || m.showings || m.infoReqs)) withAct++;
+  }
+  ACTIVITY_COVERAGE = {
+    withActivity: withAct,
+    total: ids.length,
+    pct: ids.length ? (withAct / ids.length * 100) : 0
+  };
+  return ACTIVITY_COVERAGE;
+}
+
+function hasActivityData() {
+  // 5% is the line between "a sparse feed" and "no feed". Today this location
+  // sits at roughly 0.1%.
+  var c = activityCoverage();
+  return c.pct >= 5;
+}
+
+function activityGapNotice() {
+  if (hasActivityData()) return '';
+  return '<div class="panel" style="margin-bottom:20px;border-left:4px solid var(--yellow)">' +
+    '<div style="font-weight:800;font-size:13px;margin-bottom:6px">&#9888; No buyer activity data is reaching this location</div>' +
+    '<div style="font-size:12px;color:var(--text-secondary);line-height:1.6">' +
+    'Only ' + activityCoverage().withActivity + ' of ' + activityCoverage().total +
+    ' loaded contacts (' + activityCoverage().pct.toFixed(1) + '%) carry any property view, save, search ' +
+    'or showing signal. The Ylopo behavioural fields exist but arrive empty, so effectively nothing is ' +
+    'being synced into GoHighLevel. ' +
+    '<strong>Readiness below therefore reflects contact quality, recency and lead source only &mdash; not buying intent</strong>, ' +
+    'and is capped at 80 of 100 because the 20-point activity component cannot be earned. ' +
+    'Fixing this starts upstream, with whether Ylopo is configured to sync behaviour for this location.' +
+    '</div></div>';
 }
 
 function calcScore(c, m) {
