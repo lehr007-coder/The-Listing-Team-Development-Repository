@@ -23229,6 +23229,12 @@ var index_default = {
     // as SEPARATE rows on purpose; duplicateNames lists the affected names.
     // ---------------------------------------------------------------------
     if (method === "GET" && path === "/contacts/agents") {
+      // Same gate as /contacts, /contacts/bulk and /contacts/summary. This response
+      // carries team member names, email addresses and per-agent book sizes - it must
+      // never have been reachable without a session or API key. Added 2026-08-17 on
+      // discovering the endpoint had shipped outside requireContactsAuth.
+      var gate_agents = await requireContactsAuth(request, env);
+      if (gate_agents) return gate_agents;
       try {
         const countWhere = async (filters) => {
           const body = { locationId: locId, pageLimit: 1 };
