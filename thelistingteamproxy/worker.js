@@ -48,6 +48,27 @@ function err(msg, status = 500) {
 }
 __name(err, "err");
 __name2(err, "err");
+// Guard for the contacts data API. These three routes feed every panel and
+// were readable by anyone with the URL until 2026-08-17. A session OR a valid
+// API key gets through; nothing else does.
+//
+// Deliberately NOT gated on env.REQUIRE_AUTH: this data is PII regardless of
+// whether the deployment wants a login wall, and making the guard optional is
+// how it came to be off in the first place.
+async function requireContactsAuth(request, env) {
+  try {
+    if (validateApiKey(request, env)) {
+      var hasKey = !!(request.headers.get("X-API-Key") || "");
+      if (hasKey) return null;
+    }
+  } catch (e) {}
+  try {
+    var sess = await getSession(request, env);
+    if (sess) return null;
+  } catch (e) {}
+  return json({ error: "Unauthorized: sign in or supply X-API-Key." }, 401);
+}
+
 function validateApiKey(request, env) {
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
@@ -23020,6 +23041,8 @@ var index_default = {
     // ?tags=x,y        override the tag list
     // ---------------------------------------------------------------------
     if (method === "GET" && path === "/contacts/summary") {
+      var gate_summary = await requireContactsAuth(request, env);
+      if (gate_summary) return gate_summary;
       try {
         const isoDaysAgo = (d) => new Date(Date.now() - d * 864e5).toISOString();
         const countWhere = async (filters) => {
@@ -23080,6 +23103,8 @@ var index_default = {
     }
 
     if (method === "GET" && path === "/contacts/bulk") {
+      var gate_bulk = await requireContactsAuth(request, env);
+      if (gate_bulk) return gate_bulk;
       try {
         const maxPages = Math.min(parseInt(url.searchParams.get("pages") || "20"), 30);
         const query = url.searchParams.get("query") || "";
@@ -23164,6 +23189,8 @@ var index_default = {
       }
     }
     if (method === "GET" && path === "/contacts") {
+      var gate_contacts = await requireContactsAuth(request, env);
+      if (gate_contacts) return gate_contacts;
       try {
         const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 100);
         const startAfter = url.searchParams.get("startAfter") || "";
@@ -24346,7 +24373,7 @@ var index_default = {
     }
     if (method === "GET" && path === "/dashboard/ylopo-contacts") {
       var contactsSess = await getSession(request, env);
-      var contactsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(contactsSess ? { uid: contactsSess.uid, email: contactsSess.email, name: contactsSess.name, role: contactsSess.role } : { role: "admin" }) + ";<\/script>";
+      var contactsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(contactsSess ? { uid: contactsSess.uid, email: contactsSess.email, name: contactsSess.name, role: contactsSess.role } : null) + ";<\/script>";
       return new Response(YLOPO_CONTACTS_HTML.replace("<head>", "<head>" + contactsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
@@ -24354,7 +24381,7 @@ var index_default = {
     }
     if (method === "GET" && path === "/dashboard/ylopo-analytics") {
       var analyticsSess = await getSession(request, env);
-      var analyticsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(analyticsSess ? { uid: analyticsSess.uid, email: analyticsSess.email, name: analyticsSess.name, role: analyticsSess.role } : { role: "admin" }) + ";<\/script>";
+      var analyticsScript = "<script>window.__TLT_SESSION=" + JSON.stringify(analyticsSess ? { uid: analyticsSess.uid, email: analyticsSess.email, name: analyticsSess.name, role: analyticsSess.role } : null) + ";<\/script>";
       return new Response(YLOPO_ANALYTICS_HTML.replace("<head>", "<head>" + analyticsScript), {
         status: 200,
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
