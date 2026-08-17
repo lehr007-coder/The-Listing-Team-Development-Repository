@@ -20228,9 +20228,13 @@ async function fetchAllYlopoEvents(env) {
   try {
     while (pages < YLOPO_EVENTS_MAX_PAGES) {
       const body = { locationId: locId, pageLimit: 100 };
-      // Cursor pagination, not page numbers: it stays correct at depth and is
-      // what the records themselves hand back.
+      // This endpoint REJECTS a request carrying neither page nor searchAfter
+      // ("Either page or searchAfter is required for pagination", 422), so the
+      // first call must send page:1 and only later calls switch to the cursor.
+      // Sending no pagination key at all fails the whole crawl silently via
+      // the catch below -- verified against production, not assumed.
       if (cursor) body.searchAfter = cursor;
+      else body.page = 1;
       const data = await ghlV2(env, "POST", `/objects/custom_objects.ylopo_event/records/search`, body);
       const records = data.records || data.data || [];
       allRecords.push(...records);
