@@ -4063,6 +4063,10 @@ function calcBuyerReadiness(c, ext, m, opts) {
   // those live on the GHL contact. Scoring them against components they could
   // never earn marks them down for missing data rather than weak intent.
   var ghlBacked = !opts || opts.ghlBacked !== false;
+  // Ylopo saved-search export (hub/18): price band, beds/baths and email
+  // engagement for leads that have no GHL custom fields behind them.
+  var en = (opts && opts.enrich) || {};
+  var enrichAvailable = !!en.searchDataAvailable;
 
   // Search activity (0-20) \u2014 if Ylopo data exists
   // Real behaviour, when present, is the strongest signal there is - so it
@@ -4133,27 +4137,49 @@ function calcBuyerReadiness(c, ext, m, opts) {
   }
 
   // Price range defined (0-10)
+  var pMin = ext.minPrice > 0 ? ext.minPrice : (Number(en.minPrice) || 0);
+  var pMax = ext.maxPrice > 0 ? ext.maxPrice : (Number(en.maxPrice) || 0);
   var pricePts = 0;
-  if (ext.minPrice > 0 || ext.maxPrice > 0) { pricePts = 6; }
-  if (ext.minPrice > 0 && ext.maxPrice > 0) { pricePts = 10; }
+  if (pMin > 0 || pMax > 0) { pricePts = 6; }
+  if (pMin > 0 && pMax > 0) { pricePts = 10; }
   if (pricePts > 0) {
     score += pricePts;
     var priceLabel = '';
-    if (ext.minPrice && ext.maxPrice) priceLabel = fmtPrice(ext.minPrice) + '-' + fmtPrice(ext.maxPrice);
-    else if (ext.maxPrice) priceLabel = 'up to ' + fmtPrice(ext.maxPrice);
-    else priceLabel = fmtPrice(ext.minPrice) + '+';
+    if (pMin && pMax) priceLabel = fmtPrice(pMin) + '-' + fmtPrice(pMax);
+    else if (pMax) priceLabel = 'up to ' + fmtPrice(pMax);
+    else priceLabel = fmtPrice(pMin) + '+';
     factors.push({ name: priceLabel, pts: pricePts, max: 10 });
   }
 
   // Property preferences (0-5)
+  var bBeds = ext.beds || Number(en.beds) || 0;
+  var bBaths = ext.baths || Number(en.baths) || 0;
   var prefPts = 0;
-  if (ext.beds) prefPts += 2;
-  if (ext.baths) prefPts += 2;
-  if (ext.propType) prefPts += 1;
+  if (bBeds) prefPts += 2;
+  if (bBaths) prefPts += 2;
+  if (ext.propType || (en.cities && en.cities.length)) prefPts += 1;
   prefPts = Math.min(prefPts, 5);
   if (prefPts > 0) {
     score += prefPts;
-    factors.push({ name: (ext.beds || '?') + 'bd/' + (ext.baths || '?') + 'ba', pts: prefPts, max: 5 });
+    factors.push({ name: (bBeds || '?') + 'bd/' + (bBaths || '?') + 'ba', pts: prefPts, max: 5 });
+  }
+
+  // Email engagement (0-15). Ylopo saved-search export. Clicks are weighted
+  // hardest because they correlate +0.389 with measured view counts, against
+  // +0.144 for opens and +0.107 for saved-search count (hub/18). This is a
+  // proxy for intent, not a measurement of browsing - label it as engagement.
+  var engPts = 0;
+  if (enrichAvailable) {
+    engPts = Math.min(Math.round((Number(en.engagementScore) || 0) * 0.15), 15);
+    if (engPts > 0) {
+      score += engPts;
+      var engBits = [];
+      if (Number(en.emailClicked) > 0) engBits.push(en.emailClicked + ' clicks');
+      else if (Number(en.emailOpened) > 0) engBits.push(en.emailOpened + ' opens');
+      if (Number(en.activeAlerts) > 0) engBits.push(en.activeAlerts + ' alerts');
+      if (!engBits.length && Number(en.savedSearches) > 0) engBits.push(en.savedSearches + ' searches');
+      factors.push({ name: engBits.join(', ') || 'Email engagement', pts: engPts, max: 15 });
+    }
   }
 
   // Tag signals (0-10)
@@ -4170,7 +4196,12 @@ function calcBuyerReadiness(c, ext, m, opts) {
   }
 
   var maxPossible = actMax + 15 /* completeness */ + 15 /* source */ + 10 /* tags */;
-  if (ghlBacked) maxPossible += 25 /* recency */ + 10 /* price */ + 5 /* prefs */;
+  if (ghlBacked) maxPossible += 25 /* recency */;
+  // Price and preferences are earnable by anyone who has either GHL custom
+  // fields or saved-search enrichment behind them. Leads with neither are still
+  // not marked down for it.
+  if (ghlBacked || enrichAvailable) maxPossible += 10 /* price */ + 5 /* prefs */;
+  if (enrichAvailable) maxPossible += 15 /* engagement */;
   var normalised = maxPossible > 0 ? Math.round(score / maxPossible * 100) : 0;
   return { score: Math.min(normalised, 100), factors: factors, rawScore: score, maxPossible: maxPossible };
 }
@@ -4236,7 +4267,7 @@ function buildBuyersFromMatrix() {
       firstName: r.firstName || '', lastName: r.lastName || '',
       source: 'Ylopo', tags: r.tags || []
     };
-    var rd = calcBuyerReadiness(subject, ext, m, { ghlBacked: !!raw });
+    var rd = calcBuyerReadiness(subject, ext, m, { ghlBacked: !!raw, enrich: r });
 
     out.push({
       id: l ? l.id : ('matrix-' + idx),
@@ -19791,6 +19822,14 @@ async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 
 __name(ghlSafe, "ghlSafe");
 __name2(ghlSafe, "ghlSafe");
 __name22(ghlSafe, "ghlSafe");
+function pickNum() {
+  for (var i = 0; i < arguments.length; i++) {
+    var n = Number(arguments[i]);
+    if (!isNaN(n) && n !== 0) return n;
+  }
+  return 0;
+}
+__name(pickNum, "pickNum");
 async function ghlV2(env, method, path, body = null) {
   const token = env.GHL_V2_TOKEN;
   if (!token)
@@ -19978,11 +20017,12 @@ async function scanYlopoEvents(env, opts) {
   var locId = env.GHL_LOCATION_ID || LOC_ID;
   var maxPages = (opts && opts.maxPages) || 500;
   var onRecord = opts && opts.onRecord;
+  var startPage = (opts && opts.startPage) || 1;
   var searchAfter = null, pages = 0, scanned = 0, total = null, hitCap = false;
   while (true) {
     if (pages >= maxPages) { hitCap = true; break; }
     var body = { locationId: locId, pageLimit: 100 };
-    if (searchAfter) body.searchAfter = searchAfter; else body.page = 1;
+    if (searchAfter) body.searchAfter = searchAfter; else body.page = startPage;
     var data = await ghlV2(env, "POST", "/objects/" + YLOPO_EVENT_OBJECT_KEY + "/records/search", body);
     var recs = data.records || data.data || [];
     if (total === null && typeof data.total === "number") total = data.total;
@@ -19996,6 +20036,37 @@ async function scanYlopoEvents(env, opts) {
   return { pages: pages, scanned: scanned, total: total, truncated: hitCap };
 }
 __name(scanYlopoEvents, "scanYlopoEvents");
+function flattenPresence(obj, prefix, out, depth) {
+  if (!obj || typeof obj !== "object" || depth > 6) return out;
+  for (var k in obj) {
+    var v = obj[k];
+    var key = prefix ? prefix + "." + k : k;
+    var slot = out[key];
+    if (!slot) slot = out[key] = { present: 0, nonzero: 0, max: 0, type: "" };
+    slot.present++;
+    if (v === null || v === undefined) { slot.type = slot.type || "null"; continue; }
+    if (typeof v === "number") {
+      slot.type = "number";
+      if (v !== 0) { slot.nonzero++; if (v > slot.max) slot.max = v; }
+    } else if (typeof v === "string") {
+      slot.type = "string";
+      if (v !== "" && /^[0-9]+(\.[0-9]+)?$/.test(v)) {
+        var n = Number(v);
+        if (n !== 0) { slot.nonzero++; if (n > slot.max) slot.max = n; }
+      }
+    } else if (Array.isArray(v)) {
+      slot.type = "array";
+      if (v.length) { slot.nonzero++; if (v.length > slot.max) slot.max = v.length; }
+      for (var i = 0; i < v.length && i < 2; i++) flattenPresence(v[i], key + "[]", out, depth + 1);
+    } else if (typeof v === "object") {
+      slot.type = "object";
+      slot.nonzero++;
+      flattenPresence(v, key, out, depth + 1);
+    }
+  }
+  return out;
+}
+__name(flattenPresence, "flattenPresence");
 function flattenNumeric(obj, prefix, out, depth) {
   if (!obj || typeof obj !== "object" || depth > 5) return out;
   for (var k in obj) {
@@ -20019,11 +20090,12 @@ function flattenNumeric(obj, prefix, out, depth) {
   return out;
 }
 __name(flattenNumeric, "flattenNumeric");
-async function probeYlopoEventSchema(env, maxPages) {
+async function probeYlopoEventSchema(env, maxPages, startPage) {
   var byType = /* @__PURE__ */ Object.create(null);
   var parseFailures = 0, noRaw = 0;
   var meta = await scanYlopoEvents(env, {
     maxPages: maxPages,
+    startPage: startPage,
     onRecord: function (rec) {
       var p = rec.properties || rec.fields || {};
       var t = String(p.ylopo_event || "UNKNOWN").slice(0, 40);
@@ -20035,12 +20107,14 @@ async function probeYlopoEventSchema(env, maxPages) {
       var payload;
       try { payload = typeof raw === "string" ? JSON.parse(raw) : raw; }
       catch (e) { parseFailures++; return; }
-      var found = flattenNumeric(payload, "", {}, 0);
+      var found = flattenPresence(payload, "", {}, 0);
       for (var k in found) {
         var cur = slot.keys[k];
-        if (!cur) cur = slot.keys[k] = { n: 0, max: 0 };
-        cur.n++;
-        if (found[k] > cur.max) cur.max = found[k];
+        if (!cur) cur = slot.keys[k] = { present: 0, nonzero: 0, max: 0, type: "" };
+        cur.present += found[k].present;
+        cur.nonzero += found[k].nonzero;
+        if (found[k].max > cur.max) cur.max = found[k].max;
+        cur.type = found[k].type || cur.type;
       }
     }
   });
@@ -23117,13 +23191,19 @@ var index_default = {
               starsLink: payload.starsLink || lead.starsLink || "",
               uuid: lead.uuid || "",
               crmId: lead.crmId || "",
-              // Session metrics as plain numbers
-              views: String(Number(session.viewsCount || session.listingsViewed) || 0),
-              saves: String(Number(session.savesCount || session.listingsSaved) || 0),
-              searches: String(Number(session.searchCount || session.searches) || 0),
-              showingRequests: String(Number(session.showingRequests) || 0),
-              avgPrice: String(Number(session.avgPrice || payload.avgPrice) || 0),
-              totalVisits: String(Number(session.totalVisits) || 0),
+              // Session metrics as plain numbers. Ylopo uses two different
+              // shapes: session.* on VIEW_LISTING_DETAIL / SHOWING_REQUEST /
+              // PRIORITY_LEAD_EVENT, and lead.lastSession* on REGISTRATION.
+              // Read both - pickNum takes the first non-zero it finds - so
+              // whichever contract an event uses, the value lands. See hub/17.
+              views: String(pickNum(session.viewsCount, session.listingsViewed, lead.lastSessionListingsViewed)),
+              saves: String(pickNum(session.savesCount, session.listingsSaved, lead.lastSessionListingsSaved)),
+              searches: String(pickNum(session.searchCount, session.searches, lead.lastSessionSearches)),
+              showingRequests: String(pickNum(session.showingRequests, lead.lastSessionShowingInfoRequests)),
+              avgPrice: String(pickNum(session.avgPrice, payload.avgPrice, lead.lastSessionAvgPrice)),
+              totalVisits: String(pickNum(session.totalVisits, lead.lastSessionTotalVisits)),
+              lastVisitDate: String(session.lastVisitDate || lead.lastSessionLastVisitDate || ""),
+              browsingHistoryLink: String(lead.viewBrowsingHistoryLink || ""),
               // Listing details as plain strings
               listingAddress: listing.address || listing.fullAddress || "",
               listingPrice: String(Number(listing.price || listing.listPrice) || 0),
@@ -23819,18 +23899,19 @@ var index_default = {
       try {
         const aggMaxPages = Math.min(parseInt(url.searchParams.get("maxPages") || "500", 10) || 500, 900);
         if (url.searchParams.get("mode") === "schema") {
-          const probe = await probeYlopoEventSchema(env, aggMaxPages);
+          const startPage = Math.max(1, parseInt(url.searchParams.get("startPage") || "1", 10) || 1);
+          const probe = await probeYlopoEventSchema(env, aggMaxPages, startPage);
           const types = {};
           for (const t of Object.keys(probe.byType)) {
             const slot = probe.byType[t];
             const keys = Object.entries(slot.keys)
-              .sort((a, b) => b[1].n - a[1].n)
-              .slice(0, 30)
-              .map(([k, v]) => `${k} n=${v.n} max=${v.max}`);
-            types[t] = { events: slot.events, numericKeys: keys };
+              .sort((a, b) => b[1].present - a[1].present)
+              .slice(0, 40)
+              .map(([k, v]) => `${k} [${v.type}] present=${v.present} nonzero=${v.nonzero} max=${v.max}`);
+            types[t] = { events: slot.events, keys };
           }
           return json({
-            ok: true, mode: "schema",
+            ok: true, mode: "schema", startPage: Math.max(1, parseInt(url.searchParams.get("startPage") || "1", 10) || 1),
             scanned: probe.meta.scanned, pages: probe.meta.pages,
             totalInGhl: probe.meta.total, truncated: probe.meta.truncated,
             parseFailures: probe.parseFailures, recordsWithoutRawJson: probe.noRaw,
