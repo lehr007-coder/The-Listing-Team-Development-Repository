@@ -5209,7 +5209,7 @@ function renderTeamTab() {
   if (unknownCount) {
     h += '<div class="panel" style="padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--accent);font-size:12px;color:var(--text-secondary)">' +
       unknownCount + ' owner' + (unknownCount === 1 ? '' : 's') + ' not in the team directory, shown as &ldquo;Agent &hellip;&rdquo;. ' +
-      'The directory is a hardcoded list in loadGHLTeam() - add them there to see real names.</div>';
+      (teamDirectoryLive ? 'These ids are not in the live GHL user directory.' : 'The live directory could not be loaded, so this is the built-in fallback list.') + '</div>';
   }
   h += '<div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px">';
   h += teamStat('People with leads', owners, '');
@@ -7265,6 +7265,7 @@ function getExtendedData(c) {
 var GHL_USER_MAP   = {};
 var GHL_EMAIL_MAP  = {};
 var GHL_TEAM_NAMES = [];
+var teamDirectoryLive = false;
 
 function loadGHLTeam() {
   return new Promise(function(resolve) {
@@ -7288,14 +7289,49 @@ function loadGHLTeam() {
       { id:'g6R0VbDaW5MEhmIHOefT', first:'Scott',   last:'Lehr',      email:'scott@scottlehrrealtor.com' }
     ];
 
+    var addUser = function(id, name, email, isBot) {
+      if (!id || !name) return;
+      GHL_USER_MAP[id] = name;
+      if (email) GHL_EMAIL_MAP[String(email).toLowerCase()] = name;
+      if (!isBot && GHL_TEAM_NAMES.indexOf(name) === -1) GHL_TEAM_NAMES.push(name);
+    };
+
+    // Seed from the built-in list first, so a failed or slow fetch degrades to
+    // the previous behaviour rather than to a page of unnamed agent ids.
     ghlUsers.forEach(function(u) {
-      var name = u.first + ' ' + u.last;
-      GHL_USER_MAP[u.id] = name;
-      GHL_EMAIL_MAP[u.email.toLowerCase()] = name;
-      if (!u.isBot && GHL_TEAM_NAMES.indexOf(name) === -1) GHL_TEAM_NAMES.push(name);
+      addUser(u.id, u.first + ' ' + u.last, u.email, u.isBot);
     });
-    console.log('GHL Team loaded:', GHL_TEAM_NAMES.join(', '));
-    resolve();
+
+    // Then overlay the live directory. /api/users reads the GHL user list, so
+    // a new hire appears without anyone editing this file.
+    var done = function(src) {
+      console.log('GHL Team loaded (' + src + '):', GHL_TEAM_NAMES.join(', '));
+      resolve();
+    };
+    var settled = false;
+    var finish = function(src) { if (!settled) { settled = true; done(src); } };
+    // Never let the directory fetch hold up the dashboard.
+    setTimeout(function() { finish('seed, fetch timed out'); }, 6000);
+
+    try {
+      fetch(PROXY_URL + '/api/users', { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          var list = (d && (d.users || d.data)) || [];
+          var n = 0;
+          list.forEach(function(u) {
+            var name = (u.name || ((u.firstName || '') + ' ' + (u.lastName || ''))).trim();
+            if (!u.id || !name || u.deleted) return;
+            teamDirectoryLive = true;
+            addUser(u.id, name, u.email, false);
+            n++;
+          });
+          finish(teamDirectoryLive ? 'live, ' + n + ' users' : 'seed, empty response');
+        })
+        .catch(function() { finish('seed, fetch failed'); });
+    } catch (e) {
+      finish('seed, fetch threw');
+    }
   });
 }
 
