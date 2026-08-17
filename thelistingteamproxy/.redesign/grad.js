@@ -2,8 +2,10 @@
 // label against EVERY colour stop in that gradient and keep the worst.
 // Conservative and deterministic - no pixel sampling needed.
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const BASE = 'https://thelistingteamproxy-staging.lehr007.workers.dev';
+// CHROME_PATH lets CI point at its own Chromium; the default is the Mac install.
+const CHROME = process.env.CHROME_PATH ||
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const BASE = process.env.BASE_URL || 'https://thelistingteamproxy-staging.lehr007.workers.dev';
 const PAGES = {
   hub: '/dashboard', priority: '/dashboard/priority-leads',
   contacts: '/dashboard/ylopo-contacts', analytics: '/dashboard/ylopo-analytics',

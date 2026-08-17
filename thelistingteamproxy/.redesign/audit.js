@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer-core');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const BASE = 'https://thelistingteamproxy-staging.lehr007.workers.dev';
+// CHROME_PATH lets CI point at its own Chromium; the default is the Mac install.
+const CHROME = process.env.CHROME_PATH ||
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const BASE = process.env.BASE_URL || 'https://thelistingteamproxy-staging.lehr007.workers.dev';
 
 function lum(r, g, b) {
   const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
