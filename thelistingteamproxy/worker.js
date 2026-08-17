@@ -146,7 +146,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --text-white:#FFFFFF;
     --overlay:rgba(6,17,25,0.72);
@@ -220,7 +220,7 @@ var ADMIN_HUB_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --overlay:rgba(6,17,25,0.72);
     --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
@@ -928,7 +928,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --text-white:#FFFFFF;
     --overlay:rgba(6,17,25,0.72);
@@ -1002,7 +1002,7 @@ var PRIORITY_LEADS_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --overlay:rgba(6,17,25,0.72);
     --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
@@ -2564,8 +2564,8 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --surface-2:#16222E;
     --card:#14202C;
     --card-bg:#14202C;
-    --card-border:#223444;
-    --border:#223444;
+    --card-border:#33485C;
+    --border:#33485C;
     --card-hover:#192836;
     --text:#E8EFF4;
     --text-secondary:#9FB3C2;
@@ -4784,7 +4784,7 @@ function renderBuyerTab() {
     { label: '$200-300K', min: 200000, max: 299999, color: 'var(--chart-4)' },
     { label: '$100-200K', min: 100000, max: 199999, color: 'var(--chart-5)' },
     { label: '<$100K', min: 0, max: 99999, color: 'var(--chart-6)' },
-    { label: 'Unknown', min: -1, max: -1, color: 'var(--chart-7)' }
+    { label: 'Unknown', min: -1, max: -1, color: 'var(--text-muted)' }
   ];
   var maxPrBucket = 1;
   priceBuckets.forEach(function(b) {
@@ -5141,9 +5141,26 @@ function renderTeamTab() {
   }
 
   var by = {};
+  var teamUnknownAgents = {};
   leads.forEach(function (l) {
     var raw = (typeof RAW_CONTACTS !== 'undefined' && RAW_CONTACTS[l.id]) || {};
-    var name = (raw.assignedTo && GHL_USER_MAP[raw.assignedTo]) || 'Unassigned';
+    // Three distinct states, previously collapsed into one:
+    //   no assignedTo            -> genuinely nobody owns it
+    //   assignedTo not in the map-> owned, but by someone GHL_USER_MAP does
+    //                               not know (it is seeded from a hardcoded
+    //                               list, so any new hire lands here)
+    //   assignedTo in the map    -> named owner
+    // Folding the middle case into Unassigned overstated the unowned count and
+    // hid real owners, so they are kept apart.
+    var name;
+    if (!raw.assignedTo) {
+      name = 'Unassigned';
+    } else if (GHL_USER_MAP[raw.assignedTo]) {
+      name = GHL_USER_MAP[raw.assignedTo];
+    } else {
+      name = 'Agent ' + String(raw.assignedTo).slice(0, 6);
+      teamUnknownAgents[raw.assignedTo] = true;
+    }
     if (!by[name]) {
       by[name] = { name: name, total: 0, hot: 0, warm: 0, cold: 0, scoreSum: 0,
                    views: 0, saves: 0, showings: 0, active: 0 };
@@ -5178,6 +5195,22 @@ function renderTeamTab() {
   var maxTotal = Math.max.apply(null, agents.map(function (a) { return a.total; }).concat([1]));
 
   var h = '';
+  // RAW_CONTACTS fills progressively, and a lead whose raw record has not
+  // arrived yet has no assignedTo to read - so it counts as Unassigned until
+  // it does. Say so rather than letting a mid-load number read as final.
+  var rawLoaded = (typeof RAW_CONTACTS !== 'undefined') ? Object.keys(RAW_CONTACTS).length : 0;
+  var stillLoading = rawLoaded < leads.length;
+  if (stillLoading) {
+    h += '<div class="panel" style="padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--yellow);font-size:12px;color:var(--text-secondary)">' +
+      'Still loading contact details (' + rawLoaded + ' of ' + leads.length + '). ' +
+      'Ownership is read from those, so <strong>Unassigned is overstated</strong> until this finishes.</div>';
+  }
+  var unknownCount = Object.keys(teamUnknownAgents).length;
+  if (unknownCount) {
+    h += '<div class="panel" style="padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--accent);font-size:12px;color:var(--text-secondary)">' +
+      unknownCount + ' owner' + (unknownCount === 1 ? '' : 's') + ' not in the team directory, shown as &ldquo;Agent &hellip;&rdquo;. ' +
+      'The directory is a hardcoded list in loadGHLTeam() - add them there to see real names.</div>';
+  }
   h += '<div class="stats-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px">';
   h += teamStat('People with leads', owners, '');
   h += teamStat('Assigned', totalLeads - unassigned, pctOf(totalLeads - unassigned, totalLeads));
@@ -12091,7 +12124,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --text-white:#FFFFFF;
     --overlay:rgba(6,17,25,0.72);
@@ -12165,7 +12198,7 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --overlay:rgba(6,17,25,0.72);
     --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
@@ -20705,7 +20738,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --text-white:#FFFFFF;
     --overlay:rgba(6,17,25,0.72);
@@ -20779,7 +20812,7 @@ var PIPELINE_HTML = `<!DOCTYPE html>
     --bg:#0A1119;
     --surface:#101A24;   --surface-2:#16222E;  --surface-hover:#1B2937;
     --card:#14202C;      --card-bg:#14202C;    --card-hover:#192836;
-    --card-border:#223444; --border:#223444;   --border-hover:#2C4256;
+    --card-border:#33485C; --border:#33485C;   --border-hover:#2C4256;
     --text:#E8EFF4;      --text-secondary:#9FB3C2; --text-muted:#7B90A0; --muted:#7B90A0;
     --overlay:rgba(6,17,25,0.72);
     --green:#34D399; --green-soft:rgba(52,211,153,0.14); --green-light:rgba(52,211,153,0.18);
