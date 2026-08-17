@@ -2656,6 +2656,35 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
     --beh-stale-bg:rgba(220,38,38,0.15);       --beh-stale-color:#64748B;
   }
 
+  /* ---------- Chart categorical palette (hub/11) -------------------------
+     Validated against our surfaces: light card #FFFFFF, dark card #14202C.
+     Light: CVD separation PASS (worst adjacent dE 9.1); slots 3/4/5 sit below
+     3:1 on white -- the relief rule applies, they are only legal where the
+     value is printed beside the segment. Dark: all six checks PASS.
+     Assign in fixed slot order. Never cycle. Never reuse as a status tone. */
+  :root {
+    --chart-1-light:#2a78d6; --chart-1-dark:#3987e5;  /* blue    */
+    --chart-2-light:#eb6834; --chart-2-dark:#d95926;  /* orange  */
+    --chart-3-light:#1baf7a; --chart-3-dark:#199e70;  /* aqua    */
+    --chart-4-light:#eda100; --chart-4-dark:#c98500;  /* yellow  */
+    --chart-5-light:#e87ba4; --chart-5-dark:#d55181;  /* magenta */
+    --chart-6-light:#008300; --chart-6-dark:#008300;  /* green   */
+    --chart-7-light:#4a3aa7; --chart-7-dark:#9085e9;  /* violet  */
+    --chart-8-light:#e34948; --chart-8-dark:#e66767;  /* red     */
+  }
+  body.light-mode {
+    --chart-1:var(--chart-1-light); --chart-2:var(--chart-2-light);
+    --chart-3:var(--chart-3-light); --chart-4:var(--chart-4-light);
+    --chart-5:var(--chart-5-light); --chart-6:var(--chart-6-light);
+    --chart-7:var(--chart-7-light); --chart-8:var(--chart-8-light);
+  }
+  body:not(.light-mode) {
+    --chart-1:var(--chart-1-dark); --chart-2:var(--chart-2-dark);
+    --chart-3:var(--chart-3-dark); --chart-4:var(--chart-4-dark);
+    --chart-5:var(--chart-5-dark); --chart-6:var(--chart-6-dark);
+    --chart-7:var(--chart-7-dark); --chart-8:var(--chart-8-dark);
+  }
+
   /* ==========================================================================
      BASE
      ========================================================================== */
@@ -4658,13 +4687,13 @@ function renderBuyerTab() {
   html += '<div class="panel">';
   html += '<h4 style="margin:0 0 12px;font-size:14px">&#128176; Price Range Interest</h4>';
   var priceBuckets = [
-    { label: '$1M+', min: 1000000, max: Infinity, color: '#a855f7' },
-    { label: '$500K-1M', min: 500000, max: 999999, color: '#8b5cf6' },
-    { label: '$300-500K', min: 300000, max: 499999, color: '#3b82f6' },
-    { label: '$200-300K', min: 200000, max: 299999, color: '#06b6d4' },
-    { label: '$100-200K', min: 100000, max: 199999, color: '#10b981' },
-    { label: '<$100K', min: 0, max: 99999, color: '#6b7280' },
-    { label: 'Unknown', min: -1, max: -1, color: '#374151' }
+    { label: '$1M+', min: 1000000, max: Infinity, color: 'var(--chart-1)' },
+    { label: '$500K-1M', min: 500000, max: 999999, color: 'var(--chart-2)' },
+    { label: '$300-500K', min: 300000, max: 499999, color: 'var(--chart-3)' },
+    { label: '$200-300K', min: 200000, max: 299999, color: 'var(--chart-4)' },
+    { label: '$100-200K', min: 100000, max: 199999, color: 'var(--chart-5)' },
+    { label: '<$100K', min: 0, max: 99999, color: 'var(--chart-6)' },
+    { label: 'Unknown', min: -1, max: -1, color: 'var(--chart-7)' }
   ];
   var maxPrBucket = 1;
   priceBuckets.forEach(function(b) {
