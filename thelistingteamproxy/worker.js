@@ -3251,6 +3251,49 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
 
 
 
+
+  /* ---------- STICKY TABLE EDGES ---------------------------------------
+     The contacts table measures ~1,622px. Inside a 984px column at 1280px
+     wide it scrolls correctly, but ACTIONS is the LAST column -- so acting
+     on a row meant scrolling right, every time, and the identity of the row
+     you were acting on scrolled out of view on the way.
+     Pin both edges: who the row is stays on the left, what you can do about
+     it stays on the right, and only the middle scrolls.
+     Sticky cells must be opaque or the scrolling columns show through. */
+  .table-wrap table th:first-child,
+  .table-wrap table td:first-child,
+  .table-wrap table th:nth-child(2),
+  .table-wrap table td:nth-child(2){
+    position:sticky;background:var(--card);z-index:2;
+  }
+  .table-wrap table th:first-child,
+  .table-wrap table td:first-child{left:0}
+  .table-wrap table th:nth-child(2),
+  .table-wrap table td:nth-child(2){left:44px}
+  .table-wrap table th:last-child,
+  .table-wrap table td:last-child{
+    position:sticky;right:0;background:var(--card);z-index:2;
+  }
+  /* A hairline so a pinned column reads as pinned rather than as a glitch. */
+  .table-wrap table th:nth-child(2),
+  .table-wrap table td:nth-child(2){box-shadow:1px 0 0 var(--card-border)}
+  .table-wrap table th:last-child,
+  .table-wrap table td:last-child{box-shadow:-1px 0 0 var(--card-border)}
+  .table-wrap table thead th{z-index:3}
+  /* Row hover must repaint the pinned cells too, or they stay the old colour. */
+  .table-wrap table tbody tr:hover td:first-child,
+  .table-wrap table tbody tr:hover td:nth-child(2),
+  .table-wrap table tbody tr:hover td:last-child{background:var(--card-hover)}
+
+  @media (max-width:768px){
+    /* Pinning two of three columns on a phone leaves nothing to read. */
+    .table-wrap table th:first-child,.table-wrap table td:first-child,
+    .table-wrap table th:nth-child(2),.table-wrap table td:nth-child(2),
+    .table-wrap table th:last-child,.table-wrap table td:last-child{
+      position:static;box-shadow:none;
+    }
+  }
+
   /* ---------- RESPONSIVE PASS 3 -----------------------------------------
      Measured at a 390px viewport, not guessed. */
 
