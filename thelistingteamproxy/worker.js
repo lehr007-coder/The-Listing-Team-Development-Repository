@@ -4054,22 +4054,40 @@ function renderGeoTbl() {
 // -------------------------------------------------------
 var BUYER_SORT = { key: 'readiness', dir: -1 };
 
-function calcBuyerReadiness(c, ext, m) {
+function calcBuyerReadiness(c, ext, m, opts) {
   if (!ext) ext = getExtendedData(c);
   if (!m) m = getMatrix(c);
   var score = 0;
   var factors = [];
+  // Matrix-only leads have no dateAdded, price range or property preferences -
+  // those live on the GHL contact. Scoring them against components they could
+  // never earn marks them down for missing data rather than weak intent.
+  var ghlBacked = !opts || opts.ghlBacked !== false;
 
   // Search activity (0-20) \u2014 if Ylopo data exists
+  // Real behaviour, when present, is the strongest signal there is - so it
+  // takes 45 of the 100 points rather than 20. The old caps flattened the
+  // scale: 16 views and 3,661 views both scored 8. Leads with NO behaviour
+  // keep the original 20-point block, so GHL-only contacts are unaffected and
+  // recency still carries them.
+  var hasAct = (m.views + m.saves + m.searches + m.showings) > 0;
+  var actMax = hasAct ? 45 : 20;
   var actPts = 0;
-  actPts += Math.min(m.views * 0.5, 8);
-  actPts += Math.min(m.saves * 2, 8);
-  actPts += Math.min(m.searches * 1, 4);
-  actPts += Math.min(m.showings * 5, 10);
-  actPts = Math.min(Math.round(actPts), 20);
+  if (hasAct) {
+    actPts += Math.min(m.views * 0.5, 18);
+    actPts += Math.min(m.saves * 2.5, 15);
+    actPts += Math.min(m.searches * 1, 4);
+    actPts += Math.min(m.showings * 4, 8);
+  } else {
+    actPts += Math.min(m.views * 0.5, 8);
+    actPts += Math.min(m.saves * 2, 8);
+    actPts += Math.min(m.searches * 1, 4);
+    actPts += Math.min(m.showings * 5, 10);
+  }
+  actPts = Math.min(Math.round(actPts), actMax);
   if (actPts > 0) {
     score += actPts;
-    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: 20 });
+    factors.push({ name: m.views + 'v/' + m.saves + 's/' + m.showings + 'sh', pts: actPts, max: actMax });
   }
 
   // Recency (0-25) \u2014 most important when no activity data
@@ -4151,10 +4169,102 @@ function calcBuyerReadiness(c, ext, m) {
     factors.push({ name: 'Tag signals', pts: tagPts, max: 10 });
   }
 
-  return { score: Math.min(score, 100), factors: factors };
+  var maxPossible = actMax + 15 /* completeness */ + 15 /* source */ + 10 /* tags */;
+  if (ghlBacked) maxPossible += 25 /* recency */ + 10 /* price */ + 5 /* prefs */;
+  var normalised = maxPossible > 0 ? Math.round(score / maxPossible * 100) : 0;
+  return { score: Math.min(normalised, 100), factors: factors, rawScore: score, maxPossible: maxPossible };
 }
 
-function getBuyerLeads() {
+// ---- Ylopo sidecar matrix -------------------------------------------------
+// The behavioural data for buyers lives here, not on the recently-updated GHL
+// contacts this page loads. Fetched once, then Buyer Intel re-renders.
+var MATRIX_RECORDS = null;
+var MATRIX_STATE = 'idle';
+var MATRIX_BY_EMAIL = {};
+
+function ensureMatrix(done) {
+  if (MATRIX_STATE === 'ready' || MATRIX_STATE === 'loading') { if (done) done(); return; }
+  MATRIX_STATE = 'loading';
+  fetch('/ylopo-matrix', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      MATRIX_RECORDS = (d && d.records) || [];
+      MATRIX_BY_EMAIL = {};
+      MATRIX_RECORDS.forEach(function (x) {
+        if (x && x.email) MATRIX_BY_EMAIL[String(x.email).toLowerCase().trim()] = x;
+      });
+      MATRIX_STATE = MATRIX_RECORDS.length ? 'ready' : 'empty';
+      ACTIVITY_COVERAGE = null;   // recompute against the real source
+      if (done) done();
+    })
+    .catch(function (e) {
+      console.warn('[matrix] unavailable, falling back to GHL-derived activity:', e);
+      MATRIX_STATE = 'error';
+      if (done) done();
+    });
+}
+
+function matrixReady() {
+  return MATRIX_STATE === 'ready' && MATRIX_RECORDS && MATRIX_RECORDS.length > 0;
+}
+
+function buildBuyersFromMatrix() {
+  var ghlByEmail = {};
+  (ALL_LEADS || []).forEach(function (l) {
+    if (l && l.email) ghlByEmail[String(l.email).toLowerCase().trim()] = l;
+  });
+
+  var out = [];
+  MATRIX_RECORDS.forEach(function (r, idx) {
+    var em = (r.email || '').toLowerCase().trim();
+    var l = em ? ghlByEmail[em] : null;
+    var raw = l ? RAW_CONTACTS[l.id] : null;
+    var ext = raw ? getExtendedData(raw) : {};
+
+    var m = {
+      views: Number(r.views) || 0,
+      saves: Number(r.saves) || 0,
+      searches: 0,
+      showings: Number(r.showings) || 0,
+      infoReqs: 0
+    };
+
+    // calcBuyerReadiness reads contact-shaped input; synthesise one for leads
+    // with no GHL match so the scoring path is identical either way.
+    var subject = raw || {
+      email: r.email || '', phone: r.phone || '',
+      firstName: r.firstName || '', lastName: r.lastName || '',
+      source: 'Ylopo', tags: r.tags || []
+    };
+    var rd = calcBuyerReadiness(subject, ext, m, { ghlBacked: !!raw });
+
+    out.push({
+      id: l ? l.id : ('matrix-' + idx),
+      name: ((r.firstName || '') + ' ' + (r.lastName || '')).trim() || (l && l.name) || 'Unknown',
+      email: r.email || (l && l.email) || '',
+      phone: r.phone || (l && l.phone) || '',
+      source: (l && l.source) || 'Ylopo',
+      score: (l && l.score) || Number(r.lead_intent_score) || 0,
+      tags: (r.tags && r.tags.length) ? r.tags : ((l && l.tags) || []),
+      dateAdded: (l && l.dateAdded) || '',
+      dateUpdated: (l && l.dateUpdated) || '',
+      views: m.views, saves: m.saves, searches: m.searches,
+      showings: m.showings, infoReqs: m.infoReqs,
+      minPrice: ext.minPrice, maxPrice: ext.maxPrice, beds: ext.beds, baths: ext.baths,
+      city: (l && l.city) || ext.city || '',
+      propType: ext.propType || r.leadType || '',
+      readiness: rd.score,
+      rdFactors: rd.factors,
+      saveRate: m.views > 0 ? Math.round(m.saves / m.views * 100) : 0,
+      intentScore: Number(r.lead_intent_score) || 0,
+      priorityLabel: r.priority || '',
+      matchedInGhl: !!l
+    });
+  });
+  return out;
+}
+
+function getBuyerLeadsFromGhl() {
   var leads = ALL_LEADS || [];
   var buyers = [];
   leads.forEach(function(l) {
@@ -4201,7 +4311,17 @@ function getBuyerLeads() {
   return buyers;
 }
 
+function getBuyerLeads() {
+  // Prefer the sidecar matrix - it is the only source with real behaviour.
+  // Fall back to the GHL-derived path if it is unreachable, so the page
+  // degrades rather than emptying.
+  if (matrixReady()) return buildBuyersFromMatrix();
+  return getBuyerLeadsFromGhl();
+}
+
+
 function renderBuyerTab() {
+  if (MATRIX_STATE === 'idle') { ensureMatrix(function () { renderBuyerTab(); }); }
   try {
   var buyers = getBuyerLeads();
   var container = _el('buyerTabContent');
@@ -6470,6 +6590,18 @@ function activityCoverage() {
   // between them is not a working feed, and treating it as one is how the
   // page came to present structurally-zero metrics as real.
   if (ACTIVITY_COVERAGE !== null) return ACTIVITY_COVERAGE;
+  if (matrixReady()) {
+    var mWith = 0;
+    MATRIX_RECORDS.forEach(function (r) {
+      if ((Number(r.views) || 0) + (Number(r.saves) || 0) + (Number(r.showings) || 0) > 0) mWith++;
+    });
+    ACTIVITY_COVERAGE = {
+      withActivity: mWith,
+      total: MATRIX_RECORDS.length,
+      pct: MATRIX_RECORDS.length ? (mWith / MATRIX_RECORDS.length * 100) : 0
+    };
+    return ACTIVITY_COVERAGE;
+  }
   var ids = Object.keys(RAW_CONTACTS || {}), withAct = 0;
   for (var i = 0; i < ids.length; i++) {
     var m = getMatrix(RAW_CONTACTS[ids[i]]);
@@ -23593,6 +23725,29 @@ var index_default = {
         headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request), "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Content-Security-Policy": "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;" }
       });
     }
+    if (method === "GET" && path === "/ylopo-matrix") {
+      // Server-side proxy for the Ylopo sidecar matrix snapshot. Keeps the
+      // upstream worker URL in one place and makes the dashboard's call
+      // same-origin, so it does not depend on that worker's CORS policy.
+      try {
+        var mxRes = env.YLOPO_MATRIX
+          ? await env.YLOPO_MATRIX.fetch(new Request("https://ylopo-matrix-proxy/dashboard"))
+          : await fetch("https://ylopo-matrix-proxy.lehr007.workers.dev/dashboard", { cf: { cacheTtl: 120, cacheEverything: true } });
+        var mxBody = await mxRes.text();
+        return new Response(mxBody, {
+          status: mxRes.status,
+          headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request),
+                     "Content-Type": "application/json", "Cache-Control": "public, max-age=120" }
+        });
+      } catch (mxErr) {
+        return new Response(JSON.stringify({ records: [], error: String(mxErr) }), {
+          status: 502,
+          headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request),
+                     "Content-Type": "application/json" }
+        });
+      }
+    }
+
     if (method === "GET" && path === "/dashboard/pipeline") {
       return new Response(PIPELINE_HTML, {
         status: 200,

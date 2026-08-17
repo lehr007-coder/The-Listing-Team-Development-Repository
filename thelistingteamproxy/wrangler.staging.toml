@@ -20,3 +20,11 @@ routes = [
 # exactly what a staging environment exists to prevent.
 TOS_BASE_URL = "https://tos-proxy-staging.lehr007.workers.dev"
 DASHBOARD_ENV = "STAGING"
+
+# The Ylopo sidecar matrix worker holds the buyer behavioural data (views,
+# saves, showings, intent score). A Worker cannot fetch another Worker on the
+# same zone over its public hostname - Cloudflare returns error 1042 - so it is
+# bound as a service and called internally.
+[[services]]
+binding = "YLOPO_MATRIX"
+service = "ylopo-matrix-proxy"
