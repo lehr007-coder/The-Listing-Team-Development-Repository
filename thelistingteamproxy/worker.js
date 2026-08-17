@@ -13248,6 +13248,122 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 </style>
 </head>
 <body class="light-mode">
+<style>
+/* ==========================================================================
+   YLOPO ANALYTICS SIDEBAR - ported from the Ylopo Contacts design system.
+   Analytics already defines every token this needs except the two below.
+   The sidebar is fixed rather than flex-nested so no existing markup had to
+   be re-balanced; .app simply carries a matching offset.
+   ========================================================================== */
+:root{ --sidenav-w:248px; --staging-top:0px; }
+
+.sidenav{
+  position:fixed; left:0; top:var(--staging-top); bottom:0; width:var(--sidenav-w);
+  background:var(--header-bg); color:#fff;
+  display:flex; flex-direction:column;
+  padding:var(--sp-5) var(--sp-4) var(--sp-4);
+  gap:var(--sp-5);
+  overflow-y:auto; overflow-x:hidden;
+  z-index:120;
+  box-shadow:inset -1px 0 0 rgba(255,255,255,0.08);
+}
+.sidenav-brand{display:flex;align-items:center;gap:var(--sp-3);padding-bottom:var(--sp-4);border-bottom:1px solid rgba(255,255,255,0.14)}
+.sidenav-brand img{height:38px;width:38px;object-fit:contain;flex-shrink:0;border-radius:var(--radius-xs);background:rgba(255,255,255,0.92);padding:3px}
+.sidenav-brand-text{min-width:0;overflow:hidden}
+.sidenav-brand-name{font-size:var(--fs-base);font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidenav-brand-sub{font-size:var(--fs-2xs);color:rgba(255,255,255,0.70);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-top:2px}
+.sidenav-group{display:flex;flex-direction:column;gap:2px}
+.sidenav-label{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.70);padding:0 var(--sp-3) var(--sp-2)}
+.nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:9px var(--sp-3);
+  border:1px solid transparent;border-radius:var(--radius-sm);
+  background:transparent;color:rgba(255,255,255,0.78);
+  font-family:var(--font-sans);font-size:var(--fs-base);font-weight:600;
+  text-align:left;text-decoration:none;cursor:pointer;
+  transition:var(--transition);position:relative;
+}
+.nav-item .nav-ico{font-size:var(--fs-md);width:18px;text-align:center;flex-shrink:0}
+.nav-item:hover{background:rgba(255,255,255,0.10);color:#fff;text-decoration:none}
+.nav-item.active{background:rgba(255,255,255,0.16);color:#fff;border-color:rgba(255,255,255,0.70);font-weight:700;box-shadow:var(--shadow-xs)}
+.nav-item.active:before{content:"";position:absolute;left:-16px;top:50%;transform:translateY(-50%);width:3px;height:20px;border-radius:0 3px 3px 0;background:var(--c-brand-300)}
+.sidenav-foot{margin-top:auto;padding-top:var(--sp-4);border-top:1px solid rgba(255,255,255,0.14);display:flex;flex-direction:column;gap:6px}
+.env-chip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;padding:4px 10px;border-radius:var(--radius-pill);background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.2);font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#fff}
+.env-dot{width:6px;height:6px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,0.25)}
+.sidenav-meta{font-size:var(--fs-2xs);color:rgba(255,255,255,0.70);line-height:1.6;word-break:break-word}
+
+/* Content offset. The old horizontal page-nav is superseded by the sidebar's
+   Dashboards group - hidden rather than deleted so no JS reference can break. */
+.app{margin-left:var(--sidenav-w)}
+.page-nav{display:none !important}
+
+/* Below 1080px the sidebar becomes a horizontal strip, matching Contacts. */
+@media (max-width:1080px){
+  .sidenav{position:static;width:100%;height:auto;flex-direction:row;align-items:center;
+    gap:var(--sp-3);padding:var(--sp-3) var(--sp-4);overflow-x:auto;overflow-y:hidden}
+  .sidenav-brand{padding-bottom:0;border-bottom:none;border-right:1px solid rgba(255,255,255,0.14);padding-right:var(--sp-4);flex-shrink:0}
+  .sidenav-label{display:none}
+  .sidenav-group{flex-direction:row;gap:4px;flex-shrink:0}
+  .nav-item{white-space:nowrap;padding:7px 11px}
+  .nav-item.active:before{display:none}
+  .sidenav-foot{margin-top:0;padding-top:0;border-top:none;border-left:1px solid rgba(255,255,255,0.14);padding-left:var(--sp-4);flex-shrink:0}
+  .sidenav-meta{display:none}
+  .app{margin-left:0}
+}
+@media (max-width:768px){
+  .sidenav{overflow:visible;flex-wrap:wrap;height:auto}
+  .sidenav-group,.sidenav-brand,.sidenav-foot{flex-shrink:1}
+  .sidenav-group{flex-wrap:wrap;width:100%;max-width:100%;flex-direction:row}
+  .sidenav .nav-item{flex:0 1 auto;width:auto;justify-content:flex-start}
+  .sidenav-foot{width:100%;max-width:100%;flex-wrap:wrap;border-left:none;padding-left:0}
+  .sidenav-brand{width:100%;border-right:none;padding-right:0}
+  .btn,.nav-item{min-height:44px}
+}
+@media print{ .sidenav{display:none !important} .app{margin-left:0} }
+
+/* ---- Database-wide: By Agent ---- */
+.agent-row{display:flex;align-items:center;gap:10px;font-size:var(--fs-sm,12px);padding:5px 2px}
+.agent-row .an{width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.agent-row .ab{flex:1;height:6px;border-radius:3px;background:var(--card-border);overflow:hidden}
+.agent-row .ab>i{display:block;height:100%;background:var(--c-brand-400,#5DADE2);border-radius:3px}
+.agent-row .ac{width:74px;text-align:right;font-weight:700}
+.agent-row .ap{width:50px;text-align:right;color:var(--text-secondary)}
+.agent-dup{font-size:10px;font-weight:700;color:var(--accent,#B34406);border:1px solid currentColor;border-radius:999px;padding:0 5px;margin-left:6px}
+</style>
+
+<aside class="sidenav">
+  <div class="sidenav-brand">
+    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team">
+    <div class="sidenav-brand-text">
+      <div class="sidenav-brand-name">The Listing Team</div>
+      <div class="sidenav-brand-sub">Ylopo Analytics</div>
+    </div>
+  </div>
+
+  <nav class="sidenav-group" aria-label="Sections on this page">
+    <div class="sidenav-label">On this page</div>
+    <a class="nav-item" href="#dbWideSection"><span class="nav-ico">&#128452;</span> Database-wide</a>
+    <a class="nav-item" href="#agentSection"><span class="nav-ico">&#128101;</span> By Agent</a>
+    <a class="nav-item" href="#srcSection"><span class="nav-ico">&#128225;</span> Sources</a>
+  </nav>
+
+  <nav class="sidenav-group" aria-label="Other dashboards">
+    <div class="sidenav-label">Dashboards</div>
+    <a class="nav-item" href="/dashboard"><span class="nav-ico">&#127968;</span> Hub</a>
+    <a class="nav-item" href="/dashboard/ylopo-contacts"><span class="nav-ico">&#128203;</span> Contacts</a>
+    <a class="nav-item active" href="/dashboard/ylopo-analytics"><span class="nav-ico">&#128202;</span> Analytics</a>
+    <a class="nav-item" href="/dashboard/priority-leads"><span class="nav-ico">&#128293;</span> Priority Leads</a>
+    <a class="nav-item" href="/dashboard/pipeline"><span class="nav-ico">&#128203;</span> Pipeline</a>
+    <a class="nav-item" href="/dashboard/site-matrix"><span class="nav-ico">&#127760;</span> Site Matrix</a>
+    <a class="nav-item" href="/dashboard/idx"><span class="nav-ico">&#127969;</span> IDX</a>
+  </nav>
+
+  <div class="sidenav-foot">
+    <span class="env-chip"><span class="env-dot"></span> Live</span>
+    <div class="sidenav-meta"><span id="sideLastLoaded"></span></div>
+  </div>
+</aside>
+
 <div class="app">
 
 <!-- HEADER -->
@@ -13463,6 +13579,23 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
         <h3>\u{1F3F7}\uFE0F Tag Breakdown <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">all contacts</span></h3>
         <div id="dbWideTagWrap"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- BY AGENT - database-wide, from /contacts/agents. Hidden until it loads. -->
+  <div class="analytics-section" id="agentSection" style="display:none">
+    <h2><span class="emoji">\u{1F465}</span> By Agent
+      <span style="font-size:11px;font-weight:500;color:var(--text-secondary);margin-left:10px" id="agentStamp"></span>
+    </h2>
+    <div style="font-size:12px;line-height:1.5;color:var(--text-secondary);background:var(--bg);border-left:3px solid var(--c-brand-400,#5DADE2);border-radius:6px;padding:10px 12px;margin-bottom:14px">
+      Assignment is historical. The most recent contacts this page loads are almost entirely
+      unassigned, so these counts come from the whole database
+      (<strong id="agentAssigned">\u2014</strong> assigned, <strong id="agentUnassigned">\u2014</strong> unassigned).
+      <span id="agentDupNote"></span>
+    </div>
+    <div class="analytics-card">
+      <h3>\u{1F4CB} Contacts per assigned user <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">all contacts</span></h3>
+      <div id="agentWrap"></div>
     </div>
   </div>
 
@@ -15041,6 +15174,7 @@ async function loadData(forceRefresh) {
     DB_TOTAL = (data.meta && Number.isFinite(Number(data.meta.dbTotal))) ? Number(data.meta.dbTotal) : null;
     // Non-blocking: the summary is tiny and fast, but nothing here waits on it.
     try { setTimeout(loadDbWideSummary, 0); } catch (e) {}
+    try { setTimeout(loadAgentBreakdown, 0); } catch (e) {}
     if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
       console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
       try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
@@ -17250,6 +17384,50 @@ function renderDbWideRows(obj, wrapId, total) {
       '<span style="width:46px;text-align:right;color:var(--text-secondary)">' + pct.toFixed(1) + '%</span>' +
     '</div>';
   }).join('');
+}
+
+/* Per-agent counts, database-wide. Same fail-safe contract as the summary loader:
+   hidden section, fire-and-forget, any error is a console warning and nothing more. */
+function loadAgentBreakdown() {
+  fetch(PROXY_URL + '/contacts/agents?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(s){
+      if (!s || !Array.isArray(s.agents)) throw new Error('unexpected payload');
+      var set = function(id,v){ if(el(id)) el(id).textContent = v; };
+      if (typeof s.assigned === 'number') set('agentAssigned', s.assigned.toLocaleString());
+      if (typeof s.unassigned === 'number') set('agentUnassigned', s.unassigned.toLocaleString());
+      if (s.generatedAt) set('agentStamp','as of ' + new Date(s.generatedAt).toLocaleTimeString());
+
+      var dups = s.duplicateNames || [];
+      if (dups.length && el('agentDupNote')) {
+        el('agentDupNote').innerHTML = ' <strong>Note:</strong> ' + dups.length +
+          ' name(s) are held by more than one GoHighLevel account (' + dups.join(', ') +
+          '). They are listed separately below, exactly as GoHighLevel holds them.';
+      }
+
+      var rows = s.agents.filter(function(a){ return a.count; });
+      var wrap = el('agentWrap');
+      if (!wrap) return;
+      if (!rows.length) { wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:12px">No assigned contacts</div>'; }
+      else {
+        var max = rows[0].count || 1;
+        var denom = s.total || rows.reduce(function(x,a){return x+(a.count||0);},0) || 1;
+        var dupSet = {}; dups.forEach(function(d){ dupSet[d] = 1; });
+        wrap.innerHTML = rows.map(function(a){
+          var pct = a.count / denom * 100;
+          var isDup = dupSet[(a.name||'').trim().toLowerCase()];
+          return '<div class="agent-row">' +
+            '<span class="an" title="' + (a.email||'') + '">' + a.name +
+              (isDup ? '<span class="agent-dup" title="' + (a.email||'') + '">dup</span>' : '') + '</span>' +
+            '<span class="ab"><i style="width:' + Math.max(2, Math.round(a.count/max*100)) + '%"></i></span>' +
+            '<span class="ac">' + a.count.toLocaleString() + '</span>' +
+            '<span class="ap">' + pct.toFixed(1) + '%</span>' +
+          '</div>';
+        }).join('');
+      }
+      if (el('agentSection')) el('agentSection').style.display = '';
+    })
+    .catch(function(e){ console.warn('[analytics] agent breakdown unavailable:', e && e.message); });
 }
 
 function loadDbWideSummary() {
@@ -23040,6 +23218,72 @@ var index_default = {
     // ?sources=a,b,c   override the source list (default: the known feeds)
     // ?tags=x,y        override the tag list
     // ---------------------------------------------------------------------
+    // ---------------------------------------------------------------------
+    // GET /contacts/agents - contacts per assigned user, database-wide.
+    //
+    // Assignment is historical: the most recent ~3,000 contacts are ~98% unassigned
+    // while the full database is ~82% assigned, so counting from the page's loaded
+    // slice produces an inverted answer. These counts come from GHL directly.
+    //
+    // Duplicate display names (this location has four "Scott Lehr" accounts) are kept
+    // as SEPARATE rows on purpose; duplicateNames lists the affected names.
+    // ---------------------------------------------------------------------
+    if (method === "GET" && path === "/contacts/agents") {
+      try {
+        const countWhere = async (filters) => {
+          const body = { locationId: locId, pageLimit: 1 };
+          if (filters && filters.length) body.filters = filters;
+          const r = await ghl(env, "POST", "/contacts/search", body);
+          return r && typeof r.total === "number" ? r.total : null;
+        };
+
+        let users = [];
+        try {
+          const ur = await ghl(env, "GET", `/users/?locationId=${encodeURIComponent(locId)}`);
+          users = (ur && ur.users || []).map((u) => ({
+            id: u.id,
+            name: ((u.firstName || "") + " " + (u.lastName || "")).trim() || u.name || u.email || u.id,
+            email: u.email || null,
+            roles: u.roles && u.roles.type || null
+          }));
+        } catch (e) {
+          return json({ error: "could not list users", detail: String(e && e.message || e) }, 502);
+        }
+
+        const [total, counts] = await Promise.all([
+          countWhere(null),
+          Promise.all(users.map(async (u) => [u.id, await countWhere([{ field: "assignedTo", operator: "eq", value: u.id }])]))
+        ]);
+
+        const byId = {};
+        for (const [id, n] of counts) byId[id] = n;
+        const agents = users
+          .map((u) => ({ ...u, count: typeof byId[u.id] === "number" ? byId[u.id] : null }))
+          .sort((a, b) => (b.count || 0) - (a.count || 0));
+
+        const assigned = agents.reduce((s, a) => s + (a.count || 0), 0);
+
+        // Flag display names held by more than one account.
+        const nameTally = {};
+        agents.forEach((a) => { const k = (a.name || "").trim().toLowerCase(); nameTally[k] = (nameTally[k] || 0) + 1; });
+        const duplicateNames = Object.keys(nameTally).filter((k) => nameTally[k] > 1);
+
+        return json({
+          scope: "database-wide",
+          generatedAt: new Date().toISOString(),
+          locationId: locId,
+          total,
+          assigned,
+          unassigned: total != null ? Math.max(0, total - assigned) : null,
+          agents,
+          duplicateNames,
+          note: "Counts cover every contact in the location. Duplicate display names are reported as separate accounts, not merged."
+        });
+      } catch (e) {
+        return json({ error: "agents failed", detail: String(e && e.message || e) }, 500);
+      }
+    }
+
     if (method === "GET" && path === "/contacts/summary") {
       var gate_summary = await requireContactsAuth(request, env);
       if (gate_summary) return gate_summary;
