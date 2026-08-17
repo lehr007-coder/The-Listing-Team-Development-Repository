@@ -13344,7 +13344,7 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     <div class="sidenav-label">On this page</div>
     <a class="nav-item" href="#dbWideSection"><span class="nav-ico">&#128452;</span> Database-wide</a>
     <a class="nav-item" href="#agentSection"><span class="nav-ico">&#128101;</span> By Agent</a>
-    <a class="nav-item" href="#srcSection"><span class="nav-ico">&#128225;</span> Sources</a>
+    <a class="nav-item" href="#sourceTableWrap"><span class="nav-ico">&#128225;</span> Sources</a>
   </nav>
 
   <nav class="sidenav-group" aria-label="Other dashboards">
@@ -15225,6 +15225,23 @@ async function loadData(forceRefresh) {
     setTimeout(() => { progress.style.display = 'none'; }, 3000);
   } catch (err) {
     console.error('Load error:', err);
+    // A 401 here means this browser has no session on THIS origin. Staging
+    // (workers.dev) and production (reallistingteam.com) are separate origins, so a
+    // production login does not carry over. The old behaviour was a toast that faded
+    // while every card stayed on "loading..." - indistinguishable from a broken page.
+    if (String(err && err.message || '').indexOf('401') !== -1 && !document.getElementById('authBanner')) {
+      var ab = document.createElement('div');
+      ab.id = 'authBanner';
+      ab.style.cssText = 'margin:16px 0;padding:14px 16px;border-radius:10px;border:1px solid var(--red,#B3261E);background:var(--red-soft,rgba(179,38,30,0.10));color:var(--text);font-size:14px;font-weight:600;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+      ab.innerHTML = '<span>&#128274; You are not signed in on this site, so no data could load.</span>' +
+        '<a href="/login?redirect=' + encodeURIComponent(location.pathname + location.search) +
+        '" style="padding:8px 14px;border-radius:8px;background:var(--brand-primary,#0D3B4F);color:#fff;text-decoration:none;font-weight:700">Sign in</a>' +
+        '<span style="font-weight:400;color:var(--text-secondary)">Staging and production are separate logins.</span>';
+      var abHost = document.querySelector('.app') || document.body;
+      abHost.insertBefore(ab, abHost.firstChild);
+      var brief = document.getElementById('briefingBody') || document.querySelector('.briefing-panel');
+      if (brief) brief.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-secondary)">Sign in to load your briefing.</div>';
+    }
     toast(\`Error: \${err.message}\`, 'error');
     el('loadProgress').style.display = 'none';
     if(el('tbody')) el('tbody').innerHTML = \`<tr><td colspan="9" style="color:var(--red);padding:24px">\u26A0\uFE0F \${err.message}</td></tr>\`;
