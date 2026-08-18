@@ -28,3 +28,12 @@ DASHBOARD_ENV = "STAGING"
 [[services]]
 binding = "YLOPO_MATRIX"
 service = "ylopo-matrix-proxy"
+
+# hub/16 user module: accounts, revocable sessions, durable lockout.
+# The worker feature-detects this binding — no [[d1_databases]] block means
+# legacy shared-password behaviour, which is why production is unaffected
+# until a block like this is added there deliberately.
+[[d1_databases]]
+binding = "DB"
+database_name = "tlt-users-staging"
+database_id = "PLACEHOLDER-SET-ON-DEPLOY"
