@@ -21753,6 +21753,11 @@ a{color:var(--blue);text-decoration:none}
 .col-inprogress{--col-accent:var(--purple)}
 .col-done{--col-accent:var(--green)}
 .col-wontdo{--col-accent:var(--text-muted)}
+/* Five fixed 300px columns plus gaps overflow a 1500px window, so the last
+   stage was clipped and you had to scroll sideways to reach it. Above 1200px
+   the columns share the width instead; below that they keep their own width
+   and the board scrolls; below 900px they wrap. */
+@media (min-width:1200px){.board{min-width:0;width:100%}.col{flex:1 1 0;width:auto;min-width:0}}
 @media (max-width:900px){.board{min-width:0;flex-wrap:wrap}.col{flex:1 1 260px;width:auto}}
 .col-hdr{padding:var(--sp-3) var(--sp-4);border-radius:var(--radius-sm) var(--radius-sm) 0 0;display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--card-border);border-bottom:none;border-top:3px solid var(--col-accent);background:var(--surface-2);color:var(--text)}
 .col-dot{width:8px;height:8px;border-radius:var(--radius-pill);background:var(--col-accent);flex:0 0 auto}
