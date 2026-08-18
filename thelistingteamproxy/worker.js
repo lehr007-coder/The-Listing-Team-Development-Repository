@@ -15656,18 +15656,18 @@ function emptyState(title, why) {
 /* Sources arrive from GHL spelled several ways. "my +plus leads" and
    "my+plusleads" are the same 17,000-contact source split by a space and a
    letter. Folded for display only - nothing is written back to GHL. */
-var SOURCE_ALIASES = [
-  [/^my\s*\+?\s*plus\s*leads$/i, 'My Plus Leads'],
-  [/^my\+?plusleads$/i,          'My Plus Leads'],
-  [/^myplusleads$/i,             'My Plus Leads']
-];
+/* No regular expressions here on purpose. This block is inside a JS template
+   literal, so any backslash is consumed before the browser sees it - the
+   original alias pattern arrived mangled
+   and threw "Nothing to repeat", taking the rest of the script with it.
+   Squashing to alphanumerics does the same job and survives the literal. */
+var SOURCE_ALIAS_SQUASHED = { myplusleads: 'My Plus Leads' };
 function canonicalSource(name) {
-  var s = (name == null ? '' : String(name)).replace(/\s+/g, ' ').trim();
-  if (!s) return 'Unknown';
-  for (var i = 0; i < SOURCE_ALIASES.length; i++) {
-    if (SOURCE_ALIASES[i][0].test(s)) return SOURCE_ALIASES[i][1];
-  }
-  return s;
+  var raw = (name == null ? '' : String(name)).trim();
+  if (!raw) return 'Unknown';
+  var squashed = raw.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (SOURCE_ALIAS_SQUASHED[squashed]) return SOURCE_ALIAS_SQUASHED[squashed];
+  return raw;
 }
 function foldSources(obj) {
   var out = {};
