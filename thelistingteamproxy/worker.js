@@ -7573,7 +7573,25 @@ function fetchAllContacts(isBackground) {
         console.error('loadData error:', e);
         if (!isBackground) {
           _el('loadingOverlay').style.display = 'none';
-          _el('leadsBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
+          // A 401 means this browser has no session on THIS origin (staging and
+          // production are separate logins). The old red error row read as a
+          // broken dashboard; say what happened and offer the way in.
+          if (String(e && e.message || '').indexOf('401') !== -1) {
+            if (!document.getElementById('authBanner')) {
+              var ab = document.createElement('div');
+              ab.id = 'authBanner';
+              ab.style.cssText = 'margin:16px;padding:14px 16px;border-radius:10px;border:1px solid var(--red,#B3261E);background:var(--red-soft,rgba(179,38,30,0.10));color:var(--text);font-size:14px;font-weight:600;display:flex;align-items:center;gap:12px;flex-wrap:wrap';
+              ab.innerHTML = '<span>&#128274; You are not signed in on this site, so no data could load.</span>' +
+                '<a href="/login?redirect=' + encodeURIComponent(location.pathname + location.search) +
+                '" style="padding:8px 14px;border-radius:8px;background:var(--brand-primary,#0D3B4F);color:#fff;text-decoration:none;font-weight:700">Sign in</a>' +
+                '<span style="font-weight:400;color:var(--text-secondary)">Staging and production are separate logins.</span>';
+              var abHost = document.querySelector('.app') || document.body;
+              abHost.insertBefore(ab, abHost.firstChild);
+            }
+            _el('leadsBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-secondary);padding:40px">Sign in to load contacts.</td></tr>';
+          } else {
+            _el('leadsBody').innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--red);padding:40px">Error loading data: ' + esc(e.message) + '</td></tr>';
+          }
         }
         toast('Failed to load contacts: ' + e.message, 'error');
       });
