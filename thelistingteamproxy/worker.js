@@ -12370,7 +12370,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);lin
 .hdr-btn.primary:hover{background:var(--brand-secondary);border-color:var(--brand-secondary);color:var(--text-on-inverse)}
 /* A labelled button says what it does; only the icon-only ones need a tooltip. */
 .hdr-btn.icon::after{
-  content:attr(title);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  /* right-anchored, not centred: these buttons sit at the right edge, and a
+     centred tooltip box pushed the document 9px wider than the viewport. */
+  content:attr(title);position:absolute;top:calc(100% + 8px);right:0;
   background:var(--surface-inverse);color:var(--text-on-inverse);padding:4px 9px;border-radius:6px;
   font-size:var(--fs-xs);font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;
   transition:opacity var(--transition);z-index:999;box-shadow:var(--shadow-sm);
