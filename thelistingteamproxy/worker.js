@@ -15700,12 +15700,12 @@ function renderSourcePerf(leads) {
 
   el('sourceTableWrap').innerHTML = \`<table class="src-table">
     <thead><tr><th>Source</th><th>Leads</th><th>Avg Score</th><th>Hot</th><th>Volume</th></tr></thead>
-    <tbody>\${sources.map((s, i) => \`<tr>
+    <tbody>\${/* src-vol-fix-2026-08-18 */ sources.map((s) => \`<tr>
       <td style="font-weight:600">\${s.name}</td>
       <td>\${s.count}</td>
       <td><span class="score-pill \${s.avgScore>=70?'score-high':s.avgScore>=40?'score-mid':'score-low'}" style="font-size:11px;width:auto;padding:2px 8px">\${s.avgScore}</span></td>
       <td>\${s.hot}</td>
-      <td><div class="src-bar-wrap"><div class="src-bar" style="width:\${Math.round(s.count/maxCount*100)}%;background:\${colors[i%colors.length]}"></div></div></td>
+      <td><div class="src-bar-wrap"><div class="src-bar" style="width:\${Math.round(s.count/maxCount*100)}%;background:var(--chart-1,#2a78d6)"></div></div></td>
     </tr>\`).join('')}</tbody>
   </table>\`;
 }
