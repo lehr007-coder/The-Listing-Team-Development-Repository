@@ -21943,7 +21943,7 @@ var SETUP_SQL = "CREATE TABLE IF NOT EXISTS pipeline_items (" +
   "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
   "\\n);" +
   "\\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;" +
-  '\\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
+  "\\nCREATE POLICY pipeline_items_service_only ON pipeline_items FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');";
 
 var PERMS_SETUP_SQL = "CREATE TABLE IF NOT EXISTS user_permissions (" +
   "\\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY," +
@@ -21961,7 +21961,7 @@ var PERMS_SETUP_SQL = "CREATE TABLE IF NOT EXISTS user_permissions (" +
   "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
   "\\n);" +
   "\\nALTER TABLE user_permissions ENABLE ROW LEVEL SECURITY;" +
-  '\\nCREATE POLICY "allow_all_perms" ON user_permissions FOR ALL USING (true) WITH CHECK (true);';
+  "\\nCREATE POLICY user_permissions_service_only ON user_permissions FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');";
 
 function g(id){return document.getElementById(id);}
 function esc(s){if(!s&&s!==0)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -23410,7 +23410,7 @@ var index_default = {
         }
       }
       var SB_URL_P = env.SUPABASE_URL || "";
-      var SB_KEY_P = env.SUPABASE_KEY || "";
+      var SB_KEY_P = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
       if (!SB_URL_P || !SB_KEY_P)
         return json({ error: "Supabase not configured" }, 503);
       try {
@@ -23538,7 +23538,8 @@ var index_default = {
     }
     if (path.startsWith("/api/pipeline")) {
       const SB_URL = env.SUPABASE_URL || "";
-      const SB_KEY = env.SUPABASE_KEY || "";
+      // Service role, because pipeline_items no longer trusts the anon key.
+      const SB_KEY = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
       if (!SB_URL || !SB_KEY) {
         return json({ error: "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY environment variables." }, 503);
       }
