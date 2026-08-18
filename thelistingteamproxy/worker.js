@@ -26151,6 +26151,12 @@ var index_default = {
       // Server-side proxy for the Ylopo sidecar matrix snapshot. Keeps the
       // upstream worker URL in one place and makes the dashboard's call
       // same-origin, so it does not depend on that worker's CORS policy.
+      // GATED: this returns the full tracked-lead snapshot - names, emails and
+      // phone numbers, ~1.7 MB of it. It answered anonymously until
+      // 2026-08-18. Its only caller is the Contacts page on this same origin,
+      // so a signed-in browser sends its cookie and nothing changes for it.
+      var mxGate = await requireContactsAuth(request, env);
+      if (mxGate) return mxGate;
       try {
         var mxRes = env.YLOPO_MATRIX
           ? await env.YLOPO_MATRIX.fetch(new Request("https://ylopo-matrix-proxy/dashboard"))
@@ -26159,7 +26165,7 @@ var index_default = {
         return new Response(mxBody, {
           status: mxRes.status,
           headers: { ...CORS, "Access-Control-Allow-Origin": getCorsOrigin(request),
-                     "Content-Type": "application/json", "Cache-Control": "public, max-age=120" }
+                     "Content-Type": "application/json", "Cache-Control": "no-store" }
         });
       } catch (mxErr) {
         return new Response(JSON.stringify({ records: [], error: String(mxErr) }), {
