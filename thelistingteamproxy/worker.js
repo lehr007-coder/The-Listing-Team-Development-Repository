@@ -12319,15 +12319,80 @@ var YLOPO_ANALYTICS_HTML = `<html lang="en">
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
 .app{max-width:1440px;margin:0 auto}
 
-/* ===== HEADER ===== */
-.header{background:var(--header-bg);padding:28px 32px;display:flex;align-items:center;justify-content:space-between;overflow:visible}
-.header h1{font-size:26px;font-weight:700;color:#fff;letter-spacing:-0.02em}
-.header-actions{display:flex;align-items:center;gap:16px;overflow:visible}
-.hdr-btn{width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.1);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;position:relative;overflow:visible}
-.hdr-btn:hover{background:rgba(255,255,255,0.2)}
-.hdr-btn::after{content:attr(title);position:absolute;bottom:-32px;left:50%;transform:translateX(-50%);background:var(--card);color:#fff;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity 0.2s;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
-.hdr-btn:hover::after{opacity:1}
-.hdr-btn svg{width:20px;height:20px}
+/* ===== TOPBAR - REDESIGN-2026-08-18 ==========================================
+   The sidebar already carries the logo, the product name and the navigation,
+   so the topbar stops repeating them and becomes a working toolbar instead:
+   one calm surface, named controls for the things people actually press, and
+   compact icon buttons for the occasional ones. The page now has exactly one
+   saturated zone (the sidebar) instead of two competing ones.
+   ========================================================================== */
+.header{
+  background:var(--surface);
+  border-bottom:1px solid var(--card-border);
+  padding:12px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:var(--sp-4);flex-wrap:wrap;overflow:visible;
+  position:sticky;top:0;z-index:90;
+}
+.hdr-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+.header h1{font-size:19px;font-weight:700;color:var(--text);letter-spacing:-0.02em;line-height:1.2}
+.hdr-sub{display:flex;align-items:center;gap:12px;font-size:var(--fs-xs);color:var(--text-muted);font-weight:600}
+.header-actions{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;overflow:visible}
+.hdr-sep{width:1px;height:22px;background:var(--card-border);margin:0 2px 6px}
+
+.ctl{display:inline-flex;flex-direction:column;gap:3px}
+.ctl-cap{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-muted);padding-left:2px}
+.ctl select{
+  height:34px;padding:0 28px 0 10px;
+  border:1px solid var(--card-border);border-radius:var(--radius-sm);
+  background-color:var(--surface-2);color:var(--text);
+  font-family:var(--font-sans);font-size:var(--fs-sm);font-weight:600;
+  cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%235A7284'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;
+  max-width:220px;text-overflow:ellipsis;
+}
+.ctl select:hover{border-color:var(--border-hover)}
+.ctl select option{background:var(--card);color:var(--text)}
+
+.hdr-btn{
+  height:34px;min-width:34px;padding:0 13px;
+  border:1px solid var(--card-border);border-radius:var(--radius-sm);
+  background:var(--surface-2);color:var(--text-secondary);
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--font-sans);font-size:var(--fs-sm);font-weight:600;white-space:nowrap;
+  cursor:pointer;transition:var(--transition);position:relative;overflow:visible;
+}
+.hdr-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-hover)}
+.hdr-btn svg{width:16px;height:16px;flex-shrink:0}
+.hdr-btn.icon{padding:0;width:34px}
+.hdr-btn.primary{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--text-on-inverse)}
+.hdr-btn.primary:hover{background:var(--brand-secondary);border-color:var(--brand-secondary);color:var(--text-on-inverse)}
+/* A labelled button says what it does; only the icon-only ones need a tooltip. */
+.hdr-btn.icon::after{
+  content:attr(title);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--surface-inverse);color:var(--text-on-inverse);padding:4px 9px;border-radius:6px;
+  font-size:var(--fs-xs);font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;
+  transition:opacity var(--transition);z-index:999;box-shadow:var(--shadow-sm);
+}
+.hdr-btn.icon:hover::after{opacity:1}
+
+/* What the panels below are actually computed from, stated once, up front. */
+.scopebar{
+  display:flex;align-items:flex-start;gap:9px;
+  padding:10px 28px;background:var(--brand-surface);
+  border-bottom:1px solid var(--card-border);
+  font-size:var(--fs-sm);line-height:1.55;color:var(--text-secondary);
+}
+.scopebar b{color:var(--text);font-weight:700}
+.scopebar .si{color:var(--brand-secondary);font-weight:800;flex-shrink:0}
+
+@media (max-width:900px){
+  .header{padding:10px 16px}
+  .scopebar{padding:10px 16px}
+  .header-actions{gap:6px}
+  .ctl select{max-width:150px}
+}
 
 /* ===== MAIN BODY ===== */
 .main{padding:24px 32px 32px}
@@ -13329,6 +13394,44 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 .agent-row .ac{width:74px;text-align:right;font-weight:700}
 .agent-row .ap{width:50px;text-align:right;color:var(--text-secondary)}
 .agent-dup{font-size:10px;font-weight:700;color:var(--accent,#B34406);border:1px solid currentColor;border-radius:999px;padding:0 5px;margin-left:6px}
+
+/* ==========================================================================
+   REDESIGN-2026-08-18 - surface polish. Declared last on purpose so it wins
+   over the rules further up that assumed a dark teal banner above them.
+   ========================================================================== */
+
+/* The account select used to sit on teal, so it was white-on-transparent. */
+.acct-switcher{display:flex;align-items:center;gap:8px;margin-left:0}
+.acct-label{font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-muted)}
+.notif-badge{border-color:var(--surface)}
+
+/* Section headings become quiet labels; the data is the loud part. */
+.analytics-section{margin-bottom:28px}
+.analytics-section h2{
+  font-size:12px;font-weight:800;letter-spacing:0.10em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:14px;padding-bottom:9px;
+  border-bottom:1px solid var(--card-border);
+}
+.analytics-section h2 .emoji{font-size:15px}
+.analytics-section h2 span[id]{text-transform:none;letter-spacing:0}
+
+/* One card treatment everywhere, with a lighter shadow than before. */
+.analytics-card,.chart-card,.stat-card,.table-card{
+  border-radius:12px;box-shadow:var(--shadow-xs);border-color:var(--card-border);
+}
+.analytics-card h3,.chart-card h3{
+  font-size:13px;font-weight:700;color:var(--text);
+  display:flex;align-items:center;gap:7px;margin-bottom:14px;
+}
+.stat-card{padding:18px 20px}
+.stat-card .stat-label{
+  font-size:var(--fs-2xs);font-weight:800;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;
+}
+.stat-card .stat-value{font-size:30px;font-variant-numeric:tabular-nums}
+
+.main{padding:22px 28px 40px}
+@media (max-width:900px){ .main{padding:18px 16px 32px} }
 </style>
 
 <aside class="sidenav">
@@ -13366,14 +13469,19 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 
 <div class="app">
 
-<!-- HEADER -->
+<!-- HEADER - REDESIGN-2026-08-18. The sidebar owns brand and nav; this is a toolbar. -->
 <div class="header">
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <img src="https://storage.googleapis.com/msgsndr/SeZr4YCwEZ50IcWqylkQ/media/681e34b13f7851f074fa5f58.png" alt="The Listing Team" style="height:40px;margin-right:12px;border-radius:6px"><h1>The Listing Team <sup style="font-size:12px;color:rgba(255,255,255,0.70);font-weight:400">Ylopo Analytics</sup></h1>
-    <span id="liveIndicator" style="font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center"><span class="live-dot disconnected" id="liveDot"></span> <span id="liveText">Polling</span></span>
-    <div class="acct-switcher">
-      <span class="acct-label">Account:</span>
-      <select class="acct-select" id="acctSelect" onchange="switchSubAccount(this.value)">
+  <div class="hdr-title">
+    <h1>Ylopo Analytics</h1>
+    <div class="hdr-sub">
+      <span id="liveIndicator" style="display:inline-flex;align-items:center"><span class="live-dot disconnected" id="liveDot"></span> <span id="liveText">Polling</span></span>
+      <span>Window: <span id="dateRangeInfo">60d</span></span>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <label class="ctl"><span class="ctl-cap">Account</span>
+      <select id="acctSelect" onchange="switchSubAccount(this.value)">
         <option value="default">The Listing Team (Primary)</option>
         <option value="cct">Complete Choice Title</option>
         <option value="nextphase">NextPhase Solar</option>
@@ -13385,48 +13493,46 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
         <option value="tejeda">Tejeda Real Estate</option>
         <option value="houserealty">House Realty</option>
       </select>
-    </div>
-      <div class="page-nav">
-      <a href="/dashboard">\u{1F3E0} Hub</a>
-      <a href="/dashboard/ylopo-contacts">\u{1F4CB} Contacts</a>
-      <a href="/dashboard/ylopo-contacts#source">\u{1F4C8} Sources</a>
-      <a href="/dashboard/priority-leads">\u{1F525} Priority</a>
-      <a href="/dashboard/ylopo-analytics" class="active">\u{1F4CA} Analytics</a>
-    </div>
+    </label>
+    <label class="ctl"><span class="ctl-cap">Date range</span>
+      <select onchange="LOAD_DAYS=Number(this.value);loadData()">
+        <option value="30"30 Days> selected</option>
+        <option value="60"60 Days></option>
+        <option value="90"90 Days></option>
+        <option value="180"6 Months></option>
+        <option value="365"1 Year></option>
+        <option value="0"All Time></option>
+      </select>
+    </label>
+    <button class="hdr-btn primary" onclick="loadData()">&#8635; Refresh</button>
+
+    <span class="hdr-sep"></span>
+    <button class="hdr-btn" onclick="toggleKanban()">Board</button>
+    <button class="hdr-btn" onclick="openFollowUpQueue('hot')">Follow-ups</button>
+    <button class="hdr-btn" onclick="printReport()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Print</button>
+
+    <span class="hdr-sep"></span>
+    <button class="hdr-btn icon" title="Notifications" onclick="toggleNotifPanel()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg><span class="notif-badge" id="notifBadge">0</span></button>
+    <button class="hdr-btn icon" id="darkToggleBtn" title="Toggle dark mode" onclick="toggleDark()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg></button>
+    <button class="hdr-btn icon" title="Settings" onclick="toggleSettings()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+    <button class="hdr-btn icon" title="Layout customizer" onclick="toggleLayoutPanel()">&#129513;</button>
+    <button class="hdr-btn icon" title="Badge colors" onclick="openColorPanel()">&#127912;</button>
+    <button class="hdr-btn icon" title="Field diagnostics" onclick="showDiagnostics()">&#128300;</button>
   </div>
-  <div class="header-actions">
-    <button class="hdr-btn" title="Customize Badge Colors" onclick="openColorPanel()" style="font-size:16px">\u{1F3A8}</button>
-    <button class="hdr-btn" title="Kanban Board" onclick="toggleKanban()" style="font-size:16px">\u{1F4CB}</button>
-    <button class="hdr-btn" title="Follow-Up Queue" onclick="openFollowUpQueue('hot')" style="font-size:16px">\u{1F4DE}</button>
-    <button class="hdr-btn" title="Layout Customizer" onclick="toggleLayoutPanel()" style="font-size:16px">\u{1F9E9}</button>
-    <button class="hdr-btn" title="Print / PDF Report" onclick="printReport()">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-    </button>
-    <!-- Smart Lists button removed 2026-08-15: the smartPanel / smartListItems / smartNameInput
-         markup exists nowhere in worker.js, so this button threw
-         "Cannot read properties of null (reading 'classList')" and opened nothing. -->
-    <button class="hdr-btn" id="darkToggleBtn" title="Toggle Dark Mode" onclick="toggleDark()">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-    </button>
-    <button class="hdr-btn" title="Settings" onclick="toggleSettings()">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-    </button>
-    <select title="Date Range" onchange="LOAD_DAYS=Number(this.value);loadData()" style="padding:6px 10px;border:2px solid rgba(255,255,255,0.2);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none">
-      <option value="30" selected style="color:var(--text)">30 Days</option>
-      <option value="60" style="color:var(--text)">60 Days</option>
-      <option value="90" style="color:var(--text)">90 Days</option>
-      <option value="180" style="color:var(--text)">6 Months</option>
-      <option value="365" style="color:var(--text)">1 Year</option>
-      <option value="0" style="color:var(--text)">All Time</option>
-    </select>
-    <span id="dateRangeInfo" style="font-size:10px;color:rgba(255,255,255,0.70);font-weight:600">60d</span>
-    <button class="hdr-btn" title="Refresh Data" onclick="loadData()" style="font-size:16px;background:rgba(34,197,94,0.2)">\u{1F504}</button>
-    <button class="hdr-btn" title="Field Diagnostics" onclick="showDiagnostics()" style="font-size:16px">\u{1F52C}</button>
-    <button class="hdr-btn" title="Notifications" onclick="toggleNotifPanel()" style="position:relative">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-      <span class="notif-badge" id="notifBadge">0</span>
-    </button>
-  </div>
+</div>
+
+<div class="scopebar">
+  <span class="si">i</span>
+  <span>Every panel below is computed from the <b>most recent contacts this page can load</b> &mdash; not the whole database. The two sections marked <b>all contacts</b>, Database-wide and By Agent, cover every contact in GoHighLevel.</span>
+</div>
+
+<!-- Superseded by the sidebar. Kept in the DOM, hidden, so no script reference can break. -->
+<div class="page-nav">
+  <a href="/dashboard">Hub</a>
+  <a href="/dashboard/ylopo-contacts">Contacts</a>
+  <a href="/dashboard/ylopo-contacts#source">Sources</a>
+  <a href="/dashboard/priority-leads">Priority</a>
+  <a href="/dashboard/ylopo-analytics" class="active">Analytics</a>
 </div>
 
 <!-- SETTINGS PANEL -->
