@@ -22507,20 +22507,30 @@ function clearCookie() {
 }
 __name(clearCookie, "clearCookie");
 async function ghlUserRole(uid, agencyKey) {
+  // AUTH-FAIL-CLOSED-2026-08-18. Every failure path used to return "admin":
+  // no uid, no agency key, a non-OK response from GHL, a thrown fetch, or a
+  // payload with no role field. /auth/ghl fed that straight into a signed
+  // session cookie, so GET /auth/ghl?uid=anything minted a valid admin session
+  // for any caller and defeated requireContactsAuth entirely. Now it returns
+  // null unless GHL positively confirms the user, and an unknown role means
+  // "user", not "admin".
   if (!uid || !agencyKey)
-    return "admin";
+    return null;
   try {
-    var r = await fetch("https://services.leadconnectorhq.com/users/" + uid, {
+    var r = await fetch("https://services.leadconnectorhq.com/users/" + encodeURIComponent(uid), {
       headers: { "Authorization": "Bearer " + agencyKey, "Version": "2021-07-28", "Content-Type": "application/json" }
     });
     if (!r.ok)
-      return "admin";
+      return null;
     var d = await r.json();
-    var roleStr = d.roles && d.roles.role || d.role || d.user && d.user.role || d.user && d.user.roles && d.user.roles.role || "admin";
+    var confirmed = d && (d.id || d.user && d.user.id);
+    if (!confirmed)
+      return null;
+    var roleStr = d.roles && d.roles.role || d.role || d.user && d.user.role || d.user && d.user.roles && d.user.roles.role || "user";
     roleStr = (roleStr + "").toLowerCase();
     return roleStr === "admin" ? "admin" : "user";
   } catch (e) {
-    return "admin";
+    return null;
   }
 }
 __name(ghlUserRole, "ghlUserRole");
@@ -22677,6 +22687,15 @@ var index_default = {
         return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
       var sessSecret = env.SESSION_SECRET;
       var ghlRole = await ghlUserRole(ghlUid, agencyKey);
+      if (!ghlRole) {
+        // The caller did not prove they are a user in our GHL agency. A query
+        // string is not a credential; send them to the password login instead
+        // of handing out a session.
+        return new Response(LOGIN_HTML, {
+          status: 401,
+          headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" }
+        });
+      }
       var ghlToken = await createSessionToken({ uid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole, loc: ghlLoc }, sessSecret);
       return new Response(null, { status: 302, headers: { "Location": ghlRedirect, "Set-Cookie": mkCookie(ghlToken), "Cache-Control": "no-store" } });
     }
@@ -22724,6 +22743,9 @@ var index_default = {
       }
     }
     if (method === "GET" && path === "/api/users") {
+      // Returns every GHL user's name, email and phone. Same gate as contacts.
+      var usersGate = await requireContactsAuth(request, env);
+      if (usersGate) return usersGate;
       var v1Key = env.GHL_API_KEY || "";
       var v2Key = env.GHL_V2_TOKEN || env.GHL_API_KEY || "";
       var usersList = [];
@@ -22986,6 +23008,8 @@ var index_default = {
         }
       }
       if (method === "GET" && path === "/api/pipeline") {
+        var pipeGate = await requireContactsAuth(request, env);
+        if (pipeGate) return pipeGate;
         try {
           const res = await fetch(TABLE + "?order=created_at.desc", { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } });
           const items = await res.json().catch(() => []);
