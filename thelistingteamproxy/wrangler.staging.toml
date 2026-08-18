@@ -36,4 +36,4 @@ service = "ylopo-matrix-proxy"
 [[d1_databases]]
 binding = "DB"
 database_name = "tlt-users-staging"
-database_id = "PLACEHOLDER-SET-ON-DEPLOY"
+database_id = "6aadd925-dbb4-4d24-b690-4286d9cfdd88"
