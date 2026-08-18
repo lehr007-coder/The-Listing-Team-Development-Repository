@@ -13557,6 +13557,30 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
 .src-vol{height:7px;border-radius:4px;background:var(--card-border);overflow:hidden;min-width:60px}
 .src-vol > i{display:block;height:100%;background:var(--chart-1);border-radius:4px}
 
+
+/* --- YLOPO-SEGMENTS-2026-08-18: workable lists --- */
+.seg-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:9px;
+  border:1px solid transparent;cursor:pointer;transition:var(--transition);text-align:left;
+  background:transparent;width:100%;font-family:var(--font-sans);color:var(--text)}
+.seg-row:hover{background:var(--surface-2);border-color:var(--card-border)}
+.seg-row.active{background:var(--brand-surface);border-color:var(--brand-secondary)}
+.seg-row .seg-n{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;
+  min-width:62px;text-align:right;color:var(--text)}
+.seg-row .seg-t{font-size:13px;font-weight:700;color:var(--text)}
+.seg-row .seg-w{font-size:11.5px;color:var(--text-secondary);line-height:1.45;margin-top:1px}
+.seg-actions{display:flex;align-items:center;gap:8px;margin:4px 0 12px;flex-wrap:wrap}
+.seg-btn{height:30px;padding:0 12px;border:1px solid var(--card-border);border-radius:8px;
+  background:var(--surface-2);color:var(--text-secondary);font-family:var(--font-sans);
+  font-size:12px;font-weight:600;cursor:pointer;transition:var(--transition)}
+.seg-btn:hover{background:var(--surface-hover);color:var(--text)}
+.seg-btn.primary{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-ink)}
+.seg-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.seg-table th{font-size:10.5px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text-muted);padding:0 8px 8px;text-align:left;border-bottom:1px solid var(--card-border);white-space:nowrap}
+.seg-table td{padding:8px;border-bottom:1px solid var(--card-border);vertical-align:top}
+.seg-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.seg-table tr:last-child td{border-bottom:none}
+.seg-scroll{max-height:420px;overflow:auto}
 .main{padding:22px 28px 40px}
 @media (max-width:900px){ .main{padding:18px 16px 32px} }
 </style>
@@ -13865,6 +13889,13 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
       <div class="analytics-card">
         <h3>&#127968; Searched cities <span style="margin-left:auto">export snapshot</span></h3>
         <div id="ylCityWrap"></div>
+      </div>
+    </div>
+    <div class="analytics-grid" style="grid-template-columns:1fr">
+      <div class="analytics-card">
+        <h3>&#127919; Workable lists <span style="margin-left:auto">people, de-duplicated by email</span></h3>
+        <div id="ylSegWrap"></div>
+        <div id="ylSegDetail"></div>
       </div>
     </div>
   </div>
@@ -15416,6 +15447,7 @@ async function loadData(forceRefresh) {
   // nothing to do with the contact fetch below, which moves ~56 MB and takes
   // over a minute. Start them now rather than making the panels wait on it.
   try { setTimeout(loadYlopoInsights, 0); } catch (e) {}
+  try { setTimeout(loadYlopoSegments, 0); } catch (e) {}
   // Always clear stale cache and fetch fresh data from Ylopo/GHL
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   try {
@@ -17802,6 +17834,96 @@ function ylRows(items, total, labelWidth) {
       '<span class="dbw-pct">' + (it.note != null ? it.note : pct.toFixed(1) + '%') + '</span>' +
     '</div>';
   }).join('');
+}
+
+/* YLOPO-SEGMENTS-2026-08-18. Workable lists cut from the row-level export.
+   These panels show names, emails and phone numbers, so nothing here is
+   cached and the export goes straight through the gated endpoint. */
+var YL_SEG_OPEN = null;
+
+function ylEsc(v) {
+  return (v == null ? '' : String(v))
+    .split('&').join('&amp;')
+    .split('<').join('&lt;')
+    .split('>').join('&gt;');
+}
+
+function loadYlopoSegments() {
+  fetch(PROXY_URL + '/ylopo/segments?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      var wrap = el('ylSegWrap');
+      if (!wrap) return;
+      var segs = (d && d.segments) || [];
+      if (!segs.length) { wrap.innerHTML = emptyState('No lists', 'Nothing in the export met any of the segment rules.'); return; }
+      wrap.innerHTML = segs.map(function(s) {
+        return '<button type="button" class="seg-row" data-seg="' + s.key + '">' +
+          '<span class="seg-n">' + s.people.toLocaleString() + '</span>' +
+          '<span><span class="seg-t">' + ylEsc(s.label) + '</span>' +
+          '<span class="seg-w">' + ylEsc(s.note) + '</span></span>' +
+        '</button>';
+      }).join('');
+      // Listeners rather than inline onclick: no quoting to get wrong inside
+      // an attribute that is itself inside a template literal.
+      [].slice.call(wrap.querySelectorAll('.seg-row')).forEach(function(btn) {
+        btn.addEventListener('click', function() { openYlopoSegment(btn.getAttribute('data-seg')); });
+      });
+    })
+    .catch(function(e) { console.warn('[analytics] segments unavailable:', e && e.message); });
+}
+
+function openYlopoSegment(key) {
+  if (!key) return;
+  YL_SEG_OPEN = key;
+  var det = el('ylSegDetail');
+  if (!det) return;
+  [].slice.call(document.querySelectorAll('.seg-row')).forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-seg') === key);
+  });
+  det.innerHTML = '<div style="padding:14px 4px;font-size:12px;color:var(--text-secondary)">Loading the list...</div>';
+  fetch(PROXY_URL + '/ylopo/segment?key=' + encodeURIComponent(key) + '&limit=200&t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      var rows = (d && d.people) || [];
+      if (!rows.length) { det.innerHTML = emptyState('Nobody in this list', 'The segment rule matched no one in the export.'); return; }
+      var head = '<div class="seg-actions">' +
+        '<span style="font-size:12px;font-weight:700">' + ylEsc(d.label) + '</span>' +
+        '<span style="font-size:11.5px;color:var(--text-secondary)">showing ' + rows.length.toLocaleString() +
+        ', ranked by clicks then opens</span>' +
+        '<button class="seg-btn primary" style="margin-left:auto" onclick="exportYlopoSegment()">Download CSV</button>' +
+        '</div>';
+      var body = rows.map(function(p) {
+        var name = [p.first_name, p.last_name].filter(Boolean).join(' ') || '(no name)';
+        var star = p.stars_url ? '<a href="' + ylEsc(p.stars_url) + '" target="_blank" rel="noopener">Ylopo</a>' : '';
+        return '<tr>' +
+          '<td><div style="font-weight:600">' + ylEsc(name) + '</div>' +
+            '<div style="font-size:11.5px;color:var(--text-secondary)">' + ylEsc(p.email) + '</div></td>' +
+          '<td>' + ylEsc(p.phone || '') + '</td>' +
+          '<td>' + ylEsc(p.stage || '') + '</td>' +
+          '<td>' + ylEsc(p.agent || 'unassigned') + '</td>' +
+          '<td class="num">' + (Number(p.sent) || 0).toLocaleString() + '</td>' +
+          '<td class="num">' + (Number(p.opened) || 0).toLocaleString() + '</td>' +
+          '<td class="num">' + (Number(p.clicked) || 0).toLocaleString() + '</td>' +
+          '<td>' + ylEsc(p.cities || '') + '</td>' +
+          '<td>' + star + '</td>' +
+        '</tr>';
+      }).join('');
+      det.innerHTML = head +
+        '<div class="seg-scroll"><table class="seg-table"><thead><tr>' +
+        '<th>Person</th><th>Phone</th><th>Stage</th><th>Agent</th>' +
+        '<th style="text-align:right">Sent</th><th style="text-align:right">Opened</th>' +
+        '<th style="text-align:right">Clicked</th><th>Searching</th><th></th>' +
+        '</tr></thead><tbody>' + body + '</tbody></table></div>';
+    })
+    .catch(function(e) {
+      det.innerHTML = emptyState('Could not load the list', 'The server said: ' + ylEsc(e && e.message));
+    });
+}
+
+function exportYlopoSegment() {
+  if (!YL_SEG_OPEN) return;
+  window.open(PROXY_URL + '/ylopo/segment?key=' + encodeURIComponent(YL_SEG_OPEN) +
+    '&format=csv&limit=5000', '_blank');
 }
 
 function loadYlopoInsights() {
@@ -23037,6 +23159,81 @@ var index_default = {
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
+      }
+    }
+    if (method === "GET" && (path === "/ylopo/segments" || path === "/ylopo/segment")) {
+      // YLOPO-SEGMENTS-2026-08-18. Workable lists cut from the row-level alert
+      // export. These responses carry names, emails and phone numbers, so they
+      // are gated and never cached.
+      var segGate = await requireContactsAuth(request, env);
+      if (segGate) return segGate;
+      var SB = env.SUPABASE_URL || "";
+      var SK = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
+      if (!SB || !SK) return json({ error: "Supabase is not configured on this worker" }, 503);
+      var sbHead = { "apikey": SK, "Authorization": "Bearer " + SK };
+
+      var SEG_META = {
+        clicked:        { label: "Clicked an alert",              note: "Opened and clicked through. The warmest list here." },
+        written_off:    { label: "Written off, still opening",    note: "Marked Not Interested or Unresponsive, yet still reading the email." },
+        cold_opening:   { label: "Cold 6+ months, still opening", note: "Parked as long-term cold, still opening alerts." },
+        seller_engaged: { label: "Seller alerts, engaged",        note: "On a seller alert and opening it." },
+        higher_price:   { label: "Opening, 500k and above",       note: "Engaged, with a saved search topping 500k." },
+        all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." }
+      };
+
+      if (path === "/ylopo/segments") {
+        try {
+          var cRes = await fetch(SB + "/rest/v1/ylopo_segment_counts?select=segment,people", { headers: sbHead });
+          if (!cRes.ok) return json({ error: "Supabase " + cRes.status }, 502);
+          var counts = await cRes.json().catch(function() { return []; });
+          var byKey = {};
+          (Array.isArray(counts) ? counts : []).forEach(function(r) { byKey[r.segment] = Number(r.people) || 0; });
+          var out = Object.keys(SEG_META).map(function(k) {
+            return { key: k, label: SEG_META[k].label, note: SEG_META[k].note, people: byKey[k] || 0 };
+          }).sort(function(a, b) { return a.people - b.people; });
+          return json({ scope: "ylopo-alert-export", segments: out });
+        } catch (e) {
+          return json({ error: "Segments unavailable" }, 502);
+        }
+      }
+
+      var segKey = url.searchParams.get("key") || "";
+      if (!SEG_META[segKey]) return json({ error: "Unknown segment" }, 400);
+      var wantCsv = (url.searchParams.get("format") || "") === "csv";
+      var segLimit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10) || 100, wantCsv ? 5000 : 500);
+      var cols = "email,first_name,last_name,phone,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
+      var q = SB + "/rest/v1/ylopo_people?select=" + cols +
+              "&segments=cs.%7B" + encodeURIComponent(segKey) + "%7D" +
+              "&order=clicked.desc,opened.desc&limit=" + segLimit;
+      try {
+        var pRes = await fetch(q, { headers: sbHead });
+        if (!pRes.ok) return json({ error: "Supabase " + pRes.status }, 502);
+        var people = await pRes.json().catch(function() { return []; });
+        if (!Array.isArray(people)) people = [];
+        if (!wantCsv) {
+          return new Response(JSON.stringify({ key: segKey, label: SEG_META[segKey].label, count: people.length, people: people }), {
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
+          });
+        }
+        var head = cols.split(",");
+        var esc = function(v) {
+          if (v == null) return "";
+          var s2 = String(v);
+          return (s2.indexOf(",") !== -1 || s2.indexOf(String.fromCharCode(34)) !== -1 || s2.indexOf("\n") !== -1)
+            ? String.fromCharCode(34) + s2.split(String.fromCharCode(34)).join(String.fromCharCode(34, 34)) + String.fromCharCode(34)
+            : s2;
+        };
+        var lines = [head.join(",")];
+        people.forEach(function(r) { lines.push(head.map(function(h) { return esc(r[h]); }).join(",")); });
+        return new Response(lines.join(String.fromCharCode(10)), {
+          headers: {
+            "Content-Type": "text/csv;charset=UTF-8",
+            "Content-Disposition": "attachment; filename=ylopo-" + segKey + ".csv",
+            "Cache-Control": "no-store"
+          }
+        });
+      } catch (e) {
+        return json({ error: "Segment unavailable" }, 502);
       }
     }
     if (method === "GET" && path === "/ylopo/insights") {
