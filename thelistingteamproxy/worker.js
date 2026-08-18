@@ -15412,6 +15412,10 @@ function isCacheFresh() {
 }
 
 async function loadData(forceRefresh) {
+  // ylopo-kickoff-2026-08-18. These aggregates come from Supabase and have
+  // nothing to do with the contact fetch below, which moves ~56 MB and takes
+  // over a minute. Start them now rather than making the panels wait on it.
+  try { setTimeout(loadYlopoInsights, 0); } catch (e) {}
   // Always clear stale cache and fetch fresh data from Ylopo/GHL
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   try {
@@ -15445,7 +15449,6 @@ async function loadData(forceRefresh) {
     // Non-blocking: the summary is tiny and fast, but nothing here waits on it.
     try { setTimeout(loadDbWideSummary, 0); } catch (e) {}
     try { setTimeout(loadAgentBreakdown, 0); } catch (e) {}
-    try { setTimeout(loadYlopoInsights, 0); } catch (e) {}
     if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
       console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
       try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
