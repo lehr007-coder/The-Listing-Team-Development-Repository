@@ -12384,8 +12384,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);lin
 .hdr-btn:hover{background:var(--surface-hover);color:var(--text);border-color:var(--border-hover)}
 .hdr-btn svg{width:16px;height:16px;flex-shrink:0}
 .hdr-btn.icon{padding:0;width:34px}
-.hdr-btn.primary{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--text-on-inverse)}
-.hdr-btn.primary:hover{background:var(--brand-secondary);border-color:var(--brand-secondary);color:var(--text-on-inverse)}
+.hdr-btn.primary{background:var(--brand-primary);border-color:var(--brand-primary);color:var(--brand-ink)}
+.hdr-btn.primary:hover{background:var(--brand-secondary);border-color:var(--brand-secondary);color:var(--brand-ink)}
 /* A labelled button says what it does; only the icon-only ones need a tooltip. */
 .hdr-btn.icon::after{
   /* right-anchored, not centred: these buttons sit at the right edge, and a
