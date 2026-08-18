@@ -13450,6 +13450,113 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
 }
 .stat-card .stat-value{font-size:30px;font-variant-numeric:tabular-nums}
 
+
+/* ==========================================================================
+   CARDS-2026-08-18 - the redesign carried through every panel.
+   Applied by class, not by moving markup, so all 52 cards, 7 charts and 136
+   handlers stay exactly where they were.
+   ========================================================================== */
+
+/* Chart colours. Validated with the dataviz palette checker against each
+   mode's own card surface - not an automatic flip of the light values.
+   Single-hue for single-series marks; the temperature donut is ordered data,
+   so it gets a sequential ramp where lightness carries the order and the
+   legend labels carry identity. */
+body.light-mode{
+  --chart-1:#2a78d6; --chart-1-soft:rgba(42,120,214,0.12);
+  --chart-2:#eb6834;
+  --chart-grid:rgba(16,34,46,0.07); --chart-axis:#5A7284;
+  --ramp-1:#14415f; --ramp-2:#1e6ea8; --ramp-3:#4a9ada; --ramp-4:#a9cbe8;
+}
+body.light-mode.dark, body.light-mode.dark-mode, :root{
+  --chart-1:#3987e5; --chart-1-soft:rgba(57,135,229,0.16);
+  --chart-2:#d95926;
+  --chart-grid:rgba(255,255,255,0.08); --chart-axis:#9FB3C2;
+  --ramp-1:#9ecbf5; --ramp-2:#5f9fdd; --ramp-3:#3d76ad; --ramp-4:#2b4f6b;
+}
+
+/* --- card anatomy: a quiet header rule, then the data ------------------- */
+.analytics-card,.chart-card,.table-card{
+  background:var(--card);border:1px solid var(--card-border);
+  border-radius:12px;box-shadow:var(--shadow-xs);
+  padding:0;overflow:hidden;min-width:0;
+  display:flex;flex-direction:column;
+}
+.analytics-card > h3,.chart-card > h3{
+  margin:0;padding:14px 16px 12px;
+  border-bottom:1px solid var(--card-border);
+  font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.005em;
+  display:flex;align-items:center;gap:8px;background:var(--surface-2);
+}
+.analytics-card > h3 > span[style],.chart-card > h3 > span[style]{
+  font-weight:600 !important;font-size:11px !important;
+  color:var(--text-muted) !important;
+  border:1px solid var(--card-border);border-radius:999px;padding:2px 9px;
+  background:var(--card);white-space:nowrap;
+}
+/* Everything after the title is the card body. */
+.analytics-card > h3 ~ *,.chart-card > h3 ~ *{margin-left:16px;margin-right:16px}
+.analytics-card > h3 ~ *:last-child,.chart-card > h3 ~ *:last-child{margin-bottom:16px}
+.analytics-card > h3 + *,.chart-card > h3 + *{margin-top:14px}
+
+/* --- stat tiles --------------------------------------------------------- */
+.stat-card{
+  background:var(--card);border:1px solid var(--card-border);
+  border-radius:12px;box-shadow:var(--shadow-xs);padding:16px 18px;
+}
+.stat-card .stat-label{
+  font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:6px;
+}
+.stat-card .stat-value{
+  font-size:32px;font-weight:700;letter-spacing:-0.025em;line-height:1.1;
+  font-variant-numeric:tabular-nums;color:var(--text);margin-bottom:6px;
+}
+.stat-card .stat-sub{font-size:12px;font-weight:600}
+
+/* --- measured rows: one hue, length carries the value ------------------- */
+.agent-row,.dbw-row{
+  display:flex;align-items:center;gap:10px;
+  font-size:12.5px;padding:6px 6px;border-radius:8px;
+  transition:background var(--transition);
+}
+.agent-row:hover,.dbw-row:hover{background:var(--surface-2)}
+.agent-row .ab,.dbw-row .dbw-track{
+  flex:1;height:7px;border-radius:4px;background:var(--card-border);overflow:hidden;
+}
+.agent-row .ab > i,.dbw-row .dbw-track > i{
+  display:block;height:100%;background:var(--chart-1);border-radius:4px;
+}
+.agent-row .ac,.dbw-row .dbw-val{
+  width:74px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.agent-row .ap,.dbw-row .dbw-pct{
+  width:50px;text-align:right;color:var(--text-secondary);font-variant-numeric:tabular-nums;
+}
+.dbw-row .dbw-label{
+  width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;
+}
+
+/* --- honest empty state, instead of a chart of zeros -------------------- */
+.empty-state{
+  display:flex;flex-direction:column;gap:5px;
+  padding:22px 16px;border:1px dashed var(--card-border);border-radius:10px;
+  background:var(--surface-2);text-align:center;
+}
+.empty-state b{font-size:13px;font-weight:700;color:var(--text)}
+.empty-state span{font-size:12px;line-height:1.55;color:var(--text-secondary)}
+
+/* --- source table ------------------------------------------------------- */
+.src-table{width:100%;border-collapse:collapse;min-width:0}
+.src-table th{
+  font-size:10.5px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--text-muted);padding:0 8px 8px;border-bottom:1px solid var(--card-border);
+}
+.src-table td{padding:8px;border-bottom:1px solid var(--card-border);font-size:12.5px;font-variant-numeric:tabular-nums}
+.src-table tr:last-child td{border-bottom:none}
+.src-vol{height:7px;border-radius:4px;background:var(--card-border);overflow:hidden;min-width:60px}
+.src-vol > i{display:block;height:100%;background:var(--chart-1);border-radius:4px}
+
 .main{padding:22px 28px 40px}
 @media (max-width:900px){ .main{padding:18px 16px 32px} }
 </style>
@@ -15152,13 +15259,13 @@ function renderCharts(leads) {
 
   const dCtx=el('donutChart').getContext('2d');
   if(donut)donut.destroy();
-  donut=new Chart(dCtx,{type:'doughnut',data:{labels:['\u{1F525} Hot','\u{1F535} New','\u26AA Cold','\u{1F7E1} Warm'],datasets:[{data:[hot,newL,cold,warm],backgroundColor:['#ef4444','#3b82f6','#d1d5db','#f59e0b'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{padding:12,font:{size:12,weight:600,family:'DM Sans'},usePointStyle:true,pointStyle:'circle'}}}}});
+  donut=new Chart(dCtx,{type:'doughnut',data:{labels:['\u{1F525} Hot','\u{1F535} New','\u26AA Cold','\u{1F7E1} Warm'],datasets:[{data:[hot,newL,cold,warm],backgroundColor:[chartRamp()[0],chartRamp()[2],chartRamp()[3],chartRamp()[1]],borderWidth:2,borderColor:cardSurface(),hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{padding:12,font:{size:12,weight:600,family:'DM Sans'},usePointStyle:true,pointStyle:'circle'}}}}});
 
   const days=[];
   for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});const count=leads.filter(l=>{const ld=new Date(l.dateAdded);return ld.toDateString()===d.toDateString();}).length;days.push({key,count});}
   const aCtx=el('activityChart').getContext('2d');
   if(actChart)actChart.destroy();
-  actChart=new Chart(aCtx,{type:'bar',data:{labels:days.map(d=>d.key),datasets:[{label:'Leads',data:days.map(d=>d.count),backgroundColor:'#22c55e',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}}}}});
+  actChart=new Chart(aCtx,{type:'bar',data:{labels:days.map(d=>d.key),datasets:[{label:'Leads',data:days.map(d=>d.count),backgroundColor:cvar('--chart-1','#2a78d6'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{maxRotation:45,font:{size:9}},grid:{display:false}}}}});
 }
 
 /* =============================== FETCH (PAGINATED BACKFILL) =============================== */
@@ -15467,13 +15574,13 @@ function renderVelocity(leads) {
       datasets: [{
         label: 'New Leads / Week',
         data: weeks.map(w => w.count),
-        borderColor: '#22c55e',
-        backgroundColor: 'rgba(34,197,94,0.1)',
+        borderColor: cvar('--chart-1', '#2a78d6'),
+        backgroundColor: cvar('--chart-1-soft', 'rgba(42,120,214,0.12)'),
         fill: true,
         tension: 0.4,
-        pointRadius: 5,
-        pointBackgroundColor: '#22c55e',
-        pointBorderColor: '#fff',
+        pointRadius: 4,
+        pointBackgroundColor: cvar('--chart-1', '#2a78d6'),
+        pointBorderColor: cardSurface(),
         pointBorderWidth: 2
       }]
     },
@@ -15488,11 +15595,58 @@ function renderVelocity(leads) {
   });
 }
 
+/* CARDS-2026-08-18. Charts read their colours from the stylesheet so light and
+   dark stay in step and there is one place to change them. */
+function cvar(name, fallback) {
+  try {
+    var v = getComputedStyle(document.body).getPropertyValue(name);
+    v = (v || '').trim();
+    return v || fallback;
+  } catch (e) { return fallback; }
+}
+function chartRamp() {
+  return [cvar('--ramp-1', '#14415f'), cvar('--ramp-2', '#1e6ea8'),
+          cvar('--ramp-3', '#4a9ada'), cvar('--ramp-4', '#a9cbe8')];
+}
+function cardSurface() { return cvar('--card', '#ffffff'); }
+
+/* One statement of why a panel is blank beats six charts of zeros. */
+function emptyState(title, why) {
+  return '<div class="empty-state"><b>' + title + '</b><span>' + why + '</span></div>';
+}
+
+/* Sources arrive from GHL spelled several ways. "my +plus leads" and
+   "my+plusleads" are the same 17,000-contact source split by a space and a
+   letter. Folded for display only - nothing is written back to GHL. */
+var SOURCE_ALIASES = [
+  [/^my\s*\+?\s*plus\s*leads$/i, 'My Plus Leads'],
+  [/^my\+?plusleads$/i,          'My Plus Leads'],
+  [/^myplusleads$/i,             'My Plus Leads']
+];
+function canonicalSource(name) {
+  var s = (name == null ? '' : String(name)).replace(/\s+/g, ' ').trim();
+  if (!s) return 'Unknown';
+  for (var i = 0; i < SOURCE_ALIASES.length; i++) {
+    if (SOURCE_ALIASES[i][0].test(s)) return SOURCE_ALIASES[i][1];
+  }
+  return s;
+}
+function foldSources(obj) {
+  var out = {};
+  Object.keys(obj || {}).forEach(function(k) {
+    var v = obj[k];
+    if (typeof v !== 'number') return;
+    var c = canonicalSource(k);
+    out[c] = (out[c] || 0) + v;
+  });
+  return out;
+}
+
 /* =============================== SOURCE PERFORMANCE =============================== */
 function renderSourcePerf(leads) {
   const srcMap = {};
   leads.forEach(l => {
-    const s = l.source || 'Unknown';
+    const s = canonicalSource(l.source);
     if (!srcMap[s]) srcMap[s] = { count: 0, totalScore: 0, hot: 0 };
     srcMap[s].count++;
     srcMap[s].totalScore += l.score;
@@ -15503,7 +15657,8 @@ function renderSourcePerf(leads) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
   const maxCount = Math.max(...sources.map(s => s.count), 1);
-  const colors = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#6366f1'];
+  // One hue. Colour followed rank here, so filtering repainted the survivors
+  // and implied a meaning the data never had. Bar length carries the value.
 
   el('sourceTableWrap').innerHTML = \`<table class="src-table">
     <thead><tr><th>Source</th><th>Leads</th><th>Avg Score</th><th>Hot</th><th>Volume</th></tr></thead>
@@ -15856,7 +16011,7 @@ function renderTagCloud(leads) {
 function renderROI(leads) {
   const srcMap = {};
   leads.forEach(l => {
-    const s = l.source || 'Unknown';
+    const s = canonicalSource(l.source);
     if (!srcMap[s]) srcMap[s] = { count: 0, hot: 0, totalScore: 0, totalValue: 0 };
     srcMap[s].count++;
     srcMap[s].totalScore += l.score;
@@ -16089,6 +16244,18 @@ function renderEngagementRatios(leads) {
   const saveRate = totalViews > 0 ? (totalSaves / totalViews * 100) : 0;
   const showingRate = totalViews > 0 ? (totalShowings / totalViews * 100) : 0;
   const saveToShowRate = totalSaves > 0 ? (totalShowings / totalSaves * 100) : 0;
+
+  // Every counter here comes from the Ylopo matrix sidecar. When it sends
+  // nothing, six panels of 0% look like a finding - as if buyers viewed
+  // nothing - when the truth is that no engagement data arrived at all.
+  if (totalViews === 0 && totalSaves === 0 && totalShowings === 0) {
+    wrap.innerHTML = emptyState('No engagement data received',
+      'Views, saves and showings come from the Ylopo matrix feed. It returned ' +
+      'nothing for these ' + leads.length.toLocaleString() + ' contacts, so these ' +
+      'ratios cannot be computed. This is a missing feed, not zero activity.');
+    if (leadsWrap) leadsWrap.innerHTML = '';
+    return;
+  }
 
   wrap.innerHTML = \`
     <div class="ratio-card">
@@ -17514,7 +17681,11 @@ function renderDbWideRows(obj, wrapId, total) {
   var rows = Object.keys(obj || {}).map(function(k) { return [k, obj[k]]; })
     .filter(function(r) { return typeof r[1] === 'number'; })
     .sort(function(a, b) { return b[1] - a[1]; });
-  if (!rows.length) { wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-secondary);font-size:12px">No data</div>'; return; }
+  if (!rows.length) {
+    wrap.innerHTML = emptyState('Nothing to show',
+      'GoHighLevel returned no values for this breakdown.');
+    return;
+  }
   var max = rows[0][1] || 1;
   wrap.innerHTML = rows.map(function(r) {
     var pct = total ? (r[1] / total * 100) : 0;
@@ -17589,7 +17760,7 @@ function loadDbWideSummary() {
       set('dbWideSliceN', (ALL_LEADS ? ALL_LEADS.length : 0).toLocaleString());
       if (s.generatedAt) set('dbWideStamp', 'as of ' + new Date(s.generatedAt).toLocaleTimeString());
 
-      var bySource = Object.assign({}, s.bySource || {});
+      var bySource = foldSources(s.bySource || {});
       // Sources outside the probed list. Showing it keeps the breakdown honest -
       // without it the bars imply they add up to the total, and they do not.
       if (typeof s.sourceOther === 'number' && s.sourceOther > 0) bySource['(other / unlisted sources)'] = s.sourceOther;
