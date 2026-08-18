@@ -22019,8 +22019,19 @@ async function loadItems(){
     g('loadingEl').style.display='none';
     g('boardWrap').style.display='block';
   }catch(e){
-    g('loadingEl').innerHTML='<p style="color:var(--red)">Failed to load pipeline. Make sure the Supabase table is set up (see Admin panel).</p>';
-    g('setupBox').style.display='block';
+    // A 401 here means this browser has no session on THIS origin, which is by
+    // far the common case. Blaming the Supabase table sent people to the Admin
+    // panel to fix a database that was never broken.
+    if(String(e&&e.message||'').indexOf('401')!==-1){
+      g('loadingEl').innerHTML='<div style="padding:16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">'+
+        '<span>&#128274; You are not signed in on this site, so the board could not load.</span>'+
+        '<a href="/login?redirect='+encodeURIComponent(location.pathname+location.search)+'" style="padding:8px 14px;border-radius:8px;background:var(--brand-primary);color:#fff;text-decoration:none;font-weight:700">Sign in</a>'+
+        '<span style="font-weight:400;color:var(--text-secondary)">Staging and production are separate logins.</span>'+
+      '</div>';
+    }else{
+      g('loadingEl').innerHTML='<p style="color:var(--red)">Failed to load pipeline: '+esc(e.message||'unknown error')+'</p>';
+      g('setupBox').style.display='block';
+    }
   }
 }
 
