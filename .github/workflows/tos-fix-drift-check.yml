@@ -1,20 +1,24 @@
-# Guards the deployed go-live fixes: fails (and notifies via Actions email)
-# if a deploy from the Mac TS workspace reverts them. Remedy:
-# tos-proxy/PORTING-TO-TS.md, or re-run the Deploy tos-proxy-staging workflow
-# to restore the patched bundle.
-name: TOS fix drift check
+# RETIRED 2026-08-18 — this check now has its polarity backwards.
+#
+# It was written to fail if "a deploy from the Mac TS workspace reverts" the
+# June bundle in tos-proxy/worker.js, and its stated remedy was to re-run the
+# staging deploy "to restore the patched bundle". Both halves are now wrong:
+# PORTING-TO-TS.md records the port to that workspace as COMPLETED 2026-06-12,
+# so the canonical build is the one this check calls drift, and the "remedy"
+# was re-uploading a two-month-old bundle over a live environment.
+#
+# It failed on 2026-08-14, 08-16 and 08-17. Those were not false alarms and
+# they were not bugs — it was correctly detecting the correct build.
+#
+# Left in place, dispatch-only, as the record. What replaces it lives in the
+# canonical repo: `npm run verify:deployed` asserts the ARTIFACT rather than a
+# grep for markers, and runs on both environments.
+#
+#   github.com/lehr007-coder/the-listing-team-transaction-os
+name: TOS fix drift check (retired)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 14 * * *'   # daily 14:17 UTC (morning US Eastern)
-  push:
-    branches:
-      - main
-      - 'claude/**'
-    paths:
-      - 'tos-proxy/check_drift.py'
-      - '.github/workflows/tos-fix-drift-check.yml'
 
 jobs:
   check:

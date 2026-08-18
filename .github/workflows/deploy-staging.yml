@@ -59,17 +59,32 @@ jobs:
           workingDirectory: ai-video-system
           command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
 
-  deploy-tos-proxy:
-    name: Deploy tos-proxy-staging (Python/raw API deploy)
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v5
-      - name: Deploy via deploy.py
-        working-directory: tos-proxy
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 deploy.py
+# RETIRED 2026-08-18 — this directory no longer deploys anything
+#
+# `tos-proxy/worker.js` here is a DECOMPILED JUNE BUNDLE. PORTING-TO-TS.md at
+# the top of this directory records the port to the TypeScript workspace as
+# "STATUS: COMPLETED 2026-06-12" — but the deploy job and the drift check were
+# never retired with it, so for over two months every push to main re-uploaded
+# the June bundle over the live tos-proxy-staging worker.
+#
+# MEASURED 2026-08-18. The bundle this deployed carries:
+#     0  redesign markers          (live build has them)
+#     0  R1 multi-tenant markers   (live build routes per tenant)
+#     9  copies of a stale credential literal that was removed from the
+#        canonical source that same day
+# It is 58,966 bytes against the current 89,243.
+#
+# The clobbering was visible in Cloudflare as `Source: Upload` deployments
+# landing 7-9 seconds after each run of this workflow, and it happened again at
+# 14:46:53 UTC on 2026-08-18 — 41 seconds before an unrelated deploy from the
+# canonical repo happened to overwrite it again.
+#
+# SOURCE OF TRUTH:  github.com/lehr007-coder/the-listing-team-transaction-os
+#                   (proxy/ — deploy with `npm run deploy:staging`)
+#
+# To restore this job you would first have to explain why a June bundle should
+# outrank it.
+
 
   deploy-social-post-importer:
     name: Deploy social-post-importer-staging (Python/raw API deploy)

@@ -69,13 +69,28 @@ async function requireContactsAuth(request, env) {
   return json({ error: "Unauthorized: sign in or supply X-API-Key." }, 401);
 }
 
+// Admin-only gate for the user-management API. Session-based only — an API
+// key is a machine credential and machines do not manage user accounts.
+async function requireAdminSession(request, env) {
+  if (!env.DB)
+    return json({ error: "User accounts are not enabled in this environment" }, 501);
+  var adminGateSess = null;
+  try {
+    adminGateSess = await getSession(request, env);
+  } catch (e) {}
+  if (!adminGateSess)
+    return json({ error: "Unauthorized: sign in." }, 401);
+  if (adminGateSess.role !== "admin")
+    return json({ error: "Forbidden: admin only." }, 403);
+  return null;
+}
+
 function validateApiKey(request, env) {
-  // PUNCHLIST-2026-08-18. This returned true when PROXY_API_KEY was unset, so
-  // a missing secret silently turned every API-key check into a pass. Both
-  // environments set it today, which is exactly why the failure mode would
-  // have gone unnoticed until the day one of them did not.
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
+  // Fail CLOSED. This used to return true when PROXY_API_KEY was unset, so a
+  // missing secret silently turned an auth check into a pass. The key is set on
+  // both environments, so this changes no behaviour today - it removes the trap.
   if (!envKey)
     return false;
   return apiKey === envKey;
@@ -4833,6 +4848,45 @@ function renderBuyerTab() {
   });
   html += '</div>';
   html += '</div>';
+
+  // ---- Target Cities (hub/18: surface the saved-search enrichment) ----
+  // Aggregates the city each buyer is searching in, from GHL fields or the
+  // Ylopo saved-search export. Top 7 on the palette, everything else folded
+  // into Other - same convention as the seller tag chart.
+  var cityCounts = {};
+  buyers.forEach(function(b) {
+    var ct = String(b.city || '').trim();
+    if (!ct) return;
+    ct = ct.replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+    cityCounts[ct] = (cityCounts[ct] || 0) + 1;
+  });
+  var cityRanked = Object.keys(cityCounts).map(function(k) { return { city: k, count: cityCounts[k] }; })
+    .sort(function(a, b) { return b.count - a.count; });
+  if (cityRanked.length) {
+    var cityTop = cityRanked.slice(0, 7);
+    var cityRest = cityRanked.slice(7);
+    var cityRestTotal = cityRest.reduce(function(s, r) { return s + r.count; }, 0);
+    var maxCity = cityTop[0].count || 1;
+    html += '<div class="panel" style="margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 12px;font-size:14px">&#127961;&#65039; Target Cities <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(where your buyers are searching)</span></h4>';
+    cityTop.forEach(function(r, ci) {
+      var pct = Math.round(r.count / maxCity * 100);
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<div style="width:130px;font-size:12px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.city) + '</div>' +
+        '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+        '<div style="width:' + pct + '%;height:100%;background:var(--chart-' + (ci + 1) + ');border-radius:4px;transition:width 0.3s"></div></div>' +
+        '<div style="width:34px;font-size:12px;font-weight:600">' + r.count + '</div></div>';
+    });
+    if (cityRestTotal > 0) {
+      var restPct = Math.round(cityRestTotal / maxCity * 100);
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px" title="' + esc(cityRest.map(function(r) { return r.city + ' (' + r.count + ')'; }).join(', ')) + '">' +
+        '<div style="width:130px;font-size:12px;text-align:right;color:var(--text-secondary)">Other (' + cityRest.length + ')</div>' +
+        '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+        '<div style="width:' + Math.min(restPct, 100) + '%;height:100%;background:var(--chart-8);border-radius:4px;transition:width 0.3s"></div></div>' +
+        '<div style="width:34px;font-size:12px;font-weight:600">' + cityRestTotal + '</div></div>';
+    }
+    html += '</div>';
+  }
 
   // ---- Hottest Buyers Pipeline ----
   var hotBuyers = buyers.filter(function(b) { return b.readiness >= 40; }).sort(function(a, b) { return b.readiness - a.readiness; }).slice(0, 12);
@@ -21718,6 +21772,8 @@ a{color:var(--blue);text-decoration:none}
 .pipe-card{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:12px;cursor:grab;transition:all .15s;user-select:none}
 .pipe-card:hover{border-color:var(--blue);background:var(--card);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.35);cursor:grab}
 .pipe-card:active{cursor:grabbing}
+.pipe-card.nodrag{cursor:pointer}
+.col-body.drag-over{outline:2px dashed var(--blue);outline-offset:-4px}
 .col-body.drag-over{background:rgba(59,130,246,0.15);border-color:var(--blue);border-width:2px}
 .card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
@@ -21950,7 +22006,7 @@ var SETUP_SQL = "CREATE TABLE IF NOT EXISTS pipeline_items (" +
   "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
   "\\n);" +
   "\\nALTER TABLE pipeline_items ENABLE ROW LEVEL SECURITY;" +
-  '\\nCREATE POLICY "allow_all" ON pipeline_items FOR ALL USING (true) WITH CHECK (true);';
+  "\\nCREATE POLICY pipeline_items_service_only ON pipeline_items FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');";
 
 var PERMS_SETUP_SQL = "CREATE TABLE IF NOT EXISTS user_permissions (" +
   "\\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY," +
@@ -21968,7 +22024,7 @@ var PERMS_SETUP_SQL = "CREATE TABLE IF NOT EXISTS user_permissions (" +
   "\\n  updated_at TIMESTAMPTZ DEFAULT NOW()" +
   "\\n);" +
   "\\nALTER TABLE user_permissions ENABLE ROW LEVEL SECURITY;" +
-  '\\nCREATE POLICY "allow_all_perms" ON user_permissions FOR ALL USING (true) WITH CHECK (true);';
+  "\\nCREATE POLICY user_permissions_service_only ON user_permissions FOR ALL USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');";
 
 function g(id){return document.getElementById(id);}
 function esc(s){if(!s&&s!==0)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -21987,8 +22043,19 @@ async function loadItems(){
     g('loadingEl').style.display='none';
     g('boardWrap').style.display='block';
   }catch(e){
-    g('loadingEl').innerHTML='<p style="color:var(--red)">Failed to load pipeline. Make sure the Supabase table is set up (see Admin panel).</p>';
-    g('setupBox').style.display='block';
+    // A 401 here means this browser has no session on THIS origin, which is by
+    // far the common case. Blaming the Supabase table sent people to the Admin
+    // panel to fix a database that was never broken.
+    if(String(e&&e.message||'').indexOf('401')!==-1){
+      g('loadingEl').innerHTML='<div style="padding:16px;border-radius:var(--radius-sm);border:1px solid var(--card-border);background:var(--surface-2);color:var(--text);font-size:14px;font-weight:600;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">'+
+        '<span>&#128274; You are not signed in on this site, so the board could not load.</span>'+
+        '<a href="/login?redirect='+encodeURIComponent(location.pathname+location.search)+'" style="padding:8px 14px;border-radius:8px;background:var(--brand-primary);color:#fff;text-decoration:none;font-weight:700">Sign in</a>'+
+        '<span style="font-weight:400;color:var(--text-secondary)">Staging and production are separate logins.</span>'+
+      '</div>';
+    }else{
+      g('loadingEl').innerHTML='<p style="color:var(--red)">Failed to load pipeline: '+esc(e.message||'unknown error')+'</p>';
+      g('setupBox').style.display='block';
+    }
   }
 }
 
@@ -22011,26 +22078,51 @@ function renderBoard(){
     var list=items.filter(function(i){return i.status===s.key;});
     list.sort(function(a,b){return (b.votes||0)-(a.votes||0);});
     if(cnt)cnt.textContent=list.length;
-    if(!list.length){col.innerHTML='<div class="col-empty">No items yet</div>';return;}
+    // Drop handlers are attached to EVERY column before the empty-column bail-out.
+    // They used to sit after it, so an empty stage could never receive a card.
+    col.ondragover=function(e){if(!draggedCardId)return;e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over');};
+    col.ondragenter=function(e){if(!draggedCardId)return;e.preventDefault();col.classList.add('drag-over');};
+    col.ondragleave=function(e){if(e.target===col)col.classList.remove('drag-over');};
+    col.ondrop=function(e){e.preventDefault();col.classList.remove('drag-over');dropCardToStatus(e,s.key);};
+    if(!list.length){col.innerHTML='<div class="col-empty">'+(isAdmin?'Drop a card here':'No items yet')+'</div>';return;}
     col.innerHTML=list.map(buildCard).join('');
-    // Add drop zone handlers
-    col.ondragover=function(e){e.preventDefault();e.dataTransfer.dropEffect='move';col.style.opacity='0.8';col.style.borderColor='var(--blue)';};
-    col.ondragleave=function(e){col.style.opacity='1';col.style.borderColor='';};
-    col.ondrop=function(e){e.preventDefault();dropCardToStatus(e,s.key);col.style.opacity='1';col.style.borderColor='';};
   });
 }
-function dragStartCard(e,id){draggedCardId=id;e.dataTransfer.effectAllowed='move';e.target.style.opacity='0.5';}
-function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';}
+function clearDropHighlight(){
+  var cols=document.querySelectorAll('.col-body.drag-over');
+  for(var i=0;i<cols.length;i++)cols[i].classList.remove('drag-over');
+}
+function dragStartCard(e,id){
+  // Moving a card is a PATCH, which the worker gates on X-Pipeline-Admin.
+  // Without the secret the drop would 401, so refuse the drag up front.
+  if(!isAdmin||!pipelineAdminSecret){e.preventDefault();showToast('Unlock Admin to move cards','error');return false;}
+  draggedCardId=id;
+  e.dataTransfer.effectAllowed='move';
+  try{e.dataTransfer.setData('text/plain',id);}catch(err){}
+  e.target.style.opacity='0.5';
+}
+function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';clearDropHighlight();}
 function dropCardToStatus(e,newStatus){
   if(!draggedCardId)return;
-  var item=items.find(function(i){return i.id===draggedCardId;});
+  var movedId=draggedCardId;
+  var item=items.find(function(i){return i.id===movedId;});
   if(!item||item.status===newStatus)return;
-  item.status=newStatus;item.target_date=null;
-  try{
-    fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:draggedCardId,status:newStatus})}).then(function(r){
-      if(!r.ok)throw new Error('Update failed');renderBoard();showToast('Moved to '+newStatus,'success');
-    }).catch(function(e){showToast('Error: '+e.message,'error');item.status=draggedCardId;renderBoard();});
-  }catch(e){showToast('Error: '+e.message,'error');}
+  if(!pipelineAdminSecret){showToast('Unlock Admin to move cards','error');openAdminModal();return;}
+  var prevStatus=item.status;
+  item.status=newStatus;
+  renderBoard();renderStats();
+  fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:movedId,status:newStatus})}).then(function(r){
+    return r.json().catch(function(){return {};}).then(function(d){
+      if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+      if(d.item&&d.item.updated_at)item.updated_at=d.item.updated_at;
+      showToast('Moved to '+newStatus,'success');
+    });
+  }).catch(function(err){
+    // Restore the status we came from. This used to assign the card id to
+    // item.status, which left the board holding a UUID as a stage.
+    item.status=prevStatus;renderBoard();renderStats();
+    showToast('Move failed: '+err.message,'error');
+  });
 }
 
 function buildCard(item){
@@ -22039,7 +22131,8 @@ function buildCard(item){
   var voted=localStorage.getItem('pv_'+item.id)==='1';
   var adminTag=item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin</span>':'';
   var desc=item.description?(item.description.length>90?item.description.slice(0,90)+'...':item.description):'';
-  return '<div class="pipe-card" draggable="true" ondragstart="dragStartCard(event,&#39;'+item.id+'&#39;)" ondragend="dragEndCard(event)" onclick="openDetail(&#39;'+item.id+'&#39;)">'+
+  var canDrag=!!(isAdmin&&pipelineAdminSecret);
+  return '<div class="pipe-card'+(canDrag?'':' nodrag')+'" draggable="'+(canDrag?'true':'false')+'"'+(canDrag?'':' title="Unlock Admin to move cards"')+' ondragstart="dragStartCard(event,&#39;'+item.id+'&#39;)" ondragend="dragEndCard(event)" onclick="openDetail(&#39;'+item.id+'&#39;)">'+
     '<div class="card-badges">'+
       '<span class="badge" style="background:'+rgba(cc,0.15)+';color:var(--text)">'+esc(item.category)+'</span>'+
       '<span class="badge" style="background:'+rgba(pc,0.15)+';color:var(--text)">'+esc(item.priority)+'</span>'+
@@ -22199,6 +22292,7 @@ function adminUnlock(){
     closeAdminModal();
     g('adminBadge').style.display='inline-flex';
     g('adminBtn').style.display='none';
+    if(items.length){renderBoard();renderStats();}
     showToast('&#11088; Admin mode active','success');
   }else{
     if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
@@ -22228,6 +22322,128 @@ function broadcastSSE(event) {
 __name(broadcastSSE, "broadcastSSE");
 __name2(broadcastSSE, "broadcastSSE");
 __name22(broadcastSSE, "broadcastSSE");
+var USERS_ADMIN_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Listing Team &mdash; Users</title>
+<style>
+:root{--bg:#0b1520;--card:#14202C;--border:#33485C;--text:#E8EEF3;--text-secondary:#9FB2C1;--brand:#0D3B4F;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--yellow:#eab308}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--text-secondary);font-size:13px;margin-bottom:20px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--text-secondary);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.b-admin{background:rgba(59,130,246,.15);color:#7fb3f7}
+.b-user{background:rgba(159,178,193,.15);color:var(--text-secondary)}
+.b-active{background:rgba(34,197,94,.15);color:#5ad283}
+.b-off{background:rgba(239,68,68,.15);color:#f28b8b}
+.b-locked{background:rgba(234,179,8,.18);color:#e6c458}
+button{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;margin:2px}
+button:hover{border-color:var(--accent)}
+button.danger{color:var(--red)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;padding:9px 16px}
+input,select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-size:13px;width:100%}
+.grid{display:grid;grid-template-columns:2fr 2fr 1fr 2fr auto;gap:10px;align-items:end}
+label{display:block;font-size:11px;color:var(--text-secondary);font-weight:600;margin-bottom:4px}
+.msg{font-size:13px;margin-top:10px;min-height:18px}
+.msg.err{color:var(--red)}.msg.ok{color:var(--green)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+a.back{color:var(--text-secondary);font-size:13px;text-decoration:none}
+a.back:hover{color:var(--text)}
+@media(max-width:768px){.grid{grid-template-columns:1fr 1fr}.hide-m{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>&#128101; Team Accounts</h1><div class="sub">Create sign-ins, reset passwords, and revoke access. Changes take effect on the person's next request.</div></div>
+    <a class="back" href="/dashboard">&larr; Command Center</a>
+  </div>
+  <div class="panel">
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">Add a person</div>
+    <div class="grid">
+      <div><label>Email</label><input id="nEmail" type="email" placeholder="agent@thelistingteam.com"></div>
+      <div><label>Name</label><input id="nName" placeholder="Full name"></div>
+      <div><label>Role</label><select id="nRole"><option value="user">Agent</option><option value="admin">Admin</option></select></div>
+      <div><label>Password (min 12 chars) <a href="#" onclick="genPass();return false" style="color:var(--accent)">generate</a></label><input id="nPass" placeholder="Set a password"></div>
+      <div><button class="primary" onclick="createUser()">Add</button></div>
+    </div>
+    <div class="msg" id="cMsg"></div>
+  </div>
+  <div class="panel">
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">People</div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Email</th><th class="hide-m">Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px">Loading&hellip;</td></tr></tbody>
+    </table></div>
+    <div class="msg" id="lMsg"></div>
+  </div>
+</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML}
+function genPass(){var a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';var v=crypto.getRandomValues(new Uint8Array(16));var p='';for(var i=0;i<16;i++)p+=a[v[i]%a.length];document.getElementById('nPass').value=p}
+function msg(id,text,cls){var el=document.getElementById(id);el.textContent=text;el.className='msg '+(cls||'')}
+async function api(method,body){
+  var r=await fetch('/api/admin/users',{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  var j=await r.json().catch(function(){return{}});
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function load(){
+  try{
+    var j=await api('GET');
+    var now=Date.now();
+    var html=j.users.map(function(u){
+      var locked=(u.locked_until||0)>now;
+      var status=u.active!==1?'<span class="badge b-off">Deactivated</span>':locked?'<span class="badge b-locked">Locked</span>':'<span class="badge b-active">Active</span>';
+      var acts='';
+      if(u.active===1){acts+='<button class="danger" onclick="act(\\''+u.id+'\\',\\'deactivate\\')">Deactivate</button>';}
+      else{acts+='<button onclick="act(\\''+u.id+'\\',\\'activate\\')">Reactivate</button>';}
+      if(locked)acts+='<button onclick="act(\\''+u.id+'\\',\\'unlock\\')">Unlock</button>';
+      acts+='<button onclick="resetPw(\\''+u.id+'\\',\\''+esc(u.email)+'\\')">Reset password</button>';
+      acts+=u.role==='admin'?'<button onclick="setRole(\\''+u.id+'\\',\\'user\\')">Make agent</button>':'<button onclick="setRole(\\''+u.id+'\\',\\'admin\\')">Make admin</button>';
+      return '<tr><td>'+esc(u.email)+'</td><td class="hide-m">'+esc(u.name)+'</td><td><span class="badge '+(u.role==='admin'?'b-admin':'b-user')+'">'+esc(u.role)+'</span></td><td>'+status+'</td><td>'+acts+'</td></tr>';
+    }).join('');
+    document.getElementById('rows').innerHTML=html||'<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px">No accounts yet.</td></tr>';
+  }catch(e){
+    if(String(e.message).indexOf('Unauthorized')!==-1){location.href='/login?redirect=/dashboard/users';return}
+    document.getElementById('rows').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px">'+esc(e.message)+'</td></tr>';
+  }
+}
+async function createUser(){
+  msg('cMsg','');
+  try{
+    await api('POST',{email:document.getElementById('nEmail').value,name:document.getElementById('nName').value,role:document.getElementById('nRole').value,password:document.getElementById('nPass').value});
+    msg('cMsg','Added. Hand them their password now \\u2014 it is not shown again.','ok');
+    document.getElementById('nEmail').value='';document.getElementById('nName').value='';document.getElementById('nPass').value='';
+    load();
+  }catch(e){msg('cMsg',e.message,'err')}
+}
+async function act(id,action){
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:action});msg('lMsg','Done.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+async function setRole(id,role){
+  if(!confirm('Change role to '+role+'? They will be signed out and the role applies at their next sign-in.'))return;
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:'role',role:role});msg('lMsg','Role changed.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+async function resetPw(id,email){
+  var p=prompt('New password for '+email+' (min 12 characters):');
+  if(p===null)return;
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:'reset_password',password:p});msg('lMsg','Password reset. They are signed out everywhere.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+load();
+<\/script>
+</body></html>`;
 var LOGIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22290,6 +22506,8 @@ async function _hmacSign(payload, secret) {
 __name(_hmacSign, "_hmacSign");
 async function createSessionToken(user, secret) {
   var data = { uid: user.uid || "", email: user.email || "", name: user.name || "", role: user.role || "user", loc: user.loc || "", exp: Date.now() + 864e5 };
+  if (user.bg) data.bg = 1;
+  if (user.ghlUid) data.ghlUid = user.ghlUid;
   var payload = btoa(JSON.stringify(data));
   var sig = await _hmacSign(payload, secret);
   return payload + "." + sig;
@@ -22312,14 +22530,112 @@ async function parseSessionToken(token, secret) {
   }
 }
 __name(parseSessionToken, "parseSessionToken");
-async function getSession(request, env) {
+// ---------------------------------------------------------------------------
+// D1 user accounts (hub/16 Tasks 2-4). All of it feature-detects env.DB so an
+// environment without the binding (production, until enabled deliberately)
+// keeps the exact legacy behaviour: shared-password login, stateless session.
+// ---------------------------------------------------------------------------
+var SESSION_IDLE_MS = 12 * 60 * 60 * 1e3;
+async function _sha256Hex(s) {
+  var h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(h)].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+__name(_sha256Hex, "_sha256Hex");
+// Chained WebCrypto PBKDF2 — a NON-STANDARD construction, on purpose.
+// WebCrypto hard-caps PBKDF2 at 100,000 iterations per call; OWASP wants
+// 600,000 for SHA-256. Six chained rounds (each round's 32-byte output is the
+// next round's key material, round index mixed into the salt) reach that work
+// factor without touching this worker's 2024-01-01 compatibility date, which
+// nodejs scrypt would require. Trade-off, stated honestly: PBKDF2 is not
+// memory-hard, so it is weaker against GPU cracking than scrypt/Argon2id.
+// For ~16 internal users behind an HMAC-applied server-side pepper and
+// durable account lockout, that is the accepted trade (hub/16, hub/28).
+// This hash will NOT interoperate with a standard PBKDF2 verifier.
+async function pbkdf2Chain(pass, saltHex, pepper) {
+  var enc = new TextEncoder();
+  // Pepper via HMAC, never string concatenation — a prior build lost a day
+  // to a NUL byte silently replacing the separator (hub/16).
+  var pepKey = await crypto.subtle.importKey("raw", enc.encode(pepper || "no-pepper"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  var material = new Uint8Array(await crypto.subtle.sign("HMAC", pepKey, enc.encode(pass)));
+  var salt = new Uint8Array((saltHex.match(/.{2}/g) || []).map(function(x) { return parseInt(x, 16); }));
+  for (var round = 0; round < 6; round++) {
+    var key = await crypto.subtle.importKey("raw", material, "PBKDF2", false, ["deriveBits"]);
+    var roundSalt = new Uint8Array(salt.length + 1);
+    roundSalt.set(salt);
+    roundSalt[salt.length] = round;
+    material = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: roundSalt, iterations: 1e5 }, key, 256));
+  }
+  return [...material].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+__name(pbkdf2Chain, "pbkdf2Chain");
+function _ctEq(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  var r = 0;
+  for (var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+__name(_ctEq, "_ctEq");
+// __Host- prefix: requires Secure + Path=/ + no Domain (all true here), and
+// renaming the cookie invalidates every pre-existing non-revocable token at
+// cutover — the mass logout hub/16 calls for.
+function mkHostCookie(token) {
+  return "__Host-tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400";
+}
+__name(mkHostCookie, "mkHostCookie");
+function clearHostCookie() {
+  return "__Host-tlt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+}
+__name(clearHostCookie, "clearHostCookie");
+function _sessionCookieFrom(request) {
   var cookies = request.headers.get("Cookie") || "";
-  var m = cookies.match(/tlt_session=([^;]+)/);
-  if (!m)
+  var m = cookies.match(/__Host-tlt_session=([^;]+)/) || cookies.match(/(?:^|;\s*)tlt_session=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+__name(_sessionCookieFrom, "_sessionCookieFrom");
+async function getSession(request, env) {
+  var tok = _sessionCookieFrom(request);
+  if (!tok)
     return null;
   if (!env.SESSION_SECRET)
     return null;
-  return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET);
+  var sess = await parseSessionToken(tok, env.SESSION_SECRET);
+  if (!sess)
+    return null;
+  // Break-glass sessions are stateless by design: the emergency path must
+  // work even when D1 is down. Explicitly labelled, 24h max life.
+  if (sess.bg === 1)
+    return sess;
+  if (!env.DB)
+    return sess;
+  // Account sessions: the HMAC check above is the outer layer; the D1 row is
+  // the revocation layer. Missing row, revoked, absolute- or idle-expired,
+  // or deactivated user -> no session. D1 errors fail CLOSED.
+  try {
+    var th = await _sha256Hex(tok);
+    var row = await env.DB.prepare("SELECT s.revoked, s.last_seen, s.expires_at, u.active, u.role, u.name, u.email, u.ghl_user_id FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?1").bind(th).first();
+    var nowMs = Date.now();
+    if (!row || row.revoked === 1 || (row.expires_at || 0) <= nowMs)
+      return null;
+    if ((row.last_seen || 0) + SESSION_IDLE_MS <= nowMs)
+      return null;
+    if (row.active !== 1)
+      return null;
+    if ((row.last_seen || 0) + 6e4 < nowMs) {
+      try {
+        await env.DB.prepare("UPDATE sessions SET last_seen = ?1 WHERE token_hash = ?2").bind(nowMs, th).run();
+      } catch (e) {
+      }
+    }
+    // Prefer the DB row so role/name changes take effect on the next request.
+    sess.role = row.role || sess.role;
+    sess.name = row.name || sess.name;
+    sess.email = row.email || sess.email;
+    if (row.ghl_user_id)
+      sess.ghlUid = row.ghl_user_id;
+    return sess;
+  } catch (e) {
+    return null;
+  }
 }
 __name(getSession, "getSession");
 async function sendNotification(env, eventType, data) {
@@ -23096,7 +23412,20 @@ var index_default = {
       return new Response(LOGIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
     }
     if (path === "/auth/logout") {
-      return new Response(null, { status: 302, headers: { "Location": "/login", "Set-Cookie": clearCookie(), "Cache-Control": "no-store" } });
+      // Revoke the D1 session row so logout takes effect on the very next
+      // request, then clear both cookie generations.
+      try {
+        if (env.DB) {
+          var loTok = _sessionCookieFrom(request);
+          if (loTok)
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE token_hash = ?1").bind(await _sha256Hex(loTok)).run();
+        }
+      } catch (e) {
+      }
+      var loHeaders = new Headers({ "Location": "/login", "Cache-Control": "no-store" });
+      loHeaders.append("Set-Cookie", clearCookie());
+      loHeaders.append("Set-Cookie", clearHostCookie());
+      return new Response(null, { status: 302, headers: loHeaders });
     }
     if (path === "/auth/me") {
       var meSession = await getSession(request, env);
@@ -23143,9 +23472,9 @@ var index_default = {
         if (!loginBody || !loginBody.email || !loginBody.pass) {
           return json({ error: "Missing fields" }, 400);
         }
-        if (!env.PROXY_ADMIN_PASS)
-          return json({ error: "Server misconfigured: PROXY_ADMIN_PASS not set" }, 500);
-        var adminPass = env.PROXY_ADMIN_PASS;
+        if (!env.SESSION_SECRET)
+          return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
+        var loginSecret = env.SESSION_SECRET;
         var rl = await checkLoginRateLimit(request);
         if (!rl.ok) {
           return new Response(JSON.stringify({ error: "Too many attempts" }), {
@@ -23153,20 +23482,177 @@ var index_default = {
             headers: { "Content-Type": "application/json", "Retry-After": String(rl.retryAfter || 60) }
           });
         }
-        if (loginBody.pass !== adminPass) {
+        if (env.DB) {
+          // D1 account path (hub/16 Tasks 2 and 4). Look the user up by email,
+          // verify against auth_identities, enforce durable per-account
+          // lockout, and issue a REVOCABLE session (row in D1).
+          var loginEmail = String(loginBody.email).trim().toLowerCase();
+          var acct = null;
+          try {
+            acct = await env.DB.prepare("SELECT u.id, u.email, u.name, u.role, u.ghl_user_id, u.active, u.failed_login_count, u.locked_until, a.pass_hash, a.pass_salt FROM users u JOIN auth_identities a ON a.user_id = u.id WHERE u.email = ?1").bind(loginEmail).first();
+          } catch (dbe) {
+            await reportError(dbe, "auth/login d1 lookup", env);
+          }
+          var nowMs = Date.now();
+          // Burn the full hash cost whether or not the account exists, so a
+          // missing account is indistinguishable from a wrong password.
+          var candidate = await pbkdf2Chain(String(loginBody.pass), acct ? acct.pass_salt : "00000000000000000000000000000000", env.PASSWORD_PEPPER || "");
+          var passOk = !!(acct && _ctEq(candidate, acct.pass_hash));
+          var usable = !!(acct && acct.active === 1 && (acct.locked_until || 0) <= nowMs);
+          if (acct && usable && !passOk) {
+            // 5 failures -> 15-minute lock, persisted on the users row so it
+            // survives isolates and redeploys.
+            var fails = (acct.failed_login_count || 0) + 1;
+            try {
+              await env.DB.prepare("UPDATE users SET failed_login_count = ?1, locked_until = ?2, updated_at = ?3 WHERE id = ?4").bind(fails >= 5 ? 0 : fails, fails >= 5 ? nowMs + 9e5 : 0, nowMs, acct.id).run();
+            } catch (e2) {
+            }
+          }
+          if (passOk && usable) {
+            try {
+              await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(nowMs, acct.id).run();
+            } catch (e3) {
+            }
+            clearLoginAttempts(rl.key);
+            var acctTok = await createSessionToken({ uid: acct.id, email: acct.email, name: acct.name || acct.email.split("@")[0], role: acct.role || "user", loc: env.GHL_LOCATION_ID || LOC_ID, ghlUid: acct.ghl_user_id || "" }, loginSecret);
+            try {
+              await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, created_at, last_seen, expires_at, revoked) VALUES (?1, ?2, ?3, ?3, ?4, 0)").bind(await _sha256Hex(acctTok), acct.id, nowMs, nowMs + 864e5).run();
+            } catch (e4) {
+              await reportError(e4, "auth/login session insert", env);
+              return json({ error: "Server error" }, 500);
+            }
+            return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkHostCookie(acctTok) } });
+          }
+          // Break-glass: the shared PROXY_ADMIN_PASS survives as an explicitly
+          // labelled emergency path (kept per Scott, 2026-08-18). Stateless by
+          // design so it works when D1 is down; bg:1 in the token; not
+          // revocable for its 24h life. Uniform failure otherwise: "Invalid"
+          // never reveals whether the account exists or is locked.
+          if (env.PROXY_ADMIN_PASS && String(loginBody.pass) === env.PROXY_ADMIN_PASS) {
+            clearLoginAttempts(rl.key);
+            var bgTok = await createSessionToken({ uid: "direct", email: loginEmail, name: loginEmail.split("@")[0] + " (break-glass)", role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID, bg: 1 }, loginSecret);
+            return new Response(JSON.stringify({ ok: true, breakGlass: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkHostCookie(bgTok) } });
+          }
+          noteFailedLogin(rl.key, rl.entry);
+          return json({ error: "Invalid" }, 401);
+        }
+        // Legacy path — no D1 binding in this environment (production, until
+        // the module is enabled there deliberately). Identical behaviour to
+        // before the user module existed.
+        if (!env.PROXY_ADMIN_PASS)
+          return json({ error: "Server misconfigured: PROXY_ADMIN_PASS not set" }, 500);
+        if (loginBody.pass !== env.PROXY_ADMIN_PASS) {
           noteFailedLogin(rl.key, rl.entry);
           return json({ error: "Invalid" }, 401);
         }
         clearLoginAttempts(rl.key);
-        if (!env.SESSION_SECRET)
-          return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
-        var loginSecret = env.SESSION_SECRET;
         var loginToken = await createSessionToken({ uid: "direct", email: loginBody.email, name: loginBody.email.split("@")[0], role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID }, loginSecret);
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkCookie(loginToken) } });
       } catch (e) {
         await reportError(e, "auth/login", env);
         return json({ error: "Server error" }, 500);
       }
+    }
+    // ---- User management (hub/28 follow-up): admin-only, D1-backed --------
+    if (path === "/api/admin/users") {
+      var uaGate = await requireAdminSession(request, env);
+      if (uaGate) return uaGate;
+      var uaNow = Date.now();
+      if (method === "GET") {
+        try {
+          var uaList = await env.DB.prepare("SELECT id, email, name, role, ghl_user_id, active, failed_login_count, locked_until, created_at, updated_at FROM users ORDER BY created_at ASC").all();
+          return json({ users: uaList && uaList.results || [] });
+        } catch (e) {
+          await reportError(e, "admin/users list", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      if (method === "POST") {
+        try {
+          var uaBodyP = await safeJsonParse(request);
+          if (uaBodyP && uaBodyP.error) return json({ error: uaBodyP.error }, 400);
+          var uaBody = uaBodyP && uaBodyP.data || {};
+          var uaEmail = String(uaBody.email || "").trim().toLowerCase();
+          var uaName = String(uaBody.name || "").trim().slice(0, 80);
+          var uaRole = uaBody.role === "admin" ? "admin" : "user";
+          var uaPass = String(uaBody.password || "");
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(uaEmail)) return json({ error: "Valid email required" }, 400);
+          if (uaPass.length < 12) return json({ error: "Password must be at least 12 characters" }, 400);
+          var uaSalt = [...crypto.getRandomValues(new Uint8Array(16))].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+          var uaHash = await pbkdf2Chain(uaPass, uaSalt, env.PASSWORD_PEPPER || "");
+          var uaId = "u-" + crypto.randomUUID();
+          await env.DB.prepare("INSERT INTO users (id,email,name,role,ghl_user_id,active,failed_login_count,locked_until,created_at,updated_at) VALUES (?1,?2,?3,?4,'',1,0,0,?5,?5)").bind(uaId, uaEmail, uaName || uaEmail.split("@")[0], uaRole, uaNow).run();
+          await env.DB.prepare("INSERT INTO auth_identities (user_id,pass_hash,pass_salt,updated_at) VALUES (?1,?2,?3,?4)").bind(uaId, uaHash, uaSalt, uaNow).run();
+          return json({ ok: true, id: uaId }, 201);
+        } catch (e) {
+          if (String(e && e.message || "").indexOf("UNIQUE") !== -1) return json({ error: "A user with that email already exists" }, 409);
+          await reportError(e, "admin/users create", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      if (method === "PATCH") {
+        try {
+          var upBodyP = await safeJsonParse(request);
+          if (upBodyP && upBodyP.error) return json({ error: upBodyP.error }, 400);
+          var upBody = upBodyP && upBodyP.data || {};
+          var upId = String(upBody.id || "");
+          var upAction = String(upBody.action || "");
+          if (!upId) return json({ error: "id required" }, 400);
+          var upSess = await getSession(request, env);
+          var upRow = await env.DB.prepare("SELECT id, active, role FROM users WHERE id = ?1").bind(upId).first();
+          if (!upRow) return json({ error: "No such user" }, 404);
+          if (upAction === "deactivate") {
+            // Self-lockout guard: the last thing an admin should be able to do
+            // by accident is remove their own way in.
+            if (upSess && upSess.uid === upId) return json({ error: "You cannot deactivate your own account" }, 400);
+            await env.DB.prepare("UPDATE users SET active = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "activate") {
+            await env.DB.prepare("UPDATE users SET active = 1, failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "unlock") {
+            await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "role") {
+            var upRole = upBody.role === "admin" ? "admin" : "user";
+            if (upSess && upSess.uid === upId && upRole !== "admin") return json({ error: "You cannot remove your own admin role" }, 400);
+            await env.DB.prepare("UPDATE users SET role = ?1, updated_at = ?2 WHERE id = ?3").bind(upRole, uaNow, upId).run();
+            // Rotate on role change (hub/16): revoke their sessions so the new
+            // role is picked up at a fresh sign-in, never mid-session.
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "reset_password") {
+            var upPass = String(upBody.password || "");
+            if (upPass.length < 12) return json({ error: "Password must be at least 12 characters" }, 400);
+            var upSalt = [...crypto.getRandomValues(new Uint8Array(16))].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+            var upHash = await pbkdf2Chain(upPass, upSalt, env.PASSWORD_PEPPER || "");
+            await env.DB.prepare("UPDATE auth_identities SET pass_hash = ?1, pass_salt = ?2, updated_at = ?3 WHERE user_id = ?4").bind(upHash, upSalt, uaNow, upId).run();
+            await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          return json({ error: "Unknown action" }, 400);
+        } catch (e) {
+          await reportError(e, "admin/users patch", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+    if (method === "GET" && path === "/dashboard/users") {
+      var muSess = await getSession(request, env);
+      if (!muSess)
+        return new Response(null, { status: 302, headers: { "Location": "/login?redirect=/dashboard/users", "Cache-Control": "no-store" } });
+      if (muSess.role !== "admin")
+        return new Response("Admin only.", { status: 403, headers: { "Content-Type": "text/plain" } });
+      if (!env.DB)
+        return new Response("User accounts are not enabled in this environment.", { status: 501, headers: { "Content-Type": "text/plain" } });
+      return new Response(USERS_ADMIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
     }
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
@@ -23393,7 +23879,7 @@ var index_default = {
         }
       }
       var SB_URL_P = env.SUPABASE_URL || "";
-      var SB_KEY_P = env.SUPABASE_KEY || "";
+      var SB_KEY_P = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
       if (!SB_URL_P || !SB_KEY_P)
         return json({ error: "Supabase not configured" }, 503);
       try {
@@ -23521,7 +24007,8 @@ var index_default = {
     }
     if (path.startsWith("/api/pipeline")) {
       const SB_URL = env.SUPABASE_URL || "";
-      const SB_KEY = env.SUPABASE_KEY || "";
+      // Service role, because pipeline_items no longer trusts the anon key.
+      const SB_KEY = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
       if (!SB_URL || !SB_KEY) {
         return json({ error: "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY environment variables." }, 503);
       }
@@ -23570,8 +24057,8 @@ var index_default = {
         // PUNCHLIST-2026-08-18. Creating a board item took no credential at
         // all. It is an internal board reached from a signed-in dashboard, so
         // a session is the right bar.
-        var pipePostGate = await requireContactsAuth(request, env);
-        if (pipePostGate) return pipePostGate;
+        var pipeCreateGate = await requireContactsAuth(request, env);
+        if (pipeCreateGate) return pipeCreateGate;
         try {
           const body = await request.json();
           if (!body.title || !body.title.trim())
@@ -23586,8 +24073,13 @@ var index_default = {
             status: "idea",
             submitter_name: body.submitter_name ? String(body.submitter_name).slice(0, 80) : "Anonymous",
             submitter_email: body.submitter_email ? String(body.submitter_email).slice(0, 120) : null,
-            screenshot_data: body.screenshot_data ? String(body.screenshot_data).slice(0, 2e6) : null,
-            is_admin_item: body.is_admin_item === true,
+            screenshot_data: (function(s) {
+              if (!s) return null;
+              s = String(s);
+              if (s.slice(0, 11) !== "data:image/") return null;
+              return s.length > 512e3 ? null : s;
+            })(body.screenshot_data),
+            is_admin_item: body.is_admin_item === true && !!env.PIPELINE_ADMIN_PASS && request.headers.get("X-Pipeline-Admin") === env.PIPELINE_ADMIN_PASS,
             votes: 0
           };
           const res = await fetch(TABLE, { method: "POST", headers: sbH, body: JSON.stringify(item) });
@@ -24498,8 +24990,7 @@ var index_default = {
             name: payload.name || payload.full_name || ((payload.first_name || payload.firstName || "") + " " + (payload.last_name || payload.lastName || "")).trim() || null,
             phone: payload.phone || null,
             alertType: payload.alert_type || "hot_lead_qualified",
-            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-            raw: payload
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
           });
         } catch (e) {
           console.warn("HOT lead alert SSE broadcast failed:", e.message || e);
@@ -25236,8 +25727,8 @@ var index_default = {
       // those carry contact identity: hot.lead.alert and the GHL webhook
       // handler both push contactId, email and name. Anonymously it was a live
       // feed of whoever most recently came through the webhooks.
-      var evGate = await requireContactsAuth(request, env);
-      if (evGate) return evGate;
+      const sseGate = await requireContactsAuth(request, env);
+      if (sseGate) return sseGate;
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
