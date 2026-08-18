@@ -13566,8 +13566,8 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
 .seg-row.active{background:var(--brand-surface);border-color:var(--brand-secondary)}
 .seg-row .seg-n{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;
   min-width:62px;text-align:right;color:var(--text)}
-.seg-row .seg-t{font-size:13px;font-weight:700;color:var(--text)}
-.seg-row .seg-w{font-size:11.5px;color:var(--text-secondary);line-height:1.45;margin-top:1px}
+.seg-row .seg-t{display:block;font-size:13px;font-weight:700;color:var(--text)}
+.seg-row .seg-w{display:block;font-size:11.5px;color:var(--text-secondary);line-height:1.45;margin-top:2px}
 .seg-actions{display:flex;align-items:center;gap:8px;margin:4px 0 12px;flex-wrap:wrap}
 .seg-btn{height:30px;padding:0 12px;border:1px solid var(--card-border);border-radius:8px;
   background:var(--surface-2);color:var(--text-secondary);font-family:var(--font-sans);
