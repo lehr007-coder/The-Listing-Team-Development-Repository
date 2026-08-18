@@ -24,3 +24,11 @@ DASHBOARD_ENV = "PRODUCTION"
 [[services]]
 binding = "YLOPO_MATRIX"
 service = "ylopo-matrix-proxy"
+
+# hub/16 user module: accounts, revocable sessions, durable lockout.
+# Enabled on production 2026-08-18 per Scott's go. The worker feature-detects
+# this binding; removing the block reverts to legacy shared-password auth.
+[[d1_databases]]
+binding = "DB"
+database_name = "tlt-users"
+database_id = "5c2336e0-056e-4d2e-9d9c-7b6b6a6a6a08"
