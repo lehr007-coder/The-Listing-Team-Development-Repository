@@ -72,8 +72,11 @@ async function requireContactsAuth(request, env) {
 function validateApiKey(request, env) {
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
+  // Fail CLOSED. This used to return true when PROXY_API_KEY was unset, so a
+  // missing secret silently turned an auth check into a pass. The key is set on
+  // both environments, so this changes no behaviour today - it removes the trap.
   if (!envKey)
-    return true;
+    return false;
   return apiKey === envKey;
 }
 __name(validateApiKey, "validateApiKey");
@@ -23547,6 +23550,8 @@ var index_default = {
       };
       const TABLE = SB_URL + "/rest/v1/pipeline_items";
       if (method === "POST" && path === "/api/pipeline/vote") {
+        var pipeVoteGate = await requireContactsAuth(request, env);
+        if (pipeVoteGate) return pipeVoteGate;
         try {
           const body = await request.json();
           if (!body.id)
@@ -23578,6 +23583,8 @@ var index_default = {
         }
       }
       if (method === "POST" && path === "/api/pipeline") {
+        var pipeCreateGate = await requireContactsAuth(request, env);
+        if (pipeCreateGate) return pipeCreateGate;
         try {
           const body = await request.json();
           if (!body.title || !body.title.trim())
@@ -23592,8 +23599,13 @@ var index_default = {
             status: "idea",
             submitter_name: body.submitter_name ? String(body.submitter_name).slice(0, 80) : "Anonymous",
             submitter_email: body.submitter_email ? String(body.submitter_email).slice(0, 120) : null,
-            screenshot_data: body.screenshot_data ? String(body.screenshot_data).slice(0, 2e6) : null,
-            is_admin_item: body.is_admin_item === true,
+            screenshot_data: (function(s) {
+              if (!s) return null;
+              s = String(s);
+              if (s.slice(0, 11) !== "data:image/") return null;
+              return s.length > 512e3 ? null : s;
+            })(body.screenshot_data),
+            is_admin_item: body.is_admin_item === true && !!env.PIPELINE_ADMIN_PASS && request.headers.get("X-Pipeline-Admin") === env.PIPELINE_ADMIN_PASS,
             votes: 0
           };
           const res = await fetch(TABLE, { method: "POST", headers: sbH, body: JSON.stringify(item) });
@@ -24504,8 +24516,7 @@ var index_default = {
             name: payload.name || payload.full_name || ((payload.first_name || payload.firstName || "") + " " + (payload.last_name || payload.lastName || "")).trim() || null,
             phone: payload.phone || null,
             alertType: payload.alert_type || "hot_lead_qualified",
-            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-            raw: payload
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
           });
         } catch (e) {
           console.warn("HOT lead alert SSE broadcast failed:", e.message || e);
@@ -25238,6 +25249,8 @@ var index_default = {
       }
     }
     if (method === "GET" && path === "/events") {
+      const sseGate = await requireContactsAuth(request, env);
+      if (sseGate) return sseGate;
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
