@@ -70,10 +70,14 @@ async function requireContactsAuth(request, env) {
 }
 
 function validateApiKey(request, env) {
+  // PUNCHLIST-2026-08-18. This returned true when PROXY_API_KEY was unset, so
+  // a missing secret silently turned every API-key check into a pass. Both
+  // environments set it today, which is exactly why the failure mode would
+  // have gone unnoticed until the day one of them did not.
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
   if (!envKey)
-    return true;
+    return false;
   return apiKey === envKey;
 }
 __name(validateApiKey, "validateApiKey");
@@ -17886,6 +17890,7 @@ function openYlopoSegment(key) {
     .then(function(d) {
       var rows = (d && d.people) || [];
       if (!rows.length) { det.innerHTML = emptyState('Nobody in this list', 'The segment rule matched no one in the export.'); return; }
+      var loc = (d && d.ghlLocationId) || '';
       var head = '<div class="seg-actions">' +
         '<span style="font-size:12px;font-weight:700">' + ylEsc(d.label) + '</span>' +
         '<span style="font-size:11.5px;color:var(--text-secondary)">showing ' + rows.length.toLocaleString() +
@@ -17895,6 +17900,13 @@ function openYlopoSegment(key) {
       var body = rows.map(function(p) {
         var name = [p.first_name, p.last_name].filter(Boolean).join(' ') || '(no name)';
         var star = p.stars_url ? '<a href="' + ylEsc(p.stars_url) + '" target="_blank" rel="noopener">Ylopo</a>' : '';
+        // GHL-JOIN-2026-08-18. Only about 42 percent of the engaged list matches
+        // a GoHighLevel contact today, so this is blank rather than guessed when
+        // there is no id.
+        var ghl = (p.ghl_contact_id && loc)
+          ? ' <a href="https://app.gohighlevel.com/v2/location/' + ylEsc(loc) +
+            '/contacts/detail/' + ylEsc(p.ghl_contact_id) + '" target="_blank" rel="noopener">GHL</a>'
+          : '';
         return '<tr>' +
           '<td><div style="font-weight:600">' + ylEsc(name) + '</div>' +
             '<div style="font-size:11.5px;color:var(--text-secondary)">' + ylEsc(p.email) + '</div></td>' +
@@ -17905,7 +17917,7 @@ function openYlopoSegment(key) {
           '<td class="num">' + (Number(p.opened) || 0).toLocaleString() + '</td>' +
           '<td class="num">' + (Number(p.clicked) || 0).toLocaleString() + '</td>' +
           '<td>' + ylEsc(p.cities || '') + '</td>' +
-          '<td>' + star + '</td>' +
+          '<td style="white-space:nowrap">' + star + ghl + '</td>' +
         '</tr>';
       }).join('');
       det.innerHTML = head +
@@ -23178,7 +23190,8 @@ var index_default = {
         cold_opening:   { label: "Cold 6+ months, still opening", note: "Parked as long-term cold, still opening alerts." },
         seller_engaged: { label: "Seller alerts, engaged",        note: "On a seller alert and opening it." },
         higher_price:   { label: "Opening, 500k and above",       note: "Engaged, with a saved search topping 500k." },
-        all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." }
+        all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." },
+        in_ghl:         { label: "Engaged and already in GHL",     note: "GHL-JOIN-2026-08-18. Matched to a GoHighLevel contact by email, so these can be pushed straight into a smart list." }
       };
 
       if (path === "/ylopo/segments") {
@@ -23201,7 +23214,7 @@ var index_default = {
       if (!SEG_META[segKey]) return json({ error: "Unknown segment" }, 400);
       var wantCsv = (url.searchParams.get("format") || "") === "csv";
       var segLimit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10) || 100, wantCsv ? 5000 : 500);
-      var cols = "email,first_name,last_name,phone,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
+      var cols = "email,first_name,last_name,phone,ghl_contact_id,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
       var q = SB + "/rest/v1/ylopo_people?select=" + cols +
               "&segments=cs.%7B" + encodeURIComponent(segKey) + "%7D" +
               "&order=clicked.desc,opened.desc&limit=" + segLimit;
@@ -23211,7 +23224,9 @@ var index_default = {
         var people = await pRes.json().catch(function() { return []; });
         if (!Array.isArray(people)) people = [];
         if (!wantCsv) {
-          return new Response(JSON.stringify({ key: segKey, label: SEG_META[segKey].label, count: people.length, people: people }), {
+          return new Response(JSON.stringify({ key: segKey, label: SEG_META[segKey].label,
+            ghlLocationId: env.GHL_LOCATION_ID || LOC_ID || "",
+            count: people.length, people: people }), {
             headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
           });
         }
@@ -23518,6 +23533,9 @@ var index_default = {
       };
       const TABLE = SB_URL + "/rest/v1/pipeline_items";
       if (method === "POST" && path === "/api/pipeline/vote") {
+        // Same: voting was open, so the counts could be run up by anyone.
+        var pipeVoteGate = await requireContactsAuth(request, env);
+        if (pipeVoteGate) return pipeVoteGate;
         try {
           const body = await request.json();
           if (!body.id)
@@ -23549,6 +23567,11 @@ var index_default = {
         }
       }
       if (method === "POST" && path === "/api/pipeline") {
+        // PUNCHLIST-2026-08-18. Creating a board item took no credential at
+        // all. It is an internal board reached from a signed-in dashboard, so
+        // a session is the right bar.
+        var pipePostGate = await requireContactsAuth(request, env);
+        if (pipePostGate) return pipePostGate;
         try {
           const body = await request.json();
           if (!body.title || !body.title.trim())
@@ -25209,6 +25232,12 @@ var index_default = {
       }
     }
     if (method === "GET" && path === "/events") {
+      // PUNCHLIST-2026-08-18. This replays the last ten broadcast events, and
+      // those carry contact identity: hot.lead.alert and the GHL webhook
+      // handler both push contactId, email and name. Anonymously it was a live
+      // feed of whoever most recently came through the webhooks.
+      var evGate = await requireContactsAuth(request, env);
+      if (evGate) return evGate;
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
