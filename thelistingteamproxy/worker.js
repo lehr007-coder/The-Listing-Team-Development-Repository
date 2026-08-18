@@ -69,6 +69,22 @@ async function requireContactsAuth(request, env) {
   return json({ error: "Unauthorized: sign in or supply X-API-Key." }, 401);
 }
 
+// Admin-only gate for the user-management API. Session-based only — an API
+// key is a machine credential and machines do not manage user accounts.
+async function requireAdminSession(request, env) {
+  if (!env.DB)
+    return json({ error: "User accounts are not enabled in this environment" }, 501);
+  var adminGateSess = null;
+  try {
+    adminGateSess = await getSession(request, env);
+  } catch (e) {}
+  if (!adminGateSess)
+    return json({ error: "Unauthorized: sign in." }, 401);
+  if (adminGateSess.role !== "admin")
+    return json({ error: "Forbidden: admin only." }, 403);
+  return null;
+}
+
 function validateApiKey(request, env) {
   var apiKey = request.headers.get("X-API-Key") || "";
   var envKey = env.PROXY_API_KEY || "";
@@ -22298,6 +22314,128 @@ function broadcastSSE(event) {
 __name(broadcastSSE, "broadcastSSE");
 __name2(broadcastSSE, "broadcastSSE");
 __name22(broadcastSSE, "broadcastSSE");
+var USERS_ADMIN_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Listing Team &mdash; Users</title>
+<style>
+:root{--bg:#0b1520;--card:#14202C;--border:#33485C;--text:#E8EEF3;--text-secondary:#9FB2C1;--brand:#0D3B4F;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--yellow:#eab308}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:var(--text-secondary);font-size:13px;margin-bottom:20px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--text-secondary);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--border)}
+td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.b-admin{background:rgba(59,130,246,.15);color:#7fb3f7}
+.b-user{background:rgba(159,178,193,.15);color:var(--text-secondary)}
+.b-active{background:rgba(34,197,94,.15);color:#5ad283}
+.b-off{background:rgba(239,68,68,.15);color:#f28b8b}
+.b-locked{background:rgba(234,179,8,.18);color:#e6c458}
+button{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;margin:2px}
+button:hover{border-color:var(--accent)}
+button.danger{color:var(--red)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;padding:9px 16px}
+input,select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 11px;font-size:13px;width:100%}
+.grid{display:grid;grid-template-columns:2fr 2fr 1fr 2fr auto;gap:10px;align-items:end}
+label{display:block;font-size:11px;color:var(--text-secondary);font-weight:600;margin-bottom:4px}
+.msg{font-size:13px;margin-top:10px;min-height:18px}
+.msg.err{color:var(--red)}.msg.ok{color:var(--green)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+a.back{color:var(--text-secondary);font-size:13px;text-decoration:none}
+a.back:hover{color:var(--text)}
+@media(max-width:768px){.grid{grid-template-columns:1fr 1fr}.hide-m{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>&#128101; Team Accounts</h1><div class="sub">Create sign-ins, reset passwords, and revoke access. Changes take effect on the person's next request.</div></div>
+    <a class="back" href="/dashboard">&larr; Command Center</a>
+  </div>
+  <div class="panel">
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">Add a person</div>
+    <div class="grid">
+      <div><label>Email</label><input id="nEmail" type="email" placeholder="agent@thelistingteam.com"></div>
+      <div><label>Name</label><input id="nName" placeholder="Full name"></div>
+      <div><label>Role</label><select id="nRole"><option value="user">Agent</option><option value="admin">Admin</option></select></div>
+      <div><label>Password (min 12 chars) <a href="#" onclick="genPass();return false" style="color:var(--accent)">generate</a></label><input id="nPass" placeholder="Set a password"></div>
+      <div><button class="primary" onclick="createUser()">Add</button></div>
+    </div>
+    <div class="msg" id="cMsg"></div>
+  </div>
+  <div class="panel">
+    <div style="font-weight:700;font-size:14px;margin-bottom:12px">People</div>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Email</th><th class="hide-m">Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px">Loading&hellip;</td></tr></tbody>
+    </table></div>
+    <div class="msg" id="lMsg"></div>
+  </div>
+</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML}
+function genPass(){var a='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';var v=crypto.getRandomValues(new Uint8Array(16));var p='';for(var i=0;i<16;i++)p+=a[v[i]%a.length];document.getElementById('nPass').value=p}
+function msg(id,text,cls){var el=document.getElementById(id);el.textContent=text;el.className='msg '+(cls||'')}
+async function api(method,body){
+  var r=await fetch('/api/admin/users',{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  var j=await r.json().catch(function(){return{}});
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function load(){
+  try{
+    var j=await api('GET');
+    var now=Date.now();
+    var html=j.users.map(function(u){
+      var locked=(u.locked_until||0)>now;
+      var status=u.active!==1?'<span class="badge b-off">Deactivated</span>':locked?'<span class="badge b-locked">Locked</span>':'<span class="badge b-active">Active</span>';
+      var acts='';
+      if(u.active===1){acts+='<button class="danger" onclick="act(\\''+u.id+'\\',\\'deactivate\\')">Deactivate</button>';}
+      else{acts+='<button onclick="act(\\''+u.id+'\\',\\'activate\\')">Reactivate</button>';}
+      if(locked)acts+='<button onclick="act(\\''+u.id+'\\',\\'unlock\\')">Unlock</button>';
+      acts+='<button onclick="resetPw(\\''+u.id+'\\',\\''+esc(u.email)+'\\')">Reset password</button>';
+      acts+=u.role==='admin'?'<button onclick="setRole(\\''+u.id+'\\',\\'user\\')">Make agent</button>':'<button onclick="setRole(\\''+u.id+'\\',\\'admin\\')">Make admin</button>';
+      return '<tr><td>'+esc(u.email)+'</td><td class="hide-m">'+esc(u.name)+'</td><td><span class="badge '+(u.role==='admin'?'b-admin':'b-user')+'">'+esc(u.role)+'</span></td><td>'+status+'</td><td>'+acts+'</td></tr>';
+    }).join('');
+    document.getElementById('rows').innerHTML=html||'<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:24px">No accounts yet.</td></tr>';
+  }catch(e){
+    if(String(e.message).indexOf('Unauthorized')!==-1){location.href='/login?redirect=/dashboard/users';return}
+    document.getElementById('rows').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px">'+esc(e.message)+'</td></tr>';
+  }
+}
+async function createUser(){
+  msg('cMsg','');
+  try{
+    await api('POST',{email:document.getElementById('nEmail').value,name:document.getElementById('nName').value,role:document.getElementById('nRole').value,password:document.getElementById('nPass').value});
+    msg('cMsg','Added. Hand them their password now \\u2014 it is not shown again.','ok');
+    document.getElementById('nEmail').value='';document.getElementById('nName').value='';document.getElementById('nPass').value='';
+    load();
+  }catch(e){msg('cMsg',e.message,'err')}
+}
+async function act(id,action){
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:action});msg('lMsg','Done.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+async function setRole(id,role){
+  if(!confirm('Change role to '+role+'? They will be signed out and the role applies at their next sign-in.'))return;
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:'role',role:role});msg('lMsg','Role changed.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+async function resetPw(id,email){
+  var p=prompt('New password for '+email+' (min 12 characters):');
+  if(p===null)return;
+  msg('lMsg','');
+  try{await api('PATCH',{id:id,action:'reset_password',password:p});msg('lMsg','Password reset. They are signed out everywhere.','ok');load()}catch(e){msg('lMsg',e.message,'err')}
+}
+load();
+<\/script>
+</body></html>`;
 var LOGIN_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23406,6 +23544,107 @@ var index_default = {
         await reportError(e, "auth/login", env);
         return json({ error: "Server error" }, 500);
       }
+    }
+    // ---- User management (hub/28 follow-up): admin-only, D1-backed --------
+    if (path === "/api/admin/users") {
+      var uaGate = await requireAdminSession(request, env);
+      if (uaGate) return uaGate;
+      var uaNow = Date.now();
+      if (method === "GET") {
+        try {
+          var uaList = await env.DB.prepare("SELECT id, email, name, role, ghl_user_id, active, failed_login_count, locked_until, created_at, updated_at FROM users ORDER BY created_at ASC").all();
+          return json({ users: uaList && uaList.results || [] });
+        } catch (e) {
+          await reportError(e, "admin/users list", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      if (method === "POST") {
+        try {
+          var uaBodyP = await safeJsonParse(request);
+          if (uaBodyP && uaBodyP.error) return json({ error: uaBodyP.error }, 400);
+          var uaBody = uaBodyP && uaBodyP.data || {};
+          var uaEmail = String(uaBody.email || "").trim().toLowerCase();
+          var uaName = String(uaBody.name || "").trim().slice(0, 80);
+          var uaRole = uaBody.role === "admin" ? "admin" : "user";
+          var uaPass = String(uaBody.password || "");
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(uaEmail)) return json({ error: "Valid email required" }, 400);
+          if (uaPass.length < 12) return json({ error: "Password must be at least 12 characters" }, 400);
+          var uaSalt = [...crypto.getRandomValues(new Uint8Array(16))].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+          var uaHash = await pbkdf2Chain(uaPass, uaSalt, env.PASSWORD_PEPPER || "");
+          var uaId = "u-" + crypto.randomUUID();
+          await env.DB.prepare("INSERT INTO users (id,email,name,role,ghl_user_id,active,failed_login_count,locked_until,created_at,updated_at) VALUES (?1,?2,?3,?4,'',1,0,0,?5,?5)").bind(uaId, uaEmail, uaName || uaEmail.split("@")[0], uaRole, uaNow).run();
+          await env.DB.prepare("INSERT INTO auth_identities (user_id,pass_hash,pass_salt,updated_at) VALUES (?1,?2,?3,?4)").bind(uaId, uaHash, uaSalt, uaNow).run();
+          return json({ ok: true, id: uaId }, 201);
+        } catch (e) {
+          if (String(e && e.message || "").indexOf("UNIQUE") !== -1) return json({ error: "A user with that email already exists" }, 409);
+          await reportError(e, "admin/users create", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      if (method === "PATCH") {
+        try {
+          var upBodyP = await safeJsonParse(request);
+          if (upBodyP && upBodyP.error) return json({ error: upBodyP.error }, 400);
+          var upBody = upBodyP && upBodyP.data || {};
+          var upId = String(upBody.id || "");
+          var upAction = String(upBody.action || "");
+          if (!upId) return json({ error: "id required" }, 400);
+          var upSess = await getSession(request, env);
+          var upRow = await env.DB.prepare("SELECT id, active, role FROM users WHERE id = ?1").bind(upId).first();
+          if (!upRow) return json({ error: "No such user" }, 404);
+          if (upAction === "deactivate") {
+            // Self-lockout guard: the last thing an admin should be able to do
+            // by accident is remove their own way in.
+            if (upSess && upSess.uid === upId) return json({ error: "You cannot deactivate your own account" }, 400);
+            await env.DB.prepare("UPDATE users SET active = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "activate") {
+            await env.DB.prepare("UPDATE users SET active = 1, failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "unlock") {
+            await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "role") {
+            var upRole = upBody.role === "admin" ? "admin" : "user";
+            if (upSess && upSess.uid === upId && upRole !== "admin") return json({ error: "You cannot remove your own admin role" }, 400);
+            await env.DB.prepare("UPDATE users SET role = ?1, updated_at = ?2 WHERE id = ?3").bind(upRole, uaNow, upId).run();
+            // Rotate on role change (hub/16): revoke their sessions so the new
+            // role is picked up at a fresh sign-in, never mid-session.
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          if (upAction === "reset_password") {
+            var upPass = String(upBody.password || "");
+            if (upPass.length < 12) return json({ error: "Password must be at least 12 characters" }, 400);
+            var upSalt = [...crypto.getRandomValues(new Uint8Array(16))].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+            var upHash = await pbkdf2Chain(upPass, upSalt, env.PASSWORD_PEPPER || "");
+            await env.DB.prepare("UPDATE auth_identities SET pass_hash = ?1, pass_salt = ?2, updated_at = ?3 WHERE user_id = ?4").bind(upHash, upSalt, uaNow, upId).run();
+            await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(uaNow, upId).run();
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?1").bind(upId).run();
+            return json({ ok: true });
+          }
+          return json({ error: "Unknown action" }, 400);
+        } catch (e) {
+          await reportError(e, "admin/users patch", env);
+          return json({ error: "Server error" }, 500);
+        }
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+    if (method === "GET" && path === "/dashboard/users") {
+      var muSess = await getSession(request, env);
+      if (!muSess)
+        return new Response(null, { status: 302, headers: { "Location": "/login?redirect=/dashboard/users", "Cache-Control": "no-store" } });
+      if (muSess.role !== "admin")
+        return new Response("Admin only.", { status: 403, headers: { "Content-Type": "text/plain" } });
+      if (!env.DB)
+        return new Response("User accounts are not enabled in this environment.", { status: 501, headers: { "Content-Type": "text/plain" } });
+      return new Response(USERS_ADMIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
     }
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
