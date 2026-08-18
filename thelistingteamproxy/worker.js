@@ -4833,6 +4833,45 @@ function renderBuyerTab() {
   html += '</div>';
   html += '</div>';
 
+  // ---- Target Cities (hub/18: surface the saved-search enrichment) ----
+  // Aggregates the city each buyer is searching in, from GHL fields or the
+  // Ylopo saved-search export. Top 7 on the palette, everything else folded
+  // into Other - same convention as the seller tag chart.
+  var cityCounts = {};
+  buyers.forEach(function(b) {
+    var ct = String(b.city || '').trim();
+    if (!ct) return;
+    ct = ct.replace(/\b\w/g, function(ch) { return ch.toUpperCase(); });
+    cityCounts[ct] = (cityCounts[ct] || 0) + 1;
+  });
+  var cityRanked = Object.keys(cityCounts).map(function(k) { return { city: k, count: cityCounts[k] }; })
+    .sort(function(a, b) { return b.count - a.count; });
+  if (cityRanked.length) {
+    var cityTop = cityRanked.slice(0, 7);
+    var cityRest = cityRanked.slice(7);
+    var cityRestTotal = cityRest.reduce(function(s, r) { return s + r.count; }, 0);
+    var maxCity = cityTop[0].count || 1;
+    html += '<div class="panel" style="margin-bottom:20px">';
+    html += '<h4 style="margin:0 0 12px;font-size:14px">&#127961;&#65039; Target Cities <span style="font-weight:400;color:var(--text-secondary);font-size:12px">(where your buyers are searching)</span></h4>';
+    cityTop.forEach(function(r, ci) {
+      var pct = Math.round(r.count / maxCity * 100);
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<div style="width:130px;font-size:12px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(r.city) + '</div>' +
+        '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+        '<div style="width:' + pct + '%;height:100%;background:var(--chart-' + (ci + 1) + ');border-radius:4px;transition:width 0.3s"></div></div>' +
+        '<div style="width:34px;font-size:12px;font-weight:600">' + r.count + '</div></div>';
+    });
+    if (cityRestTotal > 0) {
+      var restPct = Math.round(cityRestTotal / maxCity * 100);
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px" title="' + esc(cityRest.map(function(r) { return r.city + ' (' + r.count + ')'; }).join(', ')) + '">' +
+        '<div style="width:130px;font-size:12px;text-align:right;color:var(--text-secondary)">Other (' + cityRest.length + ')</div>' +
+        '<div style="flex:1;height:20px;background:var(--surface,var(--bg));border-radius:4px;overflow:hidden">' +
+        '<div style="width:' + Math.min(restPct, 100) + '%;height:100%;background:var(--chart-8);border-radius:4px;transition:width 0.3s"></div></div>' +
+        '<div style="width:34px;font-size:12px;font-weight:600">' + cityRestTotal + '</div></div>';
+    }
+    html += '</div>';
+  }
+
   // ---- Hottest Buyers Pipeline ----
   var hotBuyers = buyers.filter(function(b) { return b.readiness >= 40; }).sort(function(a, b) { return b.readiness - a.readiness; }).slice(0, 12);
   if (hotBuyers.length) {
@@ -22310,6 +22349,8 @@ async function _hmacSign(payload, secret) {
 __name(_hmacSign, "_hmacSign");
 async function createSessionToken(user, secret) {
   var data = { uid: user.uid || "", email: user.email || "", name: user.name || "", role: user.role || "user", loc: user.loc || "", exp: Date.now() + 864e5 };
+  if (user.bg) data.bg = 1;
+  if (user.ghlUid) data.ghlUid = user.ghlUid;
   var payload = btoa(JSON.stringify(data));
   var sig = await _hmacSign(payload, secret);
   return payload + "." + sig;
@@ -22332,14 +22373,112 @@ async function parseSessionToken(token, secret) {
   }
 }
 __name(parseSessionToken, "parseSessionToken");
-async function getSession(request, env) {
+// ---------------------------------------------------------------------------
+// D1 user accounts (hub/16 Tasks 2-4). All of it feature-detects env.DB so an
+// environment without the binding (production, until enabled deliberately)
+// keeps the exact legacy behaviour: shared-password login, stateless session.
+// ---------------------------------------------------------------------------
+var SESSION_IDLE_MS = 12 * 60 * 60 * 1e3;
+async function _sha256Hex(s) {
+  var h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(h)].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+__name(_sha256Hex, "_sha256Hex");
+// Chained WebCrypto PBKDF2 — a NON-STANDARD construction, on purpose.
+// WebCrypto hard-caps PBKDF2 at 100,000 iterations per call; OWASP wants
+// 600,000 for SHA-256. Six chained rounds (each round's 32-byte output is the
+// next round's key material, round index mixed into the salt) reach that work
+// factor without touching this worker's 2024-01-01 compatibility date, which
+// nodejs scrypt would require. Trade-off, stated honestly: PBKDF2 is not
+// memory-hard, so it is weaker against GPU cracking than scrypt/Argon2id.
+// For ~16 internal users behind an HMAC-applied server-side pepper and
+// durable account lockout, that is the accepted trade (hub/16, hub/28).
+// This hash will NOT interoperate with a standard PBKDF2 verifier.
+async function pbkdf2Chain(pass, saltHex, pepper) {
+  var enc = new TextEncoder();
+  // Pepper via HMAC, never string concatenation — a prior build lost a day
+  // to a NUL byte silently replacing the separator (hub/16).
+  var pepKey = await crypto.subtle.importKey("raw", enc.encode(pepper || "no-pepper"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  var material = new Uint8Array(await crypto.subtle.sign("HMAC", pepKey, enc.encode(pass)));
+  var salt = new Uint8Array((saltHex.match(/.{2}/g) || []).map(function(x) { return parseInt(x, 16); }));
+  for (var round = 0; round < 6; round++) {
+    var key = await crypto.subtle.importKey("raw", material, "PBKDF2", false, ["deriveBits"]);
+    var roundSalt = new Uint8Array(salt.length + 1);
+    roundSalt.set(salt);
+    roundSalt[salt.length] = round;
+    material = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: roundSalt, iterations: 1e5 }, key, 256));
+  }
+  return [...material].map(function(b) { return b.toString(16).padStart(2, "0"); }).join("");
+}
+__name(pbkdf2Chain, "pbkdf2Chain");
+function _ctEq(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  var r = 0;
+  for (var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+__name(_ctEq, "_ctEq");
+// __Host- prefix: requires Secure + Path=/ + no Domain (all true here), and
+// renaming the cookie invalidates every pre-existing non-revocable token at
+// cutover — the mass logout hub/16 calls for.
+function mkHostCookie(token) {
+  return "__Host-tlt_session=" + encodeURIComponent(token) + "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400";
+}
+__name(mkHostCookie, "mkHostCookie");
+function clearHostCookie() {
+  return "__Host-tlt_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
+}
+__name(clearHostCookie, "clearHostCookie");
+function _sessionCookieFrom(request) {
   var cookies = request.headers.get("Cookie") || "";
-  var m = cookies.match(/tlt_session=([^;]+)/);
-  if (!m)
+  var m = cookies.match(/__Host-tlt_session=([^;]+)/) || cookies.match(/(?:^|;\s*)tlt_session=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+__name(_sessionCookieFrom, "_sessionCookieFrom");
+async function getSession(request, env) {
+  var tok = _sessionCookieFrom(request);
+  if (!tok)
     return null;
   if (!env.SESSION_SECRET)
     return null;
-  return parseSessionToken(decodeURIComponent(m[1]), env.SESSION_SECRET);
+  var sess = await parseSessionToken(tok, env.SESSION_SECRET);
+  if (!sess)
+    return null;
+  // Break-glass sessions are stateless by design: the emergency path must
+  // work even when D1 is down. Explicitly labelled, 24h max life.
+  if (sess.bg === 1)
+    return sess;
+  if (!env.DB)
+    return sess;
+  // Account sessions: the HMAC check above is the outer layer; the D1 row is
+  // the revocation layer. Missing row, revoked, absolute- or idle-expired,
+  // or deactivated user -> no session. D1 errors fail CLOSED.
+  try {
+    var th = await _sha256Hex(tok);
+    var row = await env.DB.prepare("SELECT s.revoked, s.last_seen, s.expires_at, u.active, u.role, u.name, u.email, u.ghl_user_id FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?1").bind(th).first();
+    var nowMs = Date.now();
+    if (!row || row.revoked === 1 || (row.expires_at || 0) <= nowMs)
+      return null;
+    if ((row.last_seen || 0) + SESSION_IDLE_MS <= nowMs)
+      return null;
+    if (row.active !== 1)
+      return null;
+    if ((row.last_seen || 0) + 6e4 < nowMs) {
+      try {
+        await env.DB.prepare("UPDATE sessions SET last_seen = ?1 WHERE token_hash = ?2").bind(nowMs, th).run();
+      } catch (e) {
+      }
+    }
+    // Prefer the DB row so role/name changes take effect on the next request.
+    sess.role = row.role || sess.role;
+    sess.name = row.name || sess.name;
+    sess.email = row.email || sess.email;
+    if (row.ghl_user_id)
+      sess.ghlUid = row.ghl_user_id;
+    return sess;
+  } catch (e) {
+    return null;
+  }
 }
 __name(getSession, "getSession");
 async function sendNotification(env, eventType, data) {
@@ -23116,7 +23255,20 @@ var index_default = {
       return new Response(LOGIN_HTML, { status: 200, headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" } });
     }
     if (path === "/auth/logout") {
-      return new Response(null, { status: 302, headers: { "Location": "/login", "Set-Cookie": clearCookie(), "Cache-Control": "no-store" } });
+      // Revoke the D1 session row so logout takes effect on the very next
+      // request, then clear both cookie generations.
+      try {
+        if (env.DB) {
+          var loTok = _sessionCookieFrom(request);
+          if (loTok)
+            await env.DB.prepare("UPDATE sessions SET revoked = 1 WHERE token_hash = ?1").bind(await _sha256Hex(loTok)).run();
+        }
+      } catch (e) {
+      }
+      var loHeaders = new Headers({ "Location": "/login", "Cache-Control": "no-store" });
+      loHeaders.append("Set-Cookie", clearCookie());
+      loHeaders.append("Set-Cookie", clearHostCookie());
+      return new Response(null, { status: 302, headers: loHeaders });
     }
     if (path === "/auth/me") {
       var meSession = await getSession(request, env);
@@ -23163,9 +23315,9 @@ var index_default = {
         if (!loginBody || !loginBody.email || !loginBody.pass) {
           return json({ error: "Missing fields" }, 400);
         }
-        if (!env.PROXY_ADMIN_PASS)
-          return json({ error: "Server misconfigured: PROXY_ADMIN_PASS not set" }, 500);
-        var adminPass = env.PROXY_ADMIN_PASS;
+        if (!env.SESSION_SECRET)
+          return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
+        var loginSecret = env.SESSION_SECRET;
         var rl = await checkLoginRateLimit(request);
         if (!rl.ok) {
           return new Response(JSON.stringify({ error: "Too many attempts" }), {
@@ -23173,14 +23325,70 @@ var index_default = {
             headers: { "Content-Type": "application/json", "Retry-After": String(rl.retryAfter || 60) }
           });
         }
-        if (loginBody.pass !== adminPass) {
+        if (env.DB) {
+          // D1 account path (hub/16 Tasks 2 and 4). Look the user up by email,
+          // verify against auth_identities, enforce durable per-account
+          // lockout, and issue a REVOCABLE session (row in D1).
+          var loginEmail = String(loginBody.email).trim().toLowerCase();
+          var acct = null;
+          try {
+            acct = await env.DB.prepare("SELECT u.id, u.email, u.name, u.role, u.ghl_user_id, u.active, u.failed_login_count, u.locked_until, a.pass_hash, a.pass_salt FROM users u JOIN auth_identities a ON a.user_id = u.id WHERE u.email = ?1").bind(loginEmail).first();
+          } catch (dbe) {
+            await reportError(dbe, "auth/login d1 lookup", env);
+          }
+          var nowMs = Date.now();
+          // Burn the full hash cost whether or not the account exists, so a
+          // missing account is indistinguishable from a wrong password.
+          var candidate = await pbkdf2Chain(String(loginBody.pass), acct ? acct.pass_salt : "00000000000000000000000000000000", env.PASSWORD_PEPPER || "");
+          var passOk = !!(acct && _ctEq(candidate, acct.pass_hash));
+          var usable = !!(acct && acct.active === 1 && (acct.locked_until || 0) <= nowMs);
+          if (acct && usable && !passOk) {
+            // 5 failures -> 15-minute lock, persisted on the users row so it
+            // survives isolates and redeploys.
+            var fails = (acct.failed_login_count || 0) + 1;
+            try {
+              await env.DB.prepare("UPDATE users SET failed_login_count = ?1, locked_until = ?2, updated_at = ?3 WHERE id = ?4").bind(fails >= 5 ? 0 : fails, fails >= 5 ? nowMs + 9e5 : 0, nowMs, acct.id).run();
+            } catch (e2) {
+            }
+          }
+          if (passOk && usable) {
+            try {
+              await env.DB.prepare("UPDATE users SET failed_login_count = 0, locked_until = 0, updated_at = ?1 WHERE id = ?2").bind(nowMs, acct.id).run();
+            } catch (e3) {
+            }
+            clearLoginAttempts(rl.key);
+            var acctTok = await createSessionToken({ uid: acct.id, email: acct.email, name: acct.name || acct.email.split("@")[0], role: acct.role || "user", loc: env.GHL_LOCATION_ID || LOC_ID, ghlUid: acct.ghl_user_id || "" }, loginSecret);
+            try {
+              await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, created_at, last_seen, expires_at, revoked) VALUES (?1, ?2, ?3, ?3, ?4, 0)").bind(await _sha256Hex(acctTok), acct.id, nowMs, nowMs + 864e5).run();
+            } catch (e4) {
+              await reportError(e4, "auth/login session insert", env);
+              return json({ error: "Server error" }, 500);
+            }
+            return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkHostCookie(acctTok) } });
+          }
+          // Break-glass: the shared PROXY_ADMIN_PASS survives as an explicitly
+          // labelled emergency path (kept per Scott, 2026-08-18). Stateless by
+          // design so it works when D1 is down; bg:1 in the token; not
+          // revocable for its 24h life. Uniform failure otherwise: "Invalid"
+          // never reveals whether the account exists or is locked.
+          if (env.PROXY_ADMIN_PASS && String(loginBody.pass) === env.PROXY_ADMIN_PASS) {
+            clearLoginAttempts(rl.key);
+            var bgTok = await createSessionToken({ uid: "direct", email: loginEmail, name: loginEmail.split("@")[0] + " (break-glass)", role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID, bg: 1 }, loginSecret);
+            return new Response(JSON.stringify({ ok: true, breakGlass: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkHostCookie(bgTok) } });
+          }
+          noteFailedLogin(rl.key, rl.entry);
+          return json({ error: "Invalid" }, 401);
+        }
+        // Legacy path — no D1 binding in this environment (production, until
+        // the module is enabled there deliberately). Identical behaviour to
+        // before the user module existed.
+        if (!env.PROXY_ADMIN_PASS)
+          return json({ error: "Server misconfigured: PROXY_ADMIN_PASS not set" }, 500);
+        if (loginBody.pass !== env.PROXY_ADMIN_PASS) {
           noteFailedLogin(rl.key, rl.entry);
           return json({ error: "Invalid" }, 401);
         }
         clearLoginAttempts(rl.key);
-        if (!env.SESSION_SECRET)
-          return json({ error: "Server misconfigured: SESSION_SECRET not set" }, 500);
-        var loginSecret = env.SESSION_SECRET;
         var loginToken = await createSessionToken({ uid: "direct", email: loginBody.email, name: loginBody.email.split("@")[0], role: "admin", loc: env.GHL_LOCATION_ID || LOC_ID }, loginSecret);
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", "Set-Cookie": mkCookie(loginToken) } });
       } catch (e) {
