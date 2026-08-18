@@ -17944,6 +17944,7 @@ function openYlopoSegment(key) {
     .then(function(d) {
       var rows = (d && d.people) || [];
       if (!rows.length) { det.innerHTML = emptyState('Nobody in this list', 'The segment rule matched no one in the export.'); return; }
+      var loc = (d && d.ghlLocationId) || '';
       var head = '<div class="seg-actions">' +
         '<span style="font-size:12px;font-weight:700">' + ylEsc(d.label) + '</span>' +
         '<span style="font-size:11.5px;color:var(--text-secondary)">showing ' + rows.length.toLocaleString() +
@@ -17953,6 +17954,13 @@ function openYlopoSegment(key) {
       var body = rows.map(function(p) {
         var name = [p.first_name, p.last_name].filter(Boolean).join(' ') || '(no name)';
         var star = p.stars_url ? '<a href="' + ylEsc(p.stars_url) + '" target="_blank" rel="noopener">Ylopo</a>' : '';
+        // GHL-JOIN-2026-08-18. Only about 42 percent of the engaged list matches
+        // a GoHighLevel contact today, so this is blank rather than guessed when
+        // there is no id.
+        var ghl = (p.ghl_contact_id && loc)
+          ? ' <a href="https://app.gohighlevel.com/v2/location/' + ylEsc(loc) +
+            '/contacts/detail/' + ylEsc(p.ghl_contact_id) + '" target="_blank" rel="noopener">GHL</a>'
+          : '';
         return '<tr>' +
           '<td><div style="font-weight:600">' + ylEsc(name) + '</div>' +
             '<div style="font-size:11.5px;color:var(--text-secondary)">' + ylEsc(p.email) + '</div></td>' +
@@ -17963,7 +17971,7 @@ function openYlopoSegment(key) {
           '<td class="num">' + (Number(p.opened) || 0).toLocaleString() + '</td>' +
           '<td class="num">' + (Number(p.clicked) || 0).toLocaleString() + '</td>' +
           '<td>' + ylEsc(p.cities || '') + '</td>' +
-          '<td>' + star + '</td>' +
+          '<td style="white-space:nowrap">' + star + ghl + '</td>' +
         '</tr>';
       }).join('');
       det.innerHTML = head +
@@ -22678,6 +22686,55 @@ function _sessionCookieFrom(request) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 __name(_sessionCookieFrom, "_sessionCookieFrom");
+/* SSO-D1-2026-08-18. getSession treats the D1 sessions row as the revocation
+   layer and returns null when it is missing. Password login inserts that row;
+   the two SSO paths did not, so with DB bound every SSO sign-in produced a
+   cookie that was rejected on the very next request. This gives them the same
+   treatment: find or create the user, then record the session so it is
+   revocable like any other.
+
+   With no DB binding this is a no-op, which is why production - which has no
+   binding yet - behaved correctly either way. */
+async function ssoRecordSession(env, token, who) {
+  if (!env.DB) return true;
+  var nowMs = Date.now();
+  var ghlUid = (who && who.ghlUid) || "";
+  var email = ((who && who.email) || "").trim();
+  var name = ((who && who.name) || "").trim();
+  var role = (who && who.role) || "user";
+  try {
+    var user = null;
+    if (ghlUid) {
+      user = await env.DB.prepare("SELECT id, active FROM users WHERE ghl_user_id = ?1").bind(ghlUid).first();
+    }
+    if (!user && email) {
+      user = await env.DB.prepare("SELECT id, active FROM users WHERE email = ?1").bind(email).first();
+    }
+    if (user && user.active !== 1) return false;
+    var userId;
+    if (user) {
+      userId = user.id;
+      await env.DB.prepare("UPDATE users SET role = ?1, name = COALESCE(NULLIF(?2,''), name), ghl_user_id = COALESCE(NULLIF(?3,''), ghl_user_id), updated_at = ?4 WHERE id = ?5")
+        .bind(role, name, ghlUid, nowMs, userId).run();
+    } else {
+      userId = crypto.randomUUID();
+      // users.email is NOT NULL UNIQUE. A GHL SSO caller does not always carry
+      // one, so a clearly synthetic placeholder keeps the row valid without
+      // inventing a real address.
+      var emailForRow = email || ("ghl-" + (ghlUid || userId) + ".sso.local");
+      await env.DB.prepare("INSERT INTO users (id, email, name, role, ghl_user_id, active, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6)")
+        .bind(userId, emailForRow, name, role, ghlUid, nowMs).run();
+    }
+    await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, created_at, last_seen, expires_at, revoked) VALUES (?1, ?2, ?3, ?3, ?4, 0)")
+      .bind(await _sha256Hex(token), userId, nowMs, nowMs + 864e5).run();
+    return true;
+  } catch (e) {
+    await reportError(e, "sso session insert", env);
+    return false;
+  }
+}
+__name(ssoRecordSession, "ssoRecordSession");
+
 async function getSession(request, env) {
   var tok = _sessionCookieFrom(request);
   if (!tok)
@@ -23489,6 +23546,11 @@ var index_default = {
         role: ssoRole,
         loc: ssoPayload.locationId || (env.GHL_LOCATION_ID || LOC_ID)
       }, ssoSecret);
+      var ssoOk = await ssoRecordSession(env, ssoSessionToken, {
+        ghlUid: ssoPayload.userId, email: ssoPayload.email || "",
+        name: ssoPayload.userName || "", role: ssoRole
+      });
+      if (!ssoOk) return json({ error: "Could not start a session" }, 503);
       return new Response(null, {
         status: 302,
         headers: { "Location": "/dashboard", "Set-Cookie": mkSsoCookie(ssoSessionToken), "Cache-Control": "no-store" }
@@ -23543,6 +23605,10 @@ var index_default = {
         });
       }
       var ghlToken = await createSessionToken({ uid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole, loc: ghlLoc }, sessSecret);
+      var ghlOk = await ssoRecordSession(env, ghlToken, {
+        ghlUid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole
+      });
+      if (!ghlOk) return json({ error: "Could not start a session" }, 503);
       return new Response(null, { status: 302, headers: { "Location": ghlRedirect, "Set-Cookie": mkCookie(ghlToken), "Cache-Control": "no-store" } });
     }
     if (path === "/auth/login" && method === "POST") {
@@ -23762,7 +23828,8 @@ var index_default = {
         cold_opening:   { label: "Cold 6+ months, still opening", note: "Parked as long-term cold, still opening alerts." },
         seller_engaged: { label: "Seller alerts, engaged",        note: "On a seller alert and opening it." },
         higher_price:   { label: "Opening, 500k and above",       note: "Engaged, with a saved search topping 500k." },
-        all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." }
+        all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." },
+        in_ghl:         { label: "Engaged and already in GHL",     note: "GHL-JOIN-2026-08-18. Matched to a GoHighLevel contact by email, so these can be pushed straight into a smart list." }
       };
 
       if (path === "/ylopo/segments") {
@@ -23785,7 +23852,7 @@ var index_default = {
       if (!SEG_META[segKey]) return json({ error: "Unknown segment" }, 400);
       var wantCsv = (url.searchParams.get("format") || "") === "csv";
       var segLimit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10) || 100, wantCsv ? 5000 : 500);
-      var cols = "email,first_name,last_name,phone,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
+      var cols = "email,first_name,last_name,phone,ghl_contact_id,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
       var q = SB + "/rest/v1/ylopo_people?select=" + cols +
               "&segments=cs.%7B" + encodeURIComponent(segKey) + "%7D" +
               "&order=clicked.desc,opened.desc&limit=" + segLimit;
@@ -23795,7 +23862,9 @@ var index_default = {
         var people = await pRes.json().catch(function() { return []; });
         if (!Array.isArray(people)) people = [];
         if (!wantCsv) {
-          return new Response(JSON.stringify({ key: segKey, label: SEG_META[segKey].label, count: people.length, people: people }), {
+          return new Response(JSON.stringify({ key: segKey, label: SEG_META[segKey].label,
+            ghlLocationId: env.GHL_LOCATION_ID || LOC_ID || "",
+            count: people.length, people: people }), {
             headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
           });
         }
@@ -24103,6 +24172,7 @@ var index_default = {
       };
       const TABLE = SB_URL + "/rest/v1/pipeline_items";
       if (method === "POST" && path === "/api/pipeline/vote") {
+        // Same: voting was open, so the counts could be run up by anyone.
         var pipeVoteGate = await requireContactsAuth(request, env);
         if (pipeVoteGate) return pipeVoteGate;
         try {
@@ -24136,6 +24206,9 @@ var index_default = {
         }
       }
       if (method === "POST" && path === "/api/pipeline") {
+        // PUNCHLIST-2026-08-18. Creating a board item took no credential at
+        // all. It is an internal board reached from a signed-in dashboard, so
+        // a session is the right bar.
         var pipeCreateGate = await requireContactsAuth(request, env);
         if (pipeCreateGate) return pipeCreateGate;
         try {
@@ -25802,6 +25875,10 @@ var index_default = {
       }
     }
     if (method === "GET" && path === "/events") {
+      // PUNCHLIST-2026-08-18. This replays the last ten broadcast events, and
+      // those carry contact identity: hot.lead.alert and the GHL webhook
+      // handler both push contactId, email and name. Anonymously it was a live
+      // feed of whoever most recently came through the webhooks.
       const sseGate = await requireContactsAuth(request, env);
       if (sseGate) return sseGate;
       const { readable, writable } = new TransformStream();
