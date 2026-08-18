@@ -21706,6 +21706,8 @@ a{color:var(--blue);text-decoration:none}
 .pipe-card{background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:12px;cursor:grab;transition:all .15s;user-select:none}
 .pipe-card:hover{border-color:var(--blue);background:var(--card);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.35);cursor:grab}
 .pipe-card:active{cursor:grabbing}
+.pipe-card.nodrag{cursor:pointer}
+.col-body.drag-over{outline:2px dashed var(--blue);outline-offset:-4px}
 .col-body.drag-over{background:rgba(59,130,246,0.15);border-color:var(--blue);border-width:2px}
 .card-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
@@ -21999,26 +22001,51 @@ function renderBoard(){
     var list=items.filter(function(i){return i.status===s.key;});
     list.sort(function(a,b){return (b.votes||0)-(a.votes||0);});
     if(cnt)cnt.textContent=list.length;
-    if(!list.length){col.innerHTML='<div class="col-empty">No items yet</div>';return;}
+    // Drop handlers are attached to EVERY column before the empty-column bail-out.
+    // They used to sit after it, so an empty stage could never receive a card.
+    col.ondragover=function(e){if(!draggedCardId)return;e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over');};
+    col.ondragenter=function(e){if(!draggedCardId)return;e.preventDefault();col.classList.add('drag-over');};
+    col.ondragleave=function(e){if(e.target===col)col.classList.remove('drag-over');};
+    col.ondrop=function(e){e.preventDefault();col.classList.remove('drag-over');dropCardToStatus(e,s.key);};
+    if(!list.length){col.innerHTML='<div class="col-empty">'+(isAdmin?'Drop a card here':'No items yet')+'</div>';return;}
     col.innerHTML=list.map(buildCard).join('');
-    // Add drop zone handlers
-    col.ondragover=function(e){e.preventDefault();e.dataTransfer.dropEffect='move';col.style.opacity='0.8';col.style.borderColor='var(--blue)';};
-    col.ondragleave=function(e){col.style.opacity='1';col.style.borderColor='';};
-    col.ondrop=function(e){e.preventDefault();dropCardToStatus(e,s.key);col.style.opacity='1';col.style.borderColor='';};
   });
 }
-function dragStartCard(e,id){draggedCardId=id;e.dataTransfer.effectAllowed='move';e.target.style.opacity='0.5';}
-function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';}
+function clearDropHighlight(){
+  var cols=document.querySelectorAll('.col-body.drag-over');
+  for(var i=0;i<cols.length;i++)cols[i].classList.remove('drag-over');
+}
+function dragStartCard(e,id){
+  // Moving a card is a PATCH, which the worker gates on X-Pipeline-Admin.
+  // Without the secret the drop would 401, so refuse the drag up front.
+  if(!isAdmin||!pipelineAdminSecret){e.preventDefault();showToast('Unlock Admin to move cards','error');return false;}
+  draggedCardId=id;
+  e.dataTransfer.effectAllowed='move';
+  try{e.dataTransfer.setData('text/plain',id);}catch(err){}
+  e.target.style.opacity='0.5';
+}
+function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';clearDropHighlight();}
 function dropCardToStatus(e,newStatus){
   if(!draggedCardId)return;
-  var item=items.find(function(i){return i.id===draggedCardId;});
+  var movedId=draggedCardId;
+  var item=items.find(function(i){return i.id===movedId;});
   if(!item||item.status===newStatus)return;
-  item.status=newStatus;item.target_date=null;
-  try{
-    fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:draggedCardId,status:newStatus})}).then(function(r){
-      if(!r.ok)throw new Error('Update failed');renderBoard();showToast('Moved to '+newStatus,'success');
-    }).catch(function(e){showToast('Error: '+e.message,'error');item.status=draggedCardId;renderBoard();});
-  }catch(e){showToast('Error: '+e.message,'error');}
+  if(!pipelineAdminSecret){showToast('Unlock Admin to move cards','error');openAdminModal();return;}
+  var prevStatus=item.status;
+  item.status=newStatus;
+  renderBoard();renderStats();
+  fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:movedId,status:newStatus})}).then(function(r){
+    return r.json().catch(function(){return {};}).then(function(d){
+      if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+      if(d.item&&d.item.updated_at)item.updated_at=d.item.updated_at;
+      showToast('Moved to '+newStatus,'success');
+    });
+  }).catch(function(err){
+    // Restore the status we came from. This used to assign the card id to
+    // item.status, which left the board holding a UUID as a stage.
+    item.status=prevStatus;renderBoard();renderStats();
+    showToast('Move failed: '+err.message,'error');
+  });
 }
 
 function buildCard(item){
@@ -22027,7 +22054,8 @@ function buildCard(item){
   var voted=localStorage.getItem('pv_'+item.id)==='1';
   var adminTag=item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin</span>':'';
   var desc=item.description?(item.description.length>90?item.description.slice(0,90)+'...':item.description):'';
-  return '<div class="pipe-card" draggable="true" ondragstart="dragStartCard(event,&#39;'+item.id+'&#39;)" ondragend="dragEndCard(event)" onclick="openDetail(&#39;'+item.id+'&#39;)">'+
+  var canDrag=!!(isAdmin&&pipelineAdminSecret);
+  return '<div class="pipe-card'+(canDrag?'':' nodrag')+'" draggable="'+(canDrag?'true':'false')+'"'+(canDrag?'':' title="Unlock Admin to move cards"')+' ondragstart="dragStartCard(event,&#39;'+item.id+'&#39;)" ondragend="dragEndCard(event)" onclick="openDetail(&#39;'+item.id+'&#39;)">'+
     '<div class="card-badges">'+
       '<span class="badge" style="background:'+rgba(cc,0.15)+';color:var(--text)">'+esc(item.category)+'</span>'+
       '<span class="badge" style="background:'+rgba(pc,0.15)+';color:var(--text)">'+esc(item.priority)+'</span>'+
@@ -22187,6 +22215,7 @@ function adminUnlock(){
     closeAdminModal();
     g('adminBadge').style.display='inline-flex';
     g('adminBtn').style.display='none';
+    if(items.length){renderBoard();renderStats();}
     showToast('&#11088; Admin mode active','success');
   }else{
     if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
