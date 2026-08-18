@@ -13516,12 +13516,12 @@ body.dark .seller-section{background:linear-gradient(135deg,#1c1917,#292524);bor
     </label>
     <label class="ctl"><span class="ctl-cap">Date range</span>
       <select onchange="LOAD_DAYS=Number(this.value);loadData()">
-        <option value="30"30 Days> selected</option>
-        <option value="60"60 Days></option>
-        <option value="90"90 Days></option>
-        <option value="180"6 Months></option>
-        <option value="365"1 Year></option>
-        <option value="0"All Time></option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="60">Last 60 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="180">Last 6 months</option>
+        <option value="365">Last year</option>
+        <option value="0">All time</option>
       </select>
     </label>
     <button class="hdr-btn primary" onclick="loadData()">&#8635; Refresh</button>
