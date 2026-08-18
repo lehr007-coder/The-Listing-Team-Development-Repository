@@ -13574,6 +13574,7 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
     <div class="sidenav-label">On this page</div>
     <a class="nav-item" href="#dbWideSection"><span class="nav-ico">&#128452;</span> Database-wide</a>
     <a class="nav-item" href="#agentSection"><span class="nav-ico">&#128101;</span> By Agent</a>
+    <a class="nav-item" href="#ylopoSection"><span class="nav-ico">&#128233;</span> Ylopo alerts</a>
     <a class="nav-item" href="#sourceTableWrap"><span class="nav-ico">&#128225;</span> Sources</a>
   </nav>
 
@@ -13829,6 +13830,42 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
     <div class="analytics-card">
       <h3>\u{1F4CB} Contacts per assigned user <span style="margin-left:auto;font-size:11px;font-weight:500;color:var(--text-secondary)">all contacts</span></h3>
       <div id="agentWrap"></div>
+    </div>
+  </div>
+
+  <!-- YLOPO ALERT PROGRAM - YLOPO-INSIGHTS-2026-08-18.
+       Fed by /ylopo/insights, which reads aggregates from the Ylopo master
+       alert export. Hidden until that fetch succeeds, same contract as the
+       other database-wide sections. -->
+  <div class="analytics-section" id="ylopoSection" style="display:none">
+    <h2><span class="emoji">&#128233;</span> Ylopo alert program
+      <span style="font-size:11px;font-weight:500;color:var(--text-secondary);margin-left:10px" id="ylopoStamp"></span>
+    </h2>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Alerts on file</div><div class="stat-value" id="ylAlerts">&mdash;</div><div class="stat-sub" style="font-size:10px;opacity:.75">saved searches, not people</div></div>
+      <div class="stat-card"><div class="stat-label">Still active</div><div class="stat-value" id="ylActive">&mdash;</div><div class="stat-sub" id="ylActivePct" style="font-size:10px;opacity:.75"></div></div>
+      <div class="stat-card"><div class="stat-label">Open rate</div><div class="stat-value" id="ylOpenRate">&mdash;</div><div class="stat-sub" id="ylSent" style="font-size:10px;opacity:.75"></div></div>
+      <div class="stat-card"><div class="stat-label">Click rate</div><div class="stat-value" id="ylClickRate">&mdash;</div><div class="stat-sub" id="ylClicked" style="font-size:10px;opacity:.75"></div></div>
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>&#128276; Alert health <span style="margin-left:auto">export snapshot</span></h3>
+        <div id="ylAlertWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>&#128200; Open and click rate by stage <span style="margin-left:auto">export snapshot</span></h3>
+        <div id="ylStageWrap"></div>
+      </div>
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-card">
+        <h3>&#128225; Alerts by source <span style="margin-left:auto">export snapshot</span></h3>
+        <div id="ylSourceWrap"></div>
+      </div>
+      <div class="analytics-card">
+        <h3>&#127968; Searched cities <span style="margin-left:auto">export snapshot</span></h3>
+        <div id="ylCityWrap"></div>
+      </div>
     </div>
   </div>
 
@@ -15408,6 +15445,7 @@ async function loadData(forceRefresh) {
     // Non-blocking: the summary is tiny and fast, but nothing here waits on it.
     try { setTimeout(loadDbWideSummary, 0); } catch (e) {}
     try { setTimeout(loadAgentBreakdown, 0); } catch (e) {}
+    try { setTimeout(loadYlopoInsights, 0); } catch (e) {}
     if (data.meta && Number(data.meta.pages) >= Math.min(BULK_PAGES, SERVER_PAGE_CAP)) {
       console.warn('[analytics] Contact load is CAPPED at ' + allRaw.length + ' contacts (server limit ' + SERVER_PAGE_CAP + ' pages). Totals on this page describe the most recent ' + allRaw.length + ' leads, not the whole database.');
       try { toast('Showing the most recent ' + allRaw.length + ' leads (server cap) - not the full database', 'error'); } catch (e) {}
@@ -17742,6 +17780,91 @@ function loadAgentBreakdown() {
       if (el('agentSection')) el('agentSection').style.display = '';
     })
     .catch(function(e){ console.warn('[analytics] agent breakdown unavailable:', e && e.message); });
+}
+
+/* YLOPO-INSIGHTS-2026-08-18. Aggregates from the Ylopo master alert export.
+   Same fail-safe contract as the other database-wide loaders: any failure
+   leaves the section hidden and the rest of the page untouched. Every number
+   here is a snapshot, and the stamp says which one. */
+function ylRows(items, total, labelWidth) {
+  if (!items || !items.length) return emptyState('Nothing to show', 'The export contained no values for this breakdown.');
+  var max = items[0].value || 1;
+  return items.map(function(it) {
+    var pct = total ? (it.value / total * 100) : 0;
+    var w = Math.max(2, Math.round(it.value / max * 100));
+    return '<div class="dbw-row" title="' + it.label + '">' +
+      '<span class="dbw-label" style="width:' + (labelWidth || 150) + 'px">' + it.label + '</span>' +
+      '<span class="dbw-track"><i style="width:' + w + '%"></i></span>' +
+      '<span class="dbw-val">' + it.value.toLocaleString() + '</span>' +
+      '<span class="dbw-pct">' + (it.note != null ? it.note : pct.toFixed(1) + '%') + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function loadYlopoInsights() {
+  fetch(PROXY_URL + '/ylopo/insights?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      var dims = d && d.dims;
+      if (!dims || !dims.opt_out) throw new Error('unexpected payload');
+      var set = function(id, v) { if (el(id)) el(id).textContent = v; };
+
+      var byOptOut = dims.opt_out || [];
+      var totalRows = byOptOut.reduce(function(s, r) { return s + r.rows; }, 0);
+      var active = 0, sent = 0, opened = 0, clicked = 0;
+      byOptOut.forEach(function(r) {
+        if (r.key === 'active') active = r.rows;
+        sent += r.sent; opened += r.opened; clicked += r.clicked;
+      });
+      set('ylAlerts', totalRows.toLocaleString());
+      set('ylActive', active.toLocaleString());
+      set('ylActivePct', totalRows ? (active / totalRows * 100).toFixed(1) + '% of the list' : '');
+      set('ylOpenRate', sent ? (opened / sent * 100).toFixed(1) + '%' : '--');
+      set('ylSent', opened.toLocaleString() + ' opened of ' + sent.toLocaleString() + ' sent');
+      set('ylClickRate', sent ? (clicked / sent * 100).toFixed(1) + '%' : '--');
+      set('ylClicked', clicked.toLocaleString() + ' clicks');
+      if (d.snapshotDate) set('ylopoStamp', 'export snapshot ' + d.snapshotDate + ' - not live');
+
+      var alerts = (dims.alerts || []).map(function(r) {
+        return { label: r.key.replace(/_/g, ' '), value: r.rows };
+      });
+      var alertTotal = alerts.reduce(function(s, a) { return s + a.value; }, 0);
+      if (el('ylAlertWrap')) el('ylAlertWrap').innerHTML = ylRows(alerts, alertTotal, 190);
+
+      // Ordered by volume sent, so the rates are read against real weight.
+      var stages = (dims.stage || [])
+        .filter(function(r) { return r.sent >= 500; })
+        .sort(function(a, b) { return b.sent - a.sent; })
+        .slice(0, 10)
+        .map(function(r) {
+          return { label: r.key, value: r.sent,
+                   note: (r.opened / r.sent * 100).toFixed(0) + '% open' };
+        });
+      if (el('ylStageWrap')) {
+        el('ylStageWrap').innerHTML = stages.length
+          ? ylRows(stages, stages.reduce(function(s, r) { return s + r.value; }, 0), 160)
+          : emptyState('Not enough volume', 'No stage in the export has enough email sent to quote a rate.');
+      }
+
+      var sources = (dims.source || []).slice(0, 10).map(function(r) {
+        return { label: r.key.replace(/_/g, ' ').toLowerCase(), value: r.rows };
+      });
+      if (el('ylSourceWrap')) el('ylSourceWrap').innerHTML = ylRows(sources, totalRows, 170);
+
+      var cities = (dims.city || [])
+        .filter(function(r) { return r.key && r.key !== '(none)'; })
+        .slice(0, 10)
+        .map(function(r) { return { label: r.key, value: r.rows }; });
+      var cityTotal = cities.reduce(function(s, r) { return s + r.value; }, 0);
+      if (el('ylCityWrap')) {
+        el('ylCityWrap').innerHTML = cities.length
+          ? ylRows(cities, cityTotal, 170)
+          : emptyState('No search locations', 'The export carried no city on any saved search.');
+      }
+
+      if (el('ylopoSection')) el('ylopoSection').style.display = '';
+    })
+    .catch(function(e) { console.warn('[analytics] Ylopo insights unavailable:', e && e.message); });
 }
 
 function loadDbWideSummary() {
@@ -22911,6 +23034,42 @@ var index_default = {
     if ((method === "POST" || method === "PUT" || method === "DELETE") && !path.startsWith("/ghl-webhook") && !path.startsWith("/ylopo-webhook") && !path.startsWith("/api/webhooks/") && !path.startsWith("/dashboard") && path !== "/events" && !path.startsWith("/api/pipeline") && !path.startsWith("/api/users")) {
       if (!validateApiKey(request, env)) {
         return err("Unauthorized", 401);
+      }
+    }
+    if (method === "GET" && path === "/ylopo/insights") {
+      // YLOPO-INSIGHTS-2026-08-18. Aggregates from the Ylopo master alert
+      // export, held in Supabase. The table has RLS on and no public policy,
+      // so it is read with the service role and only ever through this gate.
+      var yiGate = await requireContactsAuth(request, env);
+      if (yiGate) return yiGate;
+      var YI_URL = env.SUPABASE_URL || "";
+      var YI_KEY = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
+      if (!YI_URL || !YI_KEY)
+        return json({ error: "Supabase is not configured on this worker" }, 503);
+      try {
+        var yiRes = await fetch(
+          YI_URL + "/rest/v1/ylopo_alert_insights?select=snapshot_date,dim,key1,key2,rows,sent,opened,clicked,bounced,opted_out,spam&order=rows.desc&limit=2000",
+          { headers: { "apikey": YI_KEY, "Authorization": "Bearer " + YI_KEY } }
+        );
+        if (!yiRes.ok)
+          return json({ error: "Supabase " + yiRes.status }, 502);
+        var yiRows = await yiRes.json().catch(function() { return []; });
+        if (!Array.isArray(yiRows)) yiRows = [];
+        var dims = {};
+        var snap = "";
+        yiRows.forEach(function(r) {
+          if (!snap || r.snapshot_date > snap) snap = r.snapshot_date;
+          (dims[r.dim] = dims[r.dim] || []).push({
+            key: r.key1, key2: r.key2 || "",
+            rows: Number(r.rows) || 0, sent: Number(r.sent) || 0,
+            opened: Number(r.opened) || 0, clicked: Number(r.clicked) || 0,
+            bounced: Number(r.bounced) || 0, optedOut: Number(r.opted_out) || 0,
+            spam: Number(r.spam) || 0
+          });
+        });
+        return json({ scope: "ylopo-alert-export", snapshotDate: snap, dims: dims });
+      } catch (e) {
+        return json({ error: "Insights unavailable" }, 502);
       }
     }
     if (method === "GET" && path === "/api/users") {
