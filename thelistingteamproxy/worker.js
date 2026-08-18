@@ -55,6 +55,21 @@ __name2(err, "err");
 // Deliberately NOT gated on env.REQUIRE_AUTH: this data is PII regardless of
 // whether the deployment wants a login wall, and making the guard optional is
 // how it came to be off in the first place.
+async function pipelineAdminDenied(request, env) {
+  // Real accounts with roles exist now, so an admin session is enough to move
+  // a card. The shared X-Pipeline-Admin secret is kept as a fallback for
+  // automation and for environments where D1 accounts are not enabled.
+  // 403, not 401, so the page can tell "not signed in" from "not an admin".
+  try {
+    var padSess = await getSession(request, env);
+    if (padSess && padSess.role === "admin") return null;
+  } catch (e) {}
+  var padHdr = request.headers.get("X-Pipeline-Admin") || "";
+  if (env.PIPELINE_ADMIN_PASS && padHdr === env.PIPELINE_ADMIN_PASS) return null;
+  if (!padSess) return json({ error: "Sign in to manage the board." }, 401);
+  return json({ error: "Admin access required to move or delete cards." }, 403);
+}
+__name(pipelineAdminDenied, "pipelineAdminDenied");
 async function requireContactsAuth(request, env) {
   try {
     if (validateApiKey(request, env)) {
@@ -22008,6 +22023,30 @@ textarea.form-input{resize:vertical;min-height:80px}
 var PIPE_API = '/api/pipeline';
 var PIPE_SESSION = 'tlt_pipe_admin';
 var pipelineAdminSecret = null;
+var pipelineSessionAdmin = false;
+function canAdmin(){return !!(pipelineSessionAdmin||pipelineAdminSecret);}
+function adminHeaders(base){
+  var h = base || {};
+  if(pipelineAdminSecret) h['X-Pipeline-Admin'] = pipelineAdminSecret;
+  return h;
+}
+// A wrong admin password used to leave the badge lit and every move failing
+// with a bare "Unauthorized". Drop the bad secret and say what to do.
+function handleAdminRejection(status){
+  if(status!==401&&status!==403)return false;
+  pipelineAdminSecret=null;
+  if(!pipelineSessionAdmin){
+    isAdmin=false;
+    try{sessionStorage.removeItem(PIPE_SESSION);sessionStorage.removeItem(PIPE_SESSION+'_pw');}catch(e){}
+    var ab=g('adminBadge'),bt=g('adminBtn');
+    if(ab)ab.style.display='none';
+    if(bt)bt.style.display='inline-flex';
+    if(items.length){renderBoard();renderStats();}
+    showToast(status===403?'Your account is not an admin':'That admin password was not accepted','error');
+    return true;
+  }
+  return false;
+}
 var items = [];
 var isAdmin = false;
 var screenshotData = null;
@@ -22137,7 +22176,7 @@ function cardKey(e,id){
   if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();openDetail(id);return;}
   if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
   e.preventDefault();
-  if(!isAdmin||!pipelineAdminSecret){showToast('Unlock Admin to move cards','error');return;}
+  if(!isAdmin||!canAdmin()){showToast('Unlock Admin to move cards','error');return;}
   var item=items.find(function(i){return i.id===id;});
   if(!item)return;
   var idx=-1;
@@ -22182,7 +22221,7 @@ function clearDropHighlight(){
 function dragStartCard(e,id){
   // Moving a card is a PATCH, which the worker gates on X-Pipeline-Admin.
   // Without the secret the drop would 401, so refuse the drag up front.
-  if(!isAdmin||!pipelineAdminSecret){e.preventDefault();showToast('Unlock Admin to move cards','error');return false;}
+  if(!isAdmin||!canAdmin()){e.preventDefault();showToast('Unlock Admin to move cards','error');return false;}
   draggedCardId=id;
   e.dataTransfer.effectAllowed='move';
   try{e.dataTransfer.setData('text/plain',id);}catch(err){}
@@ -22194,13 +22233,13 @@ function dropCardToStatus(e,newStatus){
   var movedId=draggedCardId;
   var item=items.find(function(i){return i.id===movedId;});
   if(!item||item.status===newStatus)return;
-  if(!pipelineAdminSecret){showToast('Unlock Admin to move cards','error');openAdminModal();return;}
+  if(!canAdmin()){showToast('Unlock Admin to move cards','error');openAdminModal();return;}
   var prevStatus=item.status;
   item.status=newStatus;
   renderBoard();renderStats();
-  fetch(PIPE_API,{method:'PATCH',headers:{'Content-Type':'application/json','X-Pipeline-Admin':pipelineAdminSecret},body:JSON.stringify({id:movedId,status:newStatus})}).then(function(r){
+  fetch(PIPE_API,{method:'PATCH',headers:adminHeaders({'Content-Type':'application/json'}),body:JSON.stringify({id:movedId,status:newStatus})}).then(function(r){
     return r.json().catch(function(){return {};}).then(function(d){
-      if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+      if(!r.ok){handleAdminRejection(r.status);throw new Error(d.error||('HTTP '+r.status));}
       if(d.item&&d.item.updated_at)item.updated_at=d.item.updated_at;
       showToast('Moved to '+newStatus,'success');
     });
@@ -22218,7 +22257,7 @@ function buildCard(item){
   var voted=localStorage.getItem('pv_'+item.id)==='1';
   var adminTag=item.is_admin_item?'<span class="badge badge-admin">&#11088; Admin</span>':'';
   var desc=item.description?(item.description.length>90?item.description.slice(0,90)+'...':item.description):'';
-  var canDrag=!!(isAdmin&&pipelineAdminSecret);
+  var canDrag=!!(isAdmin&&canAdmin());
   var stLabel=(STATUSES.find(function(s){return s.key===item.status;})||{label:item.status}).label;
   return '<div class="pipe-card'+(canDrag?'':' nodrag')+'" draggable="'+(canDrag?'true':'false')+'"'+(canDrag?'':' title="Unlock Admin to move cards"')+
     ' data-card-id="'+item.id+'" tabindex="0" role="button"'+
@@ -22375,24 +22414,48 @@ function openAdminModal(){
   setTimeout(function(){var p=g('adminPassword');if(p){p.value='';p.focus();}},80);
 }
 function closeAdminModal(){g('adminModal').classList.remove('open');}
+function markAdminActive(){
+  isAdmin=true;
+  var ab=g('adminBadge'),bt=g('adminBtn');
+  if(ab)ab.style.display='inline-flex';
+  if(bt)bt.style.display='none';
+  if(items.length){renderBoard();renderStats();}
+}
+// This used to accept anything you typed, light the Admin badge, and only fail
+// later on the first move with a bare "Unauthorized". Verify with the server
+// before claiming success.
 function adminUnlock(){
   var pw=g('adminPassword');
-  if(pw&&pw.value){
-    pipelineAdminSecret=pw.value;
-    isAdmin=true;
-    try{sessionStorage.setItem(PIPE_SESSION,'1');sessionStorage.setItem(PIPE_SESSION+'_pw',pw.value);}catch(e){}
-    closeAdminModal();
-    g('adminBadge').style.display='inline-flex';
-    g('adminBtn').style.display='none';
-    if(items.length){renderBoard();renderStats();}
-    showToast('&#11088; Admin mode active','success');
-  }else{
+  if(!pw||!pw.value){
     if(pw){pw.style.borderColor='#ef4444';setTimeout(function(){pw.style.borderColor='';},1500);}
+    return;
   }
+  var candidate=pw.value;
+  fetch(PIPE_API+'/admin-check',{headers:{'X-Pipeline-Admin':candidate}}).then(function(r){
+    if(!r.ok){
+      pw.style.borderColor='#ef4444';
+      setTimeout(function(){pw.style.borderColor='';},2000);
+      showToast(r.status===403?'That password is not the board admin password':'Not accepted - check the password','error');
+      return;
+    }
+    pipelineAdminSecret=candidate;
+    try{sessionStorage.setItem(PIPE_SESSION,'1');sessionStorage.setItem(PIPE_SESSION+'_pw',candidate);}catch(e){}
+    closeAdminModal();
+    markAdminActive();
+    showToast('&#11088; Admin mode active','success');
+  }).catch(function(){showToast('Could not reach the server','error');});
 }
 
 document.addEventListener('DOMContentLoaded',function(){
   var sq=g('setupSql');if(sq)sq.textContent=SETUP_SQL;
+  // An admin account is enough. Ask who we are and skip the password modal
+  // entirely for admins, instead of making them find a second secret.
+  fetch('/auth/me',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(d&&d.user&&d.user.role==='admin'){
+      pipelineSessionAdmin=true;
+      markAdminActive();
+    }
+  }).catch(function(){});
   var si=g('pipeSearch');
   if(si)si.addEventListener('input',function(){pipeFilters.q=si.value;applyFilters();});
   var cf=g('clearFilters');
@@ -24222,6 +24285,11 @@ var index_default = {
           return json({ error: e.message }, 500);
         }
       }
+      if (method === "GET" && path === "/api/pipeline/admin-check") {
+        const acDenied = await pipelineAdminDenied(request, env);
+        if (acDenied) return acDenied;
+        return json({ ok: true });
+      }
       if (method === "GET" && path === "/api/pipeline") {
         var pipeGate = await requireContactsAuth(request, env);
         if (pipeGate) return pipeGate;
@@ -24281,12 +24349,8 @@ var index_default = {
         }
       }
       if (method === "PATCH" && path === "/api/pipeline") {
-        const adminPass2 = request.headers.get("X-Pipeline-Admin");
-        if (!env.PIPELINE_ADMIN_PASS)
-          return json({ error: "Server misconfigured: PIPELINE_ADMIN_PASS not set" }, 500);
-        const validPass = env.PIPELINE_ADMIN_PASS;
-        if (adminPass2 !== validPass)
-          return json({ error: "Unauthorized" }, 401);
+        const adminDenied = await pipelineAdminDenied(request, env);
+        if (adminDenied) return adminDenied;
         try {
           const body = await request.json();
           if (!body.id)
@@ -24318,12 +24382,8 @@ var index_default = {
         }
       }
       if (method === "DELETE" && path === "/api/pipeline") {
-        const adminPass2 = request.headers.get("X-Pipeline-Admin");
-        if (!env.PIPELINE_ADMIN_PASS)
-          return json({ error: "Server misconfigured: PIPELINE_ADMIN_PASS not set" }, 500);
-        const validPass = env.PIPELINE_ADMIN_PASS;
-        if (adminPass2 !== validPass)
-          return json({ error: "Unauthorized" }, 401);
+        const adminDenied = await pipelineAdminDenied(request, env);
+        if (adminDenied) return adminDenied;
         try {
           const body = await request.json();
           if (!body.id)
