@@ -22592,6 +22592,55 @@ function _sessionCookieFrom(request) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 __name(_sessionCookieFrom, "_sessionCookieFrom");
+/* SSO-D1-2026-08-18. getSession treats the D1 sessions row as the revocation
+   layer and returns null when it is missing. Password login inserts that row;
+   the two SSO paths did not, so with DB bound every SSO sign-in produced a
+   cookie that was rejected on the very next request. This gives them the same
+   treatment: find or create the user, then record the session so it is
+   revocable like any other.
+
+   With no DB binding this is a no-op, which is why production - which has no
+   binding yet - behaved correctly either way. */
+async function ssoRecordSession(env, token, who) {
+  if (!env.DB) return true;
+  var nowMs = Date.now();
+  var ghlUid = (who && who.ghlUid) || "";
+  var email = ((who && who.email) || "").trim();
+  var name = ((who && who.name) || "").trim();
+  var role = (who && who.role) || "user";
+  try {
+    var user = null;
+    if (ghlUid) {
+      user = await env.DB.prepare("SELECT id, active FROM users WHERE ghl_user_id = ?1").bind(ghlUid).first();
+    }
+    if (!user && email) {
+      user = await env.DB.prepare("SELECT id, active FROM users WHERE email = ?1").bind(email).first();
+    }
+    if (user && user.active !== 1) return false;
+    var userId;
+    if (user) {
+      userId = user.id;
+      await env.DB.prepare("UPDATE users SET role = ?1, name = COALESCE(NULLIF(?2,''), name), ghl_user_id = COALESCE(NULLIF(?3,''), ghl_user_id), updated_at = ?4 WHERE id = ?5")
+        .bind(role, name, ghlUid, nowMs, userId).run();
+    } else {
+      userId = crypto.randomUUID();
+      // users.email is NOT NULL UNIQUE. A GHL SSO caller does not always carry
+      // one, so a clearly synthetic placeholder keeps the row valid without
+      // inventing a real address.
+      var emailForRow = email || ("ghl-" + (ghlUid || userId) + ".sso.local");
+      await env.DB.prepare("INSERT INTO users (id, email, name, role, ghl_user_id, active, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6)")
+        .bind(userId, emailForRow, name, role, ghlUid, nowMs).run();
+    }
+    await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, created_at, last_seen, expires_at, revoked) VALUES (?1, ?2, ?3, ?3, ?4, 0)")
+      .bind(await _sha256Hex(token), userId, nowMs, nowMs + 864e5).run();
+    return true;
+  } catch (e) {
+    await reportError(e, "sso session insert", env);
+    return false;
+  }
+}
+__name(ssoRecordSession, "ssoRecordSession");
+
 async function getSession(request, env) {
   var tok = _sessionCookieFrom(request);
   if (!tok)
@@ -23403,6 +23452,11 @@ var index_default = {
         role: ssoRole,
         loc: ssoPayload.locationId || (env.GHL_LOCATION_ID || LOC_ID)
       }, ssoSecret);
+      var ssoOk = await ssoRecordSession(env, ssoSessionToken, {
+        ghlUid: ssoPayload.userId, email: ssoPayload.email || "",
+        name: ssoPayload.userName || "", role: ssoRole
+      });
+      if (!ssoOk) return json({ error: "Could not start a session" }, 503);
       return new Response(null, {
         status: 302,
         headers: { "Location": "/dashboard", "Set-Cookie": mkSsoCookie(ssoSessionToken), "Cache-Control": "no-store" }
@@ -23457,6 +23511,10 @@ var index_default = {
         });
       }
       var ghlToken = await createSessionToken({ uid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole, loc: ghlLoc }, sessSecret);
+      var ghlOk = await ssoRecordSession(env, ghlToken, {
+        ghlUid: ghlUid, email: ghlEmail, name: ghlName, role: ghlRole
+      });
+      if (!ghlOk) return json({ error: "Could not start a session" }, 503);
       return new Response(null, { status: 302, headers: { "Location": ghlRedirect, "Set-Cookie": mkCookie(ghlToken), "Cache-Control": "no-store" } });
     }
     if (path === "/auth/login" && method === "POST") {
