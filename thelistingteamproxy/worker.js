@@ -22662,7 +22662,14 @@ var index_default = {
     }
     if (path === "/auth/login" && method === "POST") {
       try {
-        var loginBody = await safeJsonParse(request);
+        // safeJsonParse returns a wrapper: {data} on success, {error} on bad
+        // input. Reading .email off the wrapper meant every login — valid or
+        // not — fell into "Missing fields". Unwrap first.
+        var loginParsed = await safeJsonParse(request);
+        if (loginParsed && loginParsed.error) {
+          return json({ error: "Missing fields" }, 400);
+        }
+        var loginBody = loginParsed && loginParsed.data;
         if (!loginBody || !loginBody.email || !loginBody.pass) {
           return json({ error: "Missing fields" }, 400);
         }
