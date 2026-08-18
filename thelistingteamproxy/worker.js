@@ -21764,7 +21764,7 @@ a{color:var(--blue);text-decoration:none}
 .pipe-card:active{cursor:grabbing}
 .pipe-card.nodrag{cursor:pointer}
 .col-body.drag-over{border-color:var(--col-accent);box-shadow:inset 0 0 0 2px var(--col-accent)}
-.drop-ph{border:2px dashed var(--col-accent);border-radius:var(--radius-sm);padding:var(--sp-4);text-align:center;color:var(--text-secondary);font-size:var(--fs-sm);font-weight:600}
+.col-body.drag-over::after{content:'Drop here';display:block;border:2px dashed var(--col-accent);border-radius:var(--radius-sm);padding:var(--sp-4);text-align:center;color:var(--text-secondary);font-size:var(--fs-sm);font-weight:600;pointer-events:none}
 .card-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:var(--sp-2)}
 .badge{display:inline-block;padding:3px 9px;border-radius:var(--radius-pill);font-size:var(--fs-2xs);font-weight:700;text-transform:uppercase;letter-spacing:.04em;border:1px solid var(--card-border)}
 .badge-admin{background:var(--surface-2);color:var(--text);border:1px solid var(--card-border)}
@@ -22099,16 +22099,6 @@ function renderChips(){
 }
 function setPipeFilter(group,val){pipeFilters[group]=val;renderChips();applyFilters();}
 function clearPipeFilters(){pipeFilters={q:'',cat:'all',pri:'all'};var si=g('pipeSearch');if(si)si.value='';renderChips();applyFilters();}
-function clearDropPh(){var ps=document.querySelectorAll('.drop-ph');for(var i=0;i<ps.length;i++){if(ps[i].parentNode)ps[i].parentNode.removeChild(ps[i]);}}
-function showDropPh(col){
-  if(!draggedCardId)return;
-  if(col.querySelector('.drop-ph'))return;
-  clearDropPh();
-  var d=document.createElement('div');
-  d.className='drop-ph';
-  d.textContent='Drop here';
-  col.appendChild(d);
-}
 // Keyboard equivalent of the drag. Without this the board is unusable for
 // anyone who cannot operate a pointer, since dragging is the only way to move
 // a card between stages.
@@ -22142,10 +22132,10 @@ function renderBoard(){
     if(cnt)cnt.textContent=(filtersActive()&&list.length!==all.length)?(list.length+'/'+all.length):String(all.length);
     // Drop handlers are attached to EVERY column before the empty-column bail-out.
     // They used to sit after it, so an empty stage could never receive a card.
-    col.ondragover=function(e){if(!draggedCardId)return;e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over');showDropPh(col);};
-    col.ondragenter=function(e){if(!draggedCardId)return;e.preventDefault();col.classList.add('drag-over');showDropPh(col);};
-    col.ondragleave=function(e){if(e.target===col){col.classList.remove('drag-over');clearDropPh();}};
-    col.ondrop=function(e){e.preventDefault();col.classList.remove('drag-over');clearDropPh();dropCardToStatus(e,s.key);};
+    col.ondragover=function(e){if(!draggedCardId)return;e.preventDefault();e.dataTransfer.dropEffect='move';col.classList.add('drag-over');};
+    col.ondragenter=function(e){if(!draggedCardId)return;e.preventDefault();col.classList.add('drag-over');};
+    col.ondragleave=function(e){if(e.target===col)col.classList.remove('drag-over');};
+    col.ondrop=function(e){e.preventDefault();col.classList.remove('drag-over');dropCardToStatus(e,s.key);};
     if(!list.length){
       var emptyMsg=filtersActive()?'Nothing matches the filter':(isAdmin?'Drop a card here':'No items yet');
       col.innerHTML='<div class="col-empty">'+emptyMsg+'</div>';
@@ -22167,7 +22157,7 @@ function dragStartCard(e,id){
   try{e.dataTransfer.setData('text/plain',id);}catch(err){}
   e.target.style.opacity='0.5';
 }
-function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';clearDropHighlight();clearDropPh();}
+function dragEndCard(e){draggedCardId=null;e.target.style.opacity='1';clearDropHighlight();}
 function dropCardToStatus(e,newStatus){
   if(!draggedCardId)return;
   var movedId=draggedCardId;
