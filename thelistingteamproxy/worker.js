@@ -17971,6 +17971,7 @@ function openYlopoSegment(key) {
           '<td class="num">' + (Number(p.opened) || 0).toLocaleString() + '</td>' +
           '<td class="num">' + (Number(p.clicked) || 0).toLocaleString() + '</td>' +
           '<td>' + ylEsc(p.cities || '') + '</td>' +
+          '<td class="num">' + (Number(p.live_events) || 0).toLocaleString() + '</td>' +
           '<td style="white-space:nowrap">' + star + ghl + '</td>' +
         '</tr>';
       }).join('');
@@ -17978,7 +17979,8 @@ function openYlopoSegment(key) {
         '<div class="seg-scroll"><table class="seg-table"><thead><tr>' +
         '<th>Person</th><th>Phone</th><th>Stage</th><th>Agent</th>' +
         '<th style="text-align:right">Sent</th><th style="text-align:right">Opened</th>' +
-        '<th style="text-align:right">Clicked</th><th>Searching</th><th></th>' +
+        '<th style="text-align:right">Clicked</th><th>Searching</th>' +
+        '<th style="text-align:right" title="Ylopo webhook events recorded for this person">Live</th><th></th>' +
         '</tr></thead><tbody>' + body + '</tbody></table></div>';
     })
     .catch(function(e) {
@@ -23426,6 +23428,28 @@ async function ghlUserRole(uid, agencyKey) {
 __name(ghlUserRole, "ghlUserRole");
 var index_default = {
   async scheduled(event, env, ctx) {
+    // WEBHOOK-2026-08-18. ylopo_people is a materialised view, so the workable
+    // lists are only as fresh as its last refresh. Nothing refreshed it, which
+    // meant every new webhook event was invisible to the dashboard. Cheap RPC,
+    // fire-and-forget, never blocks the rest of the schedule.
+    ctx.waitUntil((async () => {
+      try {
+        var rfUrl = env.SUPABASE_URL || "";
+        var rfKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
+        if (!rfUrl || !rfKey) return;
+        var rf = await fetch(rfUrl + "/rest/v1/rpc/refresh_ylopo_people", {
+          method: "POST",
+          headers: {
+            "apikey": rfKey, "Authorization": "Bearer " + rfKey,
+            "Content-Type": "application/json"
+          },
+          body: "{}"
+        });
+        console.log("ylopo_people refresh:", rf.status);
+      } catch (e) {
+        console.warn("ylopo_people refresh failed:", e && e.message);
+      }
+    })());
     const tick = new Date(event.scheduledTime);
     const utcHour = tick.getUTCHours();
     const utcMinute = tick.getUTCMinutes();
@@ -23829,7 +23853,8 @@ var index_default = {
         seller_engaged: { label: "Seller alerts, engaged",        note: "On a seller alert and opening it." },
         higher_price:   { label: "Opening, 500k and above",       note: "Engaged, with a saved search topping 500k." },
         all_openers:    { label: "Everyone still opening",        note: "Every mailable person with at least one open. The superset." },
-        in_ghl:         { label: "Engaged and already in GHL",     note: "GHL-JOIN-2026-08-18. Matched to a GoHighLevel contact by email, so these can be pushed straight into a smart list." }
+        in_ghl:         { label: "Engaged and already in GHL",     note: "Matched to a GoHighLevel contact by email, so these can be pushed straight into a smart list." },
+        live_active:    { label: "Active on the site right now",   note: "LIVE-SEG-2026-08-18. Sent a Ylopo webhook event in the last 30 days. This is the only live signal there is - everything else on this page is the 5 Aug export." }
       };
 
       if (path === "/ylopo/segments") {
@@ -23852,10 +23877,13 @@ var index_default = {
       if (!SEG_META[segKey]) return json({ error: "Unknown segment" }, 400);
       var wantCsv = (url.searchParams.get("format") || "") === "csv";
       var segLimit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10) || 100, wantCsv ? 5000 : 500);
-      var cols = "email,first_name,last_name,phone,ghl_contact_id,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at";
+      var cols = "email,first_name,last_name,phone,ghl_contact_id,stage,agent,alerts,sent,opened,clicked,max_price,cities,stars_url,last_alert_at,live_events,last_event_at,live_views,live_saves,live_showings";
       var q = SB + "/rest/v1/ylopo_people?select=" + cols +
               "&segments=cs.%7B" + encodeURIComponent(segKey) + "%7D" +
-              "&order=clicked.desc,opened.desc&limit=" + segLimit;
+              (segKey === "live_active"
+                 ? "&order=last_event_at.desc.nullslast"
+                 : "&order=clicked.desc,opened.desc") +
+              "&limit=" + segLimit;
       try {
         var pRes = await fetch(q, { headers: sbHead });
         if (!pRes.ok) return json({ error: "Supabase " + pRes.status }, 502);
@@ -25247,6 +25275,52 @@ var index_default = {
               body: JSON.stringify(flatPayload)
             }).catch((e) => console.warn("GHL webhook forward failed:", e.message));
             console.log("\u{1F4E4} Forwarded FLAT payload to GHL webhook");
+            // WEBHOOK-2026-08-18. Keep a copy. The CSV export is a frozen
+            // snapshot and there is no API to re-pull it, so this feed is the
+            // only thing that can move the numbers forward. Fire-and-forget:
+            // a Supabase failure must never cost us the webhook.
+            try {
+              var whUrl = env.SUPABASE_URL || "";
+              var whKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
+              if (whUrl && whKey && email) {
+                var whNum = function(v) { var n = Number(v); return isFinite(n) ? n : 0; };
+                await fetch(whUrl + "/rest/v1/ylopo_webhook_events", {
+                  method: "POST",
+                  headers: {
+                    "apikey": whKey, "Authorization": "Bearer " + whKey,
+                    "Content-Type": "application/json", "Prefer": "return=minimal"
+                  },
+                  body: JSON.stringify({
+                    event_type: flatPayload.eventType || null,
+                    email: email,
+                    first_name: flatPayload.firstName || null,
+                    last_name: flatPayload.lastName || null,
+                    phone: flatPayload.phone || null,
+                    ylopo_uuid: flatPayload.uuid || null,
+                    crm_id: flatPayload.crmId || null,
+                    stars_link: flatPayload.starsLink || null,
+                    source: flatPayload.source || null,
+                    lead_type: flatPayload.leadType || null,
+                    is_priority: String(flatPayload.isPriority) === "true",
+                    views: whNum(flatPayload.views),
+                    saves: whNum(flatPayload.saves),
+                    searches: whNum(flatPayload.searches),
+                    showings: whNum(flatPayload.showingRequests),
+                    total_visits: whNum(flatPayload.totalVisits),
+                    avg_price: whNum(flatPayload.avgPrice) || null,
+                    last_visit_at: flatPayload.lastVisitDate || null,
+                    listing_id: flatPayload.listingId || null,
+                    listing_city: flatPayload.listingCity || null,
+                    listing_price: whNum(flatPayload.listingPrice) || null,
+                    min_price: whNum(flatPayload.minPrice) || null,
+                    max_price: whNum(flatPayload.maxPrice) || null,
+                    raw: payload
+                  })
+                });
+              }
+            } catch (e) {
+              console.warn("Ylopo event store failed:", e && e.message);
+            }
           } catch (e) {
             console.warn("Forward error:", e);
           }
