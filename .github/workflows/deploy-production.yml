@@ -87,18 +87,24 @@ jobs:
           workingDirectory: ai-video-system
           command: deploy --config wrangler.toml
 
-  deploy-tos-proxy:
-    name: Deploy tos-proxy (prod, Python/raw API deploy)
-    needs: guard
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v5
-      - name: Deploy via deploy_prod.py
-        working-directory: tos-proxy
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 deploy_prod.py
+# tos-proxy is deliberately NOT deployed from this workflow.
+#
+# Removed 2026-08-20. This job ran `tos-proxy/deploy_prod.py`, which uploads
+# `tos-proxy/worker.js` - a decompiled June bundle, last touched 2026-07-28.
+# Shipping it to production would revert R1 multi-tenant routing, the deadline
+# normaliser protecting 18 waived live records, the security headers, and every
+# fix since 2026-06-12.
+#
+# `deploy-tos-proxy-production.yml` was disabled on 2026-08-18 for exactly that
+# reason - but that refusal did not protect this workflow, which still carried
+# its own copy of the job. A dispatch on 2026-08-20 queued it; it was cancelled
+# on the `production` environment gate before any job ran.
+#
+# Production tos-proxy deploys come from the canonical repo:
+#   github.com/lehr007-coder/the-listing-team-transaction-os  (proxy/)
+#
+# Note that `deploy-staging.yml` has no tos-proxy job either - this was the only
+# path by which this repo could reach production TOS.
 
   deploy-social-post-importer:
     name: Deploy social-post-importer (prod, Python/raw API deploy)
