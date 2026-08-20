@@ -6,18 +6,25 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Vercel Cron entrypoint. Auth model:
-// - If CRON_SECRET is set, require "Authorization: Bearer <CRON_SECRET>"
-//   (Vercel attaches it automatically to cron invocations).
-// - Regardless, throttle: refuse to run if the newest sync_state row was
-//   touched in the last 45s, so an unauthenticated trigger can't burn
-//   API quota — the endpoint only ever advances the same bounded sync.
+// - Require "Authorization: Bearer <CRON_SECRET>". Vercel attaches this to
+//   cron invocations automatically, so the scheduled path is unaffected.
+// - A MISSING CRON_SECRET is a failure, not a licence to run. This matches
+//   Vercel's documented handler, which is fail-closed:
+//   https://vercel.com/docs/cron-jobs/manage-cron-jobs
+// - The 45s throttle below is a quota guard, not an access control. It was
+//   previously doing duty as one.
+//
+// This gate used to be `if (secret) { ...check... }` — wide open whenever the
+// variable was unset. It was, on the listing-team-dashboard project: an
+// unauthenticated GET to /api/sync/cron there returned 200 and advanced the
+// live sync (measured 2026-08-20 02:24 and 04:43 UTC). Deployment Protection
+// did not cover it, and network-level controls are the wrong layer for this
+// anyway — the endpoint's own secret is the control Vercel documents.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const auth = req.headers.get("authorization");
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const db = supabaseAdmin();
