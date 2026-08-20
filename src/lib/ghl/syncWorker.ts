@@ -146,9 +146,21 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
   let pages = 0;
 
   // A finished pass rests before restarting so we don't hammer the API.
+  //
+  // Unless it finished short. A pass that reports `done` having walked well
+  // under meta.total did not finish, it stopped, and resting on that for the
+  // full window treats a truncated mirror as a healthy one — which is exactly
+  // how #76 stayed invisible for ten days. A short pass restarts immediately.
+  //
+  // This also contains a stale deployment sharing this sync_state row: an old
+  // build with the pre-#76 pagination will end the contacts phase early, and
+  // the next slice from a current build now repairs that within minutes
+  // instead of inheriting it for a full rest window.
   if (state.phase === "done") {
     const doneAt = state.completed_at ? new Date(state.completed_at).getTime() : 0;
-    if (Date.now() - doneAt < REST_MINUTES * 60_000) {
+    const total = state.contacts_total ?? 0;
+    const finishedShort = total > 0 && state.contacts_synced < Math.floor(total * 0.98);
+    if (!finishedShort && Date.now() - doneAt < REST_MINUTES * 60_000) {
       return {
         locationId, phase: "done", pagesProcessed: 0, passCompleted: false,
         contactsSynced: state.contacts_synced, contactsTotal: state.contacts_total,
