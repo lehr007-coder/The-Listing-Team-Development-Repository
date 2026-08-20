@@ -44,5 +44,23 @@ export async function GET(req: NextRequest) {
       results.push({ locationId: row.location_id, error: e instanceof Error ? e.message : String(e) });
     }
   }
+  // Watchdog. The contacts pagination bug (#76) reported a clean pass while
+  // silently dropping ~3,300 records off the tail, and nothing noticed for ten
+  // days because `phase = done` reads as success. Idle-time alerting would not
+  // have caught it — the sync was running, it was finishing early. The signal
+  // that matters is a *completed* pass that walked materially fewer contacts
+  // than GHL says exist.
+  const WALKED_AT_LEAST = 0.98;
+  for (const r of results) {
+    if (!r || !("passCompleted" in r) || !r.passCompleted) continue;
+    const total: number = r.contactsTotal ?? 0;
+    const walked: number = r.contactsSynced ?? 0;
+    if (total <= 0) continue;
+    if (walked >= Math.floor(total * WALKED_AT_LEAST)) continue;
+    const message = `pass completed short: walked ${walked} of ${total} contacts`;
+    console.error(`[sync watchdog] ${r.locationId}: ${message}`);
+    await db.from("sync_state").update({ last_error: message }).eq("location_id", r.locationId);
+  }
+
   return NextResponse.json({ results });
 }
