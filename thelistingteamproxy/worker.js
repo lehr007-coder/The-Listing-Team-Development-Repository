@@ -13966,9 +13966,17 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
     </div>
     <div class="analytics-grid" style="grid-template-columns:1fr">
       <div class="analytics-card">
-        <h3>&#127919; Workable lists <span style="margin-left:auto">people, de-duplicated by email</span></h3>
+        <h3>&#127919; Workable lists <span style="margin-left:auto">emailed contacts only</span></h3>
+        <div class="seg-w" style="padding:0 0 10px">Cut from the Ylopo export and matched on email address. A contact with no email cannot appear in any of these lists, however the snapshot is refreshed - those people are counted below instead.</div>
         <div id="ylSegWrap"></div>
         <div id="ylSegDetail"></div>
+      </div>
+    </div>
+    <div class="analytics-grid" style="grid-template-columns:1fr">
+      <div class="analytics-card">
+        <h3>&#128222; Phone only, no email <span style="margin-left:auto" id="ylPhoneMeta">loading</span></h3>
+        <div class="seg-w" style="padding:0 0 10px">GoHighLevel contacts carrying a phone number and no email address. Mostly inbound calls and notes. Every list above is keyed on email, so these are invisible to all of them - this is the only place they are workable.</div>
+        <div id="ylPhoneWrap"></div>
       </div>
     </div>
   </div>
@@ -15521,6 +15529,7 @@ async function loadData(forceRefresh) {
   // over a minute. Start them now rather than making the panels wait on it.
   try { setTimeout(loadYlopoInsights, 0); } catch (e) {}
   try { setTimeout(loadYlopoSegments, 0); } catch (e) {}
+  try { setTimeout(loadYlopoPhoneOnly, 0); } catch (e) {}
   // Always clear stale cache and fetch fresh data from Ylopo/GHL
   try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
   try {
@@ -17943,6 +17952,39 @@ function loadYlopoSegments() {
       });
     })
     .catch(function(e) { console.warn('[analytics] segments unavailable:', e && e.message); });
+}
+
+/* PHONE-ONLY-2026-08-20. Every workable list above is matched on email, and
+   ylopo_people is keyed on email too, so a contact with no email address can
+   never enter one. Measured 2026-08-20: 3,216 such contacts carry a phone and
+   361 carry neither. They were not lost - all 18 sampled matched GoHighLevel by
+   phone - they were simply unreachable through an email-keyed view. */
+function loadYlopoPhoneOnly() {
+  fetch(PROXY_URL + '/contacts/phone-only?limit=200&t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      var wrap = el('ylPhoneWrap');
+      if (!wrap) return;
+      var rows = (d && d.people) || [];
+      var meta = el('ylPhoneMeta');
+      if (meta) {
+        var withPhone = (d && d.totalWithPhone != null) ? d.totalWithPhone : rows.length;
+        var neither = (d && d.totalUnreachable != null) ? d.totalUnreachable : 0;
+        meta.textContent = withPhone.toLocaleString() + ' callable, ' + neither.toLocaleString() + ' with neither';
+      }
+      if (!rows.length) {
+        wrap.innerHTML = emptyState('Nothing here', 'Every contact carries an email address.');
+        return;
+      }
+      wrap.innerHTML = rows.map(function(p) {
+        return '<div class="seg-row" style="cursor:default">' +
+          '<span class="seg-n" style="font-size:13px">' + ylEsc(p.phone || 'no number') + '</span>' +
+          '<span><span class="seg-t">' + ylEsc(p.name || 'No name') + '</span>' +
+          '<span class="seg-w">' + ylEsc(p.status || 'no status') + '</span></span>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function(e) { console.warn('[analytics] phone-only unavailable:', e && e.message); });
 }
 
 function openYlopoSegment(key) {
@@ -23898,6 +23940,55 @@ var index_default = {
         return err("Unauthorized", 401);
       }
     }
+    if (method === "GET" && path === "/contacts/phone-only") {
+      // PHONE-ONLY-2026-08-20. Contacts with a phone and no email address.
+      // ylopo_people is keyed on email, so these people cannot appear in any
+      // workable list however the Ylopo snapshot is refreshed. They are not
+      // missing from GoHighLevel - measured 2026-08-20, 18 of 18 sampled
+      // matched by phone - they were only unreachable through an email-keyed
+      // view. Same gate as the segment lists: this returns names and numbers.
+      var poGate = await requireContactsAuth(request, env);
+      if (poGate) return poGate;
+      var poSB = env.SUPABASE_URL || "";
+      var poSK = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_KEY || "";
+      if (!poSB || !poSK) return json({ error: "Supabase is not configured on this worker" }, 503);
+      var poHead = { "apikey": poSK, "Authorization": "Bearer " + poSK, "Prefer": "count=exact" };
+      var poLimit = Math.min(parseInt(url.searchParams.get("limit") || "200", 10) || 200, 1000);
+      var poTotal = function(res) {
+        var cr = res.headers.get("content-range") || "";
+        var slash = cr.lastIndexOf("/");
+        if (slash === -1) return null;
+        var n = parseInt(cr.slice(slash + 1), 10);
+        return isNaN(n) ? null : n;
+      };
+      try {
+        var poRes = await fetch(poSB + "/rest/v1/contacts?select=ghl_contact_id,name,phone,status,created_at" +
+          "&email=is.null&phone=not.is.null&order=created_at.desc&limit=" + poLimit, { headers: poHead });
+        if (!poRes.ok) return json({ error: "Supabase " + poRes.status }, 502);
+        var poRows = await poRes.json().catch(function() { return []; });
+        if (!Array.isArray(poRows)) poRows = [];
+        var withPhone = poTotal(poRes);
+        // Contacts with neither an email nor a phone: nothing can reach them at
+        // all, so they are reported as a count rather than a workable list.
+        var unreachable = null;
+        try {
+          var poRes2 = await fetch(poSB + "/rest/v1/contacts?select=ghl_contact_id&email=is.null&phone=is.null&limit=1",
+            { headers: poHead });
+          if (poRes2.ok) unreachable = poTotal(poRes2);
+        } catch (e2) { unreachable = null; }
+        return new Response(JSON.stringify({
+          scope: "ghl-contacts-no-email",
+          basis: "GoHighLevel contacts with no email address. Not covered by any email-keyed segment.",
+          ghlLocationId: env.GHL_LOCATION_ID || LOC_ID || "",
+          totalWithPhone: withPhone,
+          totalUnreachable: unreachable,
+          count: poRows.length,
+          people: poRows
+        }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+      } catch (e) {
+        return json({ error: "Phone-only list unavailable" }, 502);
+      }
+    }
     if (method === "GET" && (path === "/ylopo/segments" || path === "/ylopo/segment")) {
       // YLOPO-SEGMENTS-2026-08-18. Workable lists cut from the row-level alert
       // export. These responses carry names, emails and phone numbers, so they
@@ -23930,7 +24021,11 @@ var index_default = {
           var out = Object.keys(SEG_META).map(function(k) {
             return { key: k, label: SEG_META[k].label, note: SEG_META[k].note, people: byKey[k] || 0 };
           }).sort(function(a, b) { return a.people - b.people; });
-          return json({ scope: "ylopo-alert-export", segments: out });
+          return json({
+            scope: "ylopo-alert-export",
+            basis: "Matched on email address. Contacts with no email are not represented in any segment - see /contacts/phone-only.",
+            segments: out
+          });
         } catch (e) {
           return json({ error: "Segments unavailable" }, 502);
         }
