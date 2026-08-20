@@ -186,16 +186,42 @@ export async function runSyncSlice(locationId: string, budgetMs = 35_000): Promi
         if (batch.length) await upsertContactBatch(locationId, batch);
         state.contacts_synced += batch.length;
         pages++;
-        if (batch.length < PAGE) {
+        // A short page is NOT end-of-data. GHL returns fewer than `limit`
+        // mid-stream, and it keeps handing back a non-null meta.nextPageUrl
+        // even on the final page (verified: a 1-of-1 response still carries
+        // one). The only signal that the walk is finished is an empty page.
+        //
+        // Ending on `batch.length < PAGE` is what froze this mirror: the walk
+        // is ascending by dateAdded, so it quit at the same watermark every
+        // pass and the newest contacts were never reachable. Advance on the
+        // meta cursor, exactly as the opportunities branch below already does.
+        if (batch.length === 0) {
           state.phase = "opportunities";
           state.opp_cursor = null;
           state.opp_page = 1;
         } else {
+          const meta = data.meta ?? {};
           const last = batch[batch.length - 1];
-          state.contact_cursor = {
-            startAfterId: last.id,
-            startAfter: last.dateAdded ? new Date(last.dateAdded).getTime() : undefined,
-          };
+          const nextId =
+            meta.startAfterId != null ? String(meta.startAfterId) : last.id;
+          const nextAfter =
+            meta.startAfter != null
+              ? Number(meta.startAfter)
+              : last.dateAdded
+                ? new Date(last.dateAdded).getTime()
+                : undefined;
+
+          // If the cursor does not move we would spin on the same page
+          // forever. Stop and record it rather than reporting a clean pass.
+          if (
+            cur.startAfterId === nextId &&
+            cur.startAfter === nextAfter
+          ) {
+            throw new Error(
+              `contacts pagination did not advance at ${state.contacts_synced}/${state.contacts_total ?? "?"} (cursor stuck on ${nextId})`,
+            );
+          }
+          state.contact_cursor = { startAfterId: nextId, startAfter: nextAfter };
         }
         await saveState({
           location_id: locationId, phase: state.phase, contact_cursor: state.contact_cursor,
