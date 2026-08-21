@@ -24742,6 +24742,28 @@ var index_default = {
         return err(`Failed to fetch listing image: ${e.message}`, 500);
       }
     }
+    // Gate every per-contact route in one place.
+    //
+    // GET/PUT/DELETE /contacts/:id and the :id/tags, :id/notes, :id/tasks,
+    // :id/workflow/:wf and :id/ylopo-events routes below all shipped WITHOUT an
+    // auth gate, while every sibling collection route (/contacts,
+    // /contacts/bulk, /contacts/summary, /contacts/agents, /contacts/phone-only)
+    // had one. An unauthenticated caller holding a GHL contact id could read the
+    // contact, edit it, DELETE it, tag it, read and write notes, create tasks and
+    // enroll it in a workflow. Verified 2026-08-21: an unauthenticated
+    // GET /contacts/<id> reached GoHighLevel and returned its upstream error,
+    // not a 401 - proof the request was passing through ungated.
+    //
+    // Contact ids are 20-character GHL ids. Not guessable is not access control:
+    // they appear in dashboard markup, links and exports.
+    //
+    // This sits above the collection routes, which already call the same gate,
+    // so gating them here too is a no-op. "/contacts" itself does not match
+    // startsWith("/contacts/") and keeps its own gate.
+    if (path.startsWith("/contacts/")) {
+      var gate_contact_item = await requireContactsAuth(request, env);
+      if (gate_contact_item) return gate_contact_item;
+    }
     const ylopoEventsMatch = path.match(/^\/contacts\/([^\/]+)\/ylopo-events$/);
     if (method === "GET" && ylopoEventsMatch) {
       const contactId = ylopoEventsMatch[1];
