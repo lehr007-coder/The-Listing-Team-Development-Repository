@@ -46,6 +46,24 @@ __name22(json, "json");
 function err(msg, status = 500) {
   return json({ ok: false, error: msg, proxy: "v8" }, status);
 }
+
+// GoHighLevel answers 400, not 404, when a contact id does not exist. Passing
+// that through made a deleted or unknown contact look like a malformed request:
+// the dashboard logged a console error and kept the row instead of dropping it.
+// Confirmed 2026-08-21 against id vskwJjVYbstCddl9sXYV - absent from GHL (the
+// standalone GHL client returns the same 400 "not found"), absent from the
+// Supabase mirror, and absent from the page. The id was simply dead.
+function ghlContactErr(e) {
+  var status = e.status || 500;
+  var payload = "";
+  try {
+    payload = typeof e.data === "string" ? e.data : JSON.stringify(e.data || e.message || "");
+  } catch (x) {}
+  if (status === 400 && /not found/i.test(payload)) {
+    return json({ ok: false, error: "Contact not found", proxy: "v8" }, 404);
+  }
+  return err("GHL " + status, status);
+}
 __name(err, "err");
 __name2(err, "err");
 // Guard for the contacts data API. These three routes feed every panel and
@@ -13967,7 +13985,7 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
     <div class="analytics-grid" style="grid-template-columns:1fr">
       <div class="analytics-card">
         <h3>&#127919; Workable lists <span style="margin-left:auto">emailed contacts only</span></h3>
-        <div class="seg-w" style="padding:0 0 10px">Cut from the Ylopo export and matched on email address. A contact with no email cannot appear in any of these lists, however the snapshot is refreshed - those people are counted below instead.</div>
+        <div class="seg-w" style="padding:0 0 10px">Cut from the Ylopo export and matched on email address. A contact with no email cannot appear in any of these lists, no matter how often the snapshot is refreshed - those people are counted below instead.</div>
         <div id="ylSegWrap"></div>
         <div id="ylSegDetail"></div>
       </div>
@@ -25081,7 +25099,7 @@ var index_default = {
         contact.customFields = enriched;
         return json(contact);
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     if (method === "PUT" && contactMatch) {
@@ -25092,7 +25110,7 @@ var index_default = {
         broadcastSSE({ type: "contact.updated", contactId });
         return json({ ok: true, data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     if (method === "DELETE" && contactMatch) {
@@ -25102,7 +25120,7 @@ var index_default = {
         broadcastSSE({ type: "contact.deleted", contactId });
         return json({ ok: true, contactId });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     const tagsMatch = path.match(/^\/contacts\/([^\/]+)\/tags$/);
@@ -25114,7 +25132,7 @@ var index_default = {
         broadcastSSE({ type: "contact.tagged", contactId, tags: body.tags });
         return json({ ok: true, data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     const notesMatch = path.match(/^\/contacts\/([^\/]+)\/notes$/);
@@ -25124,7 +25142,7 @@ var index_default = {
         const data = await ghlSafe(env, "GET", `/contacts/${contactId}/notes`);
         return json({ ok: true, notes: data.notes || data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     if (method === "POST" && notesMatch) {
@@ -25134,7 +25152,7 @@ var index_default = {
         const data = await ghlSafe(env, "POST", `/contacts/${contactId}/notes`, body);
         return json({ ok: true, data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     const tasksMatch = path.match(/^\/contacts\/([^\/]+)\/tasks$/);
@@ -25145,7 +25163,7 @@ var index_default = {
         const data = await ghlSafe(env, "POST", `/contacts/${contactId}/tasks`, body);
         return json({ ok: true, data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     const wfMatch = path.match(/^\/contacts\/([^\/]+)\/workflow\/([^\/]+)$/);
@@ -25155,7 +25173,7 @@ var index_default = {
         const data = await ghlSafe(env, "POST", `/contacts/${contactId}/workflow/${wfId}`, {});
         return json({ ok: true, data });
       } catch (e) {
-        return err(`GHL ${e.status || 500}`, e.status || 500, JSON.stringify(e.data || e.message));
+        return ghlContactErr(e);
       }
     }
     if (method === "GET" && path === "/attom/property") {
