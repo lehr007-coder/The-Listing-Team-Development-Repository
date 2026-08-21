@@ -21014,7 +21014,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 <script>(function(){var K='tlt-theme';var b=document.body;function set(m){if(m==='dark'){b.classList.remove('light-mode');}else{b.classList.add('light-mode');}var t=document.getElementById('tltThemeBtn');if(t)t.innerHTML=(m==='dark'?'&#9788; Light':'&#9790; Dark');}var saved=null;try{saved=localStorage.getItem(K)||localStorage.getItem('tlt-contacts-theme');}catch(e){}set(saved==='dark'?'dark':'light');var btn=document.createElement('button');btn.id='tltThemeBtn';btn.className='tlt-theme-toggle';btn.title='Toggle light / dark';btn.onclick=function(){var m=b.classList.contains('light-mode')?'dark':'light';try{localStorage.setItem(K,m);}catch(e){}set(m);};b.appendChild(btn);set(saved==='dark'?'dark':'light');})();<\/script></body>
 </html>
 `;
-async function ghl(env, method, path, body = null, useV2 = false) {
+// Always v2. There used to be a `useV2` parameter here, defaulted to false,
+// which read as "this call goes to v1" - it never did. `base` was already
+// unconditionally GHL_V2 and the parameter was ignored end to end. It cost a
+// wrong diagnosis on 2026-08-21 (hub/55), so it is gone. GHL_V1 is still used
+// directly by three legacy probes elsewhere; this is not those.
+async function ghl(env, method, path, body = null) {
   const base = GHL_V2;
   const token = env.GHL_V2_TOKEN || env.GHL_API_KEY;
   const url = `${base}${path}`;
@@ -21042,14 +21047,14 @@ async function ghl(env, method, path, body = null, useV2 = false) {
 __name(ghl, "ghl");
 __name2(ghl, "ghl");
 __name22(ghl, "ghl");
-async function ghlSafe(env, method, path, body = null, useV2 = false, attempt = 1) {
+async function ghlSafe(env, method, path, body = null, attempt = 1) {
   try {
-    return await ghl(env, method, path, body, useV2);
+    return await ghl(env, method, path, body);
   } catch (e) {
     if (e.status === 429 && attempt <= 4) {
       const wait = Math.min(2e4, 2e3 * Math.pow(2, attempt - 1));
       await new Promise((r) => setTimeout(r, wait));
-      return ghlSafe(env, method, path, body, useV2, attempt + 1);
+      return ghlSafe(env, method, path, body, attempt + 1);
     }
     throw e;
   }
@@ -25570,7 +25575,7 @@ var index_default = {
           };
           const updates = await buildYlopoFieldUpdates(env, ylopoData);
           if (updates.length > 0) {
-            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, false);
+            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates });
             console.log(`\u2705 Wrote ${updates.length} Ylopo fields to ${email}`);
           }
           const eventTags = {
@@ -26099,7 +26104,7 @@ var index_default = {
             continue;
           }
           try {
-            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates }, false);
+            await ghlSafe(env, "PUT", `/contacts/${contactId}`, { customFields: updates });
             updated++;
             results.push({ contactId, status: "updated", fields: updates.length, eventCount: records.length });
           } catch (writeErr) {
@@ -26136,7 +26141,7 @@ var index_default = {
         if (updates.length === 0) {
           return json({ ok: true, message: "No matching fields to update", updates: 0 });
         }
-        await ghlSafe(env, "PUT", `/contacts/${targetId}`, { customFields: updates }, false);
+        await ghlSafe(env, "PUT", `/contacts/${targetId}`, { customFields: updates });
         broadcastSSE({ type: "ylopo.synced", contactId: targetId, fields: updates.length });
         return json({ ok: true, contactId: targetId, updates: updates.length });
       } catch (e) {
