@@ -30,13 +30,13 @@ async function cloudflareRead(req:Request,env:EnvV06){
 }
 
 export default {
-  async fetch(req:Request,env:EnvV06,ctx:ExecutionContext){
+  async fetch(req:Request,env:EnvV06){
     const u=new URL(req.url);
     if(req.method==='POST'&&u.pathname==='/internal/cloudflare/read') return cloudflareRead(req,env);
     if(req.method==='GET'&&u.pathname==='/internal/cloudflare/health'){
       if(!internalAuthorized(req,env)) return json({ok:false,error:'unauthorized'},401);
       return json({ok:true,gateway_version:'0.6.0',capability:'cloudflare_ops',transport:'service_binding',mode:'read_only',delete_permitted:false,archive_permitted:false,binding_configured:Boolean(env.CLOUDFLARE_OPS),token_configured:Boolean(env.CLOUDFLARE_OPS_INTERNAL_TOKEN)});
     }
-    return gatewayV05.fetch(req,env as any,ctx);
+    return gatewayV05.fetch(req,env as any);
   }
 };
