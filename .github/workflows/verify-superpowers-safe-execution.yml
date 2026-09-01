@@ -1,0 +1,54 @@
+name: Verify Superpowers Safe Execution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-superpowers-safe-execution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute guarded read-only IDX search
+        env:
+          GATEWAY_AUTH_TOKEN: ${{ secrets.GATEWAY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GATEWAY_AUTH_TOKEN:-}" ]; then
+            echo 'GATEWAY_AUTH_TOKEN repo secret is not available; no request sent.'
+            exit 2
+          fi
+          echo '::add-mask::'"$GATEWAY_AUTH_TOKEN"
+          curl -fsS -X POST 'https://listing-team-ai-gateway.lehr007.workers.dev/tool/superpowers.execute_safe' \
+            -H "Authorization: Bearer $GATEWAY_AUTH_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{"request":"search active IDX listings in Fort Lauderdale","tool":"realestate.search_listings","arguments":{"city":"Fort Lauderdale","idxStatus":"active"}}' \
+            > /tmp/result.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/result.json'))
+          assert d.get('ok') is True, d
+          inner=d.get('data',{})
+          assert inner.get('ok') is True, inner
+          assert inner.get('mode') == 'safe_read_only_execution', inner
+          routing=inner.get('routing',{})
+          execution=routing.get('execution',{})
+          assert execution.get('delete_permitted') is False
+          assert execution.get('archive_permitted') is False
+          assert execution.get('can_execute_without_approval') is True
+          print(json.dumps({
+            'ok': True,
+            'mode': inner.get('mode'),
+            'tool': inner.get('tool'),
+            'project': (routing.get('project') or {}).get('id'),
+            'capabilities': [x.get('id') for x in routing.get('capabilities',[])],
+            'delete_permitted': execution.get('delete_permitted'),
+            'archive_permitted': execution.get('archive_permitted'),
+            'downstream_ok': isinstance(inner.get('data'),dict) and inner['data'].get('ok')
+          }, indent=2))
+          PY
