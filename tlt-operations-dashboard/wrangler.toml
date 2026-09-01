@@ -1,0 +1,20 @@
+name = "tlt-operations-dashboard"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[services]]
+binding = "CLOUDFLARE_OPS"
+service = "tlt-cloudflare-ops-read"
+
+[[services]]
+binding = "AI_GATEWAY"
+service = "listing-team-ai-gateway"
+
+# Secrets installed by deployment workflow:
+# DASHBOARD_INTERNAL_TOKEN
+# CF_OPS_INTERNAL_TOKEN
+# SUPERPOWERS_ROUTER_TOKEN
