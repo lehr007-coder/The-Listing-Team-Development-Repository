@@ -18,6 +18,10 @@ MORTGAGE_BASE_URL = ""
 RETURNING_CALLER_BASE_URL = ""
 CALL_QUALITY_BASE_URL = ""
 
+[[services]]
+binding = "SUPERPOWERS_ROUTER"
+service = "tlt-superpowers-router"
+
 # Secrets (never commit values):
 # npx wrangler secret put GATEWAY_AUTH_TOKEN
 # npx wrangler secret put IDX_BRIDGE_AUTH_TOKEN
