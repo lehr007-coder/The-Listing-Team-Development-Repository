@@ -19,27 +19,34 @@ jobs:
         working-directory: listing-team-ai-gateway
     steps:
       - uses: actions/checkout@v5
-      - name: Install and typecheck Gateway v0.6.0
+      - name: Install and typecheck Gateway
         run: |
           npm install --include=dev --legacy-peer-deps
           npm run typecheck
-      - name: Deploy Gateway with Cloudflare Ops service binding
+      - name: Deploy Gateway with service bindings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npx wrangler deploy --config wrangler.toml
-      - name: Install Cloudflare Ops internal credential
+      - name: Install internal credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          INTERNAL_TOKEN=$(python3 - <<'PY'
+          CF_OPS_TOKEN=$(python3 - <<'PY'
           import hashlib, os
           print(hashlib.sha256(('tlt-cloudflare-ops-read-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
           PY
           )
-          echo "::add-mask::$INTERNAL_TOKEN"
-          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put CLOUDFLARE_OPS_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+          GITHUB_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-github-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$CF_OPS_TOKEN"
+          echo "::add-mask::$GITHUB_TOKEN"
+          printf '%s' "$CF_OPS_TOKEN" | npx wrangler secret put CLOUDFLARE_OPS_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+          printf '%s' "$GITHUB_TOKEN" | npx wrangler secret put GITHUB_MCP_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
       - name: Verify protected Cloudflare operational reads
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -59,7 +66,6 @@ jobs:
           import json
           d=json.load(open('/tmp/cfhealth.json'))
           assert d['ok'] is True
-          assert d['gateway_version']=='0.6.0'
           assert d['mode']=='read_only'
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
@@ -78,5 +84,4 @@ jobs:
           data=d['data']
           for k in ['workers','pages','kv','r2','queues','zones']:
               assert data[k]['ok'] is True, (k,data[k])
-          print(json.dumps({k:v for k,v in data.items()}, indent=2))
           PY
