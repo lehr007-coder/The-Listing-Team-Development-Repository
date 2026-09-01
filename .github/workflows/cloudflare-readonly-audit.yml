@@ -1,0 +1,160 @@
+name: Cloudflare Read-Only Runtime Audit
+
+on:
+  push:
+    branches:
+      - audit/cloudflare-runtime-2026-09-01
+    paths:
+      - '.github/workflows/cloudflare-readonly-audit.yml'
+      - 'cloudflare-audit-trigger.txt'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  CF_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
+jobs:
+  audit:
+    name: Read-only Cloudflare inventory
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Query Cloudflare API (read-only)
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cloudflare-audit/raw cloudflare-audit/normalized
+          API='https://api.cloudflare.com/client/v4'
+          AUTH="Authorization: Bearer ${CF_API_TOKEN}"
+          ACCT="${CF_ACCOUNT_ID}"
+
+          call_api() {
+            local name="$1"
+            local url="$2"
+            echo "GET ${url}"
+            http=$(curl -sS -o "cloudflare-audit/raw/${name}.json" -w '%{http_code}' \
+              -H "$AUTH" -H 'Content-Type: application/json' "$url" || true)
+            printf '%s\n' "$http" > "cloudflare-audit/raw/${name}.http_status"
+            if jq -e . "cloudflare-audit/raw/${name}.json" >/dev/null 2>&1; then
+              jq '{success,errors,messages,result_info,result}' "cloudflare-audit/raw/${name}.json" \
+                > "cloudflare-audit/normalized/${name}.json"
+            else
+              printf '{"success":false,"http_status":"%s","note":"non-json response omitted"}\n' "$http" \
+                > "cloudflare-audit/normalized/${name}.json"
+            fi
+          }
+
+          call_api workers_scripts "$API/accounts/$ACCT/workers/scripts?per_page=100"
+          call_api workers_services "$API/accounts/$ACCT/workers/services?per_page=100"
+          call_api workers_domains "$API/accounts/$ACCT/workers/domains?per_page=100"
+          call_api pages_projects "$API/accounts/$ACCT/pages/projects?per_page=100"
+          call_api kv_namespaces "$API/accounts/$ACCT/storage/kv/namespaces?per_page=100"
+          call_api d1_databases "$API/accounts/$ACCT/d1/database?per_page=100"
+          call_api r2_buckets "$API/accounts/$ACCT/r2/buckets?per_page=100"
+          call_api queues "$API/accounts/$ACCT/queues?per_page=100"
+          call_api durable_objects "$API/accounts/$ACCT/workers/durable_objects/namespaces?per_page=100"
+          call_api account_subdomain "$API/accounts/$ACCT/workers/subdomain"
+          call_api zones "$API/zones?account.id=$ACCT&per_page=100"
+
+          # Per-worker schedules and deployment history. Never download Worker source or secret values.
+          if jq -e '.result | type=="array"' cloudflare-audit/normalized/workers_scripts.json >/dev/null 2>&1; then
+            jq -r '.result[]?.id // .result[]?.name // empty' cloudflare-audit/normalized/workers_scripts.json | sort -u > cloudflare-audit/worker-names.txt
+          else
+            : > cloudflare-audit/worker-names.txt
+          fi
+
+          while IFS= read -r worker; do
+            [ -n "$worker" ] || continue
+            safe=$(printf '%s' "$worker" | tr -c 'A-Za-z0-9._-' '_')
+            call_api "worker_${safe}_schedules" "$API/accounts/$ACCT/workers/scripts/$worker/schedules"
+            call_api "worker_${safe}_deployments" "$API/accounts/$ACCT/workers/scripts/$worker/deployments"
+          done < cloudflare-audit/worker-names.txt
+
+          # Zone routes. This lists routing only; no writes are performed.
+          if jq -e '.result | type=="array"' cloudflare-audit/normalized/zones.json >/dev/null 2>&1; then
+            jq -r '.result[]?.id // empty' cloudflare-audit/normalized/zones.json > cloudflare-audit/zone-ids.txt
+          else
+            : > cloudflare-audit/zone-ids.txt
+          fi
+          while IFS= read -r zone; do
+            [ -n "$zone" ] || continue
+            call_api "zone_${zone}_worker_routes" "$API/zones/$zone/workers/routes?per_page=100"
+          done < cloudflare-audit/zone-ids.txt
+
+          # Build a compact summary with names/status only. Do not emit token/secret values.
+          python3 - <<'PY'
+          import json, os, glob, datetime
+          base='cloudflare-audit/normalized'
+          def load(name):
+              p=os.path.join(base,name+'.json')
+              try:
+                  return json.load(open(p))
+              except Exception:
+                  return {'success':False,'result':None}
+          def arr(name):
+              r=load(name).get('result')
+              return r if isinstance(r,list) else []
+          def names(items):
+              out=[]
+              for x in items:
+                  if isinstance(x,dict):
+                      v=x.get('name') or x.get('id') or x.get('title')
+                      if v is not None: out.append(str(v))
+              return out
+          workers=arr('workers_scripts')
+          summary={
+            'generated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'account_id': os.environ.get('CF_ACCOUNT_ID'),
+            'mode':'READ_ONLY',
+            'workers': names(workers),
+            'worker_count': len(workers),
+            'services': names(arr('workers_services')),
+            'pages_projects': names(arr('pages_projects')),
+            'kv_namespaces': names(arr('kv_namespaces')),
+            'd1_databases': names(arr('d1_databases')),
+            'r2_buckets': names(arr('r2_buckets')),
+            'queues': names(arr('queues')),
+            'durable_objects': names(arr('durable_objects')),
+            'custom_domains': [
+              {'hostname':x.get('hostname'),'service':x.get('service'),'environment':x.get('environment')}
+              for x in arr('workers_domains') if isinstance(x,dict)
+            ],
+            'zones': [
+              {'id':x.get('id'),'name':x.get('name'),'status':x.get('status')}
+              for x in arr('zones') if isinstance(x,dict)
+            ],
+            'worker_schedules':{},
+            'worker_deployments':{}
+          }
+          for worker in summary['workers']:
+              safe=''.join(c if c.isalnum() or c in '._-' else '_' for c in worker)
+              sch=load(f'worker_{safe}_schedules').get('result')
+              dep=load(f'worker_{safe}_deployments').get('result')
+              if isinstance(sch,list):
+                  summary['worker_schedules'][worker]=[
+                    {k:v for k,v in x.items() if k in ('cron','created_on','modified_on')}
+                    for x in sch if isinstance(x,dict)
+                  ]
+              if isinstance(dep,list):
+                  summary['worker_deployments'][worker]=[
+                    {k:v for k,v in x.items() if k in ('id','created_on','source','strategy')}
+                    for x in dep[:10] if isinstance(x,dict)
+                  ]
+          json.dump(summary,open('cloudflare-audit/summary.json','w'),indent=2)
+          PY
+
+          # Remove raw API payloads before upload. Only normalized and compact summaries are retained.
+          rm -rf cloudflare-audit/raw
+
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-readonly-audit-2026-09-01
+          path: cloudflare-audit/
+          if-no-files-found: error
+          retention-days: 30
