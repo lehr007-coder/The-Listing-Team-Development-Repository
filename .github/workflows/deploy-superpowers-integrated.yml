@@ -94,3 +94,61 @@ jobs:
           assert d.get('routeAuth') is True
           assert (d.get('projectCount') or 0) >= 5
           PY
+
+      - name: Verify Phase 2 safe read-only execution and blocking
+        run: |
+          set -euo pipefail
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+
+          safe_call() {
+            local name="$1"
+            local payload="$2"
+            local file="/tmp/${name}.json"
+            local code
+            code=$(curl -sS -o "$file" -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+              -H "Authorization: Bearer $ROUTER_TOKEN" \
+              -H 'content-type: application/json' \
+              --data "$payload")
+            test "$code" = "200"
+            TEST_NAME="$name" TEST_FILE="$file" python3 - <<'PY'
+          import json, os
+          d=json.load(open(os.environ['TEST_FILE']))
+          assert d.get('ok') is True
+          assert d.get('mode') == 'safe_read_only_execution'
+          ex=((d.get('routing') or {}).get('execution') or {})
+          assert ex.get('can_execute_without_approval') is True
+          assert ex.get('delete_permitted') is False
+          assert ex.get('archive_permitted') is False
+          caps=[c.get('id') for c in ((d.get('routing') or {}).get('capabilities') or [])]
+          print(json.dumps({'test':os.environ['TEST_NAME'],'ok':True,'tool':d.get('tool'),'mode':d.get('mode'),'capabilities':caps,'delete_permitted':ex.get('delete_permitted'),'archive_permitted':ex.get('archive_permitted')}))
+          PY
+          }
+
+          safe_call crm '{"request":"check FUB and GHL CRM bridge health read only","tool":"crm.bridge_health_check","arguments":{"response_format":"json"}}'
+          safe_call ylopo '{"request":"show one Ylopo opportunity read only","tool":"ylopo.list_opportunities","arguments":{"limit":1,"response_format":"json"}}'
+          safe_call squarespace '{"request":"list one Squarespace product read only","tool":"squarespace.list_products","arguments":{"limit":1,"response_format":"json"}}'
+
+          WRITE_CODE=$(curl -sS -o /tmp/write-block.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"update a GHL contact","tool":"crm.ghl_upsert_contact","arguments":{}}')
+          test "$WRITE_CODE" = "502"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/write-block.json'))
+          assert d.get('ok') is False
+          assert 'not approved for safe automatic execution' in d.get('error','')
+          print('{"test":"crm_write_block","ok":true,"upstream_executed":false}')
+          PY
+
+          DELETE_CODE=$(curl -sS -o /tmp/delete-block.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"delete a Ylopo lead","tool":"ylopo.search_contacts","arguments":{"query":"safety-probe"}}')
+          test "$DELETE_CODE" = "502"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/delete-block.json'))
+          assert d.get('ok') is False
+          print('{"test":"destructive_intent_block","ok":true,"upstream_executed":false}')
+          PY
