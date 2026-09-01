@@ -4,7 +4,7 @@ compatibility_date = "2026-08-10"
 workers_dev = true
 
 [vars]
-GATEWAY_VERSION = "0.3.0"
+GATEWAY_VERSION = "0.4.0"
 SUPERPOWERS_ROUTER_BASE_URL = "https://tlt-superpowers-router.lehr007.workers.dev"
 
 # Confirmed deployed upstream Workers.
@@ -22,8 +22,13 @@ CALL_QUALITY_BASE_URL = ""
 binding = "SUPERPOWERS_ROUTER"
 service = "tlt-superpowers-router"
 
+[[services]]
+binding = "IDX_BRIDGE"
+service = "idx-mcp-bridge"
+
 # Secrets (never commit values):
 # npx wrangler secret put GATEWAY_AUTH_TOKEN
 # npx wrangler secret put IDX_BRIDGE_AUTH_TOKEN
+# npx wrangler secret put IDX_INTERNAL_TOKEN
 # npx wrangler secret put VOICE_BRIDGE_AUTH_TOKEN
 # npx wrangler secret put SUPERPOWERS_ROUTER_TOKEN
