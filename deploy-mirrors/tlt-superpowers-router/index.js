@@ -16,6 +16,7 @@ const capabilities = [
   { id:'ylopo', domain:'lead_intelligence', provider:'mcp_workers_ylopo', keywords:['ylopo','lead activity','lead score'] },
   { id:'squarespace', domain:'website', provider:'mcp_workers_squarespace', keywords:['squarespace','website','blog','page','publish'] },
   { id:'idx', domain:'real_estate_data', provider:'idx_mcp_bridge', keywords:['idx','listing search','valuation','cma','mls'] },
+  { id:'cloudflare_ops', domain:'infrastructure', provider:'tlt_cloudflare_ops_read', keywords:['cloudflare','worker inventory','workers inventory','pages projects','kv namespaces','r2 buckets','queues','d1 databases','zones','infrastructure inventory','operational inventory'] },
   { id:'seo_edge', domain:'seo', provider:'cloudflare_seo_proxy', keywords:['seo','schema','json-ld','canonical','meta tags','aeo','geo'] },
   { id:'images', domain:'media', provider:'tlt_image_server', keywords:['image','hero','asset','photo'] },
   { id:'social', domain:'social', provider:'social_post_importer_ghl', keywords:['social','instagram','facebook','linkedin','hashtags','schedule'] },
