@@ -7,6 +7,7 @@ on:
       - '.github/workflows/call-fub-ghl-superpowers-deploy.yml'
   workflow_dispatch:
 
+# Superpowers deployment trigger: 2026-09-01
 jobs:
   deploy:
     uses: lehr007-coder/mcp-workers/.github/workflows/deploy-fub-ghl-superpowers-reusable.yml@main
