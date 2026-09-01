@@ -158,6 +158,15 @@ export default {
     if (req.method==="GET"&&url.pathname==="/") return json({name:"listing-team-ai-gateway",version:env.GATEWAY_VERSION||"0.3.0",status:"ok"});
     if (req.method==="GET"&&url.pathname==="/health") return json({ok:true,configured:{superpowers:Boolean((env.SUPERPOWERS_ROUTER||env.SUPERPOWERS_ROUTER_BASE_URL)&&env.SUPERPOWERS_ROUTER_TOKEN),idx:Boolean(env.IDX_BRIDGE_BASE_URL),propertyData:Boolean(env.PROPERTY_DATA_BASE_URL),mortgage:Boolean(env.MORTGAGE_BASE_URL),returningCaller:Boolean(env.RETURNING_CALLER_BASE_URL),leadScorer:Boolean(env.LEAD_SCORER_BASE_URL),callQuality:Boolean(env.CALL_QUALITY_BASE_URL)},safeExecutionTools:Object.keys(SAFE_EXECUTION_TOOLS)});
     if (req.method==="GET"&&url.pathname==="/health/superpowers") return json(await superpowersProbe(env));
+    if (req.method==="POST"&&url.pathname==="/internal/superpowers/execute-safe") {
+      if (!env.SUPERPOWERS_ROUTER_TOKEN || bearer(req) !== env.SUPERPOWERS_ROUTER_TOKEN) return json({ok:false,error:"Unauthorized"},401);
+      try {
+        const args=(await req.json().catch(()=>({}))) as Json;
+        return json(await executeSafe(args,env));
+      } catch(error) {
+        return json({ok:false,error:error instanceof Error?error.message:"Safe execution error"},502);
+      }
+    }
     if (!authorized(req,env)) return json({ok:false,error:"Unauthorized"},401);
     if (req.method==="GET"&&url.pathname==="/tools") return json({count:tools.length,tools:tools.map(({name,description,inputSchema})=>({name,description,inputSchema}))});
     if (req.method==="POST"&&url.pathname==="/mcp") return handleMcp(req,env);
