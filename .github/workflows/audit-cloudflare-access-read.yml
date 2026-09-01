@@ -1,0 +1,80 @@
+name: Audit Cloudflare Access Read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-cloudflare-access-read.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Cloudflare Access read permission
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CF_API_TOKEN:-}" ]; then
+            echo "cloudflare_token=missing"
+            exit 1
+          fi
+
+          accounts_file=$(mktemp)
+          status=$(curl -sS -o "$accounts_file" -w '%{http_code}' \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            'https://api.cloudflare.com/client/v4/accounts?per_page=5')
+
+          if [ "$status" != "200" ]; then
+            echo "accounts_read_http=${status}"
+            exit 1
+          fi
+
+          account_id=$(python - "$accounts_file" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+rows=p.get('result') or []
+print(rows[0].get('id','') if rows else '')
+PY
+)
+          if [ -z "$account_id" ]; then
+            echo "account_id_resolution=failed"
+            exit 1
+          fi
+
+          apps_file=$(mktemp)
+          apps_status=$(curl -sS -o "$apps_file" -w '%{http_code}' \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/${account_id}/access/apps?per_page=100")
+
+          echo "access_apps_read_http=${apps_status}"
+          if [ "$apps_status" = "200" ]; then
+            python - "$apps_file" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+rows=p.get('result') or []
+print(f"access_apps_count={len(rows)}")
+print("access_read_capable=true")
+PY
+          else
+            python - "$apps_file" <<'PY'
+import json,sys
+try:
+    p=json.load(open(sys.argv[1]))
+    errs=p.get('errors') or []
+    codes=[str(e.get('code')) for e in errs if e.get('code') is not None]
+    print('access_error_codes=' + ','.join(codes[:5]))
+except Exception:
+    print('access_error_codes=unparsed')
+PY
+            echo "access_read_capable=false"
+          fi
+
+          echo "mutation_performed=false"
