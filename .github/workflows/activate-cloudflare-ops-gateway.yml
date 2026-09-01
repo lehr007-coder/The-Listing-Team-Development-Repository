@@ -85,3 +85,59 @@ jobs:
           for k in ['workers','pages','kv','r2','queues','zones']:
               assert data[k]['ok'] is True, (k,data[k])
           PY
+      - name: Verify protected GitHub read-only boundary
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          BASE='https://listing-team-ai-gateway.lehr007.workers.dev'
+
+          test "$(curl -sS -o /tmp/gh-unauth -w '%{http_code}' "$BASE/internal/github/health")" = "401"
+          curl -fsS "$BASE/internal/github/health" -H "Authorization: Bearer $ROUTER_TOKEN" | tee /tmp/gh-health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/gh-health.json'))
+          assert d['ok'] is True
+          assert d['gateway_version']=='0.7.0'
+          assert d['mode']=='read_only'
+          assert d['approved_tool_count']==8
+          assert d['write_tools_exposed'] is False
+          assert d['delete_permitted'] is False
+          assert d['archive_permitted'] is False
+          assert d['binding_configured'] is True
+          assert d['token_configured'] is True
+          PY
+
+          curl -fsS -X POST "$BASE/internal/github/read" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"tool":"github_get_repository","arguments":{"owner":"lehr007-coder","repo":"condo-intel-v2","response_format":"json"}}' | tee /tmp/gh-read.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/gh-read.json'))
+          assert d['ok'] is True
+          assert d['mode']=='read_only'
+          assert d['write_permitted'] is False
+          assert d['delete_permitted'] is False
+          assert d['archive_permitted'] is False
+          assert d['tool']=='github_get_repository'
+          PY
+
+          BLOCKED_CODE=$(curl -sS -o /tmp/gh-blocked -w '%{http_code}' -X POST "$BASE/internal/github/read" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"tool":"github_create_issue","arguments":{"owner":"lehr007-coder","repo":"condo-intel-v2","title":"THIS MUST NEVER BE CREATED"}}')
+          test "$BLOCKED_CODE" = "400"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/gh-blocked'))
+          assert d['ok'] is False
+          assert d['error']=='github_tool_not_approved_for_read_only_gateway'
+          assert d['tool']=='github_create_issue'
+          PY
