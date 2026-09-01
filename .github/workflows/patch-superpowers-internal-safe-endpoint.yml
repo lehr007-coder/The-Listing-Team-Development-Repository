@@ -1,0 +1,41 @@
+name: Patch Superpowers Internal Safe Endpoint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-superpowers-internal-safe-endpoint.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch gateway source narrowly
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('listing-team-ai-gateway/src/index.ts')
+          s=p.read_text()
+          old='''    if (req.method==="GET"&&url.pathname==="/health/superpowers") return json(await superpowersProbe(env));\n    if (!authorized(req,env)) return json({ok:false,error:"Unauthorized"},401);'''
+          new='''    if (req.method==="GET"&&url.pathname==="/health/superpowers") return json(await superpowersProbe(env));\n    if (req.method==="POST"&&url.pathname==="/internal/superpowers/execute-safe") {\n      if (!env.SUPERPOWERS_ROUTER_TOKEN || bearer(req) !== env.SUPERPOWERS_ROUTER_TOKEN) return json({ok:false,error:"Unauthorized"},401);\n      try {\n        const args=(await req.json().catch(()=>({}))) as Json;\n        return json(await executeSafe(args,env));\n      } catch(error) {\n        return json({ok:false,error:error instanceof Error?error.message:"Safe execution error"},502);\n      }\n    }\n    if (!authorized(req,env)) return json({ok:false,error:"Unauthorized"},401);'''
+          if old not in s:
+            raise SystemExit('Expected patch anchor not found; refusing broad edit')
+          p.write_text(s.replace(old,new,1))
+          PY
+          git diff --check
+          git diff -- listing-team-ai-gateway/src/index.ts
+      - name: Commit patch
+        run: |
+          set -euo pipefail
+          git config user.name 'tlt-superpowers-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add listing-team-ai-gateway/src/index.ts
+          git commit -m 'Add internal guarded Superpowers safe execution endpoint'
+          git push origin HEAD:main
