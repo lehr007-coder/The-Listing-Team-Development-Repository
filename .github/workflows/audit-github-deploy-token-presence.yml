@@ -1,0 +1,29 @@
+name: Audit GitHub Deploy Token Presence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-github-deploy-token-presence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report presence only
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          REPO_PAT: ${{ secrets.REPO_PAT }}
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          ADMIN_GITHUB_TOKEN: ${{ secrets.ADMIN_GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os, json
+          names=['GH_PAT','GITHUB_PAT','REPO_PAT','PERSONAL_ACCESS_TOKEN','ADMIN_GITHUB_TOKEN']
+          print(json.dumps({n: bool(os.environ.get(n)) for n in names}))
+          PY
