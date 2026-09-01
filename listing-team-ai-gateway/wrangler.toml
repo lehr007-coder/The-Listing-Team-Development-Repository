@@ -29,14 +29,17 @@ service = "idx-mcp-bridge"
 [[services]]
 binding = "CRM_MCP"
 service = "fub-ghl-mcp-server"
+entrypoint = "SuperpowersReadOnlyEntrypoint"
 
 [[services]]
 binding = "YLOPO_MCP"
 service = "ylopo-mcp-server"
+entrypoint = "SuperpowersReadOnlyEntrypoint"
 
 [[services]]
 binding = "SQUARESPACE_MCP"
 service = "squarespace-mcp-server"
+entrypoint = "SuperpowersReadOnlyEntrypoint"
 
 # Secrets (never commit values):
 # npx wrangler secret put GATEWAY_AUTH_TOKEN
