@@ -15,21 +15,29 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
-      - name: Derive internal router token
+      - name: Derive internal Superpowers tokens
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$CF_API_TOKEN"
-          ROUTER_TOKEN=$(python3 - <<'PY'
+          python3 - <<'PY'
           import hashlib, os
-          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          token=os.environ['CF_API_TOKEN']
+          pairs={
+            'ROUTER_TOKEN':'tlt-superpowers-router-v1',
+            'CRM_MCP_TOKEN':'tlt-superpowers-crm-internal-v1',
+            'YLOPO_MCP_TOKEN':'tlt-superpowers-ylopo-internal-v1',
+            'SQUARESPACE_MCP_TOKEN':'tlt-superpowers-squarespace-internal-v1',
+          }
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+            for name,context in pairs.items():
+              value=hashlib.sha256((context+':'+token).encode()).hexdigest()
+              print(f'::add-mask::{value}')
+              f.write(f'{name}={value}\n')
           PY
-          )
-          echo "::add-mask::$ROUTER_TOKEN"
-          echo "ROUTER_TOKEN=$ROUTER_TOKEN" >> "$GITHUB_ENV"
 
       - name: Typecheck AI Gateway
         working-directory: listing-team-ai-gateway
@@ -46,7 +54,7 @@ jobs:
           npx --yes wrangler@4 deploy --config deploy-mirrors/tlt-superpowers-router/wrangler.toml
           npx --yes wrangler@4 deploy --config listing-team-ai-gateway/wrangler.toml
 
-      - name: Install internal router secrets
+      - name: Install internal Superpowers secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
@@ -54,6 +62,9 @@ jobs:
           set -euo pipefail
           printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --config deploy-mirrors/tlt-superpowers-router/wrangler.toml >/dev/null
           printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$CRM_MCP_TOKEN" | npx --yes wrangler@4 secret put CRM_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$YLOPO_MCP_TOKEN" | npx --yes wrangler@4 secret put YLOPO_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$SQUARESPACE_MCP_TOKEN" | npx --yes wrangler@4 secret put SQUARESPACE_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
 
       - name: Verify secure routing integration
         run: |
