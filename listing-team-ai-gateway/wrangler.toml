@@ -4,7 +4,7 @@ compatibility_date = "2026-08-10"
 workers_dev = true
 
 [vars]
-GATEWAY_VERSION = "0.2.0"
+GATEWAY_VERSION = "0.3.0"
 SUPERPOWERS_ROUTER_BASE_URL = "https://tlt-superpowers-router.lehr007.workers.dev"
 
 # Confirmed deployed upstream Workers.
