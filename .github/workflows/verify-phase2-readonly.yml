@@ -1,0 +1,81 @@
+name: Verify Phase 2 Read-Only
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-phase2-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive masked router credential
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          echo "ROUTER_TOKEN=$ROUTER_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Diagnose safe read-only calls without exposing result data
+        run: |
+          set -euo pipefail
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+
+          probe() {
+            local name="$1"
+            local payload="$2"
+            local file="/tmp/${name}.json"
+            local code
+            code=$(curl -sS -o "$file" -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+              -H "Authorization: Bearer $ROUTER_TOKEN" \
+              -H 'content-type: application/json' \
+              --data "$payload")
+            TEST_NAME="$name" TEST_CODE="$code" TEST_FILE="$file" python3 - <<'PY'
+          import json, os
+          name=os.environ['TEST_NAME']; code=os.environ['TEST_CODE']
+          try: d=json.load(open(os.environ['TEST_FILE']))
+          except Exception: d={}
+          out={'test':name,'http_code':code,'ok':d.get('ok')}
+          if code!='200': out['error']=d.get('error','unknown_error')
+          else:
+            ex=((d.get('routing') or {}).get('execution') or {})
+            out.update({'tool':d.get('tool'),'mode':d.get('mode'),'can_execute_without_approval':ex.get('can_execute_without_approval'),'delete_permitted':ex.get('delete_permitted'),'archive_permitted':ex.get('archive_permitted')})
+          print(json.dumps(out))
+          PY
+          }
+
+          probe crm '{"request":"check GHL CRM bridge health read only","tool":"crm.bridge_health_check","arguments":{"response_format":"json"}}'
+          probe ylopo '{"request":"show one Ylopo opportunity read only","tool":"ylopo.list_opportunities","arguments":{"limit":1,"response_format":"json"}}'
+          probe squarespace '{"request":"list one Squarespace product read only","tool":"squarespace.list_products","arguments":{"limit":1,"response_format":"json"}}'
+
+      - name: Verify blocked operations without upstream execution
+        run: |
+          set -euo pipefail
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+          WRITE_CODE=$(curl -sS -o /tmp/write.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
+            --data '{"request":"update a GHL contact","tool":"crm.ghl_upsert_contact","arguments":{}}')
+          DELETE_CODE=$(curl -sS -o /tmp/delete.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
+            --data '{"request":"delete a Ylopo lead","tool":"ylopo.search_contacts","arguments":{"query":"safety-probe"}}')
+          WRITE_CODE="$WRITE_CODE" DELETE_CODE="$DELETE_CODE" python3 - <<'PY'
+          import json, os
+          w=json.load(open('/tmp/write.json')); d=json.load(open('/tmp/delete.json'))
+          assert os.environ['WRITE_CODE']=='502' and w.get('ok') is False
+          assert 'not approved for safe automatic execution' in w.get('error','')
+          assert os.environ['DELETE_CODE']=='502' and d.get('ok') is False
+          print('{"test":"crm_write_block","ok":true,"upstream_executed":false}')
+          print('{"test":"destructive_intent_block","ok":true,"upstream_executed":false}')
+          PY
