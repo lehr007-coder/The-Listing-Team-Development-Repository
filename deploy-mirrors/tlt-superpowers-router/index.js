@@ -12,7 +12,7 @@ const projects = [
 
 const capabilities = [
   { id:'github', domain:'engineering', provider:'mcp_workers_github', keywords:['github','repo','repository','pull request','issue','code'] },
-  { id:'crm', domain:'crm', provider:'mcp_workers_fub_ghl', keywords:['ghl','gohighlevel','fub','contact','sms','email','appointment','opportunity'] },
+  { id:'crm', domain:'crm', provider:'mcp_workers_fub_ghl', keywords:['crm','ghl','gohighlevel','fub','follow up boss','contact','sms','email','appointment','opportunity'] },
   { id:'ylopo', domain:'lead_intelligence', provider:'mcp_workers_ylopo', keywords:['ylopo','lead activity','lead score'] },
   { id:'squarespace', domain:'website', provider:'mcp_workers_squarespace', keywords:['squarespace','website','blog','page','publish'] },
   { id:'idx', domain:'real_estate_data', provider:'idx_mcp_bridge', keywords:['idx','listing search','valuation','cma','mls'] },
