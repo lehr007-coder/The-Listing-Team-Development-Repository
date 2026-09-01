@@ -70,12 +70,15 @@ function routeRequest(input) {
   const safe=intent.readOnly&&gates.length===0;
   return {ok:true,request:input.request,intent,project:project?{id:project.id,name:project.name,domain:project.domain,status:project.status,repository:project.repository,write_policy:project.writePolicy,confidence:Number(pr.confidence.toFixed(2)),matched:pr.matched}:null,capabilities:selected,agents:agentPlan(project,request),gates,execution:{mode:safe?'read_only_safe':'plan_or_wait_for_approval',can_execute_without_approval:safe,delete_permitted:false,archive_permitted:false},recommendation:project?`Route through ${project.name} first, then use canonical capabilities.`:'No owning project resolved. Use the orchestrator to clarify or perform capability-only routing.'};
 }
-function json(body,status=200){ return new Response(JSON.stringify(body,null,2),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}}); }
+function json(body,status=200){ return new Response(JSON.stringify(body,null,2),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}}); }
+function bearer(request){ const h=request.headers.get('authorization')||''; return h.toLowerCase().startsWith('bearer ')?h.slice(7).trim():null; }
+function authorized(request,env){ return Boolean(env?.SUPERPOWERS_AUTH_TOKEN) && bearer(request)===env.SUPERPOWERS_AUTH_TOKEN; }
 
-export default { async fetch(request) {
+export default { async fetch(request,env) {
   const url=new URL(request.url);
-  if (request.method==='GET'&&url.pathname==='/health') return json({ok:true,service:'tlt-superpowers-router',version:'0.1.0',mode:'deterministic-routing',canonical_source:'lehr007-coder/Listing-Team-Development-Repository/marketing-superpowers/runtime',policy:{never_delete_automatically:true,never_archive_automatically:true,project_before_capability:true,human_approval_before_publication:true}});
+  if (request.method==='GET'&&url.pathname==='/health') return json({ok:true,service:'tlt-superpowers-router',version:'0.2.0',mode:'deterministic-routing',canonical_source:'lehr007-coder/Listing-Team-Development-Repository/marketing-superpowers/runtime',auth:{protected_endpoints:['/registry','/route']},policy:{never_delete_automatically:true,never_archive_automatically:true,project_before_capability:true,human_approval_before_publication:true}});
+  if ((url.pathname==='/registry'||url.pathname==='/route')&&!authorized(request,env)) return json({ok:false,error:'unauthorized'},401);
   if (request.method==='GET'&&url.pathname==='/registry') return json({projects:projects.map(({keywords,...p})=>p),capabilities:capabilities.map(({keywords,...c})=>c),policies});
   if (request.method==='POST'&&url.pathname==='/route') { let body; try { body=await request.json(); } catch { return json({ok:false,error:'invalid_json'},400); } const r=routeRequest(body); return json(r,r.ok?200:400); }
-  return json({ok:false,error:'not_found',endpoints:['GET /health','GET /registry','POST /route']},404);
+  return json({ok:false,error:'not_found',endpoints:['GET /health','GET /registry [auth]','POST /route [auth]']},404);
 }};
