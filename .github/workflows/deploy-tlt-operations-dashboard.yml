@@ -44,7 +44,7 @@ jobs:
           printf '%s' "$DASH_TOKEN" | npx --yes wrangler@4 secret put DASHBOARD_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
           printf '%s' "$CF_OPS_TOKEN" | npx --yes wrangler@4 secret put CF_OPS_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
           printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --name tlt-operations-dashboard >/dev/null
-      - name: Verify dashboard stays locked and returns read-only status internally
+      - name: Verify dashboard stays locked and returns read-only live status internally
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
@@ -57,11 +57,13 @@ jobs:
           d=json.load(open('/tmp/health.json'))
           assert d['ok'] is True
           assert d['auth_required'] is True
+          assert d['auth_mode']=='internal_bearer_only'
           assert d['mode']=='read_only'
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
           PY
           test "$(curl -sS -o /tmp/public -w '%{http_code}' "$BASE/")" = "401"
+          test "$(curl -sS -o /tmp/public-api -w '%{http_code}' "$BASE/api/status")" = "401"
           DASH_TOKEN=$(python3 - <<'PY'
           import hashlib, os
           print(hashlib.sha256(('tlt-operations-dashboard-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
@@ -78,5 +80,27 @@ jobs:
           assert d['policy']['archive_permitted'] is False
           assert d['policy']['writes_exposed'] is False
           assert any(x['id']=='cloudflare_ops' and x['status']=='verified' for x in d['capabilities'])
-          print(json.dumps({'projects':len(d['projects']),'capabilities':len(d['capabilities']),'cloudflare_ok':d['cloudflare'].get('ok'),'gateway_ok':d['gateway'].get('ok')}, indent=2))
+          assert any(x['id']=='github' and x['status']=='verified' for x in d['capabilities'])
+          gh=d['github']
+          assert gh['ok'] is True
+          assert gh['mode']=='read_only'
+          assert gh['write_permitted'] is False
+          assert gh['delete_permitted'] is False
+          assert gh['archive_permitted'] is False
+          repos=gh['repositories']
+          expected={
+            'lehr007-coder/listinghq',
+            'lehr007-coder/condo-intel-v2',
+            'lehr007-coder/the-listing-team-transaction-os',
+            'lehr007-coder/Listing-Team-Development-Repository',
+            'lehr007-coder/mcp-workers'
+          }
+          got={x['repository'] for x in repos if x.get('ok')}
+          assert expected <= got, (expected-got, repos)
+          for row in repos:
+              if row.get('ok'):
+                  assert row['write_permitted'] is False
+                  assert row['delete_permitted'] is False
+                  assert row['archive_permitted'] is False
+          print(json.dumps({'projects':len(d['projects']),'capabilities':len(d['capabilities']),'cloudflare_ok':d['cloudflare'].get('ok'),'gateway_ok':d['gateway'].get('ok'),'github_ok':gh.get('ok'),'repositories_live':len(got)}, indent=2))
           PY
