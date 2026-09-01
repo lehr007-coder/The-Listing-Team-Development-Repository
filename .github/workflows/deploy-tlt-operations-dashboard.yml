@@ -1,0 +1,82 @@
+name: Deploy TLT Operations Dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tlt-operations-dashboard/**'
+      - '.github/workflows/deploy-tlt-operations-dashboard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tlt-operations-dashboard
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy protected dashboard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
+      - name: Install internal credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          derive() {
+            CONTEXT="$1" python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256((os.environ['CONTEXT']+':'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          }
+          DASH_TOKEN="$(derive 'tlt-operations-dashboard-v1')"
+          CF_OPS_TOKEN="$(derive 'tlt-cloudflare-ops-read-v1')"
+          ROUTER_TOKEN="$(derive 'tlt-superpowers-router-v1')"
+          echo "::add-mask::$DASH_TOKEN"
+          echo "::add-mask::$CF_OPS_TOKEN"
+          echo "::add-mask::$ROUTER_TOKEN"
+          printf '%s' "$DASH_TOKEN" | npx --yes wrangler@4 secret put DASHBOARD_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
+          printf '%s' "$CF_OPS_TOKEN" | npx --yes wrangler@4 secret put CF_OPS_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --name tlt-operations-dashboard >/dev/null
+      - name: Verify dashboard stays locked and returns read-only status internally
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-operations-dashboard.lehr007.workers.dev'
+          sleep 5
+          curl -fsS "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d['ok'] is True
+          assert d['auth_required'] is True
+          assert d['mode']=='read_only'
+          assert d['delete_permitted'] is False
+          assert d['archive_permitted'] is False
+          PY
+          test "$(curl -sS -o /tmp/public -w '%{http_code}' "$BASE/")" = "401"
+          DASH_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASH_TOKEN"
+          curl -fsS "$BASE/api/status" -H "Authorization: Bearer $DASH_TOKEN" | tee /tmp/status.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/status.json'))
+          assert d['ok'] is True
+          assert d['policy']['read_only'] is True
+          assert d['policy']['delete_permitted'] is False
+          assert d['policy']['archive_permitted'] is False
+          assert d['policy']['writes_exposed'] is False
+          assert any(x['id']=='cloudflare_ops' and x['status']=='verified' for x in d['capabilities'])
+          print(json.dumps({'projects':len(d['projects']),'capabilities':len(d['capabilities']),'cloudflare_ok':d['cloudflare'].get('ok'),'gateway_ok':d['gateway'].get('ok')}, indent=2))
+          PY
