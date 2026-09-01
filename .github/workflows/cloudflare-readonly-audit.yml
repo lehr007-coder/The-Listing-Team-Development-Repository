@@ -52,7 +52,7 @@ jobs:
           call_api workers_scripts "$API/accounts/$ACCT/workers/scripts?per_page=100"
           call_api workers_services "$API/accounts/$ACCT/workers/services?per_page=100"
           call_api workers_domains "$API/accounts/$ACCT/workers/domains?per_page=100"
-          call_api pages_projects "$API/accounts/$ACCT/pages/projects?per_page=100"
+          call_api pages_projects "$API/accounts/$ACCT/pages/projects"
           call_api kv_namespaces "$API/accounts/$ACCT/storage/kv/namespaces?per_page=100"
           call_api d1_databases "$API/accounts/$ACCT/d1/database?per_page=100"
           call_api r2_buckets "$API/accounts/$ACCT/r2/buckets?per_page=100"
@@ -61,21 +61,53 @@ jobs:
           call_api account_subdomain "$API/accounts/$ACCT/workers/subdomain"
           call_api zones "$API/zones?account.id=$ACCT&per_page=100"
 
-          # Per-worker schedules and deployment history. Never download Worker source or secret values.
           if jq -e '.result | type=="array"' cloudflare-audit/normalized/workers_scripts.json >/dev/null 2>&1; then
             jq -r '.result[]?.id // .result[]?.name // empty' cloudflare-audit/normalized/workers_scripts.json | sort -u > cloudflare-audit/worker-names.txt
           else
             : > cloudflare-audit/worker-names.txt
           fi
 
+          # Per-worker schedules, deployment history, and sanitized binding metadata.
+          # Settings are reduced immediately to binding names/types/resource IDs; plaintext values are discarded.
           while IFS= read -r worker; do
             [ -n "$worker" ] || continue
             safe=$(printf '%s' "$worker" | tr -c 'A-Za-z0-9._-' '_')
             call_api "worker_${safe}_schedules" "$API/accounts/$ACCT/workers/scripts/$worker/schedules"
             call_api "worker_${safe}_deployments" "$API/accounts/$ACCT/workers/scripts/$worker/deployments"
+
+            http=$(curl -sS -o "cloudflare-audit/raw/worker_${safe}_settings.json" -w '%{http_code}' \
+              -H "$AUTH" -H 'Content-Type: application/json' \
+              "$API/accounts/$ACCT/workers/scripts/$worker/settings" || true)
+            if jq -e . "cloudflare-audit/raw/worker_${safe}_settings.json" >/dev/null 2>&1; then
+              jq '{
+                success,
+                errors,
+                messages,
+                result: {
+                  compatibility_date: .result.compatibility_date,
+                  compatibility_flags: .result.compatibility_flags,
+                  usage_model: .result.usage_model,
+                  bindings: [(.result.bindings // [])[] | {
+                    name,
+                    type,
+                    namespace_id,
+                    database_id,
+                    bucket_name,
+                    queue_name,
+                    service,
+                    environment,
+                    class_name,
+                    script_name
+                  }]
+                }
+              }' "cloudflare-audit/raw/worker_${safe}_settings.json" \
+                > "cloudflare-audit/normalized/worker_${safe}_settings.json"
+            else
+              printf '{"success":false,"http_status":"%s"}\n' "$http" \
+                > "cloudflare-audit/normalized/worker_${safe}_settings.json"
+            fi
           done < cloudflare-audit/worker-names.txt
 
-          # Zone routes. This lists routing only; no writes are performed.
           if jq -e '.result | type=="array"' cloudflare-audit/normalized/zones.json >/dev/null 2>&1; then
             jq -r '.result[]?.id // empty' cloudflare-audit/normalized/zones.json > cloudflare-audit/zone-ids.txt
           else
@@ -86,27 +118,30 @@ jobs:
             call_api "zone_${zone}_worker_routes" "$API/zones/$zone/workers/routes?per_page=100"
           done < cloudflare-audit/zone-ids.txt
 
-          # Build a compact summary with names/status only. Do not emit token/secret values.
           python3 - <<'PY'
-          import json, os, glob, datetime
+          import json, os, datetime, glob
           base='cloudflare-audit/normalized'
           def load(name):
-              p=os.path.join(base,name+'.json')
-              try:
-                  return json.load(open(p))
-              except Exception:
-                  return {'success':False,'result':None}
+              try: return json.load(open(os.path.join(base,name+'.json')))
+              except Exception: return {'success':False,'result':None}
           def arr(name):
               r=load(name).get('result')
               return r if isinstance(r,list) else []
-          def names(items):
+          def names(items, fields=('name','id','title','queue_name')):
               out=[]
               for x in items:
-                  if isinstance(x,dict):
-                      v=x.get('name') or x.get('id') or x.get('title')
-                      if v is not None: out.append(str(v))
+                  if not isinstance(x,dict): continue
+                  for f in fields:
+                      if x.get(f) is not None:
+                          out.append(str(x[f])); break
               return out
           workers=arr('workers_scripts')
+          r2=load('r2_buckets').get('result') or {}
+          r2_items=r2.get('buckets',[]) if isinstance(r2,dict) else []
+          pages=arr('pages_projects')
+          queues=arr('queues')
+          d1=arr('d1_databases')
+
           summary={
             'generated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'account_id': os.environ.get('CF_ACCOUNT_ID'),
@@ -114,11 +149,13 @@ jobs:
             'workers': names(workers),
             'worker_count': len(workers),
             'services': names(arr('workers_services')),
-            'pages_projects': names(arr('pages_projects')),
-            'kv_namespaces': names(arr('kv_namespaces')),
-            'd1_databases': names(arr('d1_databases')),
-            'r2_buckets': names(arr('r2_buckets')),
-            'queues': names(arr('queues')),
+            'pages_projects': names(pages,('name','id')),
+            'kv_namespaces': [x.get('title') for x in arr('kv_namespaces') if isinstance(x,dict)],
+            'd1_databases': names(d1,('name','uuid','id')),
+            'd1_api_success': bool(load('d1_databases').get('success')),
+            'd1_api_errors': load('d1_databases').get('errors'),
+            'r2_buckets': names(r2_items,('name',)),
+            'queues': names(queues,('queue_name','name','id')),
             'durable_objects': names(arr('durable_objects')),
             'custom_domains': [
               {'hostname':x.get('hostname'),'service':x.get('service'),'environment':x.get('environment')}
@@ -129,12 +166,21 @@ jobs:
               for x in arr('zones') if isinstance(x,dict)
             ],
             'worker_schedules':{},
-            'worker_deployments':{}
+            'worker_deployments':{},
+            'worker_bindings':{},
+            'discovered_d1_binding_ids':[],
+            'discovered_r2_binding_buckets':[],
+            'discovered_queue_bindings':[],
+            'zone_routes':{}
           }
+
+          d1_ids=set(); r2_names=set(); queue_names=set()
           for worker in summary['workers']:
               safe=''.join(c if c.isalnum() or c in '._-' else '_' for c in worker)
               sch=load(f'worker_{safe}_schedules').get('result')
               dep=load(f'worker_{safe}_deployments').get('result')
+              settings=load(f'worker_{safe}_settings').get('result') or {}
+              bindings=settings.get('bindings',[]) if isinstance(settings,dict) else []
               if isinstance(sch,list):
                   summary['worker_schedules'][worker]=[
                     {k:v for k,v in x.items() if k in ('cron','created_on','modified_on')}
@@ -145,16 +191,36 @@ jobs:
                     {k:v for k,v in x.items() if k in ('id','created_on','source','strategy')}
                     for x in dep[:10] if isinstance(x,dict)
                   ]
+              clean=[]
+              for b in bindings:
+                  if not isinstance(b,dict): continue
+                  clean.append({k:v for k,v in b.items() if v is not None})
+                  if b.get('database_id'): d1_ids.add(str(b['database_id']))
+                  if b.get('bucket_name'): r2_names.add(str(b['bucket_name']))
+                  if b.get('queue_name'): queue_names.add(str(b['queue_name']))
+              summary['worker_bindings'][worker]=clean
+          summary['discovered_d1_binding_ids']=sorted(d1_ids)
+          summary['discovered_r2_binding_buckets']=sorted(r2_names)
+          summary['discovered_queue_bindings']=sorted(queue_names)
+
+          for p in glob.glob(os.path.join(base,'zone_*_worker_routes.json')):
+              data=json.load(open(p))
+              routes=data.get('result') if isinstance(data,dict) else None
+              if isinstance(routes,list):
+                  summary['zone_routes'][os.path.basename(p).replace('_worker_routes.json','').replace('zone_','')]=[
+                    {k:x.get(k) for k in ('id','pattern','script','request_limit_fail_open') if x.get(k) is not None}
+                    for x in routes if isinstance(x,dict)
+                  ]
+
           json.dump(summary,open('cloudflare-audit/summary.json','w'),indent=2)
           PY
 
-          # Remove raw API payloads before upload. Only normalized and compact summaries are retained.
           rm -rf cloudflare-audit/raw
 
       - name: Upload audit artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cloudflare-readonly-audit-2026-09-01
+          name: cloudflare-readonly-audit-2026-09-01-v2
           path: cloudflare-audit/
           if-no-files-found: error
           retention-days: 30
