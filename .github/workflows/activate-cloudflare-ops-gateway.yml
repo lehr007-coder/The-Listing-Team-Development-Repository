@@ -1,0 +1,82 @@
+name: Activate Cloudflare Ops Gateway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'listing-team-ai-gateway/**'
+      - '.github/workflows/activate-cloudflare-ops-gateway.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: listing-team-ai-gateway
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install and typecheck Gateway v0.6.0
+        run: |
+          npm install --include=dev --legacy-peer-deps
+          npm run typecheck
+      - name: Deploy Gateway with Cloudflare Ops service binding
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --config wrangler.toml
+      - name: Install Cloudflare Ops internal credential
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-cloudflare-ops-read-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put CLOUDFLARE_OPS_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+      - name: Verify protected Cloudflare operational reads
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          BASE='https://listing-team-ai-gateway.lehr007.workers.dev'
+          sleep 5
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' "$BASE/internal/cloudflare/health")" = "401"
+          curl -fsS "$BASE/internal/cloudflare/health" -H "Authorization: Bearer $ROUTER_TOKEN" | tee /tmp/cfhealth.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/cfhealth.json'))
+          assert d['ok'] is True
+          assert d['gateway_version']=='0.6.0'
+          assert d['mode']=='read_only'
+          assert d['delete_permitted'] is False
+          assert d['archive_permitted'] is False
+          assert d['binding_configured'] is True
+          assert d['token_configured'] is True
+          PY
+          curl -fsS -X POST "$BASE/internal/cloudflare/read" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"operation":"summary"}' | tee /tmp/cfsummary.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/cfsummary.json'))
+          assert d['ok'] is True
+          assert d['mode']=='read_only'
+          data=d['data']
+          for k in ['workers','pages','kv','r2','queues','zones']:
+              assert data[k]['ok'] is True, (k,data[k])
+          print(json.dumps({k:v for k,v in data.items()}, indent=2))
+          PY
