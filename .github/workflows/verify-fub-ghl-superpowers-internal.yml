@@ -1,0 +1,44 @@
+name: Verify FUB GHL Superpowers Internal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-fub-ghl-superpowers-internal.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive and install dedicated CRM internal token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-crm-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$TOKEN"
+          echo "CRM_INTERNAL_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_INTERNAL_TOKEN --name fub-ghl-mcp-server >/dev/null
+      - name: Verify live MCP accepts internal auth and remains protected
+        run: |
+          set -euo pipefail
+          URL='https://fub-ghl-mcp-server.lehr007.workers.dev/mcp'
+          body='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"superpowers-probe","version":"1.0"}}}'
+          unauth=$(curl -sS -o /tmp/u -w '%{http_code}' -X POST "$URL" -H 'content-type: application/json' --data "$body")
+          test "$unauth" = "401"
+          code=$(curl -sS -o /tmp/a -w '%{http_code}' -X POST "$URL" -H "X-Superpowers-Internal: $CRM_INTERNAL_TOKEN" -H 'content-type: application/json' --data "$body")
+          echo "internal MCP HTTP=$code"
+          test "$code" = "200"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/a'))
+          assert d.get('result',{}).get('capabilities',{}).get('tools') is not None
+          print(json.dumps({'ok': True, 'protocolVersion': d.get('result',{}).get('protocolVersion')}))
+          PY
