@@ -1,0 +1,49 @@
+name: Deploy Superpowers Router Mirror
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-superpowers-router/**'
+      - '.github/workflows/deploy-superpowers-router-mirror.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy-mirrors/tlt-superpowers-router
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy generated mirror
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: npx --yes wrangler@4 deploy
+      - name: Verify live router
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-superpowers-router.lehr007.workers.dev'
+          sleep 5
+          curl -fsS "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d.get('ok') is True
+          assert d.get('service') == 'tlt-superpowers-router'
+          assert d.get('policy',{}).get('never_delete_automatically') is True
+          PY
+          curl -fsS -X POST "$BASE/route" \
+            -H 'content-type: application/json' \
+            --data '{"request":"Create a blog and social campaign for a new listing"}' \
+            | tee /tmp/route.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/route.json'))
+          assert d.get('ok') is True
+          assert d.get('project',{}).get('id') == 'marketing_superpowers'
+          assert d.get('execution',{}).get('delete_permitted') is False
+          PY
