@@ -36,13 +36,7 @@ jobs:
             exit 1
           fi
 
-          account_id=$(python - "$accounts_file" <<'PY'
-import json,sys
-p=json.load(open(sys.argv[1]))
-rows=p.get('result') or []
-print(rows[0].get('id','') if rows else '')
-PY
-)
+          account_id=$(python -c "import json,sys; p=json.load(open(sys.argv[1])); rows=p.get('result') or []; print(rows[0].get('id','') if rows else '')" "$accounts_file")
           if [ -z "$account_id" ]; then
             echo "account_id_resolution=failed"
             exit 1
@@ -56,24 +50,9 @@ PY
 
           echo "access_apps_read_http=${apps_status}"
           if [ "$apps_status" = "200" ]; then
-            python - "$apps_file" <<'PY'
-import json,sys
-p=json.load(open(sys.argv[1]))
-rows=p.get('result') or []
-print(f"access_apps_count={len(rows)}")
-print("access_read_capable=true")
-PY
+            python -c "import json,sys; p=json.load(open(sys.argv[1])); rows=p.get('result') or []; print('access_apps_count=' + str(len(rows))); print('access_read_capable=true')" "$apps_file"
           else
-            python - "$apps_file" <<'PY'
-import json,sys
-try:
-    p=json.load(open(sys.argv[1]))
-    errs=p.get('errors') or []
-    codes=[str(e.get('code')) for e in errs if e.get('code') is not None]
-    print('access_error_codes=' + ','.join(codes[:5]))
-except Exception:
-    print('access_error_codes=unparsed')
-PY
+            python -c "import json,sys; p=json.load(open(sys.argv[1])); errs=p.get('errors') or []; codes=[str(e.get('code')) for e in errs if e.get('code') is not None]; print('access_error_codes=' + ','.join(codes[:5]))" "$apps_file" || echo "access_error_codes=unparsed"
             echo "access_read_capable=false"
           fi
 
