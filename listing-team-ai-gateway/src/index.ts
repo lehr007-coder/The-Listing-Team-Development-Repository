@@ -3,6 +3,8 @@ export interface Env {
   GATEWAY_AUTH_TOKEN: string;
   IDX_BRIDGE_BASE_URL?: string;
   IDX_BRIDGE_AUTH_TOKEN?: string;
+  IDX_INTERNAL_TOKEN?: string;
+  IDX_BRIDGE?: Fetcher;
   PROPERTY_DATA_BASE_URL?: string;
   MORTGAGE_BASE_URL?: string;
   RETURNING_CALLER_BASE_URL?: string;
@@ -32,9 +34,22 @@ async function postJson(url: string, body: Json, headers: Record<string, string>
 }
 
 async function idx(tool: string, args: Json, env: Env): Promise<unknown> {
+  const path = `/tool/${encodeURIComponent(tool)}`;
+  if (env.IDX_BRIDGE) {
+    if (!env.IDX_INTERNAL_TOKEN) throw new Error("IDX_INTERNAL_TOKEN is not configured");
+    const response = await env.IDX_BRIDGE.fetch(new Request(`https://idx.internal${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-idx-internal-auth": env.IDX_INTERNAL_TOKEN },
+      body: JSON.stringify(args)
+    }));
+    const text = await response.text(); let payload: unknown;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = { raw: text }; }
+    if (!response.ok) throw new Error(`IDX upstream ${response.status}: ${JSON.stringify(payload)}`);
+    return payload;
+  }
   const base = requireUrl(env.IDX_BRIDGE_BASE_URL, "IDX_BRIDGE_BASE_URL"); const headers: Record<string, string> = {};
   if (env.IDX_BRIDGE_AUTH_TOKEN) headers["x-bridge-auth"] = env.IDX_BRIDGE_AUTH_TOKEN;
-  return postJson(`${base}/tool/${encodeURIComponent(tool)}`, args, headers);
+  return postJson(`${base}${path}`, args, headers);
 }
 async function voice(baseUrl: string | undefined, endpoint: string, args: Json, env: Env): Promise<unknown> {
   const base = requireUrl(baseUrl, `${endpoint.toUpperCase()}_BASE_URL`); const headers: Record<string, string> = {};
