@@ -1,0 +1,50 @@
+name: Diagnose Phase 2 CRM Safe Execution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-phase2-crm-safe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe CRM through existing Superpowers internal endpoint
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          URL='https://listing-team-ai-gateway.lehr007.workers.dev/internal/superpowers/execute-safe'
+          CODE=$(curl -sS -o /tmp/crm.json -w '%{http_code}' -X POST "$URL" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{"request":"check the CRM bridge health using read-only access","tool":"crm.bridge_health_check","arguments":{}}')
+          CODE="$CODE" python3 - <<'PY'
+          import json, os
+          try:
+              d=json.load(open('/tmp/crm.json'))
+          except Exception:
+              d={}
+          print(json.dumps({
+              'http': os.environ['CODE'],
+              'ok': d.get('ok'),
+              'error': d.get('error'),
+              'mode': d.get('mode'),
+              'tool': d.get('tool'),
+              'capabilities': [x.get('id') for x in ((d.get('routing') or {}).get('capabilities') or [])],
+              'delete_permitted': ((d.get('routing') or {}).get('execution') or {}).get('delete_permitted'),
+              'archive_permitted': ((d.get('routing') or {}).get('execution') or {}).get('archive_permitted')
+          }, indent=2))
+          PY
