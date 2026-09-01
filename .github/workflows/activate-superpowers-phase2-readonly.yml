@@ -24,7 +24,7 @@ jobs:
         working-directory: listing-team-ai-gateway
         run: |
           set -euo pipefail
-          npm install --include=dev
+          npm install --include=dev --legacy-peer-deps
           npm run typecheck
 
       - name: Deploy Gateway with Phase 2 service bindings
