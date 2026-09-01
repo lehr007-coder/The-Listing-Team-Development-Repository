@@ -1,10 +1,10 @@
 name = "listing-team-ai-gateway"
-main = "src/index.ts"
+main = "src/index-v0.5.ts"
 compatibility_date = "2026-08-10"
 workers_dev = true
 
 [vars]
-GATEWAY_VERSION = "0.4.0"
+GATEWAY_VERSION = "0.5.0"
 SUPERPOWERS_ROUTER_BASE_URL = "https://tlt-superpowers-router.lehr007.workers.dev"
 
 # Confirmed deployed upstream Workers.
@@ -26,9 +26,24 @@ service = "tlt-superpowers-router"
 binding = "IDX_BRIDGE"
 service = "idx-mcp-bridge"
 
+[[services]]
+binding = "CRM_MCP"
+service = "fub-ghl-mcp-server"
+
+[[services]]
+binding = "YLOPO_MCP"
+service = "ylopo-mcp-server"
+
+[[services]]
+binding = "SQUARESPACE_MCP"
+service = "squarespace-mcp-server"
+
 # Secrets (never commit values):
 # npx wrangler secret put GATEWAY_AUTH_TOKEN
 # npx wrangler secret put IDX_BRIDGE_AUTH_TOKEN
 # npx wrangler secret put IDX_INTERNAL_TOKEN
 # npx wrangler secret put VOICE_BRIDGE_AUTH_TOKEN
 # npx wrangler secret put SUPERPOWERS_ROUTER_TOKEN
+# npx wrangler secret put CRM_MCP_INTERNAL_TOKEN
+# npx wrangler secret put YLOPO_MCP_INTERNAL_TOKEN
+# npx wrangler secret put SQUARESPACE_MCP_INTERNAL_TOKEN
