@@ -1,0 +1,50 @@
+name: Audit Superpowers Worker Ingress
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-superpowers-ingress.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect Cloudflare Worker ingress
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          token=os.environ['CF_API_TOKEN']; acct=os.environ['CF_ACCOUNT_ID']
+          def get(path):
+            req=urllib.request.Request('https://api.cloudflare.com/client/v4'+path, headers={'Authorization':'Bearer '+token})
+            with urllib.request.urlopen(req, timeout=30) as r:
+              return json.load(r)
+          out={}
+          for name,path in {
+            'subdomain':f'/accounts/{acct}/workers/subdomain',
+            'scripts':f'/accounts/{acct}/workers/scripts',
+            'settings':f'/accounts/{acct}/workers/scripts/tlt-superpowers-router/settings',
+            'deployments':f'/accounts/{acct}/workers/scripts/tlt-superpowers-router/deployments',
+          }.items():
+            try:
+              d=get(path)
+              if name=='scripts':
+                out[name]=[x.get('id') for x in d.get('result',[]) if x.get('id')=='tlt-superpowers-router']
+              elif name=='deployments':
+                out[name]=[{k:x.get(k) for k in ('id','created_on')} for x in d.get('result',[])[:3]]
+              elif name=='settings':
+                r=d.get('result',{})
+                out[name]={k:r.get(k) for k in ('compatibility_date','usage_model','tail_consumers') if k in r}
+              else:
+                out[name]=d.get('result')
+            except Exception as e:
+              out[name]={'error':str(e)}
+          print(json.dumps(out, indent=2))
+          PY
