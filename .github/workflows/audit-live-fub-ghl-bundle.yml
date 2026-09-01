@@ -1,0 +1,34 @@
+name: Audit Live FUB GHL Bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-live-fub-ghl-bundle.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect live bundle metadata only
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: 0424a0a1799c8b3b7f0947a4e3a202ba
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/headers -o /tmp/bundle \
+            -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/workers/scripts/fub-ghl-mcp-server/content"
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('/tmp/headers').read_text(errors='replace')
+          b=Path('/tmp/bundle').read_bytes()
+          text=b.decode('utf-8','replace')
+          ctype=next((x.split(':',1)[1].strip() for x in h.splitlines() if x.lower().startswith('content-type:')),None)
+          print('content_type=',ctype)
+          print('bytes=',len(b))
+          for needle in ['MCP_AUTH_TOKEN','Authorization','fub_search_people','bridge_health_check','scheduled','StreamableHTTPTransport']:
+            print(needle, needle in text)
+          print('internal_patch_present=', 'X-Superpowers-Internal' in text)
+          PY
