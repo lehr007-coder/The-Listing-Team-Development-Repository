@@ -1,0 +1,80 @@
+name: Deploy Superpowers Integrated
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-superpowers-router/**'
+      - 'listing-team-ai-gateway/**'
+      - '.github/workflows/deploy-superpowers-integrated.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Derive and install internal router secrets
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --config deploy-mirrors/tlt-superpowers-router/wrangler.toml >/dev/null
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          echo "ROUTER_TOKEN=$ROUTER_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Typecheck AI Gateway
+        working-directory: listing-team-ai-gateway
+        run: |
+          npm install
+          npm run typecheck
+
+      - name: Deploy router and gateway
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config deploy-mirrors/tlt-superpowers-router/wrangler.toml
+          npx --yes wrangler@4 deploy --config listing-team-ai-gateway/wrangler.toml
+
+      - name: Verify secure routing integration
+        run: |
+          set -euo pipefail
+          R='https://tlt-superpowers-router.lehr007.workers.dev'
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+          sleep 5
+          test "$(curl -sS -o /tmp/health -w '%{http_code}' "$R/health")" = "200"
+          test "$(curl -sS -o /tmp/reg -w '%{http_code}' "$R/registry")" = "401"
+          test "$(curl -sS -o /tmp/route0 -w '%{http_code}' -X POST "$R/route" -H 'content-type: application/json' --data '{"request":"search IDX listings in Fort Lauderdale"}')" = "401"
+          curl -fsS -X POST "$R/route" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"search IDX listings in Fort Lauderdale"}' > /tmp/route.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/route.json'))
+          assert d['ok'] is True
+          assert d['execution']['delete_permitted'] is False
+          assert any(c['id']=='idx' for c in d['capabilities'])
+          PY
+          curl -fsS "$G/health/superpowers" > /tmp/gateway.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/gateway.json'))
+          assert d.get('ok') is True
+          assert d.get('routeAuth') is True
+          assert (d.get('projectCount') or 0) >= 5
+          PY
