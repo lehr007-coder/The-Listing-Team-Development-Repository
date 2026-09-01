@@ -1,0 +1,11 @@
+name = "tlt-cloudflare-ops-read"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+# Secrets are installed by deployment workflow and never committed:
+# CF_API_TOKEN
+# CF_OPS_INTERNAL_TOKEN
