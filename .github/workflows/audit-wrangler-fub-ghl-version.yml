@@ -1,0 +1,30 @@
+name: Audit Wrangler FUB GHL Version
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-wrangler-fub-ghl-version.yml'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect Wrangler capabilities and active version
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 0424a0a1799c8b3b7f0947a4e3a202ba
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 versions --help | sed -n '1,160p'
+          echo '--- versions list ---'
+          npx --yes wrangler@4 versions list --name fub-ghl-mcp-server --json | python3 - <<'PY'
+          import json,sys
+          d=json.load(sys.stdin)
+          if isinstance(d,list):
+            for x in d[:5]:
+              print(json.dumps({k:x.get(k) for k in ['id','created_on','tag','message'] if k in x}))
+          else:
+            print(type(d).__name__)
+          PY
