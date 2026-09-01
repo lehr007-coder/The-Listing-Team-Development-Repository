@@ -61,41 +61,47 @@ jobs:
 
       - name: Verify guarded Phase 2 read-only execution
         env:
-          GATEWAY_AUTH_TOKEN: ${{ secrets.GATEWAY_AUTH_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          test -n "${GATEWAY_AUTH_TOKEN:-}"
-          echo "::add-mask::$GATEWAY_AUTH_TOKEN"
-          URL='https://listing-team-ai-gateway.lehr007.workers.dev/tool/superpowers.execute_safe'
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          URL='https://listing-team-ai-gateway.lehr007.workers.dev/internal/superpowers/execute-safe'
+          sleep 5
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' -X POST "$URL" -H 'content-type: application/json' --data '{}')" = "401"
 
           probe() {
             NAME="$1"
             BODY="$2"
             OUT="/tmp/${NAME}.json"
-            curl -fsS -X POST "$URL" \
-              -H "Authorization: Bearer $GATEWAY_AUTH_TOKEN" \
+            CODE=$(curl -sS -o "$OUT" -w '%{http_code}' -X POST "$URL" \
+              -H "Authorization: Bearer $ROUTER_TOKEN" \
               -H 'Content-Type: application/json' \
-              --data "$BODY" > "$OUT"
+              --data "$BODY")
+            echo "$NAME HTTP=$CODE"
+            test "$CODE" = "200"
             NAME="$NAME" OUT="$OUT" python3 - <<'PY'
           import json, os
           d=json.load(open(os.environ['OUT']))
-          assert d.get('ok') is True, {'gateway_ok':d.get('ok'),'error':d.get('error')}
-          inner=d.get('data') or {}
-          assert inner.get('ok') is True, {'inner_ok':inner.get('ok')}
-          assert inner.get('mode') == 'safe_read_only_execution', inner.get('mode')
-          execution=(inner.get('routing') or {}).get('execution') or {}
+          assert d.get('ok') is True, {'ok':d.get('ok'),'error':d.get('error')}
+          assert d.get('mode') == 'safe_read_only_execution', d.get('mode')
+          execution=(d.get('routing') or {}).get('execution') or {}
           assert execution.get('can_execute_without_approval') is True
           assert execution.get('delete_permitted') is False
           assert execution.get('archive_permitted') is False
           print(json.dumps({
             'probe': os.environ['NAME'],
             'ok': True,
-            'tool': inner.get('tool'),
-            'mode': inner.get('mode'),
+            'tool': d.get('tool'),
+            'mode': d.get('mode'),
             'can_execute_without_approval': execution.get('can_execute_without_approval'),
             'delete_permitted': execution.get('delete_permitted'),
             'archive_permitted': execution.get('archive_permitted'),
-            'downstream_result_present': inner.get('data') is not None
+            'downstream_result_present': d.get('data') is not None
           }))
           PY
           }
