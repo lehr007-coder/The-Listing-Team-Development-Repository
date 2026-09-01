@@ -17,11 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Derive and install internal router secrets
+      - name: Derive internal router token
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
         run: |
           set -euo pipefail
           test -n "$CF_API_TOKEN"
@@ -31,8 +29,6 @@ jobs:
           PY
           )
           echo "::add-mask::$ROUTER_TOKEN"
-          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --config deploy-mirrors/tlt-superpowers-router/wrangler.toml >/dev/null
-          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
           echo "ROUTER_TOKEN=$ROUTER_TOKEN" >> "$GITHUB_ENV"
 
       - name: Typecheck AI Gateway
@@ -41,7 +37,25 @@ jobs:
           npm install
           npm run typecheck
 
-      - name: Deploy router and gateway
+      - name: Deploy latest code before secret mutation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config deploy-mirrors/tlt-superpowers-router/wrangler.toml
+          npx --yes wrangler@4 deploy --config listing-team-ai-gateway/wrangler.toml
+
+      - name: Install internal router secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --config deploy-mirrors/tlt-superpowers-router/wrangler.toml >/dev/null
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+
+      - name: Redeploy with secret bindings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
