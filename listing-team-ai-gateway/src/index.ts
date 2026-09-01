@@ -11,6 +11,7 @@ export interface Env {
   VOICE_BRIDGE_AUTH_TOKEN?: string;
   SUPERPOWERS_ROUTER_BASE_URL?: string;
   SUPERPOWERS_ROUTER_TOKEN?: string;
+  SUPERPOWERS_ROUTER?: Fetcher;
 }
 
 type Json = Record<string, unknown>;
@@ -48,18 +49,42 @@ async function voice(baseUrl: string | undefined, endpoint: string, args: Json, 
   if (env.VOICE_BRIDGE_AUTH_TOKEN) headers.authorization = `Bearer ${env.VOICE_BRIDGE_AUTH_TOKEN}`;
   return postJson(`${base}${endpoint}`, args, headers);
 }
-async function superpowers(args: Json, env: Env): Promise<unknown> {
-  const base = requireUrl(env.SUPERPOWERS_ROUTER_BASE_URL, "SUPERPOWERS_ROUTER_BASE_URL");
+
+async function routerFetch(env: Env, path: string, init?: RequestInit): Promise<Response> {
   if (!env.SUPERPOWERS_ROUTER_TOKEN) throw new Error("SUPERPOWERS_ROUTER_TOKEN is not configured");
-  return postJson(`${base}/route`, args, { authorization: `Bearer ${env.SUPERPOWERS_ROUTER_TOKEN}` });
+  const headers = new Headers(init?.headers || {});
+  headers.set("authorization", `Bearer ${env.SUPERPOWERS_ROUTER_TOKEN}`);
+  if (env.SUPERPOWERS_ROUTER) {
+    return env.SUPERPOWERS_ROUTER.fetch(new Request(`https://superpowers.internal${path}`, { ...init, headers }));
+  }
+  const base = requireUrl(env.SUPERPOWERS_ROUTER_BASE_URL, "SUPERPOWERS_ROUTER_BASE_URL");
+  return fetch(`${base}${path}`, { ...init, headers });
 }
-async function superpowersProbe(env: Env): Promise<{ ok: boolean; routeAuth: boolean; projectCount?: number }> {
+
+async function superpowers(args: Json, env: Env): Promise<unknown> {
+  const response = await routerFetch(env, "/route", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(args)
+  });
+  const text = await response.text(); let payload: unknown;
+  try { payload = text ? JSON.parse(text) : null; } catch { payload = { raw: text }; }
+  if (!response.ok) throw new Error(`Superpowers router ${response.status}`);
+  return payload;
+}
+
+type SuperpowersProbe = { ok: boolean; routeAuth: boolean; projectCount?: number; transport?: string; upstreamStatus?: number; reason?: string };
+async function superpowersProbe(env: Env): Promise<SuperpowersProbe> {
+  if (!env.SUPERPOWERS_ROUTER_TOKEN) return { ok: false, routeAuth: false, reason: "missing_token_binding" };
   try {
-    const base = requireUrl(env.SUPERPOWERS_ROUTER_BASE_URL, "SUPERPOWERS_ROUTER_BASE_URL");
-    if (!env.SUPERPOWERS_ROUTER_TOKEN) return { ok: false, routeAuth: false };
-    const registry = await getJson(`${base}/registry`, { authorization: `Bearer ${env.SUPERPOWERS_ROUTER_TOKEN}` }) as any;
-    return { ok: true, routeAuth: true, projectCount: Array.isArray(registry?.projects) ? registry.projects.length : undefined };
-  } catch { return { ok: false, routeAuth: false }; }
+    const response = await routerFetch(env, "/registry");
+    const transport = env.SUPERPOWERS_ROUTER ? "service_binding" : "workers_dev";
+    if (!response.ok) return { ok: false, routeAuth: false, transport, upstreamStatus: response.status, reason: response.status === 401 ? "upstream_unauthorized" : "upstream_non_2xx" };
+    const registry = await response.json() as any;
+    return { ok: true, routeAuth: true, transport, upstreamStatus: response.status, projectCount: Array.isArray(registry?.projects) ? registry.projects.length : undefined };
+  } catch {
+    return { ok: false, routeAuth: false, transport: env.SUPERPOWERS_ROUTER ? "service_binding" : "workers_dev", reason: "fetch_error" };
+  }
 }
 
 const objectSchema = (properties: Json, required: string[] = []) => ({ type: "object", properties, ...(required.length ? { required } : {}), additionalProperties: true });
@@ -94,7 +119,7 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url=new URL(req.url);
     if (req.method==="GET"&&url.pathname==="/") return json({name:"listing-team-ai-gateway",version:env.GATEWAY_VERSION||"0.2.0",status:"ok"});
-    if (req.method==="GET"&&url.pathname==="/health") return json({ok:true,configured:{superpowers:Boolean(env.SUPERPOWERS_ROUTER_BASE_URL&&env.SUPERPOWERS_ROUTER_TOKEN),idx:Boolean(env.IDX_BRIDGE_BASE_URL),propertyData:Boolean(env.PROPERTY_DATA_BASE_URL),mortgage:Boolean(env.MORTGAGE_BASE_URL),returningCaller:Boolean(env.RETURNING_CALLER_BASE_URL),leadScorer:Boolean(env.LEAD_SCORER_BASE_URL),callQuality:Boolean(env.CALL_QUALITY_BASE_URL)}});
+    if (req.method==="GET"&&url.pathname==="/health") return json({ok:true,configured:{superpowers:Boolean((env.SUPERPOWERS_ROUTER||env.SUPERPOWERS_ROUTER_BASE_URL)&&env.SUPERPOWERS_ROUTER_TOKEN),idx:Boolean(env.IDX_BRIDGE_BASE_URL),propertyData:Boolean(env.PROPERTY_DATA_BASE_URL),mortgage:Boolean(env.MORTGAGE_BASE_URL),returningCaller:Boolean(env.RETURNING_CALLER_BASE_URL),leadScorer:Boolean(env.LEAD_SCORER_BASE_URL),callQuality:Boolean(env.CALL_QUALITY_BASE_URL)}});
     if (req.method==="GET"&&url.pathname==="/health/superpowers") return json(await superpowersProbe(env));
     if (!authorized(req,env)) return json({ok:false,error:"Unauthorized"},401);
     if (req.method==="GET"&&url.pathname==="/tools") return json({count:tools.length,tools:tools.map(({name,description,inputSchema})=>({name,description,inputSchema}))});
