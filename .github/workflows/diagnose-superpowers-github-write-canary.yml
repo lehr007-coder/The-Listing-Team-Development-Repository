@@ -1,0 +1,88 @@
+name: Diagnose Superpowers GitHub Write Canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-superpowers-github-write-canary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Trace one controlled canary
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -u
+          BASE='https://tlt-superpowers-router.lehr007.workers.dev'
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          CANARY_BRANCH="superpowers-canary-approved-write-diagnostic-${GITHUB_RUN_ID}"
+
+          timeout 25s npx --yes wrangler@4 tail tlt-superpowers-router --format=json > /tmp/tail.log 2>&1 &
+          TAIL_PID=$!
+          sleep 6
+
+          python3 - "$CANARY_BRANCH" > /tmp/request.json <<'PY'
+          import json, sys
+          print(json.dumps({
+            'operation':'github.create_branch',
+            'target':{
+              'repository':'lehr007-coder/Listing-Team-Development-Repository',
+              'branch':sys.argv[1],
+              'from_ref':'main'
+            },
+            'args':{}
+          }))
+          PY
+
+          curl -sS -X POST "$BASE/approval/prepare" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
+            --data-binary @/tmp/request.json > /tmp/prepared.json
+          python3 - <<'PY' > /tmp/confirm.json
+          import json
+          p=json.load(open('/tmp/prepared.json'))
+          assert p.get('ok') is True, p
+          print(json.dumps({'approval_request':p['approval_request'],'confirmation':p['confirmation_phrase'],'ttl_seconds':300}))
+          PY
+          curl -sS -X POST "$BASE/approval/confirm" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
+            --data-binary @/tmp/confirm.json > /tmp/grant.json
+          python3 - <<'PY' > /tmp/execute.json
+          import json
+          p=json.load(open('/tmp/prepared.json')); g=json.load(open('/tmp/grant.json'))
+          assert g.get('ok') is True, g
+          print(json.dumps({'approval_request':p['approval_request'],'approval_grant':g['approval_grant']}))
+          PY
+
+          CODE=$(curl -sS -o /tmp/canary.json -w '%{http_code}' -X POST "$BASE/github/write/canary" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
+            --data-binary @/tmp/execute.json)
+          echo "canary_http_code=$CODE"
+          echo '--- canary response ---'
+          cat /tmp/canary.json || true
+          echo
+          sleep 5
+          kill "$TAIL_PID" 2>/dev/null || true
+          wait "$TAIL_PID" 2>/dev/null || true
+          echo '--- cloudflare tail ---'
+          cat /tmp/tail.log || true
+
+          # This workflow is diagnostic only: make the observed state explicit.
+          python3 - "$CODE" "$CANARY_BRANCH" <<'PY'
+          import json, sys
+          code=sys.argv[1]; branch=sys.argv[2]
+          print(json.dumps({'diagnostic_complete':True,'canary_http_code':code,'canary_branch':branch,'delete_performed':False,'archive_performed':False}))
+          PY
