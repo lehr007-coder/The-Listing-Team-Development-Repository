@@ -90,3 +90,52 @@ jobs:
           assert len(d['projects']) == 5
           assert d['retirement']['mode']=='mark_only'
           PY
+      - name: Configure Cloudflare Access human login
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCESS_EMAIL: lehr007@gmail.com
+        run: |
+          set -euo pipefail
+          API='https://api.cloudflare.com/client/v4'
+          DOMAIN='tlt-operations-dashboard.lehr007.workers.dev'
+          APP_NAME='TLT Operations Dashboard'
+          POLICY_NAME='Allow dashboard owner'
+          auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json')
+
+          curl -fsS "${auth[@]}" "$API/accounts?per_page=50" > /tmp/accounts.json
+          ACCOUNT_ID=''
+          while read -r candidate; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF_API_TOKEN" "$API/accounts/$candidate/workers/scripts/tlt-operations-dashboard")
+            if [ "$code" = '200' ]; then ACCOUNT_ID="$candidate"; break; fi
+          done < <(jq -r '.result[].id' /tmp/accounts.json)
+          test -n "$ACCOUNT_ID"
+
+          curl -fsS "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100" > /tmp/apps.json
+          APP_ID=$(jq -r --arg d "$DOMAIN" '.result[] | select(.domain==$d) | .id' /tmp/apps.json | head -1)
+          if [ -z "$APP_ID" ]; then
+            jq -n --arg name "$APP_NAME" --arg domain "$DOMAIN" '{name:$name,type:"self_hosted",domain:$domain,session_duration:"24h",auto_redirect_to_identity:false}' > /tmp/app-create.json
+            curl -fsS "${auth[@]}" -X POST --data @/tmp/app-create.json "$API/accounts/$ACCOUNT_ID/access/apps" > /tmp/app.json
+            jq -e '.success==true' /tmp/app.json >/dev/null
+            APP_ID=$(jq -r '.result.id' /tmp/app.json)
+          fi
+          test -n "$APP_ID"
+
+          curl -fsS "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/policies.json
+          POLICY_ID=$(jq -r --arg n "$POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
+          jq -n --arg name "$POLICY_NAME" --arg email "$ACCESS_EMAIL" '{name:$name,decision:"allow",precedence:1,include:[{email:{email:$email}}]}' > /tmp/policy.json
+          if [ -z "$POLICY_ID" ]; then
+            curl -fsS "${auth[@]}" -X POST --data @/tmp/policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/policy-result.json
+          else
+            curl -fsS "${auth[@]}" -X PUT --data @/tmp/policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$POLICY_ID" > /tmp/policy-result.json
+          fi
+          jq -e '.success==true' /tmp/policy-result.json >/dev/null
+
+          printf '%s' "$ACCESS_EMAIL" | npx wrangler secret put ACCESS_ALLOWED_EMAIL --name tlt-operations-dashboard >/dev/null
+
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            curl -sS -D /tmp/access-headers -o /tmp/access-body "https://$DOMAIN/" || true
+            if grep -qi 'cloudflareaccess.com' /tmp/access-headers /tmp/access-body; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = '1'
