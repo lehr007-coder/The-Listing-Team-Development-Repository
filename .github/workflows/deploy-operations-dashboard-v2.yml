@@ -1,0 +1,92 @@
+name: Deploy Operations Dashboard v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-operations-dashboard/**'
+      - '.github/workflows/deploy-operations-dashboard-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy-mirrors/tlt-operations-dashboard
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate worker source
+        run: |
+          npm install --include=dev
+          npm run check
+      - name: Deploy to Cloudflare production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --config wrangler.toml
+      - name: Install dashboard and internal service credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          DASHBOARD_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASHBOARD_TOKEN"
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$DASHBOARD_TOKEN" | npx wrangler secret put DASHBOARD_ACCESS_TOKEN --name tlt-operations-dashboard >/dev/null
+          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put SUPERPOWERS_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
+      - name: Verify production health and protected live snapshot
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-operations-dashboard.lehr007.workers.dev'
+          DASHBOARD_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASHBOARD_TOKEN"
+          sleep 5
+          curl -fsS "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d['ok'] is True
+          assert d['service']=='tlt-operations-dashboard'
+          assert d['version']=='2.0.0'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['auth_configured'] is True
+          assert d['gateway_binding_configured'] is True
+          assert d['router_binding_configured'] is True
+          assert d['delete_enabled'] is False
+          assert d['archive_enabled'] is False
+          PY
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' "$BASE/api/snapshot")" = "401"
+          curl -fsS "$BASE/api/snapshot" -H "Authorization: Bearer $DASHBOARD_TOKEN" | tee /tmp/snapshot.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/snapshot.json'))
+          assert d['ok'] is True
+          assert d['dashboard']=='TLT Operations Dashboard'
+          assert d['version']=='2.0.0'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['safety']['delete_enabled'] is False
+          assert d['safety']['archive_enabled'] is False
+          assert len(d['projects']) == 5
+          assert d['retirement']['mode']=='mark_only'
+          PY

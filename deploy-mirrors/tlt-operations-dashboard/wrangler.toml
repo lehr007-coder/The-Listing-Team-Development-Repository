@@ -1,0 +1,15 @@
+name = "tlt-operations-dashboard"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[services]]
+binding = "AI_GATEWAY"
+service = "listing-team-ai-gateway"
+
+[[services]]
+binding = "SUPERPOWERS_ROUTER"
+service = "tlt-superpowers-router"
