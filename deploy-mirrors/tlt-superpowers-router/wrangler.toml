@@ -9,7 +9,7 @@ enabled = true
 [vars]
 SUPERPOWERS_MODE = "deterministic-routing"
 GITHUB_WRITE_CANARY_ENABLED = "true"
-GITHUB_WRITE_EXECUTION_ENABLED = "false"
+GITHUB_WRITE_EXECUTION_ENABLED = "true"
 
 [[durable_objects.bindings]]
 name = "APPROVAL_LEDGER"
