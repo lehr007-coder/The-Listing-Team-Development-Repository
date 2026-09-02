@@ -65,7 +65,7 @@ jobs:
           d=json.load(open('/tmp/health.json'))
           assert d.get('ok') is True
           assert d.get('service') == 'tlt-superpowers-router'
-          assert d.get('version') == '0.5.0-github-write-canary'
+          assert d.get('version') == '0.5.1-github-write-diagnostic'
           lane=d.get('github_write_lane',{})
           assert lane.get('ledger_configured') is True
           assert lane.get('service_binding_configured') is True
@@ -112,9 +112,13 @@ jobs:
           print(json.dumps({'approval_request':p['approval_request'],'approval_grant':g['approval_grant']}))
           PY
 
-          curl -fsS -X POST "$BASE/github/write/canary" \
+          CANARY_CODE=$(curl -sS -o /tmp/canary.json -w '%{http_code}' -X POST "$BASE/github/write/canary" \
             -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/execute.json | tee /tmp/canary.json
+            --data-binary @/tmp/execute.json)
+          echo "canary_http_code=$CANARY_CODE"
+          cat /tmp/canary.json
+          echo
+          test "$CANARY_CODE" = '200'
           python3 - "$CANARY_BRANCH" <<'PY'
           import json, sys
           d=json.load(open('/tmp/canary.json'))
