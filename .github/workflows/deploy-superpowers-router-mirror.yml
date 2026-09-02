@@ -43,6 +43,9 @@ jobs:
           echo "::add-mask::$APPROVAL_SECRET"
           printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --name tlt-superpowers-router >/dev/null
           printf '%s' "$WRITE_TOKEN" | npx --yes wrangler@4 secret put GITHUB_WRITE_INTERNAL_TOKEN --name tlt-superpowers-router >/dev/null
+          # The Router deployment is the credential authority for both ends of the isolated write binding.
+          # This avoids deriving peer credentials from unrelated repository-scoped Cloudflare API tokens.
+          printf '%s' "$WRITE_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_WRITE_INTERNAL_TOKEN --name github-mcp-server >/dev/null
           printf '%s' "$APPROVAL_SECRET" | npx --yes wrangler@4 secret put SUPERPOWERS_APPROVAL_SECRET --name tlt-superpowers-router >/dev/null
           sleep 8
       - name: Verify Router and execute controlled GitHub branch canary
