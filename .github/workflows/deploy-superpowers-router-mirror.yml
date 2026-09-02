@@ -43,12 +43,10 @@ jobs:
           echo "::add-mask::$APPROVAL_SECRET"
           printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --name tlt-superpowers-router >/dev/null
           printf '%s' "$WRITE_TOKEN" | npx --yes wrangler@4 secret put GITHUB_WRITE_INTERNAL_TOKEN --name tlt-superpowers-router >/dev/null
-          # The Router deployment is the credential authority for both ends of the isolated write binding.
-          # This avoids deriving peer credentials from unrelated repository-scoped Cloudflare API tokens.
           printf '%s' "$WRITE_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_WRITE_INTERNAL_TOKEN --name github-mcp-server >/dev/null
           printf '%s' "$APPROVAL_SECRET" | npx --yes wrangler@4 secret put SUPERPOWERS_APPROVAL_SECRET --name tlt-superpowers-router >/dev/null
           sleep 8
-      - name: Verify Router and execute controlled GitHub branch canary
+      - name: Verify canary and generic approval-gated GitHub writes
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
@@ -61,6 +59,7 @@ jobs:
           )
           echo "::add-mask::$ROUTER_TOKEN"
           CANARY_BRANCH="superpowers-canary-approved-write-${GITHUB_RUN_ID}"
+          GENERIC_BRANCH="superpowers-generic-approved-write-${GITHUB_RUN_ID}"
 
           curl -fsS "$BASE/health" | tee /tmp/health.json
           python3 - <<'PY'
@@ -68,94 +67,84 @@ jobs:
           d=json.load(open('/tmp/health.json'))
           assert d.get('ok') is True
           assert d.get('service') == 'tlt-superpowers-router'
-          assert d.get('version') == '0.5.1-github-write-diagnostic'
           lane=d.get('github_write_lane',{})
           assert lane.get('ledger_configured') is True
           assert lane.get('service_binding_configured') is True
           assert lane.get('service_token_configured') is True
           assert lane.get('approval_secret_configured') is True
           assert lane.get('canary_enabled') is True
-          assert lane.get('generic_execution_enabled') is False
+          assert lane.get('generic_execution_enabled') is True
           assert lane.get('delete_permitted') is False
           assert lane.get('archive_permitted') is False
           assert lane.get('merge_permitted') is False
           assert lane.get('force_update_permitted') is False
           PY
 
-          python3 - "$CANARY_BRANCH" > /tmp/request.json <<'PY'
+          make_request() {
+            local branch="$1" out="$2"
+            python3 - "$branch" > "$out" <<'PY'
           import json, sys
-          print(json.dumps({
-            'operation':'github.create_branch',
-            'target':{
-              'repository':'lehr007-coder/Listing-Team-Development-Repository',
-              'branch':sys.argv[1],
-              'from_ref':'main'
-            },
-            'args':{}
-          }))
+          print(json.dumps({'operation':'github.create_branch','target':{'repository':'lehr007-coder/Listing-Team-Development-Repository','branch':sys.argv[1],'from_ref':'main'},'args':{}}))
           PY
+          }
 
-          curl -fsS -X POST "$BASE/approval/prepare" \
-            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/request.json > /tmp/prepared.json
-          python3 - <<'PY' > /tmp/confirm.json
-          import json
-          p=json.load(open('/tmp/prepared.json'))
-          assert p.get('ok') is True
+          approve() {
+            local request_file="$1" prefix="$2"
+            curl -fsS -X POST "$BASE/approval/prepare" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @"$request_file" > "/tmp/${prefix}-prepared.json"
+            python3 - "/tmp/${prefix}-prepared.json" > "/tmp/${prefix}-confirm.json" <<'PY'
+          import json, sys
+          p=json.load(open(sys.argv[1])); assert p.get('ok') is True
           print(json.dumps({'approval_request':p['approval_request'],'confirmation':p['confirmation_phrase'],'ttl_seconds':300}))
           PY
-
-          curl -fsS -X POST "$BASE/approval/confirm" \
-            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/confirm.json > /tmp/grant.json
-          python3 - <<'PY' > /tmp/execute.json
-          import json
-          p=json.load(open('/tmp/prepared.json')); g=json.load(open('/tmp/grant.json'))
-          assert g.get('ok') is True
+            curl -fsS -X POST "$BASE/approval/confirm" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @"/tmp/${prefix}-confirm.json" > "/tmp/${prefix}-grant.json"
+            python3 - "/tmp/${prefix}-prepared.json" "/tmp/${prefix}-grant.json" > "/tmp/${prefix}-execute.json" <<'PY'
+          import json, sys
+          p=json.load(open(sys.argv[1])); g=json.load(open(sys.argv[2])); assert g.get('ok') is True
           print(json.dumps({'approval_request':p['approval_request'],'approval_grant':g['approval_grant']}))
           PY
+          }
 
-          CANARY_CODE=$(curl -sS -o /tmp/canary.json -w '%{http_code}' -X POST "$BASE/github/write/canary" \
-            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/execute.json)
-          echo "canary_http_code=$CANARY_CODE"
-          cat /tmp/canary.json
-          echo
+          make_request "$CANARY_BRANCH" /tmp/canary-request.json
+          approve /tmp/canary-request.json canary
+          CANARY_CODE=$(curl -sS -o /tmp/canary-result.json -w '%{http_code}' -X POST "$BASE/github/write/canary" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/canary-execute.json)
           test "$CANARY_CODE" = '200'
           python3 - "$CANARY_BRANCH" <<'PY'
           import json, sys
-          d=json.load(open('/tmp/canary.json'))
-          assert d.get('ok') is True
-          assert d.get('mode') == 'approved_single_use_write'
-          assert d.get('operation') == 'github.create_branch'
-          assert d.get('execution_performed') is True
-          assert d.get('approval_consumed') is True
-          assert d.get('replay_permitted') is False
-          assert d.get('delete_permitted') is False
-          assert d.get('archive_permitted') is False
+          d=json.load(open('/tmp/canary-result.json'))
+          assert d.get('ok') is True and d.get('mode') == 'approved_single_use_write'
+          assert d.get('operation') == 'github.create_branch' and d.get('execution_performed') is True
+          assert d.get('approval_consumed') is True and d.get('replay_permitted') is False
           assert d.get('verification',{}).get('name') == sys.argv[1]
+          assert d.get('delete_permitted') is False and d.get('archive_permitted') is False
           print(json.dumps({'canary_branch':sys.argv[1],'ok':True,'marked_for_future_retirement':True}))
           PY
-
-          REPLAY_CODE=$(curl -sS -o /tmp/replay.json -w '%{http_code}' -X POST "$BASE/github/write/canary" \
-            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/execute.json)
+          REPLAY_CODE=$(curl -sS -o /tmp/canary-replay.json -w '%{http_code}' -X POST "$BASE/github/write/canary" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/canary-execute.json)
           test "$REPLAY_CODE" = '409'
           python3 - <<'PY'
           import json
-          d=json.load(open('/tmp/replay.json'))
-          assert d.get('ok') is False
-          assert d.get('error') == 'approval_grant_already_consumed'
+          d=json.load(open('/tmp/canary-replay.json')); assert d.get('error') == 'approval_grant_already_consumed'
           PY
 
-          GENERIC_CODE=$(curl -sS -o /tmp/generic.json -w '%{http_code}' -X POST "$BASE/github/write/execute" \
-            -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' \
-            --data-binary @/tmp/execute.json)
-          test "$GENERIC_CODE" = '403'
+          make_request "$GENERIC_BRANCH" /tmp/generic-request.json
+          approve /tmp/generic-request.json generic
+          GENERIC_CODE=$(curl -sS -o /tmp/generic-result.json -w '%{http_code}' -X POST "$BASE/github/write/execute" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/generic-execute.json)
+          echo "generic_http_code=$GENERIC_CODE"
+          cat /tmp/generic-result.json
+          echo
+          test "$GENERIC_CODE" = '200'
+          python3 - "$GENERIC_BRANCH" <<'PY'
+          import json, sys
+          d=json.load(open('/tmp/generic-result.json'))
+          assert d.get('ok') is True and d.get('mode') == 'approved_single_use_write'
+          assert d.get('operation') == 'github.create_branch' and d.get('execution_performed') is True
+          assert d.get('approval_consumed') is True and d.get('replay_permitted') is False
+          assert d.get('verification',{}).get('name') == sys.argv[1]
+          assert d.get('delete_permitted') is False and d.get('archive_permitted') is False
+          print(json.dumps({'generic_branch':sys.argv[1],'ok':True,'marked_for_future_retirement':True}))
+          PY
+          GENERIC_REPLAY_CODE=$(curl -sS -o /tmp/generic-replay.json -w '%{http_code}' -X POST "$BASE/github/write/execute" -H "Authorization: Bearer $ROUTER_TOKEN" -H 'content-type: application/json' --data-binary @/tmp/generic-execute.json)
+          test "$GENERIC_REPLAY_CODE" = '409'
           python3 - <<'PY'
           import json
-          d=json.load(open('/tmp/generic.json'))
-          assert d.get('error') == 'github_write_execution_disabled'
-          assert d.get('delete_permitted') is False
-          assert d.get('archive_permitted') is False
+          d=json.load(open('/tmp/generic-replay.json')); assert d.get('error') == 'approval_grant_already_consumed'
           PY
