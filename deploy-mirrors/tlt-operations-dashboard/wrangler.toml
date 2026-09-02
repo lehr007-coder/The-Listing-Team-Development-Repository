@@ -1,5 +1,5 @@
 name = "tlt-operations-dashboard"
-main = "src/index.js"
+main = "src/access-index.js"
 compatibility_date = "2026-09-01"
 workers_dev = true
 
