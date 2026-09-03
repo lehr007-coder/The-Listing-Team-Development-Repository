@@ -1,0 +1,48 @@
+name: Deploy Browser Run MCP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-browser-run-mcp-server/**'
+      - '.github/workflows/deploy-browser-run-mcp.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy-mirrors/tlt-browser-run-mcp-server
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deploy-mirrors/tlt-browser-run-mcp-server/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Deploy Cloudflare Browser Run MCP
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify health
+        run: |
+          set -euo pipefail
+          URL='https://tlt-browser-run-mcp-server.lehr007.workers.dev/health'
+          BODY="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 "$URL")"
+          echo "$BODY" | grep -q '"ok":true'
+          echo "$BODY" | grep -q '"browser_binding_configured":true'
+          echo 'Browser Run MCP health verified.'
