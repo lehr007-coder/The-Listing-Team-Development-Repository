@@ -63,18 +63,33 @@ jobs:
           PY
           )
           echo "::add-mask::$INTERNAL_TOKEN"
-          BODY=''
-          for i in 1 2 3 4 5 6 7 8 9 10; do
+
+          ready=0
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
             code=$(curl -sS -o /tmp/browser-health.json -w '%{http_code}' "$BASE/health" || true)
-            if [ "$code" = '200' ]; then BODY=$(cat /tmp/browser-health.json); break; fi
+            if [ "$code" = '200' ] && grep -q '"ok":true' /tmp/browser-health.json && grep -q '"browser_binding_configured":true' /tmp/browser-health.json && grep -q '"auth_configured":true' /tmp/browser-health.json; then
+              ready=1
+              break
+            fi
             sleep 3
           done
-          test -n "$BODY"
-          echo "$BODY" | grep -q '"ok":true'
-          echo "$BODY" | grep -q '"browser_binding_configured":true'
-          echo "$BODY" | grep -q '"auth_configured":true'
-          test "$(curl -sS -o /tmp/mcp-unauth -w '%{http_code}' "$BASE/mcp")" = "401"
-          code=$(curl -sS -o /tmp/mcp-auth -w '%{http_code}' -X POST "$BASE/mcp" -H "Authorization: Bearer $INTERNAL_TOKEN" -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"tlt-production-canary","version":"1.0"}}}')
+          test "$ready" = '1'
+
+          unauth=''
+          for i in 1 2 3 4 5 6; do
+            unauth=$(curl -sS -o /tmp/mcp-unauth -w '%{http_code}' "$BASE/mcp" || true)
+            [ "$unauth" = '401' ] && break
+            sleep 2
+          done
+          echo "Unauthenticated MCP status: $unauth"
+          test "$unauth" = '401'
+
+          code=$(curl -sS -o /tmp/mcp-auth -w '%{http_code}' -X POST "$BASE/mcp" \
+            -H "Authorization: Bearer $INTERNAL_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"tlt-production-canary","version":"1.0"}}}')
+          echo "Authenticated MCP initialize status: $code"
           test "$code" != '401'
           test "$code" != '404'
           test "$code" -lt 500
