@@ -36,13 +36,46 @@ jobs:
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Verify health
+      - name: Install internal MCP credential
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          URL='https://tlt-browser-run-mcp-server.lehr007.workers.dev/health'
-          BODY="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 "$URL")"
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-browser-run-mcp-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put BROWSER_MCP_INTERNAL_TOKEN --name tlt-browser-run-mcp-server >/dev/null
+
+      - name: Verify health and authorization boundary
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-browser-run-mcp-server.lehr007.workers.dev'
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-browser-run-mcp-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          BODY=''
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(curl -sS -o /tmp/browser-health.json -w '%{http_code}' "$BASE/health" || true)
+            if [ "$code" = '200' ]; then BODY=$(cat /tmp/browser-health.json); break; fi
+            sleep 3
+          done
+          test -n "$BODY"
           echo "$BODY" | grep -q '"ok":true'
           echo "$BODY" | grep -q '"browser_binding_configured":true'
-          echo 'Browser Run MCP health verified.'
+          echo "$BODY" | grep -q '"auth_configured":true'
+          test "$(curl -sS -o /tmp/mcp-unauth -w '%{http_code}' "$BASE/mcp")" = "401"
+          code=$(curl -sS -o /tmp/mcp-auth -w '%{http_code}' -X POST "$BASE/mcp" -H "Authorization: Bearer $INTERNAL_TOKEN" -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"tlt-production-canary","version":"1.0"}}}')
+          test "$code" != '401'
+          test "$code" != '404'
+          test "$code" -lt 500
+          echo 'Browser Run MCP health and auth boundary verified.'
