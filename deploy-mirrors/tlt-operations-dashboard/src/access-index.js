@@ -1,6 +1,7 @@
 import dashboard from './index.js';
 
 const PASSWORD_SHA256_HEX = '27727916f2870e4cc23130b1eb456138a24e864f5e8b3a5305f35ebe65905aff';
+const BROWSER_RUN_HEALTH_URL = 'https://tlt-browser-run-mcp-server.lehr007.workers.dev/health';
 
 function equalHex(a, b) {
   if (a.length !== b.length) return false;
@@ -24,6 +25,45 @@ function accessIdentity(req, env) {
   const email = String(req.headers.get('cf-access-authenticated-user-email') || '').trim().toLowerCase();
   const assertion = req.headers.get('cf-access-jwt-assertion');
   return Boolean(expected && assertion && email && email === expected);
+}
+
+async function browserRunHealth() {
+  try {
+    const response = await fetch(BROWSER_RUN_HEALTH_URL, {
+      headers: { accept: 'application/json' },
+      cf: { cacheTtl: 0, cacheEverything: false }
+    });
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    const healthy = Boolean(
+      response.ok &&
+      data?.ok === true &&
+      data?.browser_binding_configured === true &&
+      data?.auth_configured === true
+    );
+    return {
+      ok: healthy,
+      status: response.status,
+      service: data?.service || 'tlt-browser-run-mcp-server',
+      runtime: data?.runtime || 'cloudflare-browser-run',
+      browser_binding_configured: data?.browser_binding_configured === true,
+      auth_configured: data?.auth_configured === true,
+      external_state_changes_require_approval: data?.external_state_changes_require_approval !== false,
+      endpoint: 'https://tlt-browser-run-mcp-server.lehr007.workers.dev/mcp',
+      verified_workflow_run: 33718162316
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: null,
+      service: 'tlt-browser-run-mcp-server',
+      runtime: 'cloudflare-browser-run',
+      error: String(error?.message || error),
+      endpoint: 'https://tlt-browser-run-mcp-server.lehr007.workers.dev/mcp',
+      verified_workflow_run: 33718162316
+    };
+  }
 }
 
 async function dashboardResponse(req, env, ctx) {
@@ -57,6 +97,32 @@ export default {
       }
 
       const response = await dashboardResponse(req, env, ctx);
+
+      if (url.pathname === '/api/snapshot' && response.ok && response.headers.get('content-type')?.includes('application/json')) {
+        const snapshot = await response.json();
+        const browserRun = await browserRunHealth();
+        snapshot.sources = snapshot.sources || {};
+        snapshot.sources.browser_run_mcp = {
+          ok: browserRun.ok,
+          status: browserRun.status,
+          error: browserRun.error || null
+        };
+        snapshot.summary = snapshot.summary || {};
+        snapshot.summary.browser_run_mcp_healthy = browserRun.ok;
+        snapshot.browser_run = browserRun;
+        snapshot.capabilities = snapshot.capabilities || {};
+        snapshot.capabilities.browser_automation = {
+          status: browserRun.ok ? 'PRODUCTION_VERIFIED' : 'DEGRADED',
+          runtime: 'Cloudflare Browser Run / Playwright MCP',
+          read_test_lane: 'automatic_audited',
+          external_state_changes: 'approval_required'
+        };
+        return new Response(JSON.stringify(snapshot, null, 2), {
+          status: response.status,
+          headers: response.headers
+        });
+      }
+
       if (url.pathname === '/login' && req.method === 'GET' && response.headers.get('content-type')?.includes('text/html')) {
         const text = (await response.text()).replace('placeholder="Access token"', 'placeholder="Password"');
         return new Response(text, { status: response.status, headers: response.headers });
