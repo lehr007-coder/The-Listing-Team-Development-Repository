@@ -1,0 +1,16 @@
+{
+  "name": "tlt-browser-run-mcp-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/playwright-mcp": "0.0.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "wrangler": "^4.33.1"
+  }
+}
