@@ -1,0 +1,24 @@
+{
+  "name": "cloudflare-ops-mcp-server",
+  "version": "0.1.0",
+  "description": "Read-only Cloudflare operational inventory MCP for TLT Superpowers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.3.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "hono": "^4.10.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.122.0"
+  }
+}
