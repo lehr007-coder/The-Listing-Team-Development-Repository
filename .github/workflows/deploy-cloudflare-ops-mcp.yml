@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -30,7 +33,7 @@ jobs:
         shell: bash
         env:
           CF_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           CF_READONLY_TOKEN: ${{ secrets.CLOUDFLARE_READONLY_API_TOKEN }}
         run: |
           set -euo pipefail
@@ -50,7 +53,6 @@ jobs:
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_READONLY_API_TOKEN: ${{ secrets.CLOUDFLARE_READONLY_API_TOKEN }}
         run: |
           set -euo pipefail
@@ -62,7 +64,6 @@ jobs:
       - name: Deploy Cloudflare Ops MCP
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
 
       - name: Verify health and fail-closed safety
@@ -83,7 +84,6 @@ jobs:
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           URL='https://cloudflare-ops-mcp-server.lehr007.workers.dev/mcp'
