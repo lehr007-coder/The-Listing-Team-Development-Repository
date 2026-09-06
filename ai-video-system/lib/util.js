@@ -164,3 +164,39 @@ export async function killSwitchState(env) {
   try { parsed = typeof metadata === "string" ? JSON.parse(metadata) : (metadata || {}); } catch {}
   return { killed: true, ...parsed };
 }
+
+// Independent kill-switch for LiveAvatar live sessions — deliberately a
+// separate KV key from the render kill-switch above so pausing one doesn't
+// pause the other (e.g. HeyGen video renders can keep flowing while a
+// LiveAvatar cost spike is being investigated, or vice versa).
+const LIVEAVATAR_KILL_SWITCH_KEY = "kill_switch:liveavatar";
+
+export async function isLiveAvatarKilled(env) {
+  if (!env.VIDEO_KV) return false;
+  const v = await env.VIDEO_KV.get(LIVEAVATAR_KILL_SWITCH_KEY);
+  return v === "on";
+}
+
+export async function setLiveAvatarKillSwitch(env, on, meta = {}) {
+  if (!env.VIDEO_KV) throw new Error("VIDEO_KV not bound");
+  if (on) {
+    const payload = JSON.stringify({
+      reason: meta.reason || "",
+      set_at: new Date().toISOString(),
+      set_by: meta.set_by || "api",
+    });
+    await env.VIDEO_KV.put(LIVEAVATAR_KILL_SWITCH_KEY, "on", { metadata: payload });
+    return { killed: true, ...JSON.parse(payload) };
+  }
+  await env.VIDEO_KV.delete(LIVEAVATAR_KILL_SWITCH_KEY);
+  return { killed: false };
+}
+
+export async function liveAvatarKillSwitchState(env) {
+  if (!env.VIDEO_KV) return { killed: false, reason: "no_kv" };
+  const { value, metadata } = await env.VIDEO_KV.getWithMetadata(LIVEAVATAR_KILL_SWITCH_KEY);
+  if (value !== "on") return { killed: false };
+  let parsed = {};
+  try { parsed = typeof metadata === "string" ? JSON.parse(metadata) : (metadata || {}); } catch {}
+  return { killed: true, ...parsed };
+}
