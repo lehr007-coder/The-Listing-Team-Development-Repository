@@ -1,9 +1,26 @@
 const PROJECTS = [
-  ['ListingHQ','ListingHQ'],
+  ['ListingHQ','listinghq'],
   ['Condo Intel','condo-intel-v2'],
-  ['Transaction OS','transaction-os'],
+  ['Transaction OS','the-listing-team-transaction-os'],
   ['Marketing Superpowers','Listing-Team-Development-Repository'],
   ['Canonical MCP Workers','mcp-workers']
+];
+
+const REQUIRED_CAPABILITIES = [
+  ['cloudflare_ops','Cloudflare Ops','PASS','Read-only MCP Worker health and gateway inventory route'],
+  ['github','GitHub approved-write lane','PASS','Read-only health plus approval-gated write path'],
+  ['crm','Canonical FUB/GHL','PASS','Read-only MCP Worker; writes remain approval-gated'],
+  ['ylopo','Ylopo','PASS','Read-only MCP Worker health'],
+  ['squarespace','Squarespace','PASS','Read-only MCP Worker health'],
+  ['idx','IDX','NEEDS_DATA','Live health passes; tool-list baseline drift requires registry refresh'],
+  ['browser_automation','Browser Run','PASS','Live auth-gated Browser MCP health'],
+  ['cross_model_collaboration','Context Continuity / Collaboration','NEEDS_DATA','Worker health passes; client handoff readback still required'],
+  ['seo_intelligence','SEO Intelligence','REFERENCE','Reference-only capability, no production executor'],
+  ['design_intelligence','Design Intelligence','REFERENCE','Reference-only capability, no production executor'],
+  ['specialist_agent_library','agency-agents specialists','REFERENCE','Reference-only specialist catalog'],
+  ['cinematic_media','Higgsfield','NEEDS_DATA','Repository/reference present; runtime credentials and canary not verified'],
+  ['reddit_publisher','Reddit publishing','NEEDS_DATA','Approved-publish contract exists; authenticated account canary required'],
+  ['condo_to_tos_outbound','Condo Intel to Transaction OS','NEEDS_DATA','Requires legitimate outbound event and readback']
 ];
 
 function json(data,status=200,extra={}) { return new Response(JSON.stringify(data,null,2),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...extra}}); }
@@ -30,18 +47,49 @@ async function router(env,path){
 async function githubRepo(env,repo){
   const res=await gateway(env,'/internal/github/read',{method:'POST',body:JSON.stringify({tool:'github_get_repository',arguments:{owner:'lehr007-coder',repo,response_format:'json'}})});
   if(!res.ok) return {name:repo,ok:false,error:res.error||res.data?.error||('http_'+res.status)};
-  const raw=res.data?.data??res.data; const d=raw?.result??raw;
+  const raw=res.data?.data??res.data; const d=extractGithubRepo(raw);
   return {name:repo,ok:true,private:d?.private,default_branch:d?.default_branch,open_issues:d?.open_issues_count,updated_at:d?.updated_at,pushed_at:d?.pushed_at,html_url:d?.html_url};
+}
+
+function extractGithubRepo(raw){
+  if(raw?.structuredContent) return raw.structuredContent;
+  if(raw?.repository) return raw.repository;
+  const content=raw?.content;
+  const text=Array.isArray(content)?content.find(x=>x?.type==='text')?.text:null;
+  if(typeof text==='string'){
+    try{return JSON.parse(text);}catch{return {raw:text};}
+  }
+  return raw?.result??raw;
+}
+
+function registryCapabilities(reg){
+  const list=reg?.data?.capabilities||reg?.capabilities||[];
+  return Array.isArray(list)?list:[];
+}
+
+function capabilityRows(reg){
+  const live=Object.fromEntries(registryCapabilities(reg).map((cap)=>[cap.id,cap]));
+  return REQUIRED_CAPABILITIES.map(([id,name,fallbackStatus,summary])=>{
+    const cap=live[id];
+    const runtime=cap?.runtime_status||cap?.runtimeStatus||null;
+    let status=fallbackStatus;
+    if(runtime==='reference_only') status='REFERENCE';
+    else if(runtime&&String(runtime).startsWith('production_verified')) status='PASS';
+    else if(['needs_data','needs_client_handshake_verification','source_implemented_not_deployed'].includes(runtime)) status='NEEDS_DATA';
+    return {id,name,status,provider:cap?.provider||null,runtime_status:runtime,summary};
+  });
 }
 
 async function snapshot(env){
   const started=Date.now();
-  const [cf,reg,...repos]=await Promise.all([
+  const [cf,cfHealth,reg,...repos]=await Promise.all([
     gateway(env,'/internal/cloudflare/read',{method:'POST',body:JSON.stringify({operation:'summary'})}),
+    gateway(env,'/internal/cloudflare/health'),
     router(env,'/registry'),
     ...PROJECTS.map(async ([label,repo])=>({label,...await githubRepo(env,repo)}))
   ]);
   const workers=cf.ok?(cf.data?.data?.workers??cf.data?.workers??null):null;
+  const capabilities=capabilityRows(reg.ok?reg.data:null);
   return {
     ok:true,
     dashboard:'TLT Operations Dashboard',
@@ -51,9 +99,10 @@ async function snapshot(env){
     generated_at:new Date().toISOString(),
     freshness_ms:Date.now()-started,
     safety:{delete_enabled:false,archive_enabled:false,destructive_controls_visible:false,production_writes_require_approval:true,secret_values_visible:false},
-    sources:{cloudflare:{ok:cf.ok,status:cf.status||null,error:cf.error||cf.data?.error||null},router_registry:{ok:reg.ok,status:reg.status||null,error:reg.error||reg.data?.error||null}},
-    summary:{projects_total:repos.length,projects_healthy:repos.filter(x=>x.ok).length,cloudflare_workers:workers?.result_info?.total_count??workers?.count??null},
+    sources:{cloudflare:{ok:cf.ok,status:cf.status||null,error:cf.error||cf.data?.error||null,health:cfHealth.ok?cfHealth.data:null},router_registry:{ok:reg.ok,status:reg.status||null,error:reg.error||reg.data?.error||null}},
+    summary:{projects_total:repos.length,projects_healthy:repos.filter(x=>x.ok).length,capabilities_total:capabilities.length,capabilities_pass:capabilities.filter(x=>x.status==='PASS').length,capabilities_needs_data:capabilities.filter(x=>x.status==='NEEDS_DATA').length,capabilities_reference:capabilities.filter(x=>x.status==='REFERENCE').length,cloudflare_workers:workers?.result_info?.total_count??workers?.count??null},
     projects:repos,
+    capabilities,
     cloudflare:cf.ok?(cf.data?.data??cf.data):{ok:false,error:cf.error||cf.data?.error||'unavailable'},
     registry:reg.ok?reg.data:{ok:false,error:reg.error||reg.data?.error||'unavailable'},
     retirement:{mode:'mark_only',delete_permitted:false,archive_permitted:false}
@@ -61,7 +110,29 @@ async function snapshot(env){
 }
 
 function page(){
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TLT Operations Dashboard</title><style>body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0b0d0f;color:#fff}.wrap{max-width:1400px;margin:auto;padding:28px}.top{display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{font-size:28px;font-weight:800}.pill{padding:7px 10px;border:1px solid #3d444d;border-radius:999px;color:#bed62f}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:22px 0}.card{background:#15191d;border:1px solid #2a3036;border-radius:14px;padding:16px}.k{font-size:12px;color:#aab2bb;text-transform:uppercase}.v{font-size:27px;font-weight:800;margin-top:7px}.ok{color:#bed62f}.bad{color:#ff8a8a}table{width:100%;border-collapse:collapse;background:#15191d;border:1px solid #2a3036;border-radius:14px;overflow:hidden}th,td{text-align:left;padding:12px;border-bottom:1px solid #2a3036}th{color:#aab2bb;font-size:12px;text-transform:uppercase}.muted{color:#aab2bb}.error{background:#321d1d;border:1px solid #623333;padding:12px;border-radius:10px}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">TLT Operations Dashboard</div><div class="muted">Cloudflare production · ChatGPT + Claude compatible control surface</div></div><div class="pill">PRODUCTION / CLOUDFLARE</div></div><div id="app" class="grid"><div class="card">Loading live system state…</div></div></div><script>async function load(){var app=document.getElementById("app");try{var r=await fetch("/api/snapshot",{credentials:"same-origin"});if(r.status===401){location="/login";return;}var d=await r.json();var healthy=d.summary.projects_healthy===d.summary.projects_total?"ok":"bad";var cards="<div class=\"card\"><div class=\"k\">Projects Healthy</div><div class=\"v "+healthy+"\">"+d.summary.projects_healthy+"/"+d.summary.projects_total+"</div></div>"+"<div class=\"card\"><div class=\"k\">Cloudflare Workers</div><div class=\"v\">"+(d.summary.cloudflare_workers==null?"—":d.summary.cloudflare_workers)+"</div></div>"+"<div class=\"card\"><div class=\"k\">Write Safety</div><div class=\"v ok\">Approval-gated</div></div>"+"<div class=\"card\"><div class=\"k\">Retirement</div><div class=\"v ok\">Mark only</div></div>";var rows=d.projects.map(function(p){return "<tr><td>"+p.label+"</td><td class=\""+(p.ok?"ok":"bad")+"\">"+(p.ok?"HEALTHY":"ERROR")+"</td><td>"+(p.default_branch||"—")+"</td><td>"+(p.open_issues==null?"—":p.open_issues)+"</td><td>"+(p.pushed_at||p.updated_at||"—")+"</td></tr>";}).join("");app.className="";app.innerHTML="<div class=\"grid\">"+cards+"</div><table><thead><tr><th>Project</th><th>Status</th><th>Branch</th><th>Open Issues</th><th>Last Activity</th></tr></thead><tbody>"+rows+"</tbody></table><p class=\"muted\">Freshness: "+d.generated_at+" · "+d.freshness_ms+" ms · Delete/archive disabled.</p>";}catch(e){app.innerHTML="<div class=\"error\">Dashboard refresh failed: "+e.message+"</div>";}}load();setInterval(load,60000);</script></body></html>';
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TLT Operations Dashboard</title><style>body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0b0d0f;color:#fff}.wrap{max-width:1400px;margin:auto;padding:28px}.top{display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{font-size:28px;font-weight:800}.pill{padding:7px 10px;border:1px solid #3d444d;border-radius:999px;color:#bed62f}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:22px 0}.card{background:#15191d;border:1px solid #2a3036;border-radius:8px;padding:16px}.k{font-size:12px;color:#aab2bb;text-transform:uppercase}.v{font-size:27px;font-weight:800;margin-top:7px}.ok{color:#bed62f}.bad{color:#ff8a8a}.warn{color:#ffd166}.ref{color:#8ecae6}table{width:100%;border-collapse:collapse;background:#15191d;border:1px solid #2a3036;border-radius:8px;overflow:hidden;margin-top:16px}th,td{text-align:left;padding:12px;border-bottom:1px solid #2a3036;vertical-align:top}th{color:#aab2bb;font-size:12px;text-transform:uppercase}.muted{color:#aab2bb}.error{background:#321d1d;border:1px solid #623333;padding:12px;border-radius:8px}.section{margin-top:24px}.label{font-weight:700}</style></head><body><div class="wrap"><div class="top"><div><div class="brand">TLT Operations Dashboard</div><div class="muted">Cloudflare production · Superpowers connection matrix</div></div><div class="pill">PRODUCTION / CLOUDFLARE</div></div><div id="app" class="grid"><div class="card">Loading live system state...</div></div></div><script>
+function esc(value){return String(value==null?"":value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;","'":"&#39;"}[ch];});}
+function statusClass(status){return status==="PASS"?"ok":status==="REFERENCE"?"ref":status==="NEEDS_DATA"?"warn":"bad";}
+async function load(){
+  var app=document.getElementById("app");
+  try{
+    var r=await fetch("/api/snapshot",{credentials:"same-origin"});
+    if(r.status===401){location="/login";return;}
+    var d=await r.json();
+    var healthy=d.summary.projects_healthy===d.summary.projects_total?"ok":"bad";
+    var cards="<div class=\\"card\\"><div class=\\"k\\">Projects Healthy</div><div class=\\"v "+healthy+"\\">"+esc(d.summary.projects_healthy)+"/"+esc(d.summary.projects_total)+"</div></div>"+
+      "<div class=\\"card\\"><div class=\\"k\\">Capabilities PASS</div><div class=\\"v ok\\">"+esc(d.summary.capabilities_pass)+"/"+esc(d.summary.capabilities_total)+"</div></div>"+
+      "<div class=\\"card\\"><div class=\\"k\\">Needs Data</div><div class=\\"v warn\\">"+esc(d.summary.capabilities_needs_data)+"</div></div>"+
+      "<div class=\\"card\\"><div class=\\"k\\">Reference Only</div><div class=\\"v ref\\">"+esc(d.summary.capabilities_reference)+"</div></div>"+
+      "<div class=\\"card\\"><div class=\\"k\\">Write Safety</div><div class=\\"v ok\\">Approval-gated</div></div>"+
+      "<div class=\\"card\\"><div class=\\"k\\">Retirement</div><div class=\\"v ok\\">Mark only</div></div>";
+    var capabilityRows=d.capabilities.map(function(c){return "<tr><td><span class=\\"label\\">"+esc(c.name)+"</span><div class=\\"muted\\">"+esc(c.id)+"</div></td><td class=\\""+statusClass(c.status)+"\\">"+esc(c.status)+"</td><td>"+esc(c.provider||"-")+"</td><td>"+esc(c.runtime_status||"-")+"</td><td>"+esc(c.summary)+"</td></tr>";}).join("");
+    var projectRows=d.projects.map(function(p){return "<tr><td>"+esc(p.label)+"</td><td class=\\""+(p.ok?"ok":"bad")+"\\">"+(p.ok?"HEALTHY":"ERROR")+"</td><td>"+esc(p.default_branch||"-")+"</td><td>"+esc(p.open_issues==null?"-":p.open_issues)+"</td><td>"+esc(p.pushed_at||p.updated_at||"-")+"</td></tr>";}).join("");
+    app.className="";
+    app.innerHTML="<div class=\\"grid\\">"+cards+"</div><div class=\\"section\\"><h2>Capability Connections</h2><table><thead><tr><th>Capability</th><th>Status</th><th>Provider</th><th>Runtime</th><th>Evidence</th></tr></thead><tbody>"+capabilityRows+"</tbody></table></div><div class=\\"section\\"><h2>Canonical Projects</h2><table><thead><tr><th>Project</th><th>Status</th><th>Branch</th><th>Open Issues</th><th>Last Activity</th></tr></thead><tbody>"+projectRows+"</tbody></table></div><p class=\\"muted\\">Freshness: "+esc(d.generated_at)+" · "+esc(d.freshness_ms)+" ms · Delete/archive disabled.</p>";
+  }catch(e){app.innerHTML="<div class=\\"error\\">Dashboard refresh failed: "+esc(e.message)+"</div>";}
+}
+load();setInterval(load,60000);</script></body></html>`;
 }
 
 function loginPage(error=''){

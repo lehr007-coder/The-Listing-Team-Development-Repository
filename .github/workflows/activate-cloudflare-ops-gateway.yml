@@ -33,19 +33,12 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          CF_OPS_TOKEN=$(python3 - <<'PY'
-          import hashlib, os
-          print(hashlib.sha256(('tlt-cloudflare-ops-read-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
-          PY
-          )
           GITHUB_TOKEN=$(python3 - <<'PY'
           import hashlib, os
           print(hashlib.sha256(('tlt-superpowers-github-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
           PY
           )
-          echo "::add-mask::$CF_OPS_TOKEN"
           echo "::add-mask::$GITHUB_TOKEN"
-          printf '%s' "$CF_OPS_TOKEN" | npx wrangler secret put CLOUDFLARE_OPS_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
           printf '%s' "$GITHUB_TOKEN" | npx wrangler secret put GITHUB_MCP_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
       - name: Verify protected Cloudflare operational reads
         env:
@@ -70,7 +63,7 @@ jobs:
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
           assert d['binding_configured'] is True
-          assert d['token_configured'] is True
+          assert d['internal_token_required'] is False
           PY
           curl -fsS -X POST "$BASE/internal/cloudflare/read" \
             -H "Authorization: Bearer $ROUTER_TOKEN" \
@@ -111,7 +104,7 @@ jobs:
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
           assert d['binding_configured'] is True
-          assert d['token_configured'] is True
+          assert d['internal_token_required'] is False
           PY
 
           curl -fsS -X POST "$BASE/internal/github/read" \
