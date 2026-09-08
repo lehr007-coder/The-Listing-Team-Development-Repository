@@ -63,7 +63,7 @@ jobs:
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
           assert d['binding_configured'] is True
-          assert d['token_configured'] is True
+          assert d['internal_token_required'] is False
           PY
           curl -fsS -X POST "$BASE/internal/cloudflare/read" \
             -H "Authorization: Bearer $ROUTER_TOKEN" \
@@ -104,7 +104,7 @@ jobs:
           assert d['delete_permitted'] is False
           assert d['archive_permitted'] is False
           assert d['binding_configured'] is True
-          assert d['internal_token_required'] is False
+          assert d['token_configured'] is True
           PY
 
           curl -fsS -X POST "$BASE/internal/github/read" \
