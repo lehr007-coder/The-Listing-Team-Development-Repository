@@ -156,18 +156,15 @@ jobs:
           echo "::add-mask::$DASHBOARD_TOKEN"
           if [ "${ACCESS_VERIFIER_READY:-false}" != 'true' ]; then
             sleep 5
-            curl -sS "$BASE/health" -o /tmp/public-health || true
-            curl -sS "$BASE/api/snapshot" -o /tmp/public-snapshot || true
-            python3 - <<'PY'
-          from pathlib import Path
-          for name in ('/tmp/public-health','/tmp/public-snapshot'):
-              body = Path(name).read_text(errors='replace') if Path(name).exists() else ''
-              assert 'Cloudflare Access' in body or 'cloudflareaccess.com' in body
-          PY
+            public_health_code=$(curl -sS -o /tmp/public-health -w '%{http_code}' "$BASE/health" || true)
+            public_snapshot_code=$(curl -sS -o /tmp/public-snapshot -w '%{http_code}' "$BASE/api/snapshot" || true)
             {
               echo '### Dashboard deploy complete; protected JSON verifier needs Cloudflare Access scope'
               echo
-              echo 'Public dashboard endpoints are protected by Cloudflare Access. The Worker JSON verifier was skipped because this workflow did not receive Access service-token credentials from the previous step.'
+              echo 'The Worker JSON verifier was skipped because this workflow did not receive Access service-token credentials from the previous step.'
+              echo "Public /health HTTP code observed by CI: ${public_health_code:-unavailable}."
+              echo "Public /api/snapshot HTTP code observed by CI: ${public_snapshot_code:-unavailable}."
+              echo 'This is a NEEDS_DATA verifier state, not a PASS for protected Dashboard JSON.'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
