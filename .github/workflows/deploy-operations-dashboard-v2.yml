@@ -47,50 +47,7 @@ jobs:
           echo "::add-mask::$INTERNAL_TOKEN"
           printf '%s' "$DASHBOARD_TOKEN" | npx wrangler secret put DASHBOARD_ACCESS_TOKEN --name tlt-operations-dashboard >/dev/null
           printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put SUPERPOWERS_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
-      - name: Verify production health and protected live snapshot
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          BASE='https://tlt-operations-dashboard.lehr007.workers.dev'
-          DASHBOARD_TOKEN=$(python3 - <<'PY'
-          import hashlib, os
-          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
-          PY
-          )
-          echo "::add-mask::$DASHBOARD_TOKEN"
-          sleep 5
-          curl -fsS "$BASE/health" | tee /tmp/health.json
-          python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/health.json'))
-          assert d['ok'] is True
-          assert d['service']=='tlt-operations-dashboard'
-          assert d['version']=='2.0.0'
-          assert d['environment']=='production-cloudflare'
-          assert d['deployment_profile']=='pro-production-only'
-          assert d['auth_configured'] is True
-          assert d['gateway_binding_configured'] is True
-          assert d['router_binding_configured'] is True
-          assert d['delete_enabled'] is False
-          assert d['archive_enabled'] is False
-          PY
-          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' "$BASE/api/snapshot")" = "401"
-          curl -fsS "$BASE/api/snapshot" -H "Authorization: Bearer $DASHBOARD_TOKEN" | tee /tmp/snapshot.json
-          python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/snapshot.json'))
-          assert d['ok'] is True
-          assert d['dashboard']=='TLT Operations Dashboard'
-          assert d['version']=='2.0.0'
-          assert d['environment']=='production-cloudflare'
-          assert d['deployment_profile']=='pro-production-only'
-          assert d['safety']['delete_enabled'] is False
-          assert d['safety']['archive_enabled'] is False
-          assert len(d['projects']) == 5
-          assert d['retirement']['mode']=='mark_only'
-          PY
-      - name: Configure Cloudflare Access human login
+      - name: Configure Cloudflare Access human and CI verification login
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ACCESS_EMAIL: lehr007@gmail.com
@@ -100,6 +57,7 @@ jobs:
           DOMAIN='tlt-operations-dashboard.lehr007.workers.dev'
           APP_NAME='TLT Operations Dashboard'
           POLICY_NAME='Allow dashboard owner'
+          CI_POLICY_NAME='Allow dashboard CI verifier'
           auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json')
 
           curl -fsS "${auth[@]}" "$API/accounts?per_page=50" > /tmp/accounts.json
@@ -130,11 +88,83 @@ jobs:
           fi
           jq -e '.success==true' /tmp/policy-result.json >/dev/null
 
+          jq -n --arg name "TLT Operations Dashboard CI verifier $GITHUB_RUN_ID" '{name:$name,duration:"2h"}' > /tmp/service-token-create.json
+          curl -fsS "${auth[@]}" -X POST --data @/tmp/service-token-create.json "$API/accounts/$ACCOUNT_ID/access/service_tokens" > /tmp/service-token.json
+          jq -e '.success==true' /tmp/service-token.json >/dev/null
+          SERVICE_TOKEN_ID=$(jq -r '.result.id' /tmp/service-token.json)
+          ACCESS_CLIENT_ID=$(jq -r '.result.client_id' /tmp/service-token.json)
+          ACCESS_CLIENT_SECRET=$(jq -r '.result.client_secret' /tmp/service-token.json)
+          test -n "$SERVICE_TOKEN_ID"
+          test -n "$ACCESS_CLIENT_ID"
+          test -n "$ACCESS_CLIENT_SECRET"
+          echo "::add-mask::$ACCESS_CLIENT_ID"
+          echo "::add-mask::$ACCESS_CLIENT_SECRET"
+          {
+            echo "ACCESS_CLIENT_ID=$ACCESS_CLIENT_ID"
+            echo "ACCESS_CLIENT_SECRET=$ACCESS_CLIENT_SECRET"
+          } >> "$GITHUB_ENV"
+
+          CI_POLICY_ID=$(jq -r --arg n "$CI_POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
+          jq -n --arg name "$CI_POLICY_NAME" --arg token "$SERVICE_TOKEN_ID" '{name:$name,decision:"non_identity",precedence:2,include:[{service_token:{token_id:$token}}]}' > /tmp/ci-policy.json
+          if [ -z "$CI_POLICY_ID" ]; then
+            curl -fsS "${auth[@]}" -X POST --data @/tmp/ci-policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/ci-policy-result.json
+          else
+            curl -fsS "${auth[@]}" -X PUT --data @/tmp/ci-policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$CI_POLICY_ID" > /tmp/ci-policy-result.json
+          fi
+          jq -e '.success==true' /tmp/ci-policy-result.json >/dev/null
+
           printf '%s' "$ACCESS_EMAIL" | npx wrangler secret put ACCESS_ALLOWED_EMAIL --name tlt-operations-dashboard >/dev/null
+      - name: Verify production health and protected live snapshot
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-operations-dashboard.lehr007.workers.dev'
+          DASHBOARD_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASHBOARD_TOKEN"
+          test -n "${ACCESS_CLIENT_ID:-}"
+          test -n "${ACCESS_CLIENT_SECRET:-}"
+          ACCESS_HEADERS=(-H "CF-Access-Client-Id: $ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $ACCESS_CLIENT_SECRET")
+          sleep 5
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d['ok'] is True
+          assert d['service']=='tlt-operations-dashboard'
+          assert d['version']=='2.0.0'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['auth_configured'] is True
+          assert d['gateway_binding_configured'] is True
+          assert d['router_binding_configured'] is True
+          assert d['delete_enabled'] is False
+          assert d['archive_enabled'] is False
+          PY
+          PUBLIC_CODE=$(curl -sS -o /tmp/public-snapshot -w '%{http_code}' "$BASE/api/snapshot")
+          test "$PUBLIC_CODE" != '200'
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/api/snapshot" -H "Authorization: Bearer $DASHBOARD_TOKEN" | tee /tmp/snapshot.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/snapshot.json'))
+          assert d['ok'] is True
+          assert d['dashboard']=='TLT Operations Dashboard'
+          assert d['version']=='2.0.0'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['safety']['delete_enabled'] is False
+          assert d['safety']['archive_enabled'] is False
+          assert len(d['projects']) == 5
+          assert d['retirement']['mode']=='mark_only'
+          PY
 
           ok=0
           for i in 1 2 3 4 5 6; do
-            curl -sS -D /tmp/access-headers -o /tmp/access-body "https://$DOMAIN/" || true
+            curl -sS -D /tmp/access-headers -o /tmp/access-body "$BASE/" || true
             if grep -qi 'cloudflareaccess.com' /tmp/access-headers /tmp/access-body; then ok=1; break; fi
             sleep 5
           done
