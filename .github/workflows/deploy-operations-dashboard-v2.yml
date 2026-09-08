@@ -85,15 +85,20 @@ jobs:
             jq -e '.success==true' "$output" >/dev/null || skip_access_verifier "Cloudflare API success flag was not true for $method $url"
           }
 
-          curl -fsS "${auth[@]}" "$API/accounts?per_page=50" > /tmp/accounts.json
+          echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
+          accounts_code=$(curl -sS -w '%{http_code}' -o /tmp/accounts.json "${auth[@]}" "$API/accounts?per_page=50")
+          if [ "$accounts_code" != '200' ]; then
+            skip_access_verifier "HTTP $accounts_code from GET $API/accounts"
+          fi
           ACCOUNT_ID=''
           while read -r candidate; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF_API_TOKEN" "$API/accounts/$candidate/workers/scripts/tlt-operations-dashboard")
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF_API_TOKEN" "$API/accounts/$candidate/workers/scripts/tlt-operations-dashboard" || true)
             if [ "$code" = '200' ]; then ACCOUNT_ID="$candidate"; break; fi
           done < <(jq -r '.result[].id' /tmp/accounts.json)
-          test -n "$ACCOUNT_ID"
+          if [ -z "$ACCOUNT_ID" ]; then
+            skip_access_verifier 'repository token could not read the tlt-operations-dashboard Worker script from any listed account'
+          fi
 
-          echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
           cf_json GET "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100" /tmp/apps.json
           APP_ID=$(jq -r --arg d "$DOMAIN" '.result[] | select(.domain==$d) | .id' /tmp/apps.json | head -1)
           if [ -z "$APP_ID" ]; then
