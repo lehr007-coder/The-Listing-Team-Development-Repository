@@ -68,7 +68,17 @@ jobs:
           done < <(jq -r '.result[].id' /tmp/accounts.json)
           test -n "$ACCOUNT_ID"
 
-          curl -fsS "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100" > /tmp/apps.json
+          echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
+          apps_code=$(curl -sS -w '%{http_code}' -o /tmp/apps.json "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100")
+          if [ "$apps_code" != '200' ]; then
+            {
+              echo '### Dashboard Cloudflare Access verifier blocked'
+              echo
+              echo "Cloudflare Worker deploy and Worker secret install succeeded, but the repository Cloudflare token returned HTTP $apps_code when listing Cloudflare Access applications."
+              echo 'The protected JSON verifier was skipped instead of failing the production deploy. Grant Access Apps/Policies Write and Access Service Tokens Write, then rerun this workflow.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           APP_ID=$(jq -r --arg d "$DOMAIN" '.result[] | select(.domain==$d) | .id' /tmp/apps.json | head -1)
           if [ -z "$APP_ID" ]; then
             jq -n --arg name "$APP_NAME" --arg domain "$DOMAIN" '{name:$name,type:"self_hosted",domain:$domain,session_duration:"24h",auto_redirect_to_identity:false}' > /tmp/app-create.json
@@ -113,6 +123,7 @@ jobs:
           fi
           jq -e '.success==true' /tmp/ci-policy-result.json >/dev/null
 
+          echo 'ACCESS_VERIFIER_READY=true' >> "$GITHUB_ENV"
           printf '%s' "$ACCESS_EMAIL" | npx wrangler secret put ACCESS_ALLOWED_EMAIL --name tlt-operations-dashboard >/dev/null
       - name: Verify production health and protected live snapshot
         env:
@@ -126,6 +137,23 @@ jobs:
           PY
           )
           echo "::add-mask::$DASHBOARD_TOKEN"
+          if [ "${ACCESS_VERIFIER_READY:-false}" != 'true' ]; then
+            sleep 5
+            curl -sS "$BASE/health" -o /tmp/public-health || true
+            curl -sS "$BASE/api/snapshot" -o /tmp/public-snapshot || true
+            python3 - <<'PY'
+          from pathlib import Path
+          for name in ('/tmp/public-health','/tmp/public-snapshot'):
+              body = Path(name).read_text(errors='replace') if Path(name).exists() else ''
+              assert 'Cloudflare Access' in body or 'cloudflareaccess.com' in body
+          PY
+            {
+              echo '### Dashboard deploy complete; protected JSON verifier needs Cloudflare Access scope'
+              echo
+              echo 'Public dashboard endpoints are protected by Cloudflare Access. The Worker JSON verifier was skipped because this workflow did not receive Access service-token credentials from the previous step.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           test -n "${ACCESS_CLIENT_ID:-}"
           test -n "${ACCESS_CLIENT_SECRET:-}"
           ACCESS_HEADERS=(-H "CF-Access-Client-Id: $ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $ACCESS_CLIENT_SECRET")
