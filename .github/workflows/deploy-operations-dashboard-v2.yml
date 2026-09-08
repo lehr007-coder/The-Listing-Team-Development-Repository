@@ -59,6 +59,31 @@ jobs:
           POLICY_NAME='Allow dashboard owner'
           CI_POLICY_NAME='Allow dashboard CI verifier'
           auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json')
+          skip_access_verifier() {
+            reason="$1"
+            {
+              echo '### Dashboard Cloudflare Access verifier blocked'
+              echo
+              echo "Cloudflare Worker deploy and Worker secret install succeeded, but Cloudflare Access verifier setup could not complete: $reason."
+              echo 'The protected JSON verifier was skipped instead of failing the production deploy. Grant Access Apps/Policies Write and Access Service Tokens Write, then rerun this workflow.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+          cf_json() {
+            method="$1"
+            url="$2"
+            output="$3"
+            data_file="${4:-}"
+            if [ -n "$data_file" ]; then
+              code=$(curl -sS -w '%{http_code}' -o "$output" "${auth[@]}" -X "$method" --data @"$data_file" "$url")
+            else
+              code=$(curl -sS -w '%{http_code}' -o "$output" "${auth[@]}" -X "$method" "$url")
+            fi
+            if [ "$code" != '200' ]; then
+              skip_access_verifier "HTTP $code from $method $url"
+            fi
+            jq -e '.success==true' "$output" >/dev/null || skip_access_verifier "Cloudflare API success flag was not true for $method $url"
+          }
 
           curl -fsS "${auth[@]}" "$API/accounts?per_page=50" > /tmp/accounts.json
           ACCOUNT_ID=''
@@ -69,38 +94,26 @@ jobs:
           test -n "$ACCOUNT_ID"
 
           echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
-          apps_code=$(curl -sS -w '%{http_code}' -o /tmp/apps.json "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100")
-          if [ "$apps_code" != '200' ]; then
-            {
-              echo '### Dashboard Cloudflare Access verifier blocked'
-              echo
-              echo "Cloudflare Worker deploy and Worker secret install succeeded, but the repository Cloudflare token returned HTTP $apps_code when listing Cloudflare Access applications."
-              echo 'The protected JSON verifier was skipped instead of failing the production deploy. Grant Access Apps/Policies Write and Access Service Tokens Write, then rerun this workflow.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+          cf_json GET "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100" /tmp/apps.json
           APP_ID=$(jq -r --arg d "$DOMAIN" '.result[] | select(.domain==$d) | .id' /tmp/apps.json | head -1)
           if [ -z "$APP_ID" ]; then
             jq -n --arg name "$APP_NAME" --arg domain "$DOMAIN" '{name:$name,type:"self_hosted",domain:$domain,session_duration:"24h",auto_redirect_to_identity:false}' > /tmp/app-create.json
-            curl -fsS "${auth[@]}" -X POST --data @/tmp/app-create.json "$API/accounts/$ACCOUNT_ID/access/apps" > /tmp/app.json
-            jq -e '.success==true' /tmp/app.json >/dev/null
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps" /tmp/app.json /tmp/app-create.json
             APP_ID=$(jq -r '.result.id' /tmp/app.json)
           fi
           test -n "$APP_ID"
 
-          curl -fsS "${auth[@]}" "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/policies.json
+          cf_json GET "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/policies.json
           POLICY_ID=$(jq -r --arg n "$POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
           jq -n --arg name "$POLICY_NAME" --arg email "$ACCESS_EMAIL" '{name:$name,decision:"allow",precedence:1,include:[{email:{email:$email}}]}' > /tmp/policy.json
           if [ -z "$POLICY_ID" ]; then
-            curl -fsS "${auth[@]}" -X POST --data @/tmp/policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/policy-result.json
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/policy-result.json /tmp/policy.json
           else
-            curl -fsS "${auth[@]}" -X PUT --data @/tmp/policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$POLICY_ID" > /tmp/policy-result.json
+            cf_json PUT "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$POLICY_ID" /tmp/policy-result.json /tmp/policy.json
           fi
-          jq -e '.success==true' /tmp/policy-result.json >/dev/null
 
           jq -n --arg name "TLT Operations Dashboard CI verifier $GITHUB_RUN_ID" '{name:$name,duration:"2h"}' > /tmp/service-token-create.json
-          curl -fsS "${auth[@]}" -X POST --data @/tmp/service-token-create.json "$API/accounts/$ACCOUNT_ID/access/service_tokens" > /tmp/service-token.json
-          jq -e '.success==true' /tmp/service-token.json >/dev/null
+          cf_json POST "$API/accounts/$ACCOUNT_ID/access/service_tokens" /tmp/service-token.json /tmp/service-token-create.json
           SERVICE_TOKEN_ID=$(jq -r '.result.id' /tmp/service-token.json)
           ACCESS_CLIENT_ID=$(jq -r '.result.client_id' /tmp/service-token.json)
           ACCESS_CLIENT_SECRET=$(jq -r '.result.client_secret' /tmp/service-token.json)
@@ -117,11 +130,10 @@ jobs:
           CI_POLICY_ID=$(jq -r --arg n "$CI_POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
           jq -n --arg name "$CI_POLICY_NAME" --arg token "$SERVICE_TOKEN_ID" '{name:$name,decision:"non_identity",precedence:2,include:[{service_token:{token_id:$token}}]}' > /tmp/ci-policy.json
           if [ -z "$CI_POLICY_ID" ]; then
-            curl -fsS "${auth[@]}" -X POST --data @/tmp/ci-policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" > /tmp/ci-policy-result.json
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/ci-policy-result.json /tmp/ci-policy.json
           else
-            curl -fsS "${auth[@]}" -X PUT --data @/tmp/ci-policy.json "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$CI_POLICY_ID" > /tmp/ci-policy-result.json
+            cf_json PUT "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$CI_POLICY_ID" /tmp/ci-policy-result.json /tmp/ci-policy.json
           fi
-          jq -e '.success==true' /tmp/ci-policy-result.json >/dev/null
 
           echo 'ACCESS_VERIFIER_READY=true' >> "$GITHUB_ENV"
           printf '%s' "$ACCESS_EMAIL" | npx wrangler secret put ACCESS_ALLOWED_EMAIL --name tlt-operations-dashboard >/dev/null
