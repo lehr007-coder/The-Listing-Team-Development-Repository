@@ -48,7 +48,8 @@ entrypoint = "SuperpowersReadOnlyEntrypoint"
 
 [[services]]
 binding = "CLOUDFLARE_OPS"
-service = "tlt-cloudflare-ops-read"
+service = "cloudflare-ops-mcp-server"
+entrypoint = "SuperpowersReadOnlyEntrypoint"
 
 # Secrets (never commit values):
 # npx wrangler secret put GATEWAY_AUTH_TOKEN
@@ -60,4 +61,3 @@ service = "tlt-cloudflare-ops-read"
 # npx wrangler secret put YLOPO_MCP_INTERNAL_TOKEN
 # npx wrangler secret put SQUARESPACE_MCP_INTERNAL_TOKEN
 # npx wrangler secret put GITHUB_MCP_INTERNAL_TOKEN
-# npx wrangler secret put CLOUDFLARE_OPS_INTERNAL_TOKEN

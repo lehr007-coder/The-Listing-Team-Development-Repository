@@ -79,7 +79,7 @@ export default {
         const headers = new Headers(req.headers);
         headers.set('authorization', 'Bearer ' + env.DASHBOARD_ACCESS_TOKEN);
         const authenticated = new Request(req, { headers });
-        return dashboardResponse(authenticated, env, ctx);
+        req = authenticated;
       }
 
       if (url.pathname === '/session' && req.method === 'POST' && env.DASHBOARD_ACCESS_TOKEN) {
@@ -112,7 +112,10 @@ export default {
         snapshot.browser_run = browserRun;
         snapshot.capabilities = snapshot.capabilities || {};
         snapshot.capabilities.browser_automation = {
-          status: browserRun.ok ? 'PRODUCTION_VERIFIED' : 'DEGRADED',
+          status: browserRun.ok ? 'HEALTH_VERIFIED' : 'DEGRADED',
+          verification_state: 'NEEDS_DATA',
+          production_verified: false,
+          blocker: 'fresh_authenticated_browser_canary_required',
           runtime: 'Cloudflare Browser Run / Playwright MCP',
           read_test_lane: 'automatic_audited',
           external_state_changes: 'approval_required'
