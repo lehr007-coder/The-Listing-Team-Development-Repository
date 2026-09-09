@@ -33,8 +33,13 @@ jobs:
           body='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"superpowers-probe","version":"1.0"}}}'
           unauth=$(curl -sS -o /tmp/u -w '%{http_code}' -X POST "$URL" -H 'content-type: application/json' --data "$body")
           test "$unauth" = "401"
-          code=$(curl -sS -o /tmp/a -w '%{http_code}' -X POST "$URL" -H "X-Superpowers-Internal: $CRM_INTERNAL_TOKEN" -H 'content-type: application/json' --data "$body")
-          echo "internal MCP HTTP=$code"
+          code=''
+          for attempt in 1 2 3 4 5 6; do
+            code=$(curl -sS -o /tmp/a -w '%{http_code}' -X POST "$URL" -H "X-Superpowers-Internal: $CRM_INTERNAL_TOKEN" -H 'content-type: application/json' --data "$body")
+            echo "internal MCP HTTP=$code attempt=$attempt"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 5
+          done
           test "$code" = "200"
           python3 - <<'PY'
           import json
