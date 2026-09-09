@@ -1,6 +1,7 @@
 name: Deploy Superpowers Router Mirror
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
