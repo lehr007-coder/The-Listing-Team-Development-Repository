@@ -5,10 +5,13 @@ Listing Team's existing GoHighLevel + Ylopo + Cloudflare ecosystem. Strictly
 **additive** — does not modify any existing workflow, custom field,
 webhook, automation, routing, or pipeline.
 
-Two pipelines, one worker:
+Two pipelines, one worker, plus an optional live layer:
 
 1. **HEYGEN** — personalized avatar videos (SMS / email / GHL conversations)
 2. **FCPXML** — cinematic branded reels for social distribution
+3. **LiveAvatar** *(off by default — see [`docs/LIVEAVATAR.md`](docs/LIVEAVATAR.md))* —
+   real-time conversational avatar, a separate HeyGen product/API/key,
+   surfaced as a "Talk live now" button on the hosted video page
 
 ## Quick links
 
@@ -20,6 +23,7 @@ Two pipelines, one worker:
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Secrets list, prerequisites, smoke tests |
 | [`docs/TESTING.md`](docs/TESTING.md) | Unit + integration + isolation regression checks |
 | [`docs/RISK.md`](docs/RISK.md) | Risk matrix |
+| [`docs/LIVEAVATAR.md`](docs/LIVEAVATAR.md) | LiveAvatar (live conversational avatar) — go-live checklist, cost guardrails |
 | [`docs/ROLLOUT.md`](docs/ROLLOUT.md) | Phased rollout order |
 | [`migrations/001_video_jobs.sql`](migrations/001_video_jobs.sql) | Supabase tables |
 | [`migrations/002_ghl_custom_fields.md`](migrations/002_ghl_custom_fields.md) | GHL field setup + collision check |
@@ -30,6 +34,7 @@ Two pipelines, one worker:
 | Surface | Mode |
 |---|---|
 | Supabase tables `video_jobs`, `video_events` | **owned** (RW) |
+| Supabase table `liveavatar_sessions` | **owned** (RW) — off by default, see `docs/LIVEAVATAR.md` |
 | Supabase tables `events`, `leads`, `listings`, `scoring_log` | read-only (sidecar appends `source='ai_video'` rows to `scoring_log` only) |
 | GHL custom fields `ai_video_*`, `video_*`, `social_content_type`, `worthy_of_social`, `last_video_*` | **owned** (RW) — see allowlist in `lib/ghl.js` |
 | Every other GHL custom field | read-only |
@@ -61,6 +66,11 @@ POST /v1/fcpxml/callback              FCPXML MCP → us (HMAC, no key)
 POST /v1/delivery/send                Manual delivery re-run for a private job
 POST /v1/social/publish               Manual social distribution
 
+# LiveAvatar (off by default — see docs/LIVEAVATAR.md)
+GET  /v1/liveavatar/widget.js          Browser widget JS
+POST /v1/liveavatar/session            Mint a live-session token
+POST /v1/liveavatar/session/:id/end    Best-effort usage/cost logging
+
 # Admin / observability (auth)
 GET    /v1/admin/jobs                 List jobs (?contact_id, ?status, ?render_engine)
 GET    /v1/admin/jobs/:id             Inspect job
@@ -76,6 +86,12 @@ GET    /v1/admin/rate-limits          KV-backed daily counters vs caps
 GET    /v1/admin/kill                 Kill-switch state
 POST   /v1/admin/kill                 Activate kill-switch (paused)
 DELETE /v1/admin/kill                 Clear kill-switch (resume)
+GET    /v1/admin/liveavatar/kill              LiveAvatar kill-switch (independent of the above)
+POST   /v1/admin/liveavatar/kill              Pause LiveAvatar sessions
+DELETE /v1/admin/liveavatar/kill              Resume
+GET    /v1/admin/liveavatar/rate-limits       Live session-cap counters
+GET    /v1/admin/liveavatar/sessions          List sessions (?contact_id, ?status)
+GET    /v1/admin/liveavatar/sessions/:id      Inspect one session
 POST   /v1/admin/agents/test          Invoke an agent (no HeyGen credit spent)
 ```
 

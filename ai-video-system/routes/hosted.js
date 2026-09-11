@@ -92,6 +92,7 @@ function playerHtml(env, job) {
   <img src="${env.BASE_URL}/v1/analytics/open?job=${job.id}" width="1" height="1" alt="" style="opacity:0">
   <div class="footer">© ${new Date().getFullYear()} The Listing Team</div>
 </div>
+${liveAvatarWidgetTag(env, job)}
 <script>
   var JOB_ID = "${job.id}";
   var ANALYTICS_URL = "${env.BASE_URL}/v1/analytics/event";
@@ -156,6 +157,16 @@ function playerHtml(env, job) {
 </script>
 </body>
 </html>`;
+}
+
+// Off by default — only renders once LIVEAVATAR_ENABLED="true" is set
+// (post go-live-checklist, see docs/LIVEAVATAR.md). Lets a viewer who just
+// watched their personalized HEYGEN video jump straight into a live
+// conversation about the property while their attention is highest.
+function liveAvatarWidgetTag(env, job) {
+  if (env.LIVEAVATAR_ENABLED !== "true") return "";
+  const contactAttr = job.contact_id ? ` data-contact-id="${escapeHtml(job.contact_id)}"` : "";
+  return `<script src="${env.BASE_URL}/v1/liveavatar/widget.js" data-job-id="${escapeHtml(job.id)}"${contactAttr}></script>`;
 }
 
 function notReadyHtml(jobId) {

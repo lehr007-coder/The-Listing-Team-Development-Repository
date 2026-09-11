@@ -96,6 +96,7 @@ Set with `wrangler secret put <NAME> --config wrangler.staging.toml`
 | `CF_STREAM_API_TOKEN`            | yes      | Token with Stream:Edit |
 | `CF_IMAGES_API_TOKEN`            | optional | Only if using CF Images |
 | `CF_IMAGES_ACCOUNT_HASH`         | optional | imagedelivery.net hash |
+| `LIVEAVATAR_API_KEY`             | if LiveAvatar enabled | From app.liveavatar.com/developers — **not** the HeyGen key, separate product |
 | `AGENT_HEYGEN_SCRIPT_URL`        | optional | Direct Agent Studio publish URL (else falls back) |
 | `AGENT_FCPXML_DIRECTOR_URL`      | optional | "" |
 | `AGENT_VIDEO_DELIVERY_URL`       | optional | "" |
