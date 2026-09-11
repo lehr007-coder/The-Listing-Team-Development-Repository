@@ -61,6 +61,8 @@ jobs:
           auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json')
           skip_access_verifier() {
             reason="$1"
+            echo "access_verifier_ready=false"
+            echo "access_verifier_blocked_reason=$reason"
             {
               echo '### Dashboard Cloudflare Access verifier blocked'
               echo
@@ -80,9 +82,13 @@ jobs:
               code=$(curl -sS -w '%{http_code}' -o "$output" "${auth[@]}" -X "$method" "$url")
             fi
             if [ "$code" != '200' ]; then
-              skip_access_verifier "HTTP $code from $method $url"
+              error_codes=$(jq -r '[.errors[]?.code] | map(tostring) | join(",")' "$output" 2>/dev/null || true)
+              skip_access_verifier "HTTP $code from $method $url error_codes=${error_codes:-none}"
             fi
-            jq -e '.success==true' "$output" >/dev/null || skip_access_verifier "Cloudflare API success flag was not true for $method $url"
+            jq -e '.success==true' "$output" >/dev/null || {
+              error_codes=$(jq -r '[.errors[]?.code] | map(tostring) | join(",")' "$output" 2>/dev/null || true)
+              skip_access_verifier "Cloudflare API success flag was not true for $method $url error_codes=${error_codes:-none}"
+            }
           }
 
           echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
