@@ -190,10 +190,11 @@ jobs:
           d=json.load(open('/tmp/health.json'))
           assert d['ok'] is True
           assert d['service']=='tlt-operations-dashboard'
-          assert d['version']=='2.1.0'
+          assert d['version']=='2.1.1'
           assert d['environment']=='production-cloudflare'
           assert d['deployment_profile']=='pro-production-only'
           assert d['auth_configured'] is True
+          assert d['access_owner_configured'] is True
           assert d['gateway_binding_configured'] is True
           assert d['router_binding_configured'] is True
           assert d['private_workflow_canary_binding_configured'] is True

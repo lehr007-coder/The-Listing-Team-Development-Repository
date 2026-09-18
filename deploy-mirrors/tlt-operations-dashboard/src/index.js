@@ -164,7 +164,7 @@ function loginPage(error=''){
 
 export default { async fetch(req,env){
   const u=new URL(req.url);
-  if(u.pathname==='/health') return json({ok:true,service:'tlt-operations-dashboard',version:'2.1.0',environment:'production-cloudflare',deployment_profile:'pro-production-only',auth_configured:!!env.DASHBOARD_ACCESS_TOKEN,gateway_binding_configured:!!env.AI_GATEWAY,router_binding_configured:!!env.SUPERPOWERS_ROUTER,private_workflow_canary_binding_configured:!!env.SUPERPOWERS_CANARY,delete_enabled:false,archive_enabled:false});
+  if(u.pathname==='/health') return json({ok:true,service:'tlt-operations-dashboard',version:'2.1.1',environment:'production-cloudflare',deployment_profile:'pro-production-only',auth_configured:!!env.DASHBOARD_ACCESS_TOKEN,access_owner_configured:!!env.ACCESS_ALLOWED_EMAIL,gateway_binding_configured:!!env.AI_GATEWAY,router_binding_configured:!!env.SUPERPOWERS_ROUTER,private_workflow_canary_binding_configured:!!env.SUPERPOWERS_CANARY,delete_enabled:false,archive_enabled:false});
   if(u.pathname==='/login'&&req.method==='GET') return html(loginPage());
   if(u.pathname==='/session'&&req.method==='POST'){
     const form=await req.formData(); const token=String(form.get('token')||'');
