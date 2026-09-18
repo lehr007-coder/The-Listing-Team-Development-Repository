@@ -10,6 +10,8 @@
 //   `delivered_engagement` separately so avg_engagement = delivered
 //   engagement / delivered count.
 
+import { listJobs } from "./d1.js";
+
 function sbHeaders(env) {
   const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
   return {
@@ -40,15 +42,7 @@ export async function summarizeJobs(env, days) {
   const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
   const since = new Date(sinceMs).toISOString();
 
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?created_at=gte.${encodeURIComponent(since)}` +
-    `&select=id,status,render_engine,video_type,engagement_score,created_at,delivered_at` +
-    `&limit=5000`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) throw new Error(`supabase summary fetch failed: ${r.status} ${await r.text()}`);
-  const jobs = await r.json();
+  const jobs = await listJobs(env, { since, limit: 5000, order: "desc" });
 
   const byDay = buildDayBuckets(since);
   for (const j of jobs) {

@@ -12,7 +12,7 @@
 import { putFromUrl } from "./r2.js";
 import { uploadFromUrl as streamUpload, streamThumbnailUrl, streamGifUrl } from "./cf-stream.js";
 import { uploadFromUrl as cfImagesUpload, imageUrl as cfImageVariantUrl } from "./cf-images.js";
-import { updateVideoJob, getVideoJob, insertVideoEvent, claimJobForProcessing } from "./supabase.js";
+import { updateVideoJob, getVideoJob, insertVideoEvent, claimJobForProcessing } from "./d1.js";
 import { writeOwnedFields } from "./ghl.js";
 import { runDelivery } from "./delivery.js";
 import { runSocialDistribution } from "./social.js";

@@ -47,7 +47,9 @@
 //                                             { subject, html } in its Gmail send step.
 
 import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
-import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
+import { migrateSupabaseToD1 } from "../lib/migrate-d1.js";
+import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact,
+         listJobs as queryJobs, listJobEvents, listEventsSince, countJobsByStatus } from "../lib/d1.js";
 import { writeOwnedFields, findContactByEmail } from "../lib/ghl.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
@@ -164,6 +166,7 @@ export default async function adminRoute(request, env, ctx, url) {
   if (path === "/analytics/summary")             return analyticsSummary(env, url);
   if (path === "/contacts/lookup")               return contactLookup(env, url);
   if (path === "/contacts/top")                  return topContacts(env, url);
+  if (path === "/migrate/supabase-to-d1")        return migrateToD1(env, url);
   if (path === "/stream-token-test")             return streamTokenTest(env);
   if (path === "/cf-images-test")                return cfImagesTest(env);
   if (path.match(/^\/contacts\/[^/]+\/videos$/)) return contactVideos(env, path.split("/")[2]);
@@ -183,11 +186,13 @@ async function listJobs(env, url) {
   if (renderEngine) filters.push(`render_engine=eq.${encodeURIComponent(renderEngine)}`);
   filters.push(`order=created_at.desc`, `limit=${limit}`);
 
-  const r = await fetch(`${env.SUPABASE_URL}/rest/v1/video_jobs?${filters.join("&")}`, {
-    headers: sbHeaders(env),
+  const rows = await queryJobs(env, {
+    contactId: contactId || null,
+    status: status || null,
+    renderEngine: renderEngine || null,
+    order: "desc",
+    limit,
   });
-  if (!r.ok) return error(502, "supabase_error", await r.text());
-  const rows = await r.json();
   return json({ count: rows.length, jobs: rows });
 }
 
@@ -280,13 +285,7 @@ async function jobDiagnose(env, jobId) {
 }
 
 async function jobEvents(env, jobId) {
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_events?job_id=eq.${encodeURIComponent(jobId)}` +
-    `&order=created_at.asc&limit=200`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) return error(502, "supabase_error", await r.text());
-  const rows = await r.json();
+  const rows = await listJobEvents(env, jobId, { order: "asc", limit: 200 });
   return json({ job_id: jobId, count: rows.length, events: rows });
 }
 
@@ -412,13 +411,7 @@ async function jobTracking(env, jobId) {
   const job = await getVideoJob(env, jobId);
   if (!job) return error(404, "not_found");
 
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_events?job_id=eq.${encodeURIComponent(jobId)}` +
-    `&order=created_at.asc&limit=500`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) return error(502, "supabase_error", await r.text());
-  const events = await r.json();
+  const events = await listJobEvents(env, jobId, { order: "asc", limit: 500 });
 
   // Aggregate engagement signals
   const counts = {};
@@ -476,25 +469,10 @@ async function dailySummary(env, url) {
   const days = Math.min(parseInt(url.searchParams.get("days") || "1", 10) || 1, 30);
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const [jobsR, eventsR] = await Promise.all([
-    fetch(
-      `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-      `?created_at=gte.${encodeURIComponent(since)}` +
-      `&select=id,status,render_engine,delivery_channels,engagement_score` +
-      `&limit=2000`,
-      { headers: sbHeaders(env) }
-    ),
-    fetch(
-      `${env.SUPABASE_URL}/rest/v1/video_events` +
-      `?created_at=gte.${encodeURIComponent(since)}` +
-      `&select=event,meta&limit=5000`,
-      { headers: sbHeaders(env) }
-    ),
+  const [jobs, events] = await Promise.all([
+    queryJobs(env, { since, limit: 2000, order: "desc" }),
+    listEventsSince(env, since, 5000),
   ]);
-  if (!jobsR.ok || !eventsR.ok) return error(502, "supabase_error");
-
-  const jobs   = await jobsR.json();
-  const events = await eventsR.json();
 
   const byStatus = {};
   const byEngine = {};
@@ -747,15 +725,7 @@ async function contactLookup(env, url) {
 
 async function topContacts(env, url) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "10", 10) || 10, 50);
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?contact_id=not.is.null` +
-    `&select=contact_id,status,engagement_score,created_at` +
-    `&order=created_at.desc&limit=2000`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) return error(502, "supabase_error");
-  const jobs = await r.json();
+  const jobs = await queryJobs(env, { contactNotNull: true, order: "desc", limit: 2000 });
 
   const byContact = {};
   for (const j of jobs) {
@@ -788,13 +758,7 @@ async function topContacts(env, url) {
 }
 
 async function contactVideos(env, contactId) {
-  const r = await fetch(
-    `${env.SUPABASE_URL}/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
-    `&order=created_at.desc&limit=100`,
-    { headers: sbHeaders(env) }
-  );
-  if (!r.ok) return error(502, "supabase_error", await r.text());
-  const jobs = await r.json();
+  const jobs = await queryJobs(env, { contactId, order: "desc", limit: 100 });
   return json({
     contact_id: contactId,
     count: jobs.length,
@@ -1092,17 +1056,14 @@ async function healthDeep(env) {
     kill_switch: await killSwitchState(env),
   };
 
-  if (env.SUPABASE_URL && env.SUPABASE_KEY) {
-    const r = await fetch(
-      `${env.SUPABASE_URL}/rest/v1/video_jobs?select=status&limit=1000`,
-      { headers: { ...sbHeaders(env), "Prefer": "count=exact" } }
-    );
-    if (r.ok) {
-      const rows = await r.json();
-      const tally = {};
-      rows.forEach(row => { tally[row.status] = (tally[row.status] || 0) + 1; });
+  if (env.VIDEO_DB) {
+    try {
+      const tally = await countJobsByStatus(env);
       out.counters.video_jobs_by_status = tally;
-      out.counters.video_jobs_total = rows.length;
+      out.counters.video_jobs_total =
+        Object.values(tally).reduce((a, b) => a + b, 0);
+    } catch (err) {
+      out.counters.video_jobs_error = String(err?.message || err);
     }
   }
 
@@ -1228,4 +1189,17 @@ async function setupGhlWebhook(env, request) {
     configured_at: new Date().toISOString(),
     message: "Webhook configured. ContactTagUpdate events will now trigger the AI video system.",
   });
+}
+
+// One-shot Supabase -> D1 backfill. Defaults to a dry run; pass
+// ?confirm=WRITE to actually load rows. Idempotent (INSERT OR REPLACE),
+// so re-running after a partial load is safe. Retire with lib/migrate-d1.js
+// once production is cut over and verified.
+async function migrateToD1(env, url) {
+  const dryRun = url.searchParams.get("confirm") !== "WRITE";
+  try {
+    return json(await migrateSupabaseToD1(env, { dryRun }));
+  } catch (err) {
+    return error(500, "migration_failed", String(err?.message || err));
+  }
 }

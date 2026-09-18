@@ -3,7 +3,7 @@ import { json } from "../lib/util.js";
 // Bumped on each git deploy so we can verify CI's bundle reached the edge.
 // If /v1/health doesn't show this build, the dashboard rolled the script
 // back — re-push from git or force-redeploy via wrangler.
-const BUILD_MARKER = "v4-2026-06-02-await-pipeline";
+const BUILD_MARKER = "v5-2026-09-18-d1-jobstore";
 
 export default async function healthRoute(request, env) {
   const isProduction = env.ENVIRONMENT === "production";
@@ -25,6 +25,7 @@ export default async function healthRoute(request, env) {
       PREVIEW_BUCKET: !!env.PREVIEW_BUCKET,
       VIDEO_KV: !!env.VIDEO_KV,
       RENDER_QUEUE: !!env.RENDER_QUEUE,
+      VIDEO_DB: !!env.VIDEO_DB,
     },
     upstreams: {
       heygen: !!env.HEYGEN_API_KEY,
@@ -32,7 +33,9 @@ export default async function healthRoute(request, env) {
       cf_stream: !!env.CF_STREAM_API_TOKEN,
       cf_images: !!env.CF_IMAGES_API_TOKEN,
       ghl: !!(env.GHL_V2_TOKEN || env.GHL_API_KEY),
-      supabase: !!(env.SUPABASE_URL && env.SUPABASE_KEY),
+      // Supabase is now READ-ONLY intelligence lookups only; job state
+      // lives in D1 (VIDEO_DB above).
+      supabase_intelligence: !!(env.SUPABASE_URL && env.SUPABASE_KEY),
     },
     time: new Date().toISOString(),
   });

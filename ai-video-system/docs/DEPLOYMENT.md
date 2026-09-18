@@ -83,8 +83,8 @@ Set with `wrangler secret put <NAME> --config wrangler.staging.toml`
 | `GHL_V2_TOKEN`                   | yes      | GHL OAuth token (read CFs + send messages) |
 | `GHL_API_KEY`                    | optional | Fallback v1 key |
 | `GHL_AGENT_STUDIO_TOKEN`         | optional | If Agent Studio publish endpoints require their own token |
-| `SUPABASE_URL`                   | yes      | Ylopo intelligence project URL |
-| `SUPABASE_KEY`                   | yes      | Service-role key |
+| `SUPABASE_URL`                   | yes      | Ylopo intelligence project URL. **READ-ONLY** as of 2026-09-18 — job state lives in D1. Missing this on production took the whole pipeline down (every call built `undefined/rest/v1/...`); it is required, not optional. |
+| `SUPABASE_KEY`                   | yes      | Service-role key (intelligence reads only) |
 | `HEYGEN_API_KEY`                 | yes      | HeyGen v2 API key |
 | `HEYGEN_DEFAULT_AVATAR_ID`       | yes      | Default avatar |
 | `HEYGEN_DEFAULT_VOICE_ID`        | yes      | Default voice |
@@ -215,3 +215,36 @@ for `PROXY_API_KEY` once, stores in `localStorage`, refreshes every
 30s. Shows daily counts, rate-limit usage, kill-switch toggle, CTR
 per channel, watch funnel, top-engagement leaderboard, and recent
 jobs (click for detail).
+
+
+## Job store: Cloudflare D1 (since 2026-09-18)
+
+`video_jobs` and `video_events` live in **Cloudflare D1**, not Supabase. They
+are owned by this service, so they could move; the intelligence tables
+(`leads`, `events`, `listings`, `scoring_log`) are owned by the Ylopo
+intelligence system and stay on Supabase, read-only.
+
+| Environment | D1 database | Binding |
+|---|---|---|
+| staging | `ai-video-system-staging` | `VIDEO_DB` |
+| production | *(created at cutover)* | `VIDEO_DB` |
+
+Schema: `migrations/d1/0001_video_jobs.sql`. Apply with:
+
+```
+npx wrangler d1 execute <db-name> --remote --file=migrations/d1/0001_video_jobs.sql
+```
+
+Data access goes through `lib/d1.js`. **Do not add writes to `lib/supabase.js`** —
+it is the read-only intelligence client now.
+
+Backfill from Supabase is `lib/migrate-d1.js`, exposed as
+`POST /v1/admin/migrate/supabase-to-d1`. It runs inside the Worker, where both
+datastores are already bound, so no rows transit a laptop. It defaults to a dry
+run; `?confirm=WRITE` performs the load. Every write is `INSERT OR REPLACE`, so
+re-running after a partial load is safe. Retire that file and route once
+production is cut over and verified.
+
+Notable difference from Supabase: staging and production previously shared one
+`video_jobs` table, so staging runs wrote into production's job history. With
+D1 each environment has its own database and that cross-contamination is gone.

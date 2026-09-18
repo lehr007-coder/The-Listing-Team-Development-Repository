@@ -71,3 +71,12 @@ queue = "ai-video-staging-render-queue"
 max_batch_size = 10
 max_batch_timeout = 30
 max_retries = 3
+
+# ── D1: sidecar job store (video_jobs, video_events) ──
+# Migrated off Supabase 2026-09-18. The intelligence tables (leads, events,
+# listings, scoring_log) are owned by another system and stay on Supabase,
+# read-only — see lib/supabase.js.
+[[d1_databases]]
+binding = "VIDEO_DB"
+database_name = "ai-video-system-staging"
+database_id = "fabaf39a-4b47-406b-956f-35590f48f779"

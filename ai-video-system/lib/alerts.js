@@ -11,6 +11,7 @@
 //   error — something is broken right now
 
 import { getCreditBalance } from "./heygen.js";
+import { listStuckJobs, listOrphanCandidates, markJobsFailed } from "./d1.js";
 
 function sbHeaders(env) {
   const key = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,23 +29,18 @@ const STUCK_RENDERING_MIN_AGE_MIN = 10;      // poll-fallback should catch withi
 // One Supabase query covers stuck-rendering + orphaned-rendered. We
 // select only id + created_at + status to keep the row size tight.
 async function fetchStuckJobs(env) {
-  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
-    return { stuckRendering: [], orphans: [], skipped: "no_supabase" };
+  if (!env.VIDEO_DB) {
+    return { stuckRendering: [], orphans: [], skipped: "no_video_db" };
   }
   const cutoffRendering = new Date(Date.now() - STUCK_RENDERING_MIN_AGE_MIN * 60 * 1000).toISOString();
   const cutoffOrphan    = new Date(Date.now() - ORPHAN_RENDERED_MIN_AGE_HOURS * 60 * 60 * 1000).toISOString();
 
-  const url = `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?status=in.(rendering,rendered)` +
-    `&created_at=lt.${encodeURIComponent(cutoffRendering)}` +
-    `&select=id,status,created_at,rendered_at,delivered_at,video_type,heygen_video_id` +
-    `&order=created_at.asc&limit=200`;
-
-  const r = await fetch(url, { headers: sbHeaders(env) });
-  if (!r.ok) {
-    return { stuckRendering: [], orphans: [], error: `supabase ${r.status}` };
+  let rows;
+  try {
+    rows = await listStuckJobs(env, cutoffRendering, 200);
+  } catch (err) {
+    return { stuckRendering: [], orphans: [], error: `d1 ${err?.message || err}` };
   }
-  const rows = await r.json();
   const stuckRendering = rows.filter(j => j.status === "rendering");
   const orphans = rows.filter(j => j.status === "rendered" && j.created_at < cutoffOrphan);
   return { stuckRendering, orphans };
@@ -174,22 +170,19 @@ const ORPHAN_CLEANUP_MIN_AGE_HOURS = 6;       // longer cushion for the cleanup 
 const ORPHAN_CLEANUP_MAX_AGE_HOURS = 24 * 30; // a month — anything older isn't recoverable
 
 export async function cleanupOrphanedRendered(env, { dryRun = true, maxRows = 50 } = {}) {
-  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
-    return { ok: false, reason: "no_supabase" };
+  if (!env.VIDEO_DB) {
+    return { ok: false, reason: "no_video_db" };
   }
   const cutoffUpper = new Date(Date.now() - ORPHAN_CLEANUP_MIN_AGE_HOURS * 60 * 60 * 1000).toISOString();
   const cutoffLower = new Date(Date.now() - ORPHAN_CLEANUP_MAX_AGE_HOURS * 60 * 60 * 1000).toISOString();
   const cap = Math.min(maxRows, 200);
 
-  const listUrl = `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?status=eq.rendered` +
-    `&created_at=lt.${encodeURIComponent(cutoffUpper)}` +
-    `&created_at=gt.${encodeURIComponent(cutoffLower)}` +
-    `&select=id,video_type,created_at,rendered_at,heygen_video_id` +
-    `&order=created_at.asc&limit=${cap}`;
-  const r = await fetch(listUrl, { headers: sbHeaders(env) });
-  if (!r.ok) return { ok: false, reason: "list_failed", status: r.status, body: await r.text() };
-  const rows = await r.json();
+  let rows;
+  try {
+    rows = await listOrphanCandidates(env, { upper: cutoffUpper, lower: cutoffLower, limit: cap });
+  } catch (err) {
+    return { ok: false, reason: "list_failed", error: String(err?.message || err) };
+  }
 
   if (rows.length === 0) {
     return { ok: true, matched: 0, ids: [], updated: 0 };
@@ -198,33 +191,22 @@ export async function cleanupOrphanedRendered(env, { dryRun = true, maxRows = 50
     return { ok: true, dry_run: true, matched: rows.length, ids: rows.map(j => j.id), preview: rows };
   }
 
-  // Bulk PATCH in chunks via the PostgREST `in` filter — was one request
-  // per row (an N+1; up to 200 sequential round-trips). Chunked by 50 to
-  // keep the id-list URL a sane length. Keep `status=eq.rendered` in the
-  // filter so we only flip rows still orphaned, not ones a late delivery
-  // rescued between our SELECT and now.
+  // Bulk-mark failed in chunks of 50. The `status = 'rendered'` guard stays
+  // in the UPDATE so we only flip rows still orphaned, not ones a late
+  // delivery rescued between the SELECT and now.
   const failedAt = new Date().toISOString();
   const errMsg = "marked failed by orphan-cleanup — rendered but delivery never fired";
-  const CHUNK = 50;
   let updated = 0;
   const results = [];
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const batch = rows.slice(i, i + CHUNK);
-    const idList = batch.map(j => encodeURIComponent(j.id)).join(",");
-    const patchUrl = `${env.SUPABASE_URL}/rest/v1/video_jobs?id=in.(${idList})&status=eq.rendered`;
-    const pr = await fetch(patchUrl, {
-      method: "PATCH",
-      headers: { ...sbHeaders(env), "Prefer": "return=representation" },
-      body: JSON.stringify({ status: "failed", error: errMsg, failed_at: failedAt }),
-    });
-    if (pr.ok) {
-      const patched = await pr.json().catch(() => []);
-      const okIds = new Set((Array.isArray(patched) ? patched : []).map(p => p.id));
-      updated += okIds.size;
-      for (const j of batch) results.push({ id: j.id, ok: okIds.has(j.id) });
-    } else {
-      for (const j of batch) results.push({ id: j.id, ok: false, status: pr.status });
-    }
+  try {
+    updated = await markJobsFailed(env, rows.map(j => j.id), { failedAt, error: errMsg });
+    // D1 reports rows changed, not which ids. Report per-id optimistically
+    // only when every candidate was updated; otherwise leave ok null so a
+    // partial result is never read as a clean sweep.
+    const allUpdated = updated === rows.length;
+    for (const j of rows) results.push({ id: j.id, ok: allUpdated ? true : null });
+  } catch (err) {
+    for (const j of rows) results.push({ id: j.id, ok: false, error: String(err?.message || err) });
   }
 
   return {

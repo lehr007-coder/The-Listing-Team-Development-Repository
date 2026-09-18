@@ -19,7 +19,7 @@
 //   4. If HeyGen says "failed", marks the job failed with the error
 
 import { getRenderStatus } from "./heygen.js";
-import { updateVideoJob } from "./supabase.js";
+import { updateVideoJob, listPollFallbackJobs } from "./d1.js";
 
 const POLL_MIN_AGE_S = 60;                  // give real callback a chance first
 const POLL_MAX_AGE_S = 24 * 60 * 60;        // stop after 24 hours — wide enough
@@ -34,9 +34,9 @@ export async function runHeygenPollFallback(env, ctx) {
   const startTime = Date.now();
   console.log("poll-fallback: cron triggered, looking for stuck jobs");
 
-  if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
-    console.warn("poll-fallback: skipped — no supabase config");
-    return { skipped: "no_supabase" };
+  if (!env.VIDEO_DB) {
+    console.warn("poll-fallback: skipped — no VIDEO_DB binding");
+    return { skipped: "no_video_db" };
   }
   if (!env.HEYGEN_API_KEY) {
     console.warn("poll-fallback: skipped — no heygen api key");
@@ -51,32 +51,17 @@ export async function runHeygenPollFallback(env, ctx) {
     return { skipped: "no_base_url" };
   }
 
-  // RLS is off on video_jobs/video_events so SUPABASE_KEY works.
-  const sbKey = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-  const sbHeaders = {
-    "apikey": sbKey,
-    "Authorization": `Bearer ${sbKey}`,
-    "Content-Type": "application/json",
-  };
-
   const minAge = new Date(Date.now() - POLL_MIN_AGE_S * 1000).toISOString();
   const maxAge = new Date(Date.now() - POLL_MAX_AGE_S * 1000).toISOString();
-  const url = `${env.SUPABASE_URL}/rest/v1/video_jobs` +
-    `?status=eq.rendering` +
-    `&render_engine=eq.HEYGEN` +
-    `&heygen_video_id=not.is.null` +
-    `&created_at=lt.${encodeURIComponent(minAge)}` +
-    `&created_at=gt.${encodeURIComponent(maxAge)}` +
-    `&order=created_at.asc&limit=${POLL_BATCH}`;
 
   console.log("poll-fallback: querying stuck jobs (status=rendering, created between 60s-24h ago)");
-  const r = await fetch(url, { headers: sbHeaders });
-  if (!r.ok) {
-    const errText = await r.text();
-    console.error(`poll-fallback: list failed: HTTP ${r.status} — ${errText.slice(0, 200)}`);
-    return { skipped: "list_failed", status: r.status };
+  let stuck;
+  try {
+    stuck = await listPollFallbackJobs(env, { minAge, maxAge, limit: POLL_BATCH });
+  } catch (err) {
+    console.error(`poll-fallback: list failed: ${err?.message || err}`);
+    return { skipped: "list_failed", error: String(err?.message || err) };
   }
-  const stuck = await r.json();
   if (stuck.length === 0) {
     console.log("poll-fallback: no stuck jobs found");
     return { checked: 0 };
