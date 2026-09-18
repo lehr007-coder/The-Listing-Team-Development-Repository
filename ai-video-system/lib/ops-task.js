@@ -7,7 +7,12 @@
 // it is an equivalent trust boundary without the secret changing hands.
 //
 // Contract:
-//   set   VIDEO_KV["ops:task"] = "backfill" | "diagnostics" | "backfill,diagnostics"
+//   set   VIDEO_KV["ops:task"] = "backfill" | "backfill-dry" | "backfill-force"
+//                                 | "diagnostics" | comma-separated combination
+//
+//         "backfill" refuses if video_jobs already has rows — Supabase is
+//         frozen at the cutover, so re-running would overwrite live state
+//         with stale rows. "backfill-force" overrides that, deliberately.
 //   next  every-minute cron picks it up, DELETES the flag first, then runs
 //   read  VIDEO_KV["ops:result"] for the JSON result (7-day TTL)
 //
@@ -99,6 +104,9 @@ export async function runPendingOpsTask(env) {
     try {
       if (task === "backfill") {
         result.backfill = await migrateSupabaseToD1(env, { dryRun: false });
+      } else if (task === "backfill-force") {
+        // Only reachable by deliberately writing this exact task name.
+        result.backfill_force = await migrateSupabaseToD1(env, { dryRun: false, force: true });
       } else if (task === "backfill-dry") {
         result.backfill_dry = await migrateSupabaseToD1(env, { dryRun: true });
       } else if (task === "diagnostics") {

@@ -1197,8 +1197,11 @@ async function setupGhlWebhook(env, request) {
 // once production is cut over and verified.
 async function migrateToD1(env, url) {
   const dryRun = url.searchParams.get("confirm") !== "WRITE";
+  // Second key, deliberately not the same word as confirm: overwriting live
+  // job state with frozen Supabase rows should never be one typo away.
+  const force = url.searchParams.get("force") === "OVERWRITE_LIVE_DATA";
   try {
-    return json(await migrateSupabaseToD1(env, { dryRun }));
+    return json(await migrateSupabaseToD1(env, { dryRun, force }));
   } catch (err) {
     return error(500, "migration_failed", String(err?.message || err));
   }
