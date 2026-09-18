@@ -5,6 +5,13 @@ on:
     branches:
       - main
       - 'claude/**'
+    paths:
+      - 'thelistingteamproxy/**'
+      - 'support-tickets/**'
+      - 'ghl-brand-injector/**'
+      - 'ai-video-system/**'
+      - 'social-post-importer-deploy/**'
+      - '.github/workflows/deploy-staging.yml'
   workflow_dispatch: {}
 
 env:
