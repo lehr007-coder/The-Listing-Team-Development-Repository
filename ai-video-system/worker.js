@@ -21,6 +21,7 @@ import adminRoute from "./routes/admin.js";
 import devstubRoute from "./routes/devstub.js";
 import dashboardRoute from "./routes/dashboard.js";
 import ghlWebhookRoute from "./routes/ghl_webhook.js";
+import liveavatarRoute from "./routes/liveavatar.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
@@ -39,6 +40,11 @@ const ROUTES = [
   { prefix: "/v1/delivery",          auth: true,  handler: deliveryRoute },
   { prefix: "/v1/social",            auth: true,  handler: socialRoute },
   { prefix: "/v1/admin",             auth: true,  handler: adminRoute },
+  // Public by necessity — the browser SDK calls /session and /session/:id/end
+  // directly (it has no way to hold a bearer key). Safety is the
+  // LIVEAVATAR_ENABLED flag + independent kill-switch + rate caps inside
+  // the handler itself, not this auth flag. See routes/liveavatar.js.
+  { prefix: "/v1/liveavatar",        auth: false, handler: liveavatarRoute },
   { prefix: "/v1/_dev",              auth: false, handler: devstubRoute },  // gated internally on ENVIRONMENT
   { prefix: "/v1/analytics",         auth: false, handler: analyticsRoute },
   // /admin serves an HTML dashboard. Page itself is unauthenticated

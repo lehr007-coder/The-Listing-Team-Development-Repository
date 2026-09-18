@@ -36,6 +36,13 @@
 //   GET    /v1/admin/contacts/top?limit=N   → leaderboard by engagement
 //   GET    /v1/admin/contacts/:id/videos    → all videos for a contact
 //
+//   GET    /v1/admin/liveavatar/kill         → LiveAvatar kill-switch state
+//   POST   /v1/admin/liveavatar/kill         → pause LiveAvatar sessions (independent of the render kill-switch above)
+//   DELETE /v1/admin/liveavatar/kill         → resume
+//   GET    /v1/admin/liveavatar/rate-limits  → live session-cap counters
+//   GET    /v1/admin/liveavatar/sessions     → list sessions (?contact_id, ?status, ?limit)
+//   GET    /v1/admin/liveavatar/sessions/:id → inspect one session
+//
 //   GET    /v1/admin/ghl/webhooks           → list GHL webhooks for this location
 //   POST   /v1/admin/ghl/webhooks/register  → register the ContactTagUpdate webhook (idempotent)
 //   POST   /v1/admin/ghl/webhooks/setup     → PUT existing webhook by ID with correct URL+events
@@ -46,13 +53,13 @@
 //                                             Make.com calls this and uses the returned
 //                                             { subject, html } in its Gmail send step.
 
-import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState } from "../lib/util.js";
-import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact } from "../lib/supabase.js";
+import { json, error, readJson, nowIso, isKilled, setKillSwitch, killSwitchState, setLiveAvatarKillSwitch, liveAvatarKillSwitchState } from "../lib/util.js";
+import { getVideoJob, updateVideoJob, listDeliveredEngagementByContact, listLiveAvatarSessions, getLiveAvatarSession } from "../lib/supabase.js";
 import { writeOwnedFields, findContactByEmail } from "../lib/ghl.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
 import { getRenderStatus, getTemplateDetails, listAvatars, getCreditBalance, VIDEO_TYPE_TEMPLATE_VAR } from "../lib/heygen.js";
-import { rateLimitState } from "../lib/rate-limit.js";
+import { rateLimitState, liveAvatarRateLimitState } from "../lib/rate-limit.js";
 import { invokeAgent, AGENT_NAMES, agentEndpointVar } from "../lib/agents.js";
 import { generateAndSendWeeklyReport } from "../lib/weekly-report.js";
 import { renderReviewHtml } from "../lib/templates.js";
@@ -78,6 +85,24 @@ export default async function adminRoute(request, env, ctx, url) {
     if (method === "POST")   return killSet(request, env);
     if (method === "DELETE") return killClear(env);
     return error(405, "method_not_allowed");
+  }
+
+  // ── LiveAvatar — independent kill-switch + session visibility ──
+  if (path === "/liveavatar/kill") {
+    if (method === "GET")    return json(await liveAvatarKillSwitchState(env));
+    if (method === "POST")   return liveAvatarKillSet(request, env);
+    if (method === "DELETE") return liveAvatarKillClear(env);
+    return error(405, "method_not_allowed");
+  }
+  if (method === "GET" && path === "/liveavatar/rate-limits") {
+    return json(await liveAvatarRateLimitState(env));
+  }
+  if (method === "GET" && path === "/liveavatar/sessions") {
+    return liveAvatarSessionsList(env, url);
+  }
+  if (method === "GET" && path.match(/^\/liveavatar\/sessions\/[^/]+$/)) {
+    const session = await getLiveAvatarSession(env, path.split("/")[3]);
+    return session ? json(session) : error(404, "not_found");
   }
 
   // ── Manual job-fail ──
@@ -848,6 +873,31 @@ async function killSet(request, env) {
 async function killClear(env) {
   const result = await setKillSwitch(env, false);
   return json({ ok: true, ...result });
+}
+
+async function liveAvatarKillSet(request, env) {
+  const { body } = await readJson(request);
+  if (body?.action === "clear" || body?.kill === false) {
+    return liveAvatarKillClear(env);
+  }
+  const result = await setLiveAvatarKillSwitch(env, true, {
+    reason: body?.reason || "no reason provided",
+    set_by: body?.set_by || "admin-api",
+  });
+  return json({ ok: true, ...result });
+}
+
+async function liveAvatarKillClear(env) {
+  const result = await setLiveAvatarKillSwitch(env, false);
+  return json({ ok: true, ...result });
+}
+
+async function liveAvatarSessionsList(env, url) {
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
+  const contactId = url.searchParams.get("contact_id");
+  const status = url.searchParams.get("status");
+  const sessions = await listLiveAvatarSessions(env, { limit, contactId, status });
+  return json({ count: sessions.length, sessions });
 }
 
 // Synthetic contexts used by /v1/admin/agents/test when the caller doesn't

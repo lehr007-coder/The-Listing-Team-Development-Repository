@@ -41,6 +41,18 @@ GHL_LOCATION_ID = "SeZr4YCwEZ50IcWqylkQ"
 # playback URL contains `customer-<code>.cloudflarestream.com`.
 CF_STREAM_CUSTOMER_CODE = "l2o0igwtm8ovwtt8"
 
+# ── LiveAvatar (real-time conversational avatar — separate product/key
+# from the HEYGEN_* pre-rendered pipeline above). OFF by default: the
+# "Talk live" button never renders and /v1/liveavatar/session 503s until
+# this is "true" AND the LIVEAVATAR_API_KEY secret is set. See
+# docs/LIVEAVATAR.md for the full go-live checklist before flipping this.
+LIVEAVATAR_ENABLED = "false"
+LIVEAVATAR_MODE = "FULL"
+LIVEAVATAR_MAX_SESSION_SECONDS = "300"
+LIVEAVATAR_DAILY_SESSION_LIMIT = "20"
+LIVEAVATAR_PER_CONTACT_DAILY_LIMIT = "2"
+# LIVEAVATAR_DEFAULT_AVATAR_ID — set once an avatar is created at app.liveavatar.com
+
 # ── HeyGen branded templates per video_type ──
 # Each template has Scott Lehr's avatar + voice + branded intro/outro/
 # lower-third pre-baked. lib/heygen.js#createAvatarVideo uses the

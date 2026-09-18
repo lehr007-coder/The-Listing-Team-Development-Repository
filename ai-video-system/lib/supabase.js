@@ -230,6 +230,56 @@ export async function getContactEngagementTotal(env, contactId) {
 // capped at `limit` unique contacts (sorted by total desc so the highest
 // scorers get synced first when the batch is truncated). Used by the
 // POST /v1/admin/contacts/sync-scores bulk-resync endpoint.
+// ── LiveAvatar sessions (owned table, separate from video_jobs) ──────────
+
+export async function insertLiveAvatarSession(env, row) {
+  const r = await fetch(sbUrl(env, `/rest/v1/liveavatar_sessions`), {
+    method: "POST",
+    headers: sbHeaders(env, "return=representation"),
+    body: JSON.stringify(row),
+    signal: sbSignal(),
+  });
+  if (!r.ok) throw new Error(`insertLiveAvatarSession failed: ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows[0];
+}
+
+export async function endLiveAvatarSession(env, id, patch) {
+  const r = await fetch(
+    sbUrl(env, `/rest/v1/liveavatar_sessions?id=eq.${encodeURIComponent(id)}`),
+    {
+      method: "PATCH",
+      headers: sbHeaders(env, "return=representation"),
+      body: JSON.stringify(patch),
+      signal: sbSignal(),
+    }
+  );
+  if (!r.ok) throw new Error(`endLiveAvatarSession failed: ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
+export async function listLiveAvatarSessions(env, { limit = 50, contactId, status } = {}) {
+  const params = [`order=created_at.desc`, `limit=${Math.min(limit, 500)}`];
+  if (contactId) params.push(`contact_id=eq.${encodeURIComponent(contactId)}`);
+  if (status)    params.push(`status=eq.${encodeURIComponent(status)}`);
+  const r = await fetch(sbUrl(env, `/rest/v1/liveavatar_sessions?${params.join("&")}`), {
+    headers: sbHeaders(env), signal: sbSignal(),
+  });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getLiveAvatarSession(env, id) {
+  const r = await fetch(
+    sbUrl(env, `/rest/v1/liveavatar_sessions?id=eq.${encodeURIComponent(id)}&limit=1`),
+    { headers: sbHeaders(env), signal: sbSignal() }
+  );
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows[0] || null;
+}
+
 export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}) {
   const cap = Math.min(limit, 2000);
   // Fetch all rows without a row-level LIMIT so the JS grouping sees every

@@ -118,6 +118,70 @@ export async function incrementRateLimit(env, contactId, locationId) {
   await Promise.all(writes);
 }
 
+// ── LiveAvatar session caps ─────────────────────────────────────────────
+//
+// Separate namespace and env vars from the HEYGEN render caps above.
+// LiveAvatar sessions bill per-minute (unlike a one-shot video render), so
+// a runaway loop here is far more expensive per-incident than a stuck
+// render — this only bounds how many sessions can be *started*; per-session
+// duration is capped independently (server-side max_session_duration +
+// client-side hard timeout, see lib/liveavatar.js / routes/liveavatar.js).
+//
+//   LIVEAVATAR_DAILY_SESSION_LIMIT       (global, default 20)
+//   LIVEAVATAR_PER_CONTACT_DAILY_LIMIT   (per contact/visitor, default 2)
+const DEFAULT_LIVEAVATAR_DAILY = 20;
+const DEFAULT_LIVEAVATAR_PER_CONTACT = 2;
+
+export async function checkLiveAvatarRateLimit(env, contactId) {
+  if (!env.VIDEO_KV) return { allowed: true, skipped: "no_kv" };
+  const day = todayUtc();
+  const global = parseInt(env.LIVEAVATAR_DAILY_SESSION_LIMIT || DEFAULT_LIVEAVATAR_DAILY, 10) || DEFAULT_LIVEAVATAR_DAILY;
+  const perContact = parseInt(env.LIVEAVATAR_PER_CONTACT_DAILY_LIMIT || DEFAULT_LIVEAVATAR_PER_CONTACT, 10) || DEFAULT_LIVEAVATAR_PER_CONTACT;
+
+  const globalKey  = `rl:liveavatar:global:${day}`;
+  const contactKey = contactId ? `rl:liveavatar:contact:${contactId}:${day}` : null;
+
+  const [globalCount, contactCount] = await Promise.all([
+    getCount(env, globalKey),
+    contactKey ? getCount(env, contactKey) : Promise.resolve(0),
+  ]);
+
+  if (globalCount >= global) {
+    return { allowed: false, reason: "liveavatar_global_daily_limit_exceeded", count: globalCount, limit: global, day };
+  }
+  if (contactKey && contactCount >= perContact) {
+    return { allowed: false, reason: "liveavatar_per_contact_daily_limit_exceeded", contact_id: contactId, count: contactCount, limit: perContact, day };
+  }
+  return { allowed: true, global_count: globalCount, global_limit: global, contact_count: contactCount, contact_limit: perContact, day };
+}
+
+export async function incrementLiveAvatarRateLimit(env, contactId) {
+  if (!env.VIDEO_KV) return;
+  const day = todayUtc();
+  const globalKey  = `rl:liveavatar:global:${day}`;
+  const contactKey = contactId ? `rl:liveavatar:contact:${contactId}:${day}` : null;
+
+  const [g, c] = await Promise.all([
+    getCount(env, globalKey),
+    contactKey ? getCount(env, contactKey) : Promise.resolve(0),
+  ]);
+
+  const writes = [env.VIDEO_KV.put(globalKey, String(g + 1), { expirationTtl: DAY_TTL })];
+  if (contactKey) writes.push(env.VIDEO_KV.put(contactKey, String(c + 1), { expirationTtl: DAY_TTL }));
+  await Promise.all(writes);
+}
+
+export async function liveAvatarRateLimitState(env) {
+  if (!env.VIDEO_KV) return { skipped: "no_kv" };
+  const day = todayUtc();
+  const global = parseInt(env.LIVEAVATAR_DAILY_SESSION_LIMIT || DEFAULT_LIVEAVATAR_DAILY, 10) || DEFAULT_LIVEAVATAR_DAILY;
+  const globalCount = await getCount(env, `rl:liveavatar:global:${day}`);
+  return {
+    day,
+    global: { count: globalCount, limit: global, remaining: Math.max(0, global - globalCount) },
+  };
+}
+
 export async function rateLimitState(env) {
   if (!env.VIDEO_KV) return { skipped: "no_kv" };
   const day = todayUtc();
