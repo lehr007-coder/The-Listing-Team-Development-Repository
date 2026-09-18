@@ -46,6 +46,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: ai-video-system
           command: deploy --config wrangler.toml
           secrets: |
