@@ -1,15 +1,24 @@
-name: Call Canonical FUB GHL Superpowers Deploy
+name: Canonical FUB GHL Superpowers Deployment Reference
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/call-fub-ghl-superpowers-deploy.yml'
   workflow_dispatch:
 
-# Superpowers deployment trigger: 2026-09-01
+permissions:
+  contents: read
+
+# This repository is public. GitHub does not allow it to invoke a reusable
+# workflow from the private canonical mcp-workers repository, even when both
+# repositories have the same owner. The canonical production workflow must be
+# dispatched from mcp-workers so its private source and deployment controls
+# remain intact.
 jobs:
-  deploy:
-    uses: lehr007-coder/mcp-workers/.github/workflows/deploy-fub-ghl-superpowers-reusable.yml@bd376043e0cf2aa21df483612688b5ea265fd8c9
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  reference:
+    name: Show the canonical private deployment lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: No deployment is performed here
+        run: |
+          echo 'Canonical repository: lehr007-coder/mcp-workers'
+          echo 'Canonical workflow: deploy-fub-ghl-superpowers-reusable.yml'
+          echo 'Last reviewed workflow commit: bd376043e0cf2aa21df483612688b5ea265fd8c9'
+          echo 'Dispatch and verify the production workflow from the private canonical repository.'
