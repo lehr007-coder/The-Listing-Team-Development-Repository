@@ -486,6 +486,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <div class="card-tag">Hot leads pipeline</div>
         </div>
       </a>
+      <a href="https://claude.ai/artifact/Ad4qinM4XnuUB8Kt6GDyMp" target="_blank" class="card green">
+        <span class="arrow">\u2192</span>
+        <div class="icon-wrap">\u{1F4E1}</div>
+        <div class="card-body">
+          <div class="card-title">Sync Panel</div>
+          <div class="card-desc">Live pipeline, stall watch and suppression compliance from GoHighLevel, plus the support queue \u2014 read through MCP connectors, with a baked snapshot when one is unreachable.</div>
+          <div class="card-tag">Live reads \xB7 read-only \xB7 opens in Claude</div>
+        </div>
+      </a>
       <a href="/dashboard/site-matrix" class="card cyan">
         <span class="arrow">\u2192</span>
         <div class="icon-wrap">\u{1F30D}</div>
@@ -3514,6 +3523,7 @@ var YLOPO_CONTACTS_HTML = `<!DOCTYPE html>
       <div class="sidenav-label">Dashboards</div>
       <a class="nav-item" href="/dashboard"><span class="nav-ico">&#127968;</span> Hub</a>
       <a class="nav-item" href="/dashboard/priority-leads"><span class="nav-ico">&#128293;</span> Priority Leads</a>
+    <a class="nav-item" href="https://claude.ai/artifact/Ad4qinM4XnuUB8Kt6GDyMp" target="_blank" rel="noopener"><span class="nav-ico">&#128225;</span> Sync Panel</a>
       <a class="nav-item" href="/dashboard/ylopo-analytics"><span class="nav-ico">&#128202;</span> Analytics</a>
       <a class="nav-item" href="/dashboard/site-matrix"><span class="nav-ico">&#127760;</span> Site Matrix</a>
     </nav>
@@ -13699,6 +13709,7 @@ body.light-mode.dark, body.light-mode.dark-mode, :root{
     <a class="nav-item" href="/dashboard/ylopo-contacts"><span class="nav-ico">&#128203;</span> Contacts</a>
     <a class="nav-item active" href="/dashboard/ylopo-analytics"><span class="nav-ico">&#128202;</span> Analytics</a>
     <a class="nav-item" href="/dashboard/priority-leads"><span class="nav-ico">&#128293;</span> Priority Leads</a>
+    <a class="nav-item" href="https://claude.ai/artifact/Ad4qinM4XnuUB8Kt6GDyMp" target="_blank" rel="noopener"><span class="nav-ico">&#128225;</span> Sync Panel</a>
     <a class="nav-item" href="/dashboard/pipeline"><span class="nav-ico">&#128203;</span> Pipeline</a>
     <a class="nav-item" href="/dashboard/site-matrix"><span class="nav-ico">&#127760;</span> Site Matrix</a>
     <a class="nav-item" href="/dashboard/idx"><span class="nav-ico">&#127969;</span> IDX</a>
