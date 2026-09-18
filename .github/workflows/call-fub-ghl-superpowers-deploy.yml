@@ -10,6 +10,6 @@ on:
 # Superpowers deployment trigger: 2026-09-01
 jobs:
   deploy:
-    uses: lehr007-coder/mcp-workers/.github/workflows/deploy-fub-ghl-superpowers-reusable.yml@main
+    uses: lehr007-coder/mcp-workers/.github/workflows/deploy-fub-ghl-superpowers-reusable.yml@bd376043e0cf2aa21df483612688b5ea265fd8c9
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
