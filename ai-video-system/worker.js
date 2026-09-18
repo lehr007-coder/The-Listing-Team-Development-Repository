@@ -24,6 +24,7 @@ import ghlWebhookRoute from "./routes/ghl_webhook.js";
 
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
+import { runPendingOpsTask } from "./lib/ops-task.js";
 
 const ROUTES = [
   { prefix: "/v1/health",            auth: false, handler: healthRoute },
@@ -106,6 +107,15 @@ export default {
     const isEveryMinute = cron === "* * * * *";
 
     if (isEveryMinute) {
+      // Operator task flag (KV "ops:task"). No-op on every normal tick.
+      // Runs before the poll-fallback so a backfill lands before the
+      // fallback starts scanning the table it is populating.
+      try {
+        const ops = await runPendingOpsTask(env);
+        if (ops) console.log("scheduled: ops-task", JSON.stringify(ops));
+      } catch (e) {
+        console.error("scheduled: ops-task failed:", e.stack || e.message);
+      }
       try {
         const r = await runHeygenPollFallback(env, ctx);
         console.log("scheduled: heygen-poll-fallback", JSON.stringify(r));

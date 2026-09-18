@@ -93,18 +93,38 @@ export async function recordEvent(env, { jobId, event, contactId, meta = {} }) {
   //   2. Two concurrent events reading the same stale DB total would each
   //      add their own delta and the second write would overwrite the first.
   // Cross-job aggregation is reconciled by POST /v1/admin/contacts/sync-scores.
-  if (cId && (Object.keys(patch).length > 0 || delta > 0)) {
-    patch.video_engagement_score = String(Number(job.engagement_score || 0) + delta);
-    await writeOwnedFields(env, cId, patch);
-  }
-
+  // ORDER MATTERS. D1 is the system of record; GHL is a mirror of it.
+  //
+  // This used to call writeOwnedFields FIRST and updateVideoJob after, both
+  // unguarded. A transient GHL error (or a contact that no longer exists —
+  // GHL returns 400 "Contact with id ... not found") threw before the D1
+  // write, so the event was recorded but the job's engagement_score and
+  // last_event silently never advanced. The score was then wrong until
+  // somebody ran the sync-scores endpoint.
+  //
+  // Now the durable write happens first and the GHL mirror is best-effort:
+  // a GHL outage costs us the mirror, never the record.
   await updateVideoJob(env, jobId, {
     engagement_score: (Number(job.engagement_score || 0) + delta),
     last_event_at: nowIso(),
     last_event: event,
   });
 
-  return { ok: true, delta };
+  let ghlSynced = null;
+  if (cId && (Object.keys(patch).length > 0 || delta > 0)) {
+    patch.video_engagement_score = String(Number(job.engagement_score || 0) + delta);
+    try {
+      await writeOwnedFields(env, cId, patch);
+      ghlSynced = true;
+    } catch (err) {
+      ghlSynced = false;
+      // Surfaced, not swallowed: the caller reports it and the value is
+      // reconciled by POST /v1/admin/contacts/sync-scores.
+      console.warn(`recordEvent: GHL mirror failed for contact ${cId}: ${err?.message || err}`);
+    }
+  }
+
+  return { ok: true, delta, ghl_synced: ghlSynced };
 }
 
 // 1x1 transparent GIF for email open pixels

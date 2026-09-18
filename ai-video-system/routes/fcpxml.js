@@ -23,7 +23,7 @@ import { insertVideoJob, updateVideoJob, getVideoJob } from "../lib/d1.js";
 import { getListing } from "../lib/supabase.js";
 import { getContact } from "../lib/ghl.js";
 import { invokeAgent } from "../lib/agents.js";
-import { submitFcpxmlRender } from "../lib/fcpxml.js";
+import { submitFcpxmlRender, fcpxmlConfigured } from "../lib/fcpxml.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
 
@@ -79,6 +79,14 @@ async function handleRender(request, env) {
   }
   if (!Array.isArray(social_targets)) {
     social_targets = ["instagram_reels","tiktok","youtube_shorts","facebook_reels"];
+  }
+
+  // Reject at intake, not mid-pipeline. Without this the request burned an
+  // agent invocation and a rate-limit slot before dying at the render call.
+  if (!fcpxmlConfigured(env)) {
+    return error(503, "fcpxml_not_configured",
+      "FCPXML render engine is not configured in this environment. " +
+      "Set FCPXML_MCP_URL and FCPXML_MCP_API_KEY to enable it.");
   }
 
   if (!FCPXML_VIDEO_TYPES.has(video_type)) {
