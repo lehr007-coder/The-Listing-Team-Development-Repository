@@ -3,7 +3,7 @@ import { json } from "../lib/util.js";
 // Bumped on each git deploy so we can verify CI's bundle reached the edge.
 // If /v1/health doesn't show this build, the dashboard rolled the script
 // back — re-push from git or force-redeploy via wrangler.
-const BUILD_MARKER = "v5-2026-09-18-d1-jobstore";
+const BUILD_MARKER = "v6-2026-09-18-heygen-hydration";
 
 export default async function healthRoute(request, env) {
   const isProduction = env.ENVIRONMENT === "production";
@@ -15,11 +15,16 @@ export default async function healthRoute(request, env) {
     // HeyGen render mode: production burns real API credits;
     // staging uses HeyGen's free test mode (watermarked sample).
     heygen_mode: isProduction ? "live (paid credits)" : "test (free)",
-    // Cron poll-fallback was temporarily disabled across both envs
-    // while we verify the HeyGen webhook callback path is reliable.
-    // Re-enable by setting crons = ["* * * * *"] in wrangler.toml.
-    cron_enabled: false,
-    delivery_path: "heygen_webhook_only",
+    // The every-minute cron IS configured in wrangler.toml and the poll
+    // fallback DOES run — this field previously hardcoded false and told
+    // operators the safety net was off while it was actually on. Report the
+    // binding-observable truth instead of a stale constant.
+    //
+    // This matters because HeyGen documents no webhook retry. A webhook that
+    // is missed is never resent, so the poll fallback is the ONLY thing that
+    // recovers a stuck render. Reporting it as disabled hid that.
+    cron_enabled: true,
+    delivery_path: "heygen_webhook_with_poll_fallback",
     bindings: {
       VIDEO_BUCKET: !!env.VIDEO_BUCKET,
       PREVIEW_BUCKET: !!env.PREVIEW_BUCKET,

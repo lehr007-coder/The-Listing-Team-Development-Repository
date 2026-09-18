@@ -21,6 +21,7 @@
 // second write of the flag. Both tasks are individually idempotent anyway.
 
 import { migrateSupabaseToD1 } from "./migrate-d1.js";
+import { getCreditBalance } from "./heygen.js";
 
 const FLAG_KEY = "ops:task";
 const RESULT_KEY = "ops:result";
@@ -63,6 +64,11 @@ async function imagesTokenCheck(env) {
 }
 
 async function diagnostics(env) {
+  // HeyGen credit is the largest historical failure mode in this system,
+  // so it belongs in routine diagnostics rather than only the dashboard.
+  const heygen_credit = await getCreditBalance(env).catch((e) => ({
+    ok: false, error: String(e?.message || e),
+  }));
   const [stream, images] = await Promise.all([
     streamTokenCheck(env).catch((e) => ({ ok: false, error: String(e?.message || e) })),
     imagesTokenCheck(env).catch((e) => ({ ok: false, error: String(e?.message || e) })),
@@ -79,6 +85,11 @@ async function diagnostics(env) {
       HEYGEN_API_KEY: !!env.HEYGEN_API_KEY,
       GHL_V2_TOKEN: !!env.GHL_V2_TOKEN,
       PROXY_API_KEY: !!env.PROXY_API_KEY,
+    },
+    heygen_credit: {
+      ok: heygen_credit?.ok ?? false,
+      remaining_quota: heygen_credit?.remaining_quota ?? null,
+      error: heygen_credit?.error ?? null,
     },
     cf_stream_token: stream,
     cf_images_token: images,

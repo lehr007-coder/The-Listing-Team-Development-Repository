@@ -30,7 +30,7 @@ import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.j
 import { insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/d1.js";
 import { getRecentEvents, getLead, getScoringLog } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
-import { createAvatarVideo } from "../lib/heygen.js";
+import { createAvatarVideo, getCreditBalance } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";
 import { processOne } from "../lib/queue-consumer.js";
 import { checkRateLimit, incrementRateLimit } from "../lib/rate-limit.js";
@@ -118,6 +118,34 @@ async function handleRender(request, env) {
       location_id: rl.location_id || undefined,
       hint: "Adjust DAILY_RENDER_LIMIT / PER_CONTACT_DAILY_LIMIT / PER_LOCATION_DAILY_LIMIT env vars if intentional, or use the kill-switch (DELETE /v1/admin/kill) once cleared.",
     });
+  }
+
+  // CREDIT PRE-FLIGHT.
+  //
+  // Submitting a render with no HeyGen credit does not fail loudly — HeyGen
+  // accepts the job and then reports failure asynchronously, so the cost lands
+  // as a dead job plus a burned rate-limit slot. 93 production failures are
+  // explicitly credit exhaustion, and the 194 with no captured reason cluster
+  // in the same month, so this is the single largest failure mode in the
+  // system's history.
+  //
+  // FAIL OPEN on an unknown balance. getCreditBalance is best-effort across
+  // three legacy HeyGen paths and returns ok:false when HeyGen is unreachable
+  // or the shape changed. Blocking on "unknown" would halt all video the first
+  // time that endpoint moves again — strictly worse than the problem. We only
+  // refuse on a balance we positively read as insufficient.
+  const credit = await getCreditBalance(env).catch(() => null);
+  const quota = Number(credit?.remaining_quota);
+  if (credit?.ok && Number.isFinite(quota) && quota <= 0) {
+    console.error(`render refused for ${contact_id}: HeyGen credit exhausted (remaining_quota=${quota})`);
+    return error(503, "heygen_credit_exhausted",
+      "HeyGen has no remaining credit, so this render would be accepted and " +
+      "then fail asynchronously. Refused before creating a job or spending a " +
+      "rate-limit slot. Top up HeyGen, then retry.",
+      { remaining_quota: quota });
+  }
+  if (!credit?.ok) {
+    console.warn(`credit pre-flight indeterminate (${credit?.error || "no response"}) — proceeding`);
   }
 
   const intelligence = readLeadIntelligence(contact);
@@ -276,10 +304,21 @@ async function handleCallback(request, env, ctx) {
   await env.VIDEO_KV.put(successKey, JSON.stringify(webhookLog), { expirationTtl: 60 * 60 * 24 });
 
   if (eventType === "avatar_video.fail" || eventType === "video.fail") {
-    console.log(`webhook ${jobId}: HeyGen reported failure — ${data.message || "unknown"}`);
+    // HeyGen puts the failure reason in `msg`. We previously read only
+    // `message`, which HeyGen never sends on this event, so every failure
+    // was stored as the bare string "heygen reported failure" — 194 rows in
+    // production with no diagnosable cause. Read msg first, keep the other
+    // spellings as fallbacks, and if all are absent serialize event_data so
+    // the reason can never be lost again.
+    const reason =
+      data.msg || data.message || data.error || data.reason ||
+      (Object.keys(data).length
+        ? `heygen reported failure (no message field); event_data=${JSON.stringify(data).slice(0, 400)}`
+        : "heygen reported failure (empty event_data)");
+    console.log(`webhook ${jobId}: HeyGen reported failure — ${reason}`);
     await updateVideoJob(env, jobId, {
       status: "failed",
-      error: data.message || "heygen reported failure",
+      error: reason,
       failed_at: nowIso(),
     });
     if (job.contact_id) {
