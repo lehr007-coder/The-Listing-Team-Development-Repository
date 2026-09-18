@@ -2,7 +2,8 @@
 // into the existing lead-scoring pipeline by appending a row to scoring_log
 // (READ-ONLY for the existing scoring engine — it just sees a new row).
 
-import { insertVideoEvent, updateVideoJob, getVideoJob, resolveLeadByGhlContactId } from "./supabase.js";
+import { insertVideoEvent, updateVideoJob, getVideoJob } from "./d1.js";
+import { resolveLeadByGhlContactId } from "./supabase.js";
 import { writeOwnedFields } from "./ghl.js";
 import { nowIso } from "./util.js";
 

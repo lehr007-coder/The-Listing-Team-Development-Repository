@@ -1,6 +1,9 @@
-// Supabase client. Reads from existing intelligence tables (events, leads,
-// listings, scoring_log) and writes ONLY into new sidecar tables
-// (video_jobs, video_events). Existing tables are NEVER mutated.
+// Supabase client — READ-ONLY access to the Ylopo intelligence tables
+// (leads, events, listings, scoring_log). These are owned by another system
+// and are NEVER mutated here.
+//
+// The sidecar tables this worker owns (video_jobs, video_events) moved to
+// Cloudflare D1 on 2026-09-18; see lib/d1.js. Nothing in this file writes.
 
 // Cap every Supabase fetch so a slow PostgREST response can't burn the
 // queue consumer's 15-min wall-clock budget. We've hit this exact
@@ -86,172 +89,16 @@ export async function getListing(env, listingId) {
   return rows[0] || null;
 }
 
-// ── WRITE helpers (sidecar-owned tables only) ─────────────────────────────
-
-export async function insertVideoJob(env, row) {
-  const r = await fetch(sbUrl(env, `/rest/v1/video_jobs`), {
-    method: "POST",
-    headers: sbHeaders(env, "return=representation"),
-    body: JSON.stringify(row),
-    signal: sbSignal(),
-  });
-  if (!r.ok) throw new Error(`insertVideoJob failed: ${r.status} ${await r.text()}`);
-  const rows = await r.json();
-  return rows[0];
-}
-
-export async function updateVideoJob(env, jobId, patch) {
-  const r = await fetch(
-    sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}`),
-    {
-      method: "PATCH",
-      headers: sbHeaders(env, "return=representation"),
-      body: JSON.stringify(patch),
-      signal: sbSignal(),
-    }
-  );
-  if (!r.ok) throw new Error(`updateVideoJob failed: ${r.status} ${await r.text()}`);
-  const rows = await r.json();
-  return rows[0] || null;
-}
-
-// Atomic "claim this state transition". PATCH only matches rows whose
-// status is NOT already in `fromNotIn`, so concurrent callers serialize
-// at the Postgres row level: the first to flip the status gets the row
-// back, the rest match zero rows and get null. Used by the HeyGen
-// success callback to dispatch delivery exactly once even when a real
-// webhook and the cron poll-fallback (or a HeyGen retry) arrive at the
-// same instant — a check-then-set on KV could let both through.
-export async function claimVideoJobTransition(env, jobId, patch, fromNotIn) {
-  const notIn = fromNotIn.map(encodeURIComponent).join(",");
-  const r = await fetch(
-    sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&status=not.in.(${notIn})`),
-    {
-      method: "PATCH",
-      headers: sbHeaders(env, "return=representation"),
-      body: JSON.stringify(patch),
-      signal: sbSignal(),
-    }
-  );
-  if (!r.ok) throw new Error(`claimVideoJobTransition failed: ${r.status} ${await r.text()}`);
-  const rows = await r.json();
-  return rows[0] || null;
-}
-
-// Atomic claim: try to mark the job as "being processed" by setting
-// last_event='processing'. Concurrent claim attempts on the same row
-// serialize at the Postgres row level — first wins, the rest get 0
-// rows back.
+// ── sidecar tables have MOVED ────────────────────────────────────────────
 //
-// Filter union of three states that are eligible for claim:
-//   1. last_event IS NULL                — fresh job, never processed
-//   2. last_event != 'processing'        — completed or previously failed
-//   3. last_event='processing' AND
-//      last_event_at < now()-STALE_MIN   — stale claim (worker likely killed
-//                                          by Cloudflare wall-clock mid-run);
-//                                          treat as released so the job can
-//                                          recover instead of staying stuck
+// video_jobs and video_events left Supabase for Cloudflare D1 on 2026-09-18.
+// Everything that reads or writes job state now lives in lib/d1.js. This
+// module is READ-ONLY intelligence access and must stay that way.
 //
-// Returns the row on win, null on lose.
+// Why the split: video_jobs/video_events are owned by ai-video-system, so
+// they could move. leads/events/listings/scoring_log are owned by the Ylopo
+// intelligence system and are written by other services — they cannot be
+// migrated unilaterally.
 //
-// This is the lock that prevents two parallel processOne invocations
-// (real HeyGen callback + cron poll-fallback racing in the same minute)
-// from both running R2 + Stream + GHL in parallel.
-const STALE_CLAIM_MINUTES = 10;
-export async function claimJobForProcessing(env, jobId) {
-  const staleAt = new Date(Date.now() - STALE_CLAIM_MINUTES * 60 * 1000).toISOString();
-  const filter =
-    `id=eq.${encodeURIComponent(jobId)}` +
-    `&or=(last_event.is.null,` +
-        `last_event.neq.processing,` +
-        `and(last_event.eq.processing,last_event_at.lt.${encodeURIComponent(staleAt)}))`;
-  const r = await fetch(
-    sbUrl(env, `/rest/v1/video_jobs?${filter}`),
-    {
-      method: "PATCH",
-      headers: sbHeaders(env, "return=representation"),
-      body: JSON.stringify({ last_event: "processing", last_event_at: new Date().toISOString() }),
-      signal: sbSignal(),
-    }
-  );
-  if (!r.ok) throw new Error(`claimJobForProcessing failed: ${r.status} ${await r.text()}`);
-  const rows = await r.json();
-  return rows[0] || null;
-}
-
-export async function getVideoJob(env, jobId) {
-  const r = await fetch(
-    sbUrl(env, `/rest/v1/video_jobs?id=eq.${encodeURIComponent(jobId)}&limit=1`),
-    { headers: sbHeaders(env), signal: sbSignal() }
-  );
-  if (!r.ok) return null;
-  const rows = await r.json();
-  return rows[0] || null;
-}
-
-export async function findActiveJobForContact(env, contactId, videoType) {
-  const url = sbUrl(env,
-    `/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
-    `&video_type=eq.${encodeURIComponent(videoType)}` +
-    `&status=in.(queued,rendering,delivering)&order=created_at.desc&limit=1`);
-  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
-  if (!r.ok) return null;
-  const rows = await r.json();
-  return rows[0] || null;
-}
-
-export async function insertVideoEvent(env, row) {
-  const r = await fetch(sbUrl(env, `/rest/v1/video_events`), {
-    method: "POST",
-    headers: sbHeaders(env),
-    body: JSON.stringify(row),
-    signal: sbSignal(),
-  });
-  if (!r.ok) {
-    // Best-effort. Tracking should never break delivery.
-    console.warn("insertVideoEvent failed:", r.status);
-  }
-}
-
-// Sum engagement_score across all delivered jobs for a single contact.
-// Used by tracking.js to write the cumulative (cross-video) score to GHL
-// instead of only the per-job score.
-export async function getContactEngagementTotal(env, contactId) {
-  const url = sbUrl(env,
-    `/rest/v1/video_jobs?contact_id=eq.${encodeURIComponent(contactId)}` +
-    `&status=eq.delivered&select=engagement_score`);
-  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
-  if (!r.ok) return 0;
-  const rows = await r.json();
-  return rows.reduce((sum, j) => sum + (Number(j.engagement_score) || 0), 0);
-}
-
-// Return [{contact_id, total}] grouped-and-summed across all delivered jobs,
-// capped at `limit` unique contacts (sorted by total desc so the highest
-// scorers get synced first when the batch is truncated). Used by the
-// POST /v1/admin/contacts/sync-scores bulk-resync endpoint.
-export async function listDeliveredEngagementByContact(env, { limit = 200 } = {}) {
-  const cap = Math.min(limit, 2000);
-  // Fetch all rows without a row-level LIMIT so the JS grouping sees every
-  // delivered job. Applying LIMIT to raw rows (not contacts) caused high-volume
-  // contacts to be silently truncated and receive understated scores.
-  // The cap is applied after grouping so it correctly limits unique contacts.
-  const url = sbUrl(env,
-    `/rest/v1/video_jobs?status=eq.delivered` +
-    `&contact_id=not.is.null` +
-    `&select=contact_id,engagement_score`);
-  const r = await fetch(url, { headers: sbHeaders(env), signal: sbSignal() });
-  if (!r.ok) return [];
-  const rows = await r.json();
-
-  const map = new Map();
-  for (const row of rows) {
-    const cid = row.contact_id;
-    if (!cid) continue;
-    map.set(cid, (map.get(cid) || 0) + (Number(row.engagement_score) || 0));
-  }
-  return [...map.entries()]
-    .map(([contact_id, total]) => ({ contact_id, total }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, cap);
-}
+// Do NOT add a write helper here. If you need job state, import it from
+// ./d1.js.

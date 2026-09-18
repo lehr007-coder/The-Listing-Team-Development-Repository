@@ -6,7 +6,7 @@
 
 import { json, error, readJson } from "../lib/util.js";
 import { recordEvent, PIXEL_GIF } from "../lib/tracking.js";
-import { getVideoJob } from "../lib/supabase.js";
+import { getVideoJob } from "../lib/d1.js";
 
 export default async function analyticsRoute(request, env, ctx, url) {
   const path = url.pathname.replace(/^\/v1\/analytics/, "") || "/";

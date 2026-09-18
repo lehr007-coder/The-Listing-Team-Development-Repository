@@ -6,7 +6,7 @@
 
 import { json, error, readJson } from "../lib/util.js";
 import { runSocialDistribution } from "../lib/social.js";
-import { getVideoJob } from "../lib/supabase.js";
+import { getVideoJob } from "../lib/d1.js";
 
 export default async function socialRoute(request, env, ctx, url) {
   if (request.method !== "POST") return error(405, "method_not_allowed");

@@ -6,7 +6,7 @@
 // click-through tracking on the CTA. Public, but unguessable jobIds.
 
 import { error } from "../lib/util.js";
-import { getVideoJob } from "../lib/supabase.js";
+import { getVideoJob } from "../lib/d1.js";
 import { streamIframe } from "../lib/cf-stream.js";
 
 export default async function hostedRoute(request, env, ctx, url) {

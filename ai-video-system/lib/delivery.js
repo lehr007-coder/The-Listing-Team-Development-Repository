@@ -2,7 +2,7 @@
 // Always reads job row → calls VIDEO DELIVERY AGENT → sends via GHL
 // conversations (SMS / Email / Custom note). NEVER posts to social platforms.
 
-import { getVideoJob, updateVideoJob, insertVideoEvent } from "./supabase.js";
+import { getVideoJob, updateVideoJob, insertVideoEvent } from "./d1.js";
 import { invokeAgent } from "./agents.js";
 import { sendSms, sendEmail, sendConversationNote, writeOwnedFields, getContact, readField, appendContactNote } from "./ghl.js";
 import { renderEmailHtml, renderEmailSubject, renderSmsBody } from "./templates.js";

@@ -19,7 +19,8 @@
 //   FCPXML MCP → us when render completes.
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
-import { getListing, insertVideoJob, updateVideoJob, getVideoJob } from "../lib/supabase.js";
+import { insertVideoJob, updateVideoJob, getVideoJob } from "../lib/d1.js";
+import { getListing } from "../lib/supabase.js";
 import { getContact } from "../lib/ghl.js";
 import { invokeAgent } from "../lib/agents.js";
 import { submitFcpxmlRender } from "../lib/fcpxml.js";

@@ -27,7 +27,8 @@
 
 import { json, error, readJson, newJobId, nowIso, verifyHmacSignature, isKilled } from "../lib/util.js";
 import { getContact, readLeadIntelligence, writeOwnedFields } from "../lib/ghl.js";
-import { getRecentEvents, getLead, getScoringLog, insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/supabase.js";
+import { insertVideoJob, updateVideoJob, claimVideoJobTransition, getVideoJob, findActiveJobForContact } from "../lib/d1.js";
+import { getRecentEvents, getLead, getScoringLog } from "../lib/supabase.js";
 import { invokeAgent } from "../lib/agents.js";
 import { createAvatarVideo } from "../lib/heygen.js";
 import { enqueueOrInline } from "../lib/queue-producer.js";

@@ -4,7 +4,7 @@
 // reach this code path — runDelivery() refuses social jobs and runSocial
 // refuses non-social jobs as a defence-in-depth measure.
 
-import { getVideoJob, updateVideoJob, insertVideoEvent } from "./supabase.js";
+import { getVideoJob, updateVideoJob, insertVideoEvent } from "./d1.js";
 import { invokeAgent } from "./agents.js";
 import { nowIso } from "./util.js";
 
