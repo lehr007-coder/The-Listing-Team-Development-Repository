@@ -1,0 +1,30 @@
+name: Audit Router Script Subdomain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-superpowers-script-subdomain.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get script subdomain state and probe
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          curl -fsS "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/tlt-superpowers-router/subdomain" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" | python3 -m json.tool
+          echo '--- public probes ---'
+          for p in / /health /registry; do
+            code=$(curl -sS -o /tmp/body -w '%{http_code}' "https://tlt-superpowers-router.lehr007.workers.dev${p}")
+            echo "$p -> $code"
+            head -c 300 /tmp/body || true
+            echo
+          done

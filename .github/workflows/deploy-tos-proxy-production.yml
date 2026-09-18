@@ -8,6 +8,13 @@ name: Deploy tos-proxy-production
 #   npx wrangler secret put TOS_REVIEW_REQUEST_GHL_WEBHOOK_URL --name tos-proxy
 # Then re-run to confirm bindings.
 
+# DISABLED 2026-08-18 — see the note in deploy-staging.yml. This would put a
+# decompiled June bundle onto PRODUCTION, wiping R1 multi-tenant routing, the
+# deadline normaliser that protects 18 waived live records, the security
+# headers and every fix shipped since. Last dispatched 2026-07-28.
+#
+# Production deploys come from the canonical repo:
+#   github.com/lehr007-coder/the-listing-team-transaction-os  (proxy/)
 on:
   workflow_dispatch:
     inputs:
@@ -19,22 +26,43 @@ on:
 concurrency: deploy-tos-proxy-production
 
 jobs:
-  deploy:
-    name: Deploy tos-proxy (production)
+  refuse:
+    name: Refused — deploy from the canonical repo
     runs-on: ubuntu-latest
-    environment: production
     steps:
-      - name: Verify confirmation
+      - name: Explain and fail
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
-            echo "::error::Confirmation text must be 'DEPLOY' (got: '${{ github.event.inputs.confirm }}')"
-            exit 1
-          fi
-          echo "Production deploy confirmed."
-      - uses: actions/checkout@v5
-      - name: Syntax check
-        run: node --check tos-proxy/worker.js
-      - name: Deploy via Cloudflare API (bindings preserved)
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 tos-proxy/deploy_prod.py
+          echo "This workflow deploys tos-proxy/worker.js — a decompiled June bundle."
+          echo "It would revert R1 multi-tenant routing, the deadline normaliser"
+          echo "protecting 18 waived production records, the security headers, and"
+          echo "every fix shipped since 2026-06-12."
+          echo ""
+          echo "Deploy production from:"
+          echo "  github.com/lehr007-coder/the-listing-team-transaction-os"
+          echo "  cd proxy && npm run deploy:prod"
+          exit 1
+
+# ---------------------------------------------------------------------------
+# The original deploy job, kept commented for the record.
+# ---------------------------------------------------------------------------
+#
+#   deploy:
+#     name: Deploy tos-proxy (production)
+#     runs-on: ubuntu-latest
+#     environment: production
+#     steps:
+#       - name: Verify confirmation
+#         run: |
+#           if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+#             echo "::error::Confirmation text must be 'DEPLOY' (got: '${{ github.event.inputs.confirm }}')"
+#             exit 1
+#           fi
+#           echo "Production deploy confirmed."
+#       - uses: actions/checkout@v5
+#       - name: Syntax check
+#         run: node --check tos-proxy/worker.js
+#       - name: Deploy via Cloudflare API (bindings preserved)
+#         env:
+#           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#         run: python3 tos-proxy/deploy_prod.py
+#

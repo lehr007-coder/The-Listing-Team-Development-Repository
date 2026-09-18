@@ -1,0 +1,102 @@
+name: Deploy Browser Run MCP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-browser-run-mcp-server/**'
+      - '.github/workflows/deploy-browser-run-mcp.yml'
+
+permissions:
+  contents: read
+
+env:
+  # The API token has access to more than one Cloudflare account; without
+  # this wrangler exits with "More than one account available but unable to
+  # select one in non-interactive mode". Same id as the other workflows here.
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy-mirrors/tlt-browser-run-mcp-server
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: deploy-mirrors/tlt-browser-run-mcp-server/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Deploy Cloudflare Browser Run MCP
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Install internal MCP credential
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-browser-run-mcp-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put BROWSER_MCP_INTERNAL_TOKEN --name tlt-browser-run-mcp-server >/dev/null
+
+      - name: Verify health and authorization boundary
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-browser-run-mcp-server.lehr007.workers.dev'
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-browser-run-mcp-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+
+          ready=0
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            code=$(curl -sS -o /tmp/browser-health.json -w '%{http_code}' "$BASE/health" || true)
+            if [ "$code" = '200' ] && grep -q '"ok":true' /tmp/browser-health.json && grep -q '"browser_binding_configured":true' /tmp/browser-health.json && grep -q '"auth_configured":true' /tmp/browser-health.json; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          test "$ready" = '1'
+
+          unauth=''
+          for i in 1 2 3 4 5 6; do
+            unauth=$(curl -sS -o /tmp/mcp-unauth -w '%{http_code}' "$BASE/mcp" || true)
+            [ "$unauth" = '401' ] && break
+            sleep 2
+          done
+          echo "Unauthenticated MCP status: $unauth"
+          test "$unauth" = '401'
+
+          code=$(curl -sS -o /tmp/mcp-auth -w '%{http_code}' -X POST "$BASE/mcp" \
+            -H "Authorization: Bearer $INTERNAL_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"tlt-production-canary","version":"1.0"}}}')
+          echo "Authenticated MCP initialize status: $code"
+          test "$code" != '401'
+          test "$code" != '404'
+          test "$code" -lt 500
+          echo 'Browser Run MCP health and auth boundary verified.'

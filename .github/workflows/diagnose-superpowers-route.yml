@@ -1,0 +1,35 @@
+name: Diagnose Superpowers Route
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-superpowers-route.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive token and print safe route response
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(python3 - <<'PY'
+          import hashlib,os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$TOKEN"
+          echo 'health:'
+          curl -sS 'https://tlt-superpowers-router.lehr007.workers.dev/health' | python3 -m json.tool
+          echo 'route:'
+          curl -sS -X POST 'https://tlt-superpowers-router.lehr007.workers.dev/route' \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"search IDX listings in Fort Lauderdale"}' | python3 -m json.tool
+          echo 'gateway-superpowers-health:'
+          curl -sS 'https://listing-team-ai-gateway.lehr007.workers.dev/health/superpowers' | python3 -m json.tool

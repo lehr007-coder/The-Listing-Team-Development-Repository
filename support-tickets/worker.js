@@ -205,6 +205,7 @@ textarea.form-input{resize:vertical;min-height:90px}
     <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/ylopo-contacts">📋 Contacts</a>
     <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/ylopo-analytics">📊 Analytics</a>
     <a href="https://thelistingteamproxy-staging.lehr007.workers.dev/dashboard/pipeline">🚀 Pipeline</a>
+    <a href="https://claude.ai/artifact/Ad4qinM4XnuUB8Kt6GDyMp" target="_blank" rel="noopener">📡 Sync Panel</a>
     <a href="/" class="active">🎟 Support</a>
   </div>
   <div class="hbar-right">

@@ -10,7 +10,7 @@ const isGhlOrigin = (origin: string) => {
       host.endsWith(".gohighlevel.com") ||
       host.endsWith(".leadconnectorhq.com") ||
       host.endsWith(".msgsndr.com") ||
-      host.endsWith(".highlevel.com")
+      host.endsWith(".highlevel.com") || host.endsWith(".reallistingteam.com")
     );
   } catch {
     return false;

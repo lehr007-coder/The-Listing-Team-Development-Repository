@@ -1,0 +1,4 @@
+// GENERATED DEPLOYMENT MIRROR. Canonical source is private marketing-superpowers runtime.
+const REPO='lehr007-coder/Listing-Team-Development-Repository',PREFIX='superpowers-canary-approved-write-';
+export function validateGithubWriteCanary(r={}){const op=String(r.operation||''),t=r.target||{},branch=String(t.branch||'');if(op!=='github.create_branch')return{ok:false,error:'canary_only_allows_create_branch'};if(String(t.repository||'')!==REPO)return{ok:false,error:'canary_repository_not_allowed'};if(String(t.from_ref||'')!=='main')return{ok:false,error:'canary_must_start_from_main'};if(!branch.startsWith(PREFIX)||branch.length>100)return{ok:false,error:'canary_branch_name_not_allowed'};return{ok:true,repository:REPO,branch};}
+export const githubWriteCanaryPolicy=Object.freeze({repository:REPO,branch_prefix:PREFIX,operation:'github.create_branch',base_ref:'main',delete_after_canary:false,mark_for_future_retirement:true});

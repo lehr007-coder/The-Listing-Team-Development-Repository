@@ -1,0 +1,115 @@
+name: Finalize Superpowers IDX Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-superpowers-idx-service.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Patch AI Gateway for direct IDX service binding
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('listing-team-ai-gateway/src/index.ts')
+          s=p.read_text()
+          if 'IDX_INTERNAL_TOKEN?: string;' not in s:
+              s=s.replace('  IDX_BRIDGE_AUTH_TOKEN?: string;\n', '  IDX_BRIDGE_AUTH_TOKEN?: string;\n  IDX_INTERNAL_TOKEN?: string;\n  IDX_BRIDGE?: Fetcher;\n')
+          old='''async function idx(tool: string, args: Json, env: Env): Promise<unknown> {\n  const base = requireUrl(env.IDX_BRIDGE_BASE_URL, "IDX_BRIDGE_BASE_URL"); const headers: Record<string, string> = {};\n  if (env.IDX_BRIDGE_AUTH_TOKEN) headers["x-bridge-auth"] = env.IDX_BRIDGE_AUTH_TOKEN;\n  return postJson(`${base}/tool/${encodeURIComponent(tool)}`, args, headers);\n}'''
+          new='''async function idx(tool: string, args: Json, env: Env): Promise<unknown> {\n  const path = `/tool/${encodeURIComponent(tool)}`;\n  if (env.IDX_BRIDGE) {\n    if (!env.IDX_INTERNAL_TOKEN) throw new Error("IDX_INTERNAL_TOKEN is not configured");\n    const response = await env.IDX_BRIDGE.fetch(new Request(`https://idx.internal${path}`, {\n      method: "POST",\n      headers: { "content-type": "application/json", "x-idx-internal-auth": env.IDX_INTERNAL_TOKEN },\n      body: JSON.stringify(args)\n    }));\n    const text = await response.text(); let payload: unknown;\n    try { payload = text ? JSON.parse(text) : null; } catch { payload = { raw: text }; }\n    if (!response.ok) throw new Error(`IDX upstream ${response.status}: ${JSON.stringify(payload)}`);\n    return payload;\n  }\n  const base = requireUrl(env.IDX_BRIDGE_BASE_URL, "IDX_BRIDGE_BASE_URL"); const headers: Record<string, string> = {};\n  if (env.IDX_BRIDGE_AUTH_TOKEN) headers["x-bridge-auth"] = env.IDX_BRIDGE_AUTH_TOKEN;\n  return postJson(`${base}${path}`, args, headers);\n}'''
+          if old not in s and 'https://idx.internal' not in s:
+              raise SystemExit('Expected idx() block not found; refusing unsafe patch')
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          git diff --check
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add listing-team-ai-gateway/src/index.ts
+            git commit -m 'Use direct IDX service binding for Superpowers safe execution'
+            git push
+          else
+            echo 'Gateway source already patched.'
+          fi
+      - name: Derive dedicated internal IDX token
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-idx-internal-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$TOKEN"
+          echo "IDX_INTERNAL_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      - name: Typecheck gateway
+        working-directory: listing-team-ai-gateway
+        run: |
+          npm install --legacy-peer-deps
+          npm run typecheck
+      - name: Deploy gateway and install internal secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config listing-team-ai-gateway/wrangler.toml
+          printf '%s' "$IDX_INTERNAL_TOKEN" | npx --yes wrangler@4 secret put IDX_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$IDX_INTERNAL_TOKEN" | npx --yes wrangler@4 secret put IDX_INTERNAL_TOKEN --name idx-mcp-bridge >/dev/null
+      - name: Verify guarded live IDX execution
+        env:
+          SUPERPOWERS_TOKEN: ${{ env.IDX_INTERNAL_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Superpowers internal endpoint uses the router token, not the IDX token.
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+          sleep 5
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" -H 'content-type: application/json' --data '{}')" = "401"
+          code=$(curl -sS -o /tmp/result.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"search active IDX listings in Fort Lauderdale","tool":"realestate.search_listings","arguments":{"city":"Fort Lauderdale","idxStatus":"active"}}')
+          echo "internal execute-safe HTTP=$code"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/result.json'))
+          summary={
+            'ok': d.get('ok'),
+            'mode': d.get('mode'),
+            'tool': d.get('tool'),
+            'project': ((d.get('routing') or {}).get('project') or {}).get('id'),
+            'capabilities': [x.get('id') for x in (d.get('routing') or {}).get('capabilities',[])],
+            'execution': (d.get('routing') or {}).get('execution'),
+            'downstream_type': type(d.get('data')).__name__,
+            'error': d.get('error')
+          }
+          print(json.dumps(summary, indent=2))
+          assert d.get('ok') is True, summary
+          assert d.get('mode') == 'safe_read_only_execution', summary
+          ex=(d.get('routing') or {}).get('execution') or {}
+          assert ex.get('can_execute_without_approval') is True, summary
+          assert ex.get('delete_permitted') is False, summary
+          assert ex.get('archive_permitted') is False, summary
+          assert any(x.get('id')=='idx' for x in (d.get('routing') or {}).get('capabilities',[])), summary
+          PY

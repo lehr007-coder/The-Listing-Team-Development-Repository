@@ -4,3 +4,36 @@ compatibility_date = "2024-01-01"
 
 # Enable workers.dev route so the staging subdomain stays reachable.
 workers_dev = true
+
+# Custom domain for staging, same mechanism as production: wrangler provisions
+# the DNS record and the edge certificate together. A bare CNAME to
+# thelistingteamproxy-staging.lehr007.workers.dev would resolve but have no
+# certificate for this hostname and fail the TLS handshake.
+routes = [
+  { pattern = "stagingproxy.reallistingteam.com", custom_domain = true }
+]
+
+[vars]
+# CRITICAL: staging must read the STAGING Transaction OS, which is bound to the
+# demo GHL sub-account. Before this was configurable the dashboard hardcoded the
+# production host, so the staging dashboard displayed PRODUCTION's live deals —
+# exactly what a staging environment exists to prevent.
+TOS_BASE_URL = "https://tos-proxy-staging.lehr007.workers.dev"
+DASHBOARD_ENV = "STAGING"
+
+# The Ylopo sidecar matrix worker holds the buyer behavioural data (views,
+# saves, showings, intent score). A Worker cannot fetch another Worker on the
+# same zone over its public hostname - Cloudflare returns error 1042 - so it is
+# bound as a service and called internally.
+[[services]]
+binding = "YLOPO_MATRIX"
+service = "ylopo-matrix-proxy"
+
+# hub/16 user module: accounts, revocable sessions, durable lockout.
+# The worker feature-detects this binding — no [[d1_databases]] block means
+# legacy shared-password behaviour, which is why production is unaffected
+# until a block like this is added there deliberately.
+[[d1_databases]]
+binding = "DB"
+database_name = "tlt-users-staging"
+database_id = "6aadd925-dbb4-4d24-b690-4286d9cfdd88"

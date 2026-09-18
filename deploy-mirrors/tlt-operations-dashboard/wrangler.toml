@@ -1,0 +1,26 @@
+name = "tlt-operations-dashboard"
+main = "src/access-index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+# Cloudflare Access is the primary human security boundary. This non-secret
+# value lets the Worker verify the authenticated identity even when the deploy
+# token cannot manage Access applications or service tokens.
+ACCESS_ALLOWED_EMAIL = "lehr007@gmail.com"
+
+[[services]]
+binding = "AI_GATEWAY"
+service = "listing-team-ai-gateway"
+
+[[services]]
+binding = "SUPERPOWERS_ROUTER"
+service = "tlt-superpowers-router"
+
+[[services]]
+binding = "SUPERPOWERS_CANARY"
+service = "tlt-superpowers-router"
+entrypoint = "SuperpowersWorkflowCanaryEntrypoint"

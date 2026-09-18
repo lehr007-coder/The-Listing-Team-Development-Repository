@@ -1,13 +1,16 @@
 name: Deploy tos-proxy-staging
 
+# RETIRED 2026-08-18 — the second path to the same clobbering.
+#
+# This fires on any push touching tos-proxy/**, and uploads the decompiled
+# June bundle tos-proxy/worker.js over the live tos-proxy-staging worker. It
+# has not fired since 2026-07-28 only because nobody has edited that directory
+# — it is a landmine, not a dormant job. See the note in deploy-staging.yml
+# for the measurements.
+#
+# Source of truth:
+#   github.com/lehr007-coder/the-listing-team-transaction-os  (proxy/)
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
-    paths:
-      - 'tos-proxy/**'
-      - '.github/workflows/deploy-tos-proxy-staging.yml'
   workflow_dispatch:
 
 concurrency: deploy-tos-proxy-staging
@@ -23,8 +26,13 @@ jobs:
         run: node --check tos-proxy/worker.js
       # Gate: the actual deploy runs only from main or a manual run, so
       # claude/** branch pushes validate without landing on staging.
-      - name: Deploy via Cloudflare API (bindings preserved)
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: python3 tos-proxy/deploy.py
+      - name: Refuse
+        run: |
+          echo "::error::Retired. This uploads a decompiled June bundle over live staging."
+          echo "Deploy from github.com/lehr007-coder/the-listing-team-transaction-os"
+          echo "  cd proxy && npm run deploy:staging"
+          exit 1
+#     - name: Deploy via Cloudflare API (bindings preserved)   # retired 2026-08-18
+#       env:
+#         CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#       run: python3 tos-proxy/deploy.py

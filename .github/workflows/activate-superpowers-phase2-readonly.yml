@@ -1,0 +1,115 @@
+name: Activate Superpowers Phase 2 Read-Only
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-superpowers-phase2-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  # The API token has access to more than one Cloudflare account; without
+  # this wrangler exits with "More than one account available but unable to
+  # select one in non-interactive mode". Same id as the other workflows here.
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install and typecheck Gateway v0.5.0
+        working-directory: listing-team-ai-gateway
+        run: |
+          set -euo pipefail
+          npm install --include=dev --legacy-peer-deps
+          npm run typecheck
+
+      - name: Deploy Gateway with Phase 2 service bindings
+        working-directory: listing-team-ai-gateway
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.toml
+
+      - name: Install dedicated Phase 2 internal credentials
+        working-directory: listing-team-ai-gateway
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          derive() {
+            CONTEXT="$1" python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256((os.environ['CONTEXT']+':'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          }
+          CRM_TOKEN="$(derive 'tlt-superpowers-crm-internal-v1')"
+          YLOPO_TOKEN="$(derive 'tlt-superpowers-ylopo-internal-v1')"
+          SQUARESPACE_TOKEN="$(derive 'tlt-superpowers-squarespace-internal-v1')"
+          echo "::add-mask::$CRM_TOKEN"
+          echo "::add-mask::$YLOPO_TOKEN"
+          echo "::add-mask::$SQUARESPACE_TOKEN"
+          printf '%s' "$CRM_TOKEN" | npx wrangler secret put CRM_MCP_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+          printf '%s' "$YLOPO_TOKEN" | npx wrangler secret put YLOPO_MCP_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+          printf '%s' "$SQUARESPACE_TOKEN" | npx wrangler secret put SQUARESPACE_MCP_INTERNAL_TOKEN --name listing-team-ai-gateway >/dev/null
+          echo '{"ok":true,"installed":["CRM_MCP_INTERNAL_TOKEN","YLOPO_MCP_INTERNAL_TOKEN","SQUARESPACE_MCP_INTERNAL_TOKEN"]}'
+
+      - name: Verify guarded Phase 2 read-only execution
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROUTER_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$ROUTER_TOKEN"
+          URL='https://listing-team-ai-gateway.lehr007.workers.dev/internal/superpowers/execute-safe'
+          sleep 5
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' -X POST "$URL" -H 'content-type: application/json' --data '{}')" = "401"
+
+          probe() {
+            NAME="$1"
+            BODY="$2"
+            OUT="/tmp/${NAME}.json"
+            CODE=$(curl -sS -o "$OUT" -w '%{http_code}' -X POST "$URL" \
+              -H "Authorization: Bearer $ROUTER_TOKEN" \
+              -H 'Content-Type: application/json' \
+              --data "$BODY")
+            echo "$NAME HTTP=$CODE"
+            test "$CODE" = "200"
+            NAME="$NAME" OUT="$OUT" python3 - <<'PY'
+          import json, os
+          d=json.load(open(os.environ['OUT']))
+          assert d.get('ok') is True, {'ok':d.get('ok'),'error':d.get('error')}
+          assert d.get('mode') == 'safe_read_only_execution', d.get('mode')
+          execution=(d.get('routing') or {}).get('execution') or {}
+          assert execution.get('can_execute_without_approval') is True
+          assert execution.get('delete_permitted') is False
+          assert execution.get('archive_permitted') is False
+          print(json.dumps({
+            'probe': os.environ['NAME'],
+            'ok': True,
+            'tool': d.get('tool'),
+            'mode': d.get('mode'),
+            'can_execute_without_approval': execution.get('can_execute_without_approval'),
+            'delete_permitted': execution.get('delete_permitted'),
+            'archive_permitted': execution.get('archive_permitted'),
+            'downstream_result_present': d.get('data') is not None
+          }))
+          PY
+          }
+
+          probe crm '{"request":"check the CRM bridge health using read-only access","tool":"crm.bridge_health_check","arguments":{}}'
+          probe ylopo '{"request":"show a read-only Ylopo pipeline summary","tool":"ylopo.pipeline_summary","arguments":{}}'
+          probe squarespace '{"request":"list Squarespace products using read-only access","tool":"squarespace.list_products","arguments":{"limit":1}}'

@@ -22,11 +22,18 @@ export type GhlSsoPayload = {
   userId: string;
   companyId?: string;
   locationId?: string;
+  activeLocation?: string; // GHL sends the location here for location-context SSO
   type?: string;     // "agency" | "location"
   role?: string;     // GHL role string (e.g. "admin", "user")
   userName?: string;
   email?: string;
 };
+
+// GHL's SSO payload carries the location as `activeLocation` (location
+// context) or occasionally `locationId`. Normalize to one accessor.
+export function ssoLocationId(payload: GhlSsoPayload): string {
+  return payload.locationId || payload.activeLocation || "";
+}
 
 export function decryptGhlSso(encrypted: string, ssoKey: string): GhlSsoPayload {
   const blob = Buffer.from(encrypted, "base64");

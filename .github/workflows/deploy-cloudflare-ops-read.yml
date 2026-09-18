@@ -1,0 +1,80 @@
+name: Deploy Cloudflare Ops Read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloudflare-ops-read/**'
+      - '.github/workflows/deploy-cloudflare-ops-read.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare-ops-read
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy read-only adapter
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
+      - name: Install adapter secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-cloudflare-ops-read-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$CF_API_TOKEN" | npx --yes wrangler@4 secret put CF_API_TOKEN --name tlt-cloudflare-ops-read >/dev/null
+          printf '%s' "$INTERNAL_TOKEN" | npx --yes wrangler@4 secret put CF_OPS_INTERNAL_TOKEN --name tlt-cloudflare-ops-read >/dev/null
+      - name: Verify health and read-only inventory
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-cloudflare-ops-read.lehr007.workers.dev'
+          sleep 5
+          curl -fsS "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d['ok'] is True
+          assert d['mode']=='read_only'
+          assert d['writes_supported'] is False
+          assert d['delete_supported'] is False
+          PY
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-cloudflare-ops-read-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$INTERNAL_TOKEN"
+          test "$(curl -sS -o /tmp/unauth -w '%{http_code}' -X POST "$BASE/read" -H 'content-type: application/json' --data '{"operation":"summary"}')" = "401"
+          curl -fsS -X POST "$BASE/read" \
+            -H "X-Superpowers-Internal: $INTERNAL_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"operation":"summary"}' | tee /tmp/summary.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/summary.json'))
+          assert d['ok'] is True
+          assert d['mode']=='read_only'
+          data=d['data']
+          assert data['workers']['ok'] is True
+          assert data['pages']['ok'] is True
+          assert data['kv']['ok'] is True
+          assert data['r2']['ok'] is True
+          assert data['queues']['ok'] is True
+          assert data['zones']['ok'] is True
+          print(json.dumps({k:v for k,v in data.items()}, indent=2))
+          PY

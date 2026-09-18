@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decryptGhlSso, mapGhlRole } from "@/lib/ghl/sso";
+import { decryptGhlSso, mapGhlRole, ssoLocationId } from "@/lib/ghl/sso";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { encodeSession, SESSION_COOKIE_NAME, SESSION_MAX_AGE } from "@/lib/auth/session";
 
@@ -20,13 +20,23 @@ export async function GET(req: NextRequest) {
   if (!payload.userId) return NextResponse.json({ error: "Bad payload" }, { status: 400 });
 
   const role = mapGhlRole(payload);
+  const locationId = ssoLocationId(payload);
   const db = supabaseAdmin();
+
+  // Never clobber a known location with "" — agency-context SSO payloads
+  // carry no location, but the user's row may already have the right one.
+  const { data: existing } = await db
+    .from("users")
+    .select("ghl_location_id")
+    .eq("ghl_user_id", payload.userId)
+    .maybeSingle();
+
   const { data: user, error } = await db
     .from("users")
     .upsert(
       {
         ghl_user_id: payload.userId,
-        ghl_location_id: payload.locationId ?? "",
+        ghl_location_id: locationId || existing?.ghl_location_id || "",
         email: payload.email ?? "",
         name: payload.userName ?? null,
         role,

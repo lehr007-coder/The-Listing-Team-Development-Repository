@@ -1,0 +1,56 @@
+name: Validate
+
+# Runs on every push and PR. Deploys stay manual (deploy-production.yml is
+# workflow_dispatch with a DEPLOY confirmation); this is the gate that tells
+# you whether pressing that button is safe.
+#
+# The check is deliberately static -- no browser, no staging deploy, no
+# secrets -- so it can run on every commit in seconds. The rendered-page
+# contrast scanners (.redesign/scan.js, grad.js, audit.js) need a live deploy
+# and are a separate, slower concern.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-gate:
+    name: Static pre-deploy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Worker syntax, hex-alpha corruption, palette relief rule
+        run: node thelistingteamproxy/.redesign/validate_static.js
+
+  branch-freshness:
+    name: Warn if the branch is behind main
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Report commits this branch is missing from main
+        run: |
+          # On 2026-08-17 a palette change was nearly deployed to production
+          # from a branch six commits behind main. That would have reverted
+          # 551 lines: the Ylopo event->contact fix, the saved-search
+          # enrichment, both Buyer Intel data commits, and the design-system
+          # promotion -- plus silently dropped the YLOPO_MATRIX service
+          # binding. Nothing warned. This does.
+          git fetch origin main --quiet
+          BEHIND=$(git rev-list --count HEAD..origin/main)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "::warning::This branch is $BEHIND commit(s) behind origin/main."
+            echo "Deploying from it would revert those commits. Merge main first."
+            git log --oneline HEAD..origin/main
+          else
+            echo "Up to date with origin/main."
+          fi

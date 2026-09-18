@@ -1,0 +1,13 @@
+# scratch: transfer artefacts, backups, extracted page copies
+*.b64
+*.tgz
+__pycache__/
+new-body.html
+new.css
+
+# contrast audit harness
+#   cd /tmp/cdp && npm i puppeteer-core && node audit.js light|dark
+# Drives the real staging page in headless Chrome and measures each chip label
+# against its own COMPOSITED background - the tint over the card, not the card.
+worker.js.bak-*
+*.html

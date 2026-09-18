@@ -17,6 +17,12 @@ on:
       - '.github/workflows/deploy-ai-video-staging.yml'
   workflow_dispatch:
 
+env:
+  # The API token has access to more than one Cloudflare account; without
+  # this wrangler exits with "More than one account available but unable to
+  # select one in non-interactive mode". Same id as the other workflows here.
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
 jobs:
   deploy-ai-video:
     name: Deploy ai-video-system-staging
@@ -31,9 +37,23 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: ai-video-system
           command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
-          secrets: |
-            CF_STREAM_API_TOKEN
-        env:
-          CF_STREAM_API_TOKEN: ${{ secrets.CLOUDFLARE_STREAM_API_TOKEN }}
+          # NO `secrets:` BLOCK HERE — DO NOT ADD ONE. wrangler-action runs
+          # `wrangler secret bulk` as a SEPARATE invocation that does not
+          # receive the `--config wrangler.staging.toml` flag from `command:`
+          # above. It therefore resolves the default ai-video-system/wrangler.toml,
+          # whose name is `ai-video-system` — the PRODUCTION worker. On
+          # 2026-09-18 this wrote a secret to production; the run log read
+          # `Creating the secrets for the Worker "ai-video-system"` while the
+          # deploy step correctly targeted ai-video-system-staging.
+          #
+          # CF_STREAM_API_TOKEN is already set on ai-video-system-staging and
+          # persists across deploys, so nothing is lost by removing this.
+          # To rotate it, run from ai-video-system/:
+          #   npx wrangler secret put CF_STREAM_API_TOKEN --config wrangler.staging.toml
+          #
+          # deploy-ai-video-production.yml may keep its `secrets:` block: its
+          # command uses --config wrangler.toml, which matches the default
+          # resolution, so its secret upload lands on the intended worker.

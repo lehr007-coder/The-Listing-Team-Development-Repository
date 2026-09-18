@@ -1,0 +1,154 @@
+name: Deploy Superpowers Integrated
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-superpowers-router/**'
+      - 'listing-team-ai-gateway/**'
+      - '.github/workflows/deploy-superpowers-integrated.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Derive internal Superpowers tokens
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_API_TOKEN"
+          python3 - <<'PY'
+          import hashlib, os
+          token=os.environ['CF_API_TOKEN']
+          pairs={
+            'ROUTER_TOKEN':'tlt-superpowers-router-v1',
+            'CRM_MCP_TOKEN':'tlt-superpowers-crm-internal-v1',
+            'YLOPO_MCP_TOKEN':'tlt-superpowers-ylopo-internal-v1',
+            'SQUARESPACE_MCP_TOKEN':'tlt-superpowers-squarespace-internal-v1',
+          }
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+            for name,context in pairs.items():
+              value=hashlib.sha256((context+':'+token).encode()).hexdigest()
+              print(f'::add-mask::{value}')
+              f.write(f'{name}={value}\n')
+          PY
+
+      - name: Typecheck AI Gateway
+        working-directory: listing-team-ai-gateway
+        run: |
+          npm install --legacy-peer-deps
+          npm run typecheck
+
+      - name: Deploy latest code before secret mutation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config deploy-mirrors/tlt-superpowers-router/wrangler.toml
+          npx --yes wrangler@4 deploy --config listing-team-ai-gateway/wrangler.toml
+
+      - name: Install internal Superpowers secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+        run: |
+          set -euo pipefail
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_AUTH_TOKEN --config deploy-mirrors/tlt-superpowers-router/wrangler.toml >/dev/null
+          printf '%s' "$ROUTER_TOKEN" | npx --yes wrangler@4 secret put SUPERPOWERS_ROUTER_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$CRM_MCP_TOKEN" | npx --yes wrangler@4 secret put CRM_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$YLOPO_MCP_TOKEN" | npx --yes wrangler@4 secret put YLOPO_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+          printf '%s' "$SQUARESPACE_MCP_TOKEN" | npx --yes wrangler@4 secret put SQUARESPACE_MCP_INTERNAL_TOKEN --config listing-team-ai-gateway/wrangler.toml >/dev/null
+
+      - name: Verify secure routing integration
+        run: |
+          set -euo pipefail
+          R='https://tlt-superpowers-router.lehr007.workers.dev'
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+          sleep 5
+          test "$(curl -sS -o /tmp/health -w '%{http_code}' "$R/health")" = "200"
+          test "$(curl -sS -o /tmp/reg -w '%{http_code}' "$R/registry")" = "401"
+          test "$(curl -sS -o /tmp/route0 -w '%{http_code}' -X POST "$R/route" -H 'content-type: application/json' --data '{"request":"search IDX listings in Fort Lauderdale"}')" = "401"
+          curl -fsS -X POST "$R/route" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"search IDX listings in Fort Lauderdale"}' > /tmp/route.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/route.json'))
+          assert d['ok'] is True
+          assert d['execution']['delete_permitted'] is False
+          assert any(c['id']=='idx' for c in d['capabilities'])
+          PY
+          curl -fsS "$G/health/superpowers" > /tmp/gateway.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/gateway.json'))
+          assert d.get('ok') is True
+          assert d.get('routeAuth') is True
+          assert (d.get('projectCount') or 0) >= 5
+          PY
+
+      - name: Verify Phase 2 safe read-only execution and blocking
+        run: |
+          set -euo pipefail
+          G='https://listing-team-ai-gateway.lehr007.workers.dev'
+
+          safe_call() {
+            local name="$1"
+            local payload="$2"
+            local file="/tmp/${name}.json"
+            local code
+            code=$(curl -sS -o "$file" -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+              -H "Authorization: Bearer $ROUTER_TOKEN" \
+              -H 'content-type: application/json' \
+              --data "$payload")
+            test "$code" = "200"
+            TEST_NAME="$name" TEST_FILE="$file" python3 - <<'PY'
+          import json, os
+          d=json.load(open(os.environ['TEST_FILE']))
+          assert d.get('ok') is True
+          assert d.get('mode') == 'safe_read_only_execution'
+          ex=((d.get('routing') or {}).get('execution') or {})
+          assert ex.get('can_execute_without_approval') is True
+          assert ex.get('delete_permitted') is False
+          assert ex.get('archive_permitted') is False
+          caps=[c.get('id') for c in ((d.get('routing') or {}).get('capabilities') or [])]
+          print(json.dumps({'test':os.environ['TEST_NAME'],'ok':True,'tool':d.get('tool'),'mode':d.get('mode'),'capabilities':caps,'delete_permitted':ex.get('delete_permitted'),'archive_permitted':ex.get('archive_permitted')}))
+          PY
+          }
+
+          safe_call crm '{"request":"check FUB and GHL CRM bridge health read only","tool":"crm.bridge_health_check","arguments":{"response_format":"json"}}'
+          safe_call ylopo '{"request":"show one Ylopo opportunity read only","tool":"ylopo.list_opportunities","arguments":{"limit":1,"response_format":"json"}}'
+          safe_call squarespace '{"request":"list one Squarespace product read only","tool":"squarespace.list_products","arguments":{"limit":1,"response_format":"json"}}'
+
+          WRITE_CODE=$(curl -sS -o /tmp/write-block.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"update a GHL contact","tool":"crm.ghl_upsert_contact","arguments":{}}')
+          test "$WRITE_CODE" = "502"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/write-block.json'))
+          assert d.get('ok') is False
+          assert 'not approved for safe automatic execution' in d.get('error','')
+          print('{"test":"crm_write_block","ok":true,"upstream_executed":false}')
+          PY
+
+          DELETE_CODE=$(curl -sS -o /tmp/delete-block.json -w '%{http_code}' -X POST "$G/internal/superpowers/execute-safe" \
+            -H "Authorization: Bearer $ROUTER_TOKEN" \
+            -H 'content-type: application/json' \
+            --data '{"request":"delete a Ylopo lead","tool":"ylopo.search_contacts","arguments":{"query":"safety-probe"}}')
+          test "$DELETE_CODE" = "502"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/delete-block.json'))
+          assert d.get('ok') is False
+          print('{"test":"destructive_intent_block","ok":true,"upstream_executed":false}')
+          PY

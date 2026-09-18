@@ -7,14 +7,6 @@ on:
       - 'claude/**'
   workflow_dispatch: {}
 
-# Gate: real deploys to the shared staging workers happen only from main
-# or a manual "Run workflow". Pushes to claude/** feature branches run the
-# same wrangler step with --dry-run, so they validate/build the worker and
-# give a green/red signal without landing unfinished work on staging. To
-# push a branch to staging on purpose, trigger this workflow manually.
-
-# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
-# on 2026-06-02. Remove when the action publishes a Node-24-native release.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -28,6 +20,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: thelistingteamproxy
           command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
 
@@ -40,6 +33,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: support-tickets
           command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
 
@@ -52,5 +46,58 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: ghl-brand-injector
           command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
+
+  deploy-ai-video-system:
+    name: Deploy ai-video-system-staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
+          workingDirectory: ai-video-system
+          command: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && 'deploy --config wrangler.staging.toml' || 'deploy --dry-run --config wrangler.staging.toml' }}
+
+# RETIRED 2026-08-18 — this directory no longer deploys anything
+#
+# `tos-proxy/worker.js` here is a DECOMPILED JUNE BUNDLE. PORTING-TO-TS.md at
+# the top of this directory records the port to the TypeScript workspace as
+# "STATUS: COMPLETED 2026-06-12" — but the deploy job and the drift check were
+# never retired with it, so for over two months every push to main re-uploaded
+# the June bundle over the live tos-proxy-staging worker.
+#
+# MEASURED 2026-08-18. The bundle this deployed carries:
+#     0  redesign markers          (live build has them)
+#     0  R1 multi-tenant markers   (live build routes per tenant)
+#     9  copies of a stale credential literal that was removed from the
+#        canonical source that same day
+# It is 58,966 bytes against the current 89,243.
+#
+# The clobbering was visible in Cloudflare as `Source: Upload` deployments
+# landing 7-9 seconds after each run of this workflow, and it happened again at
+# 14:46:53 UTC on 2026-08-18 — 41 seconds before an unrelated deploy from the
+# canonical repo happened to overwrite it again.
+#
+# SOURCE OF TRUTH:  github.com/lehr007-coder/the-listing-team-transaction-os
+#                   (proxy/ — deploy with `npm run deploy:staging`)
+#
+# To restore this job you would first have to explain why a June bundle should
+# outrank it.
+
+
+  deploy-social-post-importer:
+    name: Deploy social-post-importer-staging (Python/raw API deploy)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy via deploy.py
+        working-directory: social-post-importer-deploy
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 deploy.py

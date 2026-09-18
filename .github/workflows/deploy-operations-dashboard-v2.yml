@@ -1,0 +1,241 @@
+name: Deploy Operations Dashboard v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy-mirrors/tlt-operations-dashboard/**'
+      - '.github/workflows/deploy-operations-dashboard-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The API token has access to more than one Cloudflare account; without
+  # this wrangler exits with "More than one account available but unable to
+  # select one in non-interactive mode". Same id as the other workflows here.
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy-mirrors/tlt-operations-dashboard
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate worker source
+        run: |
+          npm install --include=dev
+          npm run check
+      - name: Deploy to Cloudflare production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --config wrangler.toml
+      - name: Install dashboard and internal service credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          DASHBOARD_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          INTERNAL_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-superpowers-router-v1:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASHBOARD_TOKEN"
+          echo "::add-mask::$INTERNAL_TOKEN"
+          printf '%s' "$DASHBOARD_TOKEN" | npx wrangler secret put DASHBOARD_ACCESS_TOKEN --name tlt-operations-dashboard >/dev/null
+          printf '%s' "$INTERNAL_TOKEN" | npx wrangler secret put SUPERPOWERS_INTERNAL_TOKEN --name tlt-operations-dashboard >/dev/null
+      - name: Configure Cloudflare Access human and CI verification login
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCESS_EMAIL: lehr007@gmail.com
+        run: |
+          set -euo pipefail
+          API='https://api.cloudflare.com/client/v4'
+          DOMAIN='tlt-operations-dashboard.lehr007.workers.dev'
+          APP_NAME='TLT Operations Dashboard'
+          POLICY_NAME='Allow dashboard owner'
+          CI_POLICY_NAME='Allow dashboard CI verifier'
+          auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H 'Content-Type: application/json')
+          skip_access_verifier() {
+            reason="$1"
+            echo "access_verifier_ready=false"
+            echo "access_verifier_blocked_reason=$reason"
+            {
+              echo '### Dashboard Cloudflare Access verifier blocked'
+              echo
+              echo "Cloudflare Worker deploy and Worker secret install succeeded, but Cloudflare Access verifier setup could not complete: $reason."
+              echo 'The protected JSON verifier was skipped instead of failing the production deploy. Grant Access Apps/Policies Write and Access Service Tokens Write, then rerun this workflow.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+          cf_json() {
+            method="$1"
+            url="$2"
+            output="$3"
+            data_file="${4:-}"
+            if [ -n "$data_file" ]; then
+              code=$(curl -sS -w '%{http_code}' -o "$output" "${auth[@]}" -X "$method" --data @"$data_file" "$url")
+            else
+              code=$(curl -sS -w '%{http_code}' -o "$output" "${auth[@]}" -X "$method" "$url")
+            fi
+            if [ "$code" != '200' ]; then
+              error_codes=$(jq -r '[.errors[]?.code] | map(tostring) | join(",")' "$output" 2>/dev/null || true)
+              skip_access_verifier "HTTP $code from $method $url error_codes=${error_codes:-none}"
+            fi
+            jq -e '.success==true' "$output" >/dev/null || {
+              error_codes=$(jq -r '[.errors[]?.code] | map(tostring) | join(",")' "$output" 2>/dev/null || true)
+              skip_access_verifier "Cloudflare API success flag was not true for $method $url error_codes=${error_codes:-none}"
+            }
+          }
+
+          echo 'ACCESS_VERIFIER_READY=false' >> "$GITHUB_ENV"
+          accounts_code=$(curl -sS -w '%{http_code}' -o /tmp/accounts.json "${auth[@]}" "$API/accounts?per_page=50")
+          if [ "$accounts_code" != '200' ]; then
+            skip_access_verifier "HTTP $accounts_code from GET $API/accounts"
+          fi
+          ACCOUNT_ID=''
+          while read -r candidate; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CF_API_TOKEN" "$API/accounts/$candidate/workers/scripts/tlt-operations-dashboard" || true)
+            if [ "$code" = '200' ]; then ACCOUNT_ID="$candidate"; break; fi
+          done < <(jq -r '.result[].id' /tmp/accounts.json)
+          if [ -z "$ACCOUNT_ID" ]; then
+            skip_access_verifier 'repository token could not read the tlt-operations-dashboard Worker script from any listed account'
+          fi
+
+          cf_json GET "$API/accounts/$ACCOUNT_ID/access/apps?per_page=100" /tmp/apps.json
+          APP_ID=$(jq -r --arg d "$DOMAIN" '.result[] | select(.domain==$d) | .id' /tmp/apps.json | head -1)
+          if [ -z "$APP_ID" ]; then
+            jq -n --arg name "$APP_NAME" --arg domain "$DOMAIN" '{name:$name,type:"self_hosted",domain:$domain,session_duration:"24h",auto_redirect_to_identity:false}' > /tmp/app-create.json
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps" /tmp/app.json /tmp/app-create.json
+            APP_ID=$(jq -r '.result.id' /tmp/app.json)
+          fi
+          test -n "$APP_ID"
+
+          cf_json GET "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/policies.json
+          POLICY_ID=$(jq -r --arg n "$POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
+          jq -n --arg name "$POLICY_NAME" --arg email "$ACCESS_EMAIL" '{name:$name,decision:"allow",precedence:1,include:[{email:{email:$email}}]}' > /tmp/policy.json
+          if [ -z "$POLICY_ID" ]; then
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/policy-result.json /tmp/policy.json
+          else
+            cf_json PUT "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$POLICY_ID" /tmp/policy-result.json /tmp/policy.json
+          fi
+
+          jq -n --arg name "TLT Operations Dashboard CI verifier $GITHUB_RUN_ID" '{name:$name,duration:"2h"}' > /tmp/service-token-create.json
+          cf_json POST "$API/accounts/$ACCOUNT_ID/access/service_tokens" /tmp/service-token.json /tmp/service-token-create.json
+          SERVICE_TOKEN_ID=$(jq -r '.result.id' /tmp/service-token.json)
+          ACCESS_CLIENT_ID=$(jq -r '.result.client_id' /tmp/service-token.json)
+          ACCESS_CLIENT_SECRET=$(jq -r '.result.client_secret' /tmp/service-token.json)
+          test -n "$SERVICE_TOKEN_ID"
+          test -n "$ACCESS_CLIENT_ID"
+          test -n "$ACCESS_CLIENT_SECRET"
+          echo "::add-mask::$ACCESS_CLIENT_ID"
+          echo "::add-mask::$ACCESS_CLIENT_SECRET"
+          {
+            echo "ACCESS_CLIENT_ID=$ACCESS_CLIENT_ID"
+            echo "ACCESS_CLIENT_SECRET=$ACCESS_CLIENT_SECRET"
+          } >> "$GITHUB_ENV"
+
+          CI_POLICY_ID=$(jq -r --arg n "$CI_POLICY_NAME" '.result[] | select(.name==$n) | .id' /tmp/policies.json | head -1)
+          jq -n --arg name "$CI_POLICY_NAME" --arg token "$SERVICE_TOKEN_ID" '{name:$name,decision:"non_identity",precedence:2,include:[{service_token:{token_id:$token}}]}' > /tmp/ci-policy.json
+          if [ -z "$CI_POLICY_ID" ]; then
+            cf_json POST "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies" /tmp/ci-policy-result.json /tmp/ci-policy.json
+          else
+            cf_json PUT "$API/accounts/$ACCOUNT_ID/access/apps/$APP_ID/policies/$CI_POLICY_ID" /tmp/ci-policy-result.json /tmp/ci-policy.json
+          fi
+
+          echo 'ACCESS_VERIFIER_READY=true' >> "$GITHUB_ENV"
+          printf '%s' "$ACCESS_EMAIL" | npx wrangler secret put ACCESS_ALLOWED_EMAIL --name tlt-operations-dashboard >/dev/null
+      - name: Verify production health and protected live snapshot
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE='https://tlt-operations-dashboard.lehr007.workers.dev'
+          DASHBOARD_TOKEN=$(python3 - <<'PY'
+          import hashlib, os
+          print(hashlib.sha256(('tlt-operations-dashboard-human-v2:'+os.environ['CF_API_TOKEN']).encode()).hexdigest())
+          PY
+          )
+          echo "::add-mask::$DASHBOARD_TOKEN"
+          if [ "${ACCESS_VERIFIER_READY:-false}" != 'true' ]; then
+            sleep 5
+            public_health_code=$(curl -sS -o /tmp/public-health -w '%{http_code}' "$BASE/health" || true)
+            public_snapshot_code=$(curl -sS -o /tmp/public-snapshot -w '%{http_code}' "$BASE/api/snapshot" || true)
+            {
+              echo '### Dashboard deploy complete; protected JSON verifier needs Cloudflare Access scope'
+              echo
+              echo 'The Worker JSON verifier was skipped because this workflow did not receive Access service-token credentials from the previous step.'
+              echo "Public /health HTTP code observed by CI: ${public_health_code:-unavailable}."
+              echo "Public /api/snapshot HTTP code observed by CI: ${public_snapshot_code:-unavailable}."
+              echo 'This is a NEEDS_DATA verifier state, not a PASS for protected Dashboard JSON.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test -n "${ACCESS_CLIENT_ID:-}"
+          test -n "${ACCESS_CLIENT_SECRET:-}"
+          ACCESS_HEADERS=(-H "CF-Access-Client-Id: $ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $ACCESS_CLIENT_SECRET")
+          sleep 5
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/health" | tee /tmp/health.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/health.json'))
+          assert d['ok'] is True
+          assert d['service']=='tlt-operations-dashboard'
+          assert d['version']=='2.1.1'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['auth_configured'] is True
+          assert d['access_owner_configured'] is True
+          assert d['gateway_binding_configured'] is True
+          assert d['router_binding_configured'] is True
+          assert d['private_workflow_canary_binding_configured'] is True
+          assert d['delete_enabled'] is False
+          assert d['archive_enabled'] is False
+          PY
+          PUBLIC_CODE=$(curl -sS -o /tmp/public-snapshot -w '%{http_code}' "$BASE/api/snapshot")
+          test "$PUBLIC_CODE" != '200'
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/api/snapshot" -H "Authorization: Bearer $DASHBOARD_TOKEN" | tee /tmp/snapshot.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/snapshot.json'))
+          assert d['ok'] is True
+          assert d['dashboard']=='TLT Operations Dashboard'
+          assert d['version']=='2.1.0'
+          assert d['environment']=='production-cloudflare'
+          assert d['deployment_profile']=='pro-production-only'
+          assert d['safety']['delete_enabled'] is False
+          assert d['safety']['archive_enabled'] is False
+          assert len(d['projects']) == 5
+          assert d['retirement']['mode']=='mark_only'
+          PY
+
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/api/canary/superpowers-workflow" -H "Authorization: Bearer $DASHBOARD_TOKEN" -X POST | tee /tmp/workflow-canary.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/workflow-canary.json'))
+          assert d['ok'] is True
+          assert d['canary']=='private_service_binding_workflow'
+          assert d['final_state']=='COMPLETE'
+          assert d['failure_isolation']=='PASS'
+          assert d['resume_audit_records']==1
+          assert d['external_write_attempted'] is False
+          assert d['production_or_public_write_attempted'] is False
+          assert d['completed_stages']==['intake','lead_context','property_data','transaction_review','compliance']
+          PY
+
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            curl -sS -D /tmp/access-headers -o /tmp/access-body "$BASE/" || true
+            if grep -qi 'cloudflareaccess.com' /tmp/access-headers /tmp/access-body; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = '1'

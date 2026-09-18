@@ -16,6 +16,12 @@ on:
         required: true
         default: ''
 
+env:
+  # The API token has access to more than one Cloudflare account; without
+  # this wrangler exits with "More than one account available but unable to
+  # select one in non-interactive mode". Same id as the other workflows here.
+  CLOUDFLARE_ACCOUNT_ID: '0424a0a1799c8b3b7f0947a4e3a202ba'
+
 jobs:
   guard:
     name: Confirm production deploy
@@ -40,6 +46,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: ai-video-system
           command: deploy --config wrangler.toml
           secrets: |

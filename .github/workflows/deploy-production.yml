@@ -5,7 +5,7 @@ name: Deploy Production Workers
 #   gh workflow run deploy-production.yml
 #
 # Uses prod wrangler.toml configs (no -staging suffix) for each worker.
-# All three workers deploy in parallel. If one fails, the others still run.
+# All workers deploy in parallel. If one fails, the others still run.
 
 on:
   workflow_dispatch:
@@ -15,8 +15,6 @@ on:
         required: true
         default: ''
 
-# Opt wrangler-action into Node.js 24 ahead of GitHub's forced switch
-# on 2026-06-02. Remove when the action publishes a Node-24-native release.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -44,6 +42,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: thelistingteamproxy
           command: deploy --config wrangler.toml
 
@@ -58,6 +57,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: support-tickets
           command: deploy --config wrangler.toml
 
@@ -72,5 +72,53 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
           workingDirectory: ghl-brand-injector
           command: deploy --config wrangler.toml
+
+  deploy-ai-video-system:
+    name: Deploy ai-video-system (prod)
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
+          workingDirectory: ai-video-system
+          command: deploy --config wrangler.toml
+
+# tos-proxy is deliberately NOT deployed from this workflow.
+#
+# Removed 2026-08-20. This job ran `tos-proxy/deploy_prod.py`, which uploads
+# `tos-proxy/worker.js` - a decompiled June bundle, last touched 2026-07-28.
+# Shipping it to production would revert R1 multi-tenant routing, the deadline
+# normaliser protecting 18 waived live records, the security headers, and every
+# fix since 2026-06-12.
+#
+# `deploy-tos-proxy-production.yml` was disabled on 2026-08-18 for exactly that
+# reason - but that refusal did not protect this workflow, which still carried
+# its own copy of the job. A dispatch on 2026-08-20 queued it; it was cancelled
+# on the `production` environment gate before any job ran.
+#
+# Production tos-proxy deploys come from the canonical repo:
+#   github.com/lehr007-coder/the-listing-team-transaction-os  (proxy/)
+#
+# Note that `deploy-staging.yml` has no tos-proxy job either - this was the only
+# path by which this repo could reach production TOS.
+
+  deploy-social-post-importer:
+    name: Deploy social-post-importer (prod, Python/raw API deploy)
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy via deploy_prod.py
+        working-directory: social-post-importer-deploy
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 deploy_prod.py

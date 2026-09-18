@@ -1,0 +1,29 @@
+name: Verify Superpowers Gateway Now
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-superpowers-gateway-now.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check current public health bridge
+        run: |
+          set -euo pipefail
+          echo 'router health:'
+          curl -fsS 'https://tlt-superpowers-router.lehr007.workers.dev/health' | python3 -m json.tool
+          echo 'gateway bridge health:'
+          curl -fsS 'https://listing-team-ai-gateway.lehr007.workers.dev/health/superpowers' | tee /tmp/g.json | python3 -m json.tool
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/g.json'))
+          assert d.get('ok') is True
+          assert d.get('routeAuth') is True
+          assert (d.get('projectCount') or 0) >= 5
+          PY
