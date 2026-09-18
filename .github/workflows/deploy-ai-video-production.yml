@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: '0424a0a1799c8b3b7f0947a4e3a202ba'
