@@ -80,10 +80,39 @@ async function fetchPage(env, table, offset, limit) {
   return r.json();
 }
 
-export async function migrateSupabaseToD1(env, { dryRun = true } = {}) {
+export async function migrateSupabaseToD1(env, { dryRun = true, force = false } = {}) {
   if (!env.VIDEO_DB) return { ok: false, reason: "no_video_db_binding" };
   if (!env.SUPABASE_URL || !(env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY)) {
     return { ok: false, reason: "no_supabase_config" };
+  }
+
+  // GUARD: refuse to run against a populated D1 unless explicitly forced.
+  //
+  // This is a one-shot cutover tool, but it is reachable forever — an admin
+  // route and a KV flag. Supabase's video_jobs rows are FROZEN at the cutover
+  // (nothing writes them any more; the newest is 2026-08-10). Every write here
+  // is INSERT OR REPLACE, so re-running this months from now would silently
+  // overwrite live job state with stale rows and resurrect deleted ones.
+  //
+  // Re-running against an EMPTY D1 is still allowed with no ceremony, which is
+  // the case that matters: a genuine rollback or a fresh environment. Forcing
+  // over live data has to be deliberate.
+  if (!dryRun && !force) {
+    const existing = await env.VIDEO_DB
+      .prepare(`SELECT COUNT(*) AS n FROM video_jobs`).first();
+    const n = Number(existing?.n) || 0;
+    if (n > 0) {
+      return {
+        ok: false,
+        reason: "d1_not_empty",
+        existing_video_jobs: n,
+        detail:
+          "video_jobs already has rows. This tool is a one-shot cutover and " +
+          "Supabase is frozen at the cutover date, so re-running would " +
+          "overwrite live job state with stale rows. Pass force to override " +
+          "only if you intend exactly that.",
+      };
+    }
   }
 
   const started = Date.now();
