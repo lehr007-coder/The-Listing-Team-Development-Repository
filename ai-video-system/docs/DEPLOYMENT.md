@@ -89,9 +89,9 @@ Set with `wrangler secret put <NAME> --config wrangler.staging.toml`
 | `HEYGEN_DEFAULT_AVATAR_ID`       | yes      | Default avatar |
 | `HEYGEN_DEFAULT_VOICE_ID`        | yes      | Default voice |
 | `HEYGEN_CALLBACK_SECRET`         | recommended | HMAC signing for HeyGen callbacks |
-| `FCPXML_MCP_URL`                 | yes      | Base URL of the FCPXML MCP renderer |
-| `FCPXML_MCP_API_KEY`             | yes      | Bearer for the renderer |
-| `FCPXML_CALLBACK_SECRET`         | recommended | HMAC signing for FCPXML callbacks |
+| `FCPXML_MCP_URL`                 | **no — RETIRED** | The renderer was never built. See "FCPXML is retired" below. |
+| `FCPXML_MCP_API_KEY`             | **no — RETIRED** | Same. |
+| `FCPXML_CALLBACK_SECRET`         | **no — RETIRED** | Same. |
 | `CF_ACCOUNT_ID`                  | yes      | Cloudflare account id (for Stream/Images APIs) |
 | `CF_STREAM_API_TOKEN`            | yes      | Token with Stream:Edit |
 | `CF_IMAGES_API_TOKEN`            | optional | Only if using CF Images |
@@ -248,3 +248,33 @@ production is cut over and verified.
 Notable difference from Supabase: staging and production previously shared one
 `video_jobs` table, so staging runs wrote into production's job history. With
 D1 each environment has its own database and that cross-contamination is gone.
+
+
+## FCPXML is retired (2026-09-18)
+
+**The FCPXML upstream renderer was never built, and the engine has produced zero
+real videos.** It is gated off; `POST /v1/fcpxml/render` returns
+`503 fcpxml_retired`. `fcpxml: false` in `/v1/health` is the expected, correct
+state — not a misconfiguration.
+
+Evidence, from all 342 production job rows:
+
+| Finding | Detail |
+|---|---|
+| Every FCPXML job ever created | One 62-minute window, 2026-05-07 01:44–02:46 UTC. Ten jobs total. |
+| Seven of them | Manually failed via `/v1/admin/jobs/:id/fail` |
+| The three "delivered" | All share one `r2_url`: `test-videos.co.uk/.../Big_Buck_Bunny_720_10s_1MB.mp4` — the sample MP4 from `routes/devstub.js`, not a render |
+| Renderer on Cloudflare | None exists among the account's Workers |
+
+Staging reports `fcpxml: true` only because its `FCPXML_MCP_URL` points at its own
+dev stub (`/v1/_dev/fcpxml-stub`), which is live and returns `{"_stub": true}`.
+Production correctly refuses that stub with 403.
+
+**HeyGen is the engine that actually renders.** The FCPXML code, the director agent
+and the storyboard design are kept rather than deleted — they are reusable if a
+renderer is ever built. To revive it: stand up a renderer, set `FCPXML_MCP_URL` and
+`FCPXML_MCP_API_KEY`, and remove the retirement guard in `routes/fcpxml.js`.
+
+⚠️ Three rows in `video_jobs` still carry `status='delivered'` with the Big Buck
+Bunny URL. They inflate the delivered count (22 reported vs 19 real) and feed the
+engagement analytics and admin dashboard. They are test fixtures, not deliveries.

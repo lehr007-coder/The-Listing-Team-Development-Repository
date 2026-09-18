@@ -84,9 +84,12 @@ async function handleRender(request, env) {
   // Reject at intake, not mid-pipeline. Without this the request burned an
   // agent invocation and a rate-limit slot before dying at the render call.
   if (!fcpxmlConfigured(env)) {
-    return error(503, "fcpxml_not_configured",
-      "FCPXML render engine is not configured in this environment. " +
-      "Set FCPXML_MCP_URL and FCPXML_MCP_API_KEY to enable it.");
+    return error(503, "fcpxml_retired",
+      "The FCPXML render engine is retired — no upstream renderer was ever " +
+      "built, and it has produced zero real videos (its only 'deliveries' " +
+      "were the dev stub's sample MP4). Use the HeyGen engine. To revive " +
+      "FCPXML, stand up a renderer and set FCPXML_MCP_URL and " +
+      "FCPXML_MCP_API_KEY; see lib/fcpxml.js.");
   }
 
   if (!FCPXML_VIDEO_TYPES.has(video_type)) {

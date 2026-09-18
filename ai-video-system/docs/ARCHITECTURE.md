@@ -24,7 +24,7 @@ and its own GHL custom fields. It mutates **nothing** else.
   │                                                                      │
   │   /v1/heygen/render  ─┐                                              │
   │   /v1/fcpxml/render  ─┤  → invokeAgent(...)  → upstream renderer     │
-  │                       │                       (HeyGen / FCPXML MCP)  │
+  │                       │              (HeyGen; FCPXML RETIRED 2026-09-18) │
   │   /v1/heygen/callback ┐                                              │
   │   /v1/fcpxml/callback ┘  → RENDER_QUEUE → consumer:                  │
   │                              MP4 → R2 (VIDEO_BUCKET)                 │
