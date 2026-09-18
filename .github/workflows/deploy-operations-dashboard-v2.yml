@@ -190,12 +190,13 @@ jobs:
           d=json.load(open('/tmp/health.json'))
           assert d['ok'] is True
           assert d['service']=='tlt-operations-dashboard'
-          assert d['version']=='2.0.0'
+          assert d['version']=='2.1.0'
           assert d['environment']=='production-cloudflare'
           assert d['deployment_profile']=='pro-production-only'
           assert d['auth_configured'] is True
           assert d['gateway_binding_configured'] is True
           assert d['router_binding_configured'] is True
+          assert d['private_workflow_canary_binding_configured'] is True
           assert d['delete_enabled'] is False
           assert d['archive_enabled'] is False
           PY
@@ -207,13 +208,27 @@ jobs:
           d=json.load(open('/tmp/snapshot.json'))
           assert d['ok'] is True
           assert d['dashboard']=='TLT Operations Dashboard'
-          assert d['version']=='2.0.0'
+          assert d['version']=='2.1.0'
           assert d['environment']=='production-cloudflare'
           assert d['deployment_profile']=='pro-production-only'
           assert d['safety']['delete_enabled'] is False
           assert d['safety']['archive_enabled'] is False
           assert len(d['projects']) == 5
           assert d['retirement']['mode']=='mark_only'
+          PY
+
+          curl -fsS "${ACCESS_HEADERS[@]}" "$BASE/api/canary/superpowers-workflow" -H "Authorization: Bearer $DASHBOARD_TOKEN" -X POST | tee /tmp/workflow-canary.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/workflow-canary.json'))
+          assert d['ok'] is True
+          assert d['canary']=='private_service_binding_workflow'
+          assert d['final_state']=='COMPLETE'
+          assert d['failure_isolation']=='PASS'
+          assert d['resume_audit_records']==1
+          assert d['external_write_attempted'] is False
+          assert d['production_or_public_write_attempted'] is False
+          assert d['completed_stages']==['intake','lead_context','property_data','transaction_review','compliance']
           PY
 
           ok=0

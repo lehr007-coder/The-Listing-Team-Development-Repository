@@ -13,3 +13,8 @@ service = "listing-team-ai-gateway"
 [[services]]
 binding = "SUPERPOWERS_ROUTER"
 service = "tlt-superpowers-router"
+
+[[services]]
+binding = "SUPERPOWERS_CANARY"
+service = "tlt-superpowers-router"
+entrypoint = "SuperpowersWorkflowCanaryEntrypoint"

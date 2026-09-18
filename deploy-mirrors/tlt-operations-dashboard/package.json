@@ -1,10 +1,10 @@
 {
   "name": "tlt-operations-dashboard",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/index.js",
+    "check": "node --check src/index.js && node --test",
     "deploy": "wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
