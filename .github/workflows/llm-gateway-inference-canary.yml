@@ -1,0 +1,99 @@
+name: LLM Gateway Inference Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Model to test'
+        required: true
+        default: 'gpt-5.6-luna'
+        type: choice
+        options:
+          - gpt-5.6-luna
+          - gpt-5.6-sol
+          - claude-fable-5.1
+      endpoint:
+        description: 'API endpoint'
+        required: true
+        default: 'https://api.experientiallabs.ai/v1'
+        type: choice
+        options:
+          - https://api.experientiallabs.ai/v1
+          - https://api.openai.com/v1
+      max_tokens:
+        description: 'Max completion tokens'
+        required: false
+        default: '256'
+        type: string
+
+jobs:
+  canary:
+    name: LLM Gateway Canary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate model
+        run: |
+          MODEL="${{ github.event.inputs.model }}"
+          VALID_MODELS="gpt-5.6-luna|gpt-5.6-sol|claude-fable-5.1"
+          if ! echo "$MODEL" | grep -qE "^($VALID_MODELS)$"; then
+            echo "❌ Invalid model: $MODEL"
+            exit 1
+          fi
+          echo "✓ Model validated: $MODEL"
+
+      - name: Validate endpoint
+        run: |
+          ENDPOINT="${{ github.event.inputs.endpoint }}"
+          VALID_ENDPOINTS="https://api.experientiallabs.ai/v1|https://api.openai.com/v1"
+          if ! echo "$ENDPOINT" | grep -qE "^($VALID_ENDPOINTS)$"; then
+            echo "❌ Invalid endpoint: $ENDPOINT"
+            exit 1
+          fi
+          echo "✓ Endpoint validated: $ENDPOINT"
+
+      - name: Run inference canary
+        env:
+          MODEL: ${{ github.event.inputs.model }}
+          ENDPOINT: ${{ github.event.inputs.endpoint }}
+          MAX_TOKENS: ${{ github.event.inputs.max_tokens }}
+          API_KEY: ${{ secrets.EXPLABS_API_KEY }}
+        run: |
+          if [ -z "$API_KEY" ]; then
+            echo "❌ EXPLABS_API_KEY secret not configured"
+            exit 1
+          fi
+
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_KEY" \
+            -d '{
+              "model": "'$MODEL'",
+              "messages": [{"role": "user", "content": "Respond with OK"}],
+              "max_tokens": '$MAX_TOKENS',
+              "stream": false
+            }' \
+            "$ENDPOINT/chat/completions")
+
+          echo "Response:"
+          echo "$RESPONSE" | jq . 2>/dev/null || echo "$RESPONSE"
+
+          # Extract and report key metrics
+          STATUS=$(echo "$RESPONSE" | jq -r '.choices[0].message.content' 2>/dev/null)
+          PROMPT_TOKENS=$(echo "$RESPONSE" | jq -r '.usage.prompt_tokens' 2>/dev/null)
+          COMPLETION_TOKENS=$(echo "$RESPONSE" | jq -r '.usage.completion_tokens' 2>/dev/null)
+          TOTAL_TOKENS=$(echo "$RESPONSE" | jq -r '.usage.total_tokens' 2>/dev/null)
+
+          echo "---"
+          echo "Model: $MODEL"
+          echo "Status: $STATUS"
+          echo "Prompt tokens: $PROMPT_TOKENS"
+          echo "Completion tokens: $COMPLETION_TOKENS"
+          echo "Total tokens: $TOTAL_TOKENS"
+
+          if [ "$STATUS" = "OK" ]; then
+            echo "✓ Canary test passed"
+            exit 0
+          else
+            echo "❌ Canary test failed"
+            exit 1
+          fi

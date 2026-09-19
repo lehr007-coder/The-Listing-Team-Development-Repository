@@ -1,0 +1,26 @@
+capabilities:
+  llm_inference:
+    verified_public_models:
+      - slug: gpt-5.6-luna
+        status: active
+        retention: not_zdr
+        verified_at: '2026-09-18'
+      - slug: gpt-5.6-sol
+        status: active
+        retention: not_zdr
+        verified_at: '2026-09-01'
+      - slug: claude-fable-5.1
+        status: active
+        retention: not_zdr
+        verified_at: '2026-08-15'
+    gateway:
+      endpoint: https://api.experientiallabs.ai/v1
+      auth_var: EXPLABS_API_KEY
+      eligible_data:
+        - internal
+        - public_marketing
+      excluded_data:
+        - client_pii
+        - lead_data
+        - transaction_documents
+      default_route: direct
