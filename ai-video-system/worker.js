@@ -25,6 +25,7 @@ import ghlWebhookRoute from "./routes/ghl_webhook.js";
 import { processRenderQueueBatch } from "./lib/queue-consumer.js";
 import { runHeygenPollFallback } from "./lib/heygen-poll-fallback.js";
 import { runPendingOpsTask } from "./lib/ops-task.js";
+import { runHealthWatch } from "./lib/health-watch.js";
 
 const ROUTES = [
   { prefix: "/v1/health",            auth: false, handler: healthRoute },
@@ -115,6 +116,14 @@ export default {
         if (ops) console.log("scheduled: ops-task", JSON.stringify(ops));
       } catch (e) {
         console.error("scheduled: ops-task failed:", e.stack || e.message);
+      }
+      // Proactive health watch. Self-rate-limited: real work at most hourly,
+      // one email per condition per 24h. Never throws.
+      try {
+        const w = await runHealthWatch(env);
+        if (w && !w.skipped) console.log("scheduled: health-watch", JSON.stringify(w));
+      } catch (e) {
+        console.error("scheduled: health-watch failed:", e.stack || e.message);
       }
       try {
         const r = await runHeygenPollFallback(env, ctx);
